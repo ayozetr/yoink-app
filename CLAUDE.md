@@ -99,6 +99,17 @@ pip install -r requirements-dev.txt   # test deps (pytest, httpx)
 pytest                                # run the backend test suite
 ```
 
+### Desktop app (Tauri)
+
+```bash
+python scripts/build_backend.py   # bundle the backend as a PyInstaller sidecar
+npm run tauri build               # produce desktop installers in src-tauri/target
+```
+
+The Tauri shell (`src-tauri/`) loads the built frontend and launches the
+bundled backend sidecar on startup. Prerequisites: Rust toolchain and, on
+Linux, `webkit2gtk` (4.1). Icons are generated with `npm run tauri icon`.
+
 ## Conventions
 
 - **Tailwind v3** with `tailwind.config.js` + `postcss.config.js`. Shared color

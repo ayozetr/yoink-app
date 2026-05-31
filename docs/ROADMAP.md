@@ -72,7 +72,9 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 ## Phase 5 — Packaging & polish ⬜
 
 - ⬜ One-command local startup (frontend + backend)
-- ⬜ Desktop packaging (e.g. Tauri/Electron) for Linux and Windows
+- ✅ Desktop packaging with Tauri (`src-tauri/`): the FastAPI backend is bundled
+  as a PyInstaller sidecar the app launches on startup. Build with
+  `python scripts/build_backend.py && npm run tauri build`
 - ✅ Settings UI (download dir, default format/quality, cookies) — persisted
   via `GET`/`PUT /api/settings` to `<data_dir>/settings.json`
 - ✅ End-to-end tests (Playwright, `e2e/`, mocked API)

@@ -19,7 +19,7 @@ def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
     app = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
+        version="0.5.0",
         summary="Local yt-dlp wrapper powering the Yoink media downloader.",
     )
 

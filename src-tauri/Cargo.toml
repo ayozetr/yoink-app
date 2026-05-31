@@ -1,0 +1,19 @@
+[package]
+name = "yoink"
+version = "0.5.0"
+description = "Yoink — local high-fidelity media downloader"
+authors = ["Ayoze Torres"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+strip = true

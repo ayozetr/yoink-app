@@ -44,3 +44,13 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/
+
+# PyInstaller
+backend/dist/
+backend/build/
+*.spec
