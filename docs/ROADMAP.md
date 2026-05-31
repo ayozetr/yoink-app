@@ -90,3 +90,24 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
   the GitHub release page for a manual download
 - ⬜ Publish update artifacts + `latest.json` manifest as part of the release
   flow so the updater can find them
+
+## Phase 7 — Android (experimental) ⬜
+
+The frontend ports to Android easily (Tauri v2 mobile loads the React UI in a
+WebView). The hard part is the engine: the PyInstaller backend sidecar does
+**not** work on Android (no spawnable binaries, no `externalBin`), so the
+local HTTP/WebSocket server must be replaced. Three routes:
+
+- ⬜ **Embed Python (Chaquopy) + ffmpeg-kit**: run yt-dlp in-process and drive
+  it via native Tauri commands instead of REST/WS to `localhost`. Keeps Python.
+- ⬜ **Native yt-dlp lib (`youtubedl-android`) + ffmpeg-kit**: the approach the
+  Seal app uses; leaves Python behind for a Kotlin/Java layer.
+- ⬜ **Thin client**: APK is just the UI talking to a remote backend (the
+  desktop FastAPI on a PC/NAS). Minimal work, but no longer fully "local".
+- ⬜ Android toolchain + plumbing: Android SDK/NDK/JDK, `tauri android`,
+  scoped-storage save paths, runtime permissions.
+
+> Notes: functionally proven on Android (cf. the Seal app = yt-dlp + ffmpeg in
+> an APK). Distribute via direct APK / F-Droid — Google Play typically rejects
+> YouTube downloaders. This is a separate mini-project, not an extension of the
+> desktop packaging.
