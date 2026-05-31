@@ -73,5 +73,6 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 
 - ⬜ One-command local startup (frontend + backend)
 - ⬜ Desktop packaging (e.g. Tauri/Electron) for Linux and Windows
-- ⬜ Settings UI (default download dir, default format/quality)
+- ✅ Settings UI (download dir, default format/quality, cookies) — persisted
+  via `GET`/`PUT /api/settings` to `<data_dir>/settings.json`
 - ⬜ End-to-end tests

@@ -68,6 +68,26 @@ def test_history_list_and_clear(history_db):
     assert client.get("/api/history").json() == []
 
 
+def test_settings_get_and_put(temp_dirs):
+    body = client.get("/api/settings").json()
+    assert "download_dir" in body and body["default_kind"] in ("video", "audio")
+
+    payload = {
+        **body,
+        "default_kind": "audio",
+        "default_quality": "480p",
+        "cookies_from_browser": "firefox",
+        "cookies_file": None,
+        "download_dir": str(temp_dirs / "dl"),
+    }
+    saved = client.put("/api/settings", json=payload)
+    assert saved.status_code == 200
+    assert saved.json()["default_kind"] == "audio"
+    assert saved.json()["cookies_from_browser"] == "firefox"
+    # Persisted to disk.
+    assert (temp_dirs / "data" / "settings.json").exists()
+
+
 def test_open_folder(temp_dirs, monkeypatch):
     opened: list[str] = []
     monkeypatch.setattr(

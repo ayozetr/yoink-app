@@ -19,6 +19,12 @@ def temp_dirs(tmp_path, monkeypatch):
     download_dir = tmp_path / "downloads"
     monkeypatch.setattr(settings, "data_dir", data_dir)
     monkeypatch.setattr(settings, "download_dir", download_dir)
+    # Pin mutable settings so any in-test mutation (e.g. via the settings store)
+    # is reverted at teardown and never leaks into other tests.
+    monkeypatch.setattr(settings, "default_kind", settings.default_kind)
+    monkeypatch.setattr(settings, "default_quality", settings.default_quality)
+    monkeypatch.setattr(settings, "cookies_from_browser", settings.cookies_from_browser)
+    monkeypatch.setattr(settings, "cookies_file", settings.cookies_file)
     return tmp_path
 
 

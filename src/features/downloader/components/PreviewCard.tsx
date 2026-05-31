@@ -14,15 +14,29 @@ export interface DownloadSelection {
 interface PreviewCardProps {
   info: VideoInfo;
   onDownload: (selection: DownloadSelection) => void;
+  defaultKind?: MediaKind;
+  defaultQuality?: string;
 }
 
 /** Preview of the analyzed media: thumbnail, info and download controls. */
-export function PreviewCard({ info, onDownload }: PreviewCardProps) {
+export function PreviewCard({
+  info,
+  onDownload,
+  defaultKind,
+  defaultQuality,
+}: PreviewCardProps) {
   const kinds = useMemo(() => availableKinds(info), [info]);
   const qualities = useMemo(() => videoQualities(info), [info]);
 
-  const [kind, setKind] = useState<MediaKind>(kinds[0].kind);
-  const [quality, setQuality] = useState<string>(qualities[0] ?? "");
+  // Seed from the user's defaults when they're actually available for this media.
+  const [kind, setKind] = useState<MediaKind>(
+    kinds.some((k) => k.kind === defaultKind) ? defaultKind! : kinds[0].kind,
+  );
+  const [quality, setQuality] = useState<string>(
+    defaultQuality && qualities.includes(defaultQuality)
+      ? defaultQuality
+      : (qualities[0] ?? ""),
+  );
 
   const isVideo = kind === "video";
 

@@ -13,12 +13,18 @@ import type {
   DownloadProgressEvent,
   DownloadRequest,
   InfoResponse,
+  MediaKind,
   PlaylistEntry,
 } from "../../types/download";
 
 interface DownloaderPanelProps {
   /** Called when a download terminates (completed or failed) to refresh history. */
   onDownloadFinished?: () => void;
+  /** Open the settings modal. */
+  onOpenSettings?: () => void;
+  /** Default media kind / quality from settings, used to seed the selectors. */
+  defaultKind?: MediaKind;
+  defaultQuality?: string;
 }
 
 interface DownloadJob {
@@ -40,7 +46,12 @@ function initialProgress(): DownloadProgressEvent {
 }
 
 /** Main column: orchestrates URL input, preview/playlist and download progress. */
-export function DownloaderPanel({ onDownloadFinished }: DownloaderPanelProps) {
+export function DownloaderPanel({
+  onDownloadFinished,
+  onOpenSettings,
+  defaultKind,
+  defaultQuality,
+}: DownloaderPanelProps) {
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<InfoResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -191,7 +202,10 @@ export function DownloaderPanel({ onDownloadFinished }: DownloaderPanelProps) {
 
   return (
     <>
-      <DownloaderHeader activeDownloads={downloading ? 1 : 0} />
+      <DownloaderHeader
+        activeDownloads={downloading ? 1 : 0}
+        onOpenSettings={onOpenSettings}
+      />
       <UrlInput
         value={url}
         onChange={setUrl}
@@ -213,6 +227,8 @@ export function DownloaderPanel({ onDownloadFinished }: DownloaderPanelProps) {
           key={info.video.id}
           info={info.video}
           onDownload={handleDownload}
+          defaultKind={defaultKind}
+          defaultQuality={defaultQuality}
         />
       )}
 
@@ -222,6 +238,8 @@ export function DownloaderPanel({ onDownloadFinished }: DownloaderPanelProps) {
           playlist={info.playlist}
           onDownload={handleDownloadPlaylist}
           busy={downloading}
+          defaultKind={defaultKind}
+          defaultQuality={defaultQuality}
         />
       )}
 

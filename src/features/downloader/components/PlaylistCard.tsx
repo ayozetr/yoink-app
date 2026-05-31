@@ -13,6 +13,8 @@ interface PlaylistCardProps {
   playlist: PlaylistInfo;
   onDownload: (entries: PlaylistEntry[], selection: DownloadSelection) => void;
   busy?: boolean;
+  defaultKind?: MediaKind;
+  defaultQuality?: string;
 }
 
 // Playlist entries are listed flat (no per-item formats), so quality is a
@@ -20,12 +22,22 @@ interface PlaylistCardProps {
 const QUALITY_OPTIONS = ["1080p", "720p", "480p", "360p"];
 
 /** Preview of an analyzed playlist: pick which items to download. */
-export function PlaylistCard({ playlist, onDownload, busy }: PlaylistCardProps) {
+export function PlaylistCard({
+  playlist,
+  onDownload,
+  busy,
+  defaultKind,
+  defaultQuality,
+}: PlaylistCardProps) {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(playlist.entries.map((entry) => entry.id)),
   );
-  const [kind, setKind] = useState<MediaKind>("video");
-  const [quality, setQuality] = useState<string>(QUALITY_OPTIONS[0]);
+  const [kind, setKind] = useState<MediaKind>(defaultKind ?? "video");
+  const [quality, setQuality] = useState<string>(
+    defaultQuality && QUALITY_OPTIONS.includes(defaultQuality)
+      ? defaultQuality
+      : QUALITY_OPTIONS[0],
+  );
 
   const isVideo = kind === "video";
   const allSelected = selected.size === playlist.entries.length;

@@ -6,6 +6,7 @@
  */
 
 import type {
+  AppSettings,
   DownloadStats,
   HistoryEntry,
   InfoResponse,
@@ -117,4 +118,28 @@ export async function openInFileManager(path?: string | null): Promise<void> {
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
+}
+
+/** Fetch the current settings via `GET /api/settings`. */
+export async function fetchSettings(signal?: AbortSignal): Promise<AppSettings> {
+  const response = await fetch(`${API_BASE_URL}/settings`, { signal });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as AppSettings;
+}
+
+/** Persist new settings via `PUT /api/settings`; returns the effective values. */
+export async function updateSettings(
+  payload: AppSettings,
+): Promise<AppSettings> {
+  const response = await fetch(`${API_BASE_URL}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as AppSettings;
 }

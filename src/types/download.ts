@@ -129,6 +129,15 @@ export type DownloadEvent =
   | DownloadCompletedEvent
   | DownloadErrorEvent;
 
+/** User-editable settings (mirrors backend `AppSettings`). */
+export interface AppSettings {
+  download_dir: string;
+  default_kind: MediaKind;
+  default_quality: string;
+  cookies_from_browser: string | null;
+  cookies_file: string | null;
+}
+
 /** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */
 export interface DownloadStats {
   total_downloads: number;

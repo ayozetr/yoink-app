@@ -152,6 +152,20 @@ class HistoryStats(BaseModel):
     transferred: str = Field(..., description="Human-readable total, e.g. '182 GB'.")
 
 
+class AppSettings(BaseModel):
+    """User-editable settings, persisted to `<data_dir>/settings.json`."""
+
+    download_dir: str = Field(..., description="Where downloads are saved.")
+    default_kind: MediaKind = Field(default="video", description="Default media kind.")
+    default_quality: str = Field(default="1080p", description="Default video quality.")
+    cookies_from_browser: str | None = Field(
+        default=None, description="Browser to read cookies from (e.g. 'firefox')."
+    )
+    cookies_file: str | None = Field(
+        default=None, description="Path to a Netscape cookies.txt file."
+    )
+
+
 class OpenRequest(BaseModel):
     """Body of POST /api/open — reveal a file/folder in the OS file manager."""
 

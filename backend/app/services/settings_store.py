@@ -1,0 +1,67 @@
+"""Persisted, user-editable settings layered on top of the env defaults.
+
+Overrides live in `<data_dir>/settings.json` and are applied onto the in-memory
+`settings` singleton, so the rest of the app keeps reading `settings.*` and
+automatically sees any changes made through the settings UI — no restart.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from app.core.config import settings
+from app.models.media import AppSettings
+
+
+def _settings_path() -> Path:
+    return settings.data_dir / "settings.json"
+
+
+def _apply(data: dict[str, Any]) -> None:
+    """Apply a raw overrides dict onto the in-memory settings singleton."""
+    download_dir = data.get("download_dir")
+    if download_dir:
+        settings.download_dir = Path(download_dir)
+    if data.get("default_kind") in ("video", "audio"):
+        settings.default_kind = data["default_kind"]
+    if data.get("default_quality"):
+        settings.default_quality = str(data["default_quality"])
+
+    settings.cookies_from_browser = data.get("cookies_from_browser") or None
+    cookies_file = data.get("cookies_file")
+    settings.cookies_file = Path(cookies_file) if cookies_file else None
+
+
+def load_overrides() -> None:
+    """Load persisted overrides at startup (no-op if none/invalid)."""
+    path = _settings_path()
+    if not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if isinstance(data, dict):
+        _apply(data)
+
+
+def get_current() -> AppSettings:
+    """Snapshot the current effective settings."""
+    return AppSettings(
+        download_dir=str(settings.download_dir),
+        default_kind=settings.default_kind,
+        default_quality=settings.default_quality,
+        cookies_from_browser=settings.cookies_from_browser,
+        cookies_file=str(settings.cookies_file) if settings.cookies_file else None,
+    )
+
+
+def update(payload: AppSettings) -> AppSettings:
+    """Apply and persist new settings, returning the effective snapshot."""
+    data = payload.model_dump()
+    _apply(data)
+    settings.ensure_data_dir()
+    _settings_path().write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return get_current()

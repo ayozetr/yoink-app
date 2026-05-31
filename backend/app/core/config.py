@@ -8,6 +8,7 @@ both Linux and Windows.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -57,6 +58,10 @@ class Settings(BaseSettings):
     # Not needed for public content. `cookies_from_browser` takes precedence.
     cookies_from_browser: str | None = Field(default=None)
     cookies_file: Path | None = Field(default=None)
+
+    # User-editable defaults (persisted via the settings store / settings UI).
+    default_kind: Literal["video", "audio"] = "video"
+    default_quality: str = "1080p"
 
     def ensure_download_dir(self) -> Path:
         """Create the download directory if missing and return it."""
