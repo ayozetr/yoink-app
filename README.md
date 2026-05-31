@@ -45,3 +45,8 @@ src/
 ## Backend
 
 See [`backend/README.md`](backend/README.md).
+
+## Documentation
+
+- [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions
+- [`docs/`](docs/) — architecture, frontend & backend guides, and the [roadmap](docs/ROADMAP.md)
