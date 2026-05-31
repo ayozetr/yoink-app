@@ -5,11 +5,11 @@ import {
   Music4,
   Video,
 } from "lucide-react";
-import type { HistoryItem } from "../../../types/download";
+import type { HistoryEntry } from "../../../types/download";
 
 interface HistoryItemCardProps {
-  item: HistoryItem;
-  onOpenFolder?: (item: HistoryItem) => void;
+  item: HistoryEntry;
+  onOpenFolder?: (item: HistoryEntry) => void;
 }
 
 /** One row in the download history list. */
@@ -42,14 +42,16 @@ export function HistoryItemCard({ item, onOpenFolder }: HistoryItemCardProps) {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onOpenFolder?.(item)}
-          className="opacity-60 hover:opacity-100 transition"
-          aria-label="Abrir carpeta"
-        >
-          <FolderOpen size={18} className="text-zinc-400" />
-        </button>
+        {isCompleted && (
+          <button
+            type="button"
+            onClick={() => onOpenFolder?.(item)}
+            className="opacity-60 hover:opacity-100 transition"
+            aria-label="Abrir carpeta"
+          >
+            <FolderOpen size={18} className="text-zinc-400" />
+          </button>
+        )}
       </div>
     </div>
   );

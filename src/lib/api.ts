@@ -5,7 +5,11 @@
  * backend runs on a non-default port); it defaults to the local uvicorn server.
  */
 
-import type { VideoInfo } from "../types/download";
+import type {
+  DownloadStats,
+  HistoryEntry,
+  VideoInfo,
+} from "../types/download";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
@@ -71,4 +75,36 @@ export async function fetchVideoInfo(
   }
 
   return (await response.json()) as VideoInfo;
+}
+
+/** Fetch recent download records via `GET /api/history`. */
+export async function fetchHistory(
+  signal?: AbortSignal,
+): Promise<HistoryEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/history`, { signal });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as HistoryEntry[];
+}
+
+/** Fetch aggregate download statistics via `GET /api/history/stats`. */
+export async function fetchStats(signal?: AbortSignal): Promise<DownloadStats> {
+  const response = await fetch(`${API_BASE_URL}/history/stats`, { signal });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as DownloadStats;
+}
+
+/** Reveal a file/folder in the OS file manager via `POST /api/open`. */
+export async function openInFileManager(path?: string | null): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/open`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: path ?? null }),
+  });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
 }

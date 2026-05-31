@@ -53,10 +53,13 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── main.py           # app factory, CORS, router mounting
         ├── core/config.py    # typed settings (CORS, download dir)
         ├── models/media.py   # Pydantic models (JSON contract)
+        ├── core/humanize.py   # shared byte/size formatting
         ├── routers/info.py    # POST /api/info
         ├── routers/download.py        # WS /api/ws/download (live progress)
+        ├── routers/history.py         # GET /api/history(/stats), POST /api/open
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
-        └── services/download_service.py  # yt-dlp download + progress stream
+        ├── services/download_service.py  # yt-dlp download + progress stream
+        └── services/history_store.py  # SQLite persistence (history + stats)
 ```
 
 ## Common commands

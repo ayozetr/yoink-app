@@ -11,6 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, HttpUrl
 
 MediaKind = Literal["video", "audio"]
+HistoryStatus = Literal["completed", "error"]
 
 
 class InfoRequest(BaseModel):
@@ -93,3 +94,34 @@ class ErrorEvent(BaseModel):
 
     type: Literal["error"] = "error"
     message: str = Field(..., description="Human-readable failure reason.")
+
+
+class HistoryEntry(BaseModel):
+    """A persisted record of a completed or failed download."""
+
+    id: int = Field(..., description="Auto-increment primary key.")
+    title: str = Field(..., description="Media title (or file name).")
+    url: str = Field(..., description="Source URL of the download.")
+    kind: MediaKind = Field(..., description="Whether it was video or audio.")
+    status: HistoryStatus = Field(..., description="Final outcome.")
+    filename: str | None = Field(default=None, description="Output file name.")
+    filepath: str | None = Field(default=None, description="Absolute path on disk.")
+    filesize: int | None = Field(default=None, description="Final size in bytes.")
+    created_at: str = Field(..., description="ISO-8601 UTC creation timestamp.")
+
+
+class HistoryStats(BaseModel):
+    """Aggregate statistics across the download history."""
+
+    total_downloads: int = Field(..., description="Count of successful downloads.")
+    total_bytes: int = Field(..., description="Total bytes transferred.")
+    transferred: str = Field(..., description="Human-readable total, e.g. '182 GB'.")
+
+
+class OpenRequest(BaseModel):
+    """Body of POST /api/open — reveal a file/folder in the OS file manager."""
+
+    path: str | None = Field(
+        default=None,
+        description="File or folder to reveal. Defaults to the download dir.",
+    )

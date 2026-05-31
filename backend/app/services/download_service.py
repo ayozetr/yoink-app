@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import threading
 from pathlib import Path
 from typing import Any, AsyncIterator
 
@@ -18,6 +19,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 from app.core.config import settings
+from app.core.humanize import humanize_bytes
 from app.models.media import (
     CompletedEvent,
     DownloadRequest,
@@ -29,22 +31,15 @@ from app.models.media import (
 _Event = ProgressEvent | CompletedEvent | ErrorEvent
 
 
-def _humanize_bytes(num: float | None) -> str | None:
-    """Render a byte count as e.g. '3.2 MB' (OS-independent)."""
-    if num is None:
-        return None
-    size = float(num)
-    for unit in ("B", "KB", "MB", "GB", "TB"):
-        if size < 1024 or unit == "TB":
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return None
+class _DownloadCancelled(Exception):
+    """Raised from the progress hook to abort an in-flight yt-dlp download."""
 
 
 def _format_speed(bytes_per_second: float | None) -> str | None:
     """Render a download speed as e.g. '3.2 MB/s'."""
-    human = _humanize_bytes(bytes_per_second)
-    return f"{human}/s" if human else None
+    if bytes_per_second is None:
+        return None
+    return f"{humanize_bytes(bytes_per_second)}/s"
 
 
 def _format_eta(seconds: float | None) -> str | None:
@@ -159,16 +154,24 @@ def _final_path(info: dict[str, Any]) -> str | None:
     return None
 
 
-async def download_events(request: DownloadRequest) -> AsyncIterator[_Event]:
+async def download_events(
+    request: DownloadRequest,
+    cancel_event: threading.Event | None = None,
+) -> AsyncIterator[_Event]:
     """Run the download, yielding progress events and a terminal event.
 
     Yields one or more :class:`ProgressEvent` followed by exactly one
-    :class:`CompletedEvent` (success) or :class:`ErrorEvent` (failure).
+    :class:`CompletedEvent` (success) or :class:`ErrorEvent` (failure). If
+    ``cancel_event`` is set mid-flight, the download aborts and the iterator
+    ends silently (no terminal event).
     """
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[ProgressEvent] = asyncio.Queue()
 
     def hook(raw: dict[str, Any]) -> None:
+        if cancel_event is not None and cancel_event.is_set():
+            # Raising from the hook aborts the yt-dlp download.
+            raise _DownloadCancelled
         event = _map_progress(raw)
         if event is not None:
             # Hook runs on the worker thread; hand off to the loop thread.
@@ -197,9 +200,18 @@ async def download_events(request: DownloadRequest) -> AsyncIterator[_Event]:
             yield queue.get_nowait()
         break
 
+    if cancel_event is not None and cancel_event.is_set():
+        # Cancelled by the client: swallow the worker's error and stop.
+        worker.cancel()
+        return
+
     try:
         path_str = worker.result()
+    except _DownloadCancelled:
+        return
     except DownloadError as exc:
+        if cancel_event is not None and cancel_event.is_set():
+            return
         yield ErrorEvent(message=str(exc))
         return
     except Exception as exc:  # noqa: BLE001 — surface any failure to the client.

@@ -14,7 +14,7 @@ export function StatsCard({ stats }: StatsCardProps) {
 
       <div className="grid grid-cols-2 gap-4 mt-3">
         <div>
-          <p className="text-2xl font-bold">{stats.totalDownloads}</p>
+          <p className="text-2xl font-bold">{stats.total_downloads}</p>
           <p className="text-xs text-zinc-400">Descargas</p>
         </div>
         <div>

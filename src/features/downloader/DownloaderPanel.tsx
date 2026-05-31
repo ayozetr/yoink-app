@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RotateCw } from "lucide-react";
 import { DownloaderHeader } from "./components/DownloaderHeader";
 import { UrlInput } from "./components/UrlInput";
 import { PreviewCard, type DownloadSelection } from "./components/PreviewCard";
@@ -14,8 +14,13 @@ import type {
   VideoInfo,
 } from "../../types/download";
 
+interface DownloaderPanelProps {
+  /** Called when a download terminates (completed or failed) to refresh history. */
+  onDownloadFinished?: () => void;
+}
+
 /** Main column: orchestrates URL input, preview and download progress. */
-export function DownloaderPanel() {
+export function DownloaderPanel({ onDownloadFinished }: DownloaderPanelProps) {
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<VideoInfo | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,6 +34,8 @@ export function DownloaderPanel() {
   // Track the in-flight analysis request and the active download socket.
   const requestRef = useRef<AbortController | null>(null);
   const downloadRef = useRef<DownloadHandle | null>(null);
+  // Remember the last selection so a failed download can be retried.
+  const lastSelectionRef = useRef<DownloadSelection | null>(null);
 
   // Tear down the socket if the panel unmounts mid-download.
   useEffect(() => () => downloadRef.current?.cancel(), []);
@@ -75,6 +82,7 @@ export function DownloaderPanel() {
 
   const handleDownload = (selection: DownloadSelection) => {
     resetDownload();
+    lastSelectionRef.current = selection;
     setDownloading(true);
     setProgress({
       type: "progress",
@@ -101,14 +109,24 @@ export function DownloaderPanel() {
           setCompleted(event);
           setProgress(null);
           setDownloading(false);
+          onDownloadFinished?.();
         } else {
           setDownloadError(event.message);
           setProgress(null);
           setDownloading(false);
+          onDownloadFinished?.();
         }
       },
       onClose: () => setDownloading(false),
     });
+  };
+
+  const handleCancel = () => {
+    resetDownload();
+  };
+
+  const handleRetry = () => {
+    if (lastSelectionRef.current) handleDownload(lastSelectionRef.current);
   };
 
   return (
@@ -134,13 +152,27 @@ export function DownloaderPanel() {
         <PreviewCard key={info.id} info={info} onDownload={handleDownload} />
       )}
 
-      <DownloadProgressCard progress={progress} completed={completed} />
+      <DownloadProgressCard
+        progress={progress}
+        completed={completed}
+        onCancel={handleCancel}
+      />
 
       {downloadError && (
         <GlassPanel className="p-4 border-red-500/30">
-          <div className="flex items-center gap-3 text-red-300">
-            <AlertCircle size={18} className="shrink-0" />
-            <span className="text-sm">{downloadError}</span>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 text-red-300 min-w-0">
+              <AlertCircle size={18} className="shrink-0" />
+              <span className="text-sm truncate">{downloadError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition shrink-0"
+            >
+              <RotateCw size={15} />
+              Reintentar
+            </button>
           </div>
         </GlassPanel>
       )}

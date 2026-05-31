@@ -48,12 +48,16 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 
 > Cancel/retry of in-flight jobs is deferred to Phase 4.
 
-## Phase 4 — History & persistence ⬜
+## Phase 4 — History & persistence ✅
 
-- ⬜ Persist completed/failed downloads (replace placeholder history data)
-- ⬜ Real download statistics (count, total transferred)
-- ⬜ "Open folder" action wired to the OS file manager
-- ⬜ Cancel / retry downloads
+- ✅ Persist completed/failed downloads in SQLite (`~/.yoink/history.db`,
+  stdlib `sqlite3`, no new deps); `GET /api/history`
+- ✅ Real download statistics (count, total transferred); `GET /api/history/stats`
+- ✅ "Open folder" wired to the OS file manager (`POST /api/open`,
+  xdg-open/open/explorer), constrained to the download dir
+- ✅ Cancel (close the socket → `threading.Event` aborts the job) and retry
+  (re-issue the last selection) from the UI
+- ✅ Sidebar history + stats load real backend data and refresh after each job
 
 ## Phase 5 — Packaging & polish ⬜
 

@@ -9,12 +9,20 @@ export type DownloadStatus = "completed" | "error" | "downloading" | "queued";
 
 export type MediaKind = "video" | "audio";
 
-/** A single entry in the download history sidebar. */
-export interface HistoryItem {
+/** Final outcome persisted in the history (mirrors backend `HistoryStatus`). */
+export type HistoryStatus = "completed" | "error";
+
+/** A persisted download record (mirrors backend `HistoryEntry`). */
+export interface HistoryEntry {
   id: number;
   title: string;
-  status: DownloadStatus;
+  url: string;
   kind: MediaKind;
+  status: HistoryStatus;
+  filename: string | null;
+  filepath: string | null;
+  filesize: number | null;
+  created_at: string;
 }
 
 /**
@@ -94,8 +102,10 @@ export type DownloadEvent =
   | DownloadCompletedEvent
   | DownloadErrorEvent;
 
-/** Aggregate stats shown at the bottom of the sidebar. */
+/** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */
 export interface DownloadStats {
-  totalDownloads: number;
+  total_downloads: number;
+  total_bytes: number;
+  /** Human-readable total, e.g. "182 GB". */
   transferred: string;
 }

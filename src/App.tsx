@@ -1,47 +1,53 @@
+import { useCallback, useEffect, useState } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
-import type { DownloadStats, HistoryItem } from "./types/download";
+import { fetchHistory, fetchStats, openInFileManager } from "./lib/api";
+import type { DownloadStats, HistoryEntry } from "./types/download";
 
-// Placeholder data — replaced by real backend state once /api/info and the
-// download history persistence layer are wired in.
-const HISTORY: HistoryItem[] = [
-  {
-    id: 1,
-    title: "How Linux Actually Boots - Complete Guide",
-    status: "completed",
-    kind: "video",
-  },
-  {
-    id: 2,
-    title: "Top 50 Cybersecurity Tools in 2026",
-    status: "completed",
-    kind: "audio",
-  },
-  {
-    id: 3,
-    title: "LoFi Mix for Coding & Studying",
-    status: "error",
-    kind: "video",
-  },
-  {
-    id: 4,
-    title: "Building a NAS Server at Home",
-    status: "completed",
-    kind: "audio",
-  },
-];
-
-const STATS: DownloadStats = {
-  totalDownloads: 248,
-  transferred: "182 GB",
+const EMPTY_STATS: DownloadStats = {
+  total_downloads: 0,
+  total_bytes: 0,
+  transferred: "0 B",
 };
 
 export default function App() {
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [stats, setStats] = useState<DownloadStats>(EMPTY_STATS);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [entries, aggregate] = await Promise.all([
+        fetchHistory(),
+        fetchStats(),
+      ]);
+      setHistory(entries);
+      setStats(aggregate);
+    } catch {
+      // Backend not reachable yet — keep the current view rather than crash.
+    }
+  }, []);
+
+  useEffect(() => {
+    // Initial load; setState runs asynchronously after the fetch resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refresh();
+  }, [refresh]);
+
+  const handleOpenFolder = (entry: HistoryEntry) => {
+    void openInFileManager(entry.filepath);
+  };
+
   return (
     <AppLayout
-      main={<DownloaderPanel />}
-      sidebar={<HistorySidebar items={HISTORY} stats={STATS} />}
+      main={<DownloaderPanel onDownloadFinished={refresh} />}
+      sidebar={
+        <HistorySidebar
+          items={history}
+          stats={stats}
+          onOpenFolder={handleOpenFolder}
+        />
+      }
     />
   );
 }

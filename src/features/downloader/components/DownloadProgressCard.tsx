@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, X } from "lucide-react";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
 import type {
@@ -9,12 +9,14 @@ import type {
 interface DownloadProgressCardProps {
   progress: DownloadProgressEvent | null;
   completed: DownloadCompletedEvent | null;
+  onCancel?: () => void;
 }
 
 /** Live download indicator fed by yt-dlp progress_hooks (over WS). */
 export function DownloadProgressCard({
   progress,
   completed,
+  onCancel,
 }: DownloadProgressCardProps) {
   if (completed) {
     return (
@@ -44,14 +46,26 @@ export function DownloadProgressCard({
 
   return (
     <GlassPanel className="p-5">
-      <div className="flex justify-between mb-3">
+      <div className="flex items-center justify-between mb-3">
         <span className="flex items-center gap-2 text-sm text-zinc-300">
           <Loader2 size={14} className="animate-spin text-violet-400" />
           {label}
         </span>
-        <span className="text-sm font-medium text-violet-400">
-          {Math.round(progress.percent)}%{detail && ` • ${detail}`}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-violet-400">
+            {Math.round(progress.percent)}%{detail && ` • ${detail}`}
+          </span>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-zinc-400 hover:text-red-400 transition"
+              aria-label="Cancelar descarga"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
       <ProgressBar percent={progress.percent} />
     </GlassPanel>
