@@ -1,0 +1,49 @@
+"""Pydantic models describing the metadata contract returned to the frontend.
+
+These mirror the TypeScript types in `src/types/download.ts` so both sides of
+the app agree on the JSON shape.
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field, HttpUrl
+
+
+class InfoRequest(BaseModel):
+    """Body of a POST /api/info request."""
+
+    url: HttpUrl = Field(..., description="The media URL to inspect.")
+
+
+class MediaFormat(BaseModel):
+    """A single downloadable format reported by yt-dlp."""
+
+    format_id: str = Field(..., description="yt-dlp format identifier.")
+    ext: str = Field(..., description="Container/extension, e.g. 'mp4', 'm4a'.")
+    resolution: str | None = Field(
+        default=None, description="Human-readable resolution, e.g. '1080p'."
+    )
+    fps: float | None = Field(default=None, description="Frames per second, if video.")
+    vcodec: str | None = Field(default=None, description="Video codec, or None for audio-only.")
+    acodec: str | None = Field(default=None, description="Audio codec, or None for video-only.")
+    filesize: int | None = Field(default=None, description="Approximate size in bytes.")
+    has_video: bool = Field(default=False, description="Whether the format carries video.")
+    has_audio: bool = Field(default=False, description="Whether the format carries audio.")
+
+
+class VideoInfo(BaseModel):
+    """Clean metadata for a media URL (extracted with download=False)."""
+
+    id: str = Field(..., description="Source-specific media id.")
+    title: str = Field(..., description="Media title.")
+    duration: float | None = Field(default=None, description="Duration in seconds.")
+    duration_string: str | None = Field(
+        default=None, description="Human-readable duration, e.g. '1h 24m 18s'."
+    )
+    uploader: str | None = Field(default=None, description="Channel/uploader name.")
+    thumbnail_url: str | None = Field(default=None, description="Best thumbnail URL.")
+    webpage_url: str | None = Field(default=None, description="Canonical page URL.")
+    extractor: str | None = Field(default=None, description="yt-dlp extractor used.")
+    formats: list[MediaFormat] = Field(
+        default_factory=list, description="Available downloadable formats."
+    )
