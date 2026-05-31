@@ -38,3 +38,9 @@ backend/downloads/
 
 # Env files
 .env
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright/

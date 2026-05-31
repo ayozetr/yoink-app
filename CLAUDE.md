@@ -84,6 +84,7 @@ npm install
 npm run dev      # dev server (http://localhost:5173)
 npm run build    # type-check (tsc -b) + production build
 npm run lint     # eslint
+npm run test:e2e # Playwright E2E (mocked API; first run: npx playwright install chromium)
 ```
 
 ### Backend (`backend/`)
