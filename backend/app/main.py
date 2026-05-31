@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import info
+from app.routers import download, info
 
 
 def create_app() -> FastAPI:
@@ -32,6 +32,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(info.router, prefix=settings.api_prefix)
+    app.include_router(download.router, prefix=settings.api_prefix)
 
     @app.get("/health", tags=["health"], summary="Liveness probe")
     def health() -> dict[str, str]:

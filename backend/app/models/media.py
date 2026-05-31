@@ -6,7 +6,11 @@ the app agree on the JSON shape.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, HttpUrl
+
+MediaKind = Literal["video", "audio"]
 
 
 class InfoRequest(BaseModel):
@@ -47,3 +51,45 @@ class VideoInfo(BaseModel):
     formats: list[MediaFormat] = Field(
         default_factory=list, description="Available downloadable formats."
     )
+
+
+class DownloadRequest(BaseModel):
+    """What the frontend asks to download, sent over the WebSocket."""
+
+    url: HttpUrl = Field(..., description="The media URL to download.")
+    kind: MediaKind = Field(
+        default="video", description="Whether to fetch video (MP4) or audio (MP3)."
+    )
+    quality: str | None = Field(
+        default=None,
+        description="Target video quality, e.g. '1080p'. Ignored for audio.",
+    )
+
+
+class ProgressEvent(BaseModel):
+    """Streamed repeatedly while yt-dlp downloads (mirrors progress_hooks)."""
+
+    type: Literal["progress"] = "progress"
+    status: Literal["downloading", "processing"] = "downloading"
+    percent: float = Field(..., description="Completion percentage, 0–100.")
+    downloaded_bytes: int | None = Field(default=None)
+    total_bytes: int | None = Field(default=None)
+    speed: str | None = Field(default=None, description="Human-readable, e.g. '3.2 MB/s'.")
+    eta: str | None = Field(default=None, description="Human-readable, e.g. '00:42'.")
+    filename: str | None = Field(default=None, description="Output file name.")
+
+
+class CompletedEvent(BaseModel):
+    """Sent once the file (post-merge / post-extraction) is ready on disk."""
+
+    type: Literal["completed"] = "completed"
+    filename: str = Field(..., description="Final file name on disk.")
+    filepath: str = Field(..., description="Absolute path to the saved file.")
+    total_bytes: int | None = Field(default=None, description="Final size in bytes.")
+
+
+class ErrorEvent(BaseModel):
+    """Sent when the download fails; terminal."""
+
+    type: Literal["error"] = "error"
+    message: str = Field(..., description="Human-readable failure reason.")

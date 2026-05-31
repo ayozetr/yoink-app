@@ -24,9 +24,11 @@ Two layers communicating asynchronously:
 - **Metadata (REST):** when the user pastes a URL, the frontend calls FastAPI.
   The backend runs yt-dlp with `download=False` to extract title, thumbnail and
   available formats, returning clean JSON. Endpoint: `POST /api/info`.
-- **Download & progress (WebSockets / SSE):** on "Download", the backend starts
-  the job in a background task. yt-dlp `progress_hooks` (percent, speed, ETA)
-  stream to the frontend in real time to animate the progress bar. _(planned)_
+- **Download & progress (WebSockets):** on "Download", the frontend opens a
+  socket to `WS /api/ws/download` and sends the request. The backend runs the
+  yt-dlp job off-thread (`asyncio.to_thread`) and streams typed events —
+  `progress` (percent, speed, ETA) → terminal `completed`/`error` — back over
+  the same socket to animate the progress bar.
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` — keep both sides in sync.
@@ -52,7 +54,9 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── core/config.py    # typed settings (CORS, download dir)
         ├── models/media.py   # Pydantic models (JSON contract)
         ├── routers/info.py    # POST /api/info
-        └── services/ytdlp_service.py  # typed yt-dlp wrapper
+        ├── routers/download.py        # WS /api/ws/download (live progress)
+        ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
+        └── services/download_service.py  # yt-dlp download + progress stream
 ```
 
 ## Common commands

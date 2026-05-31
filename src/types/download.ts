@@ -54,12 +54,45 @@ export interface VideoInfo {
   formats: MediaFormat[];
 }
 
-/** Real-time progress reported by yt-dlp progress_hooks over WS/SSE. */
-export interface DownloadProgress {
-  percent: number;
-  /** Human-readable speed, e.g. "3 MB/s". */
-  speed: string;
+/** What the frontend asks to download (mirrors backend `DownloadRequest`). */
+export interface DownloadRequest {
+  url: string;
+  kind: MediaKind;
+  /** Target video quality, e.g. "1080p". Omitted for audio. */
+  quality?: string;
 }
+
+/** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */
+export interface DownloadProgressEvent {
+  type: "progress";
+  status: "downloading" | "processing";
+  percent: number;
+  downloaded_bytes: number | null;
+  total_bytes: number | null;
+  speed: string | null;
+  eta: string | null;
+  filename: string | null;
+}
+
+/** Terminal success event (mirrors backend `CompletedEvent`). */
+export interface DownloadCompletedEvent {
+  type: "completed";
+  filename: string;
+  filepath: string;
+  total_bytes: number | null;
+}
+
+/** Terminal failure event (mirrors backend `ErrorEvent`). */
+export interface DownloadErrorEvent {
+  type: "error";
+  message: string;
+}
+
+/** Any event streamed over the download WebSocket. */
+export type DownloadEvent =
+  | DownloadProgressEvent
+  | DownloadCompletedEvent
+  | DownloadErrorEvent;
 
 /** Aggregate stats shown at the bottom of the sidebar. */
 export interface DownloadStats {
