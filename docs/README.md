@@ -7,6 +7,7 @@ This folder holds the project's design docs and explanations.
 | [architecture.md](architecture.md) | System design: the two layers, the communication contract, data flow |
 | [frontend.md](frontend.md) | Frontend structure, components, conventions |
 | [backend.md](backend.md) | Backend structure, the yt-dlp wrapper, the API |
+| [yt-dlp.md](yt-dlp.md) | yt-dlp reference: how it works, dependencies, the Python embedding API |
 | [ROADMAP.md](ROADMAP.md) | What's done and what's next |
 
 See also [`../CLAUDE.md`](../CLAUDE.md) for a high-level guide and conventions.

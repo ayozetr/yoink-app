@@ -4,6 +4,10 @@ Local FastAPI service that wraps [yt-dlp](https://github.com/yt-dlp/yt-dlp) to
 power the Yoink frontend. It extracts media metadata over REST and (later) will
 stream download progress to the UI via WebSockets/SSE.
 
+> For a deeper reference on yt-dlp itself (pipeline, dependencies, the Python
+> embedding API, format selection, progress hooks), see
+> [`../docs/yt-dlp.md`](../docs/yt-dlp.md).
+
 ## Requirements
 
 - Python 3.11+
