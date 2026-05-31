@@ -26,12 +26,13 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ Project documentation (CLAUDE.md, /docs, READMEs)
 - ⬜ Unit tests for the yt-dlp service and the `/api/info` route
 
-## Phase 2 — Connect frontend ↔ backend ⬜
+## Phase 2 — Connect frontend ↔ backend ✅
 
-- ⬜ API client in the frontend (typed `fetch` wrapper)
-- ⬜ Wire `handleAnalyze` → `POST /api/info`, populate the preview card
-- ⬜ Loading / error states for analysis
-- ⬜ Derive format & quality selectors from the real `formats` list
+- ✅ API client in the frontend (typed `fetch` wrapper, `src/lib/api.ts`)
+- ✅ Wire `handleAnalyze` → `POST /api/info`, populate the preview card
+- ✅ Loading / error states for analysis (cancels in-flight requests)
+- ✅ Derive format & quality selectors from the real `formats` list
+- ✅ TS types mirror the Pydantic contract 1:1 (snake_case, incl. `formats`)
 
 ## Phase 3 — Downloads + live progress ⬜
 

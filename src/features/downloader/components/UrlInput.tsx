@@ -1,4 +1,4 @@
-import { Link2, Search } from "lucide-react";
+import { Link2, Loader2, Search } from "lucide-react";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 
@@ -6,10 +6,13 @@ interface UrlInputProps {
   value: string;
   onChange: (value: string) => void;
   onAnalyze: () => void;
+  loading?: boolean;
 }
 
 /** URL field + "Analizar" action that triggers metadata extraction. */
-export function UrlInput({ value, onChange, onAnalyze }: UrlInputProps) {
+export function UrlInput({ value, onChange, onAnalyze, loading }: UrlInputProps) {
+  const disabled = loading || value.trim().length === 0;
+
   return (
     <GlassPanel className="p-5">
       <div className="flex gap-3">
@@ -20,13 +23,24 @@ export function UrlInput({ value, onChange, onAnalyze }: UrlInputProps) {
             placeholder="Pega aquí la URL del vídeo..."
             value={value}
             onChange={(event) => onChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !disabled) onAnalyze();
+            }}
             className="w-full h-14 pl-12 pr-4 rounded-2xl bg-surface border border-white/10 outline-none focus:border-violet-500 text-sm"
           />
         </div>
 
-        <Button onClick={onAnalyze} className="h-14 px-6">
-          <Search size={18} />
-          Analizar
+        <Button
+          onClick={onAnalyze}
+          disabled={disabled}
+          className="h-14 px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <Search size={18} />
+          )}
+          {loading ? "Analizando..." : "Analizar"}
         </Button>
       </div>
     </GlassPanel>

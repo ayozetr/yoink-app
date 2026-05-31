@@ -1,26 +1,39 @@
-import { Clock3, Download, Video } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Clock3, Download, User, Video } from "lucide-react";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
-import type { VideoInfo } from "../../../types/download";
+import type { MediaKind, VideoInfo } from "../../../types/download";
+import { availableKinds, videoQualities } from "../formatOptions";
+
+export interface DownloadSelection {
+  kind: MediaKind;
+  /** Target quality, e.g. "1080p". Undefined for audio-only downloads. */
+  quality?: string;
+}
 
 interface PreviewCardProps {
   info: VideoInfo;
-  onDownload: () => void;
+  onDownload: (selection: DownloadSelection) => void;
 }
-
-const FORMAT_OPTIONS = ["Vídeo (MP4)", "Audio (MP3)"];
-const QUALITY_OPTIONS = ["1080p", "720p", "480p", "360p"];
 
 /** Preview of the analyzed media: thumbnail, info and download controls. */
 export function PreviewCard({ info, onDownload }: PreviewCardProps) {
+  const kinds = useMemo(() => availableKinds(info), [info]);
+  const qualities = useMemo(() => videoQualities(info), [info]);
+
+  const [kind, setKind] = useState<MediaKind>(kinds[0].kind);
+  const [quality, setQuality] = useState<string>(qualities[0] ?? "");
+
+  const isVideo = kind === "video";
+
   return (
     <GlassPanel className="p-5">
       <div className="flex gap-5">
         {/* Thumbnail */}
         <div className="w-[320px] h-[180px] rounded-2xl overflow-hidden relative bg-gradient-to-br from-violet-600/40 to-blue-600/40 flex items-center justify-center">
-          {info.thumbnailUrl ? (
+          {info.thumbnail_url ? (
             <img
-              src={info.thumbnailUrl}
+              src={info.thumbnail_url}
               alt={info.title}
               className="absolute inset-0 h-full w-full object-cover"
             />
@@ -37,26 +50,59 @@ export function PreviewCard({ info, onDownload }: PreviewCardProps) {
               Vista previa
             </span>
             <h2 className="text-xl font-semibold mt-2">{info.title}</h2>
-            <div className="flex items-center gap-2 mt-3 text-zinc-400">
-              <Clock3 size={16} />
-              <span className="text-sm">{info.duration}</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-zinc-400">
+              {info.duration_string && (
+                <span className="flex items-center gap-2 text-sm">
+                  <Clock3 size={16} />
+                  {info.duration_string}
+                </span>
+              )}
+              {info.uploader && (
+                <span className="flex items-center gap-2 text-sm">
+                  <User size={16} />
+                  {info.uploader}
+                </span>
+              )}
             </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-3 mt-6">
-            <select className="h-12 rounded-xl bg-surface border border-white/10 px-4">
-              {FORMAT_OPTIONS.map((option) => (
-                <option key={option}>{option}</option>
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.target.value as MediaKind)}
+              className="h-12 rounded-xl bg-surface border border-white/10 px-4"
+            >
+              {kinds.map((option) => (
+                <option key={option.kind} value={option.kind}>
+                  {option.label}
+                </option>
               ))}
             </select>
 
-            <select className="h-12 rounded-xl bg-surface border border-white/10 px-4">
-              {QUALITY_OPTIONS.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
+            <select
+              value={quality}
+              onChange={(event) => setQuality(event.target.value)}
+              disabled={!isVideo || qualities.length === 0}
+              className="h-12 rounded-xl bg-surface border border-white/10 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isVideo && qualities.length > 0 ? (
+                qualities.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))
+              ) : (
+                <option>Mejor calidad</option>
+              )}
             </select>
 
-            <Button variant="gradient" onClick={onDownload} className="h-12">
+            <Button
+              variant="gradient"
+              onClick={() =>
+                onDownload({ kind, quality: isVideo ? quality : undefined })
+              }
+              className="h-12"
+            >
               <Download size={18} />
               Descargar
             </Button>
