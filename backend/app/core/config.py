@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     # Where app data (the SQLite history DB) lives.
     data_dir: Path = Field(default_factory=_default_data_dir)
 
+    # Cookies for sites that require a signed-in session (optional). Set ONE of:
+    #   YOINK_COOKIES_FROM_BROWSER=firefox   (read cookies straight from a browser)
+    #   YOINK_COOKIES_FILE=/path/cookies.txt (Netscape-format cookies file)
+    # Not needed for public content. `cookies_from_browser` takes precedence.
+    cookies_from_browser: str | None = Field(default=None)
+    cookies_file: Path | None = Field(default=None)
+
     def ensure_download_dir(self) -> Path:
         """Create the download directory if missing and return it."""
         self.download_dir.mkdir(parents=True, exist_ok=True)

@@ -62,6 +62,33 @@ export interface VideoInfo {
   formats: MediaFormat[];
 }
 
+/** One flat item inside a playlist (mirrors backend `PlaylistEntry`). */
+export interface PlaylistEntry {
+  id: string;
+  title: string;
+  url: string;
+  duration_string: string | null;
+  thumbnail_url: string | null;
+  uploader: string | null;
+}
+
+/** Flat playlist metadata (mirrors backend `PlaylistInfo`). */
+export interface PlaylistInfo {
+  id: string;
+  title: string;
+  uploader: string | null;
+  entry_count: number;
+  entries: PlaylistEntry[];
+  truncated: boolean;
+}
+
+/** Unified `/api/info` result: a single video or a playlist. */
+export interface InfoResponse {
+  type: "video" | "playlist";
+  video: VideoInfo | null;
+  playlist: PlaylistInfo | null;
+}
+
 /** What the frontend asks to download (mirrors backend `DownloadRequest`). */
 export interface DownloadRequest {
   url: string;

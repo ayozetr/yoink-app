@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.models.media import InfoRequest, VideoInfo
+from app.models.media import InfoRequest, InfoResponse
 from app.services.ytdlp_service import MediaExtractionError, extract_info
 
 router = APIRouter(tags=["info"])
@@ -12,14 +12,14 @@ router = APIRouter(tags=["info"])
 
 @router.post(
     "/info",
-    response_model=VideoInfo,
+    response_model=InfoResponse,
     summary="Extract media metadata without downloading",
 )
-def get_media_info(request: InfoRequest) -> VideoInfo:
+def get_media_info(request: InfoRequest) -> InfoResponse:
     """Inspect a URL with yt-dlp (download=False) and return clean metadata.
 
-    The frontend calls this when the user pastes a URL, to populate the
-    preview card (title, thumbnail, duration) and the available formats.
+    Returns either a single video (preview card + formats) or a flat playlist
+    listing, depending on the URL.
     """
     try:
         return extract_info(str(request.url))

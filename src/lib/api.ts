@@ -8,7 +8,7 @@
 import type {
   DownloadStats,
   HistoryEntry,
-  VideoInfo,
+  InfoResponse,
 } from "../types/download";
 
 const API_BASE_URL =
@@ -46,12 +46,14 @@ async function readErrorDetail(response: Response): Promise<string> {
 /**
  * Fetch clean metadata for a media URL via `POST /api/info`.
  *
+ * Returns either a single video or a playlist listing.
+ *
  * @throws {ApiError} when the backend rejects the URL or is unreachable.
  */
-export async function fetchVideoInfo(
+export async function fetchInfo(
   url: string,
   signal?: AbortSignal,
-): Promise<VideoInfo> {
+): Promise<InfoResponse> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/info`, {
@@ -65,7 +67,7 @@ export async function fetchVideoInfo(
       throw cause;
     }
     throw new ApiError(
-      "No se pudo conectar con el backend. ¿Está corriendo en el puerto 8000?",
+      "No se pudo conectar con el backend. ¿Está corriendo en el puerto 8001?",
       0,
     );
   }
@@ -74,7 +76,7 @@ export async function fetchVideoInfo(
     throw new ApiError(await readErrorDetail(response), response.status);
   }
 
-  return (await response.json()) as VideoInfo;
+  return (await response.json()) as InfoResponse;
 }
 
 /** Fetch recent download records via `GET /api/history`. */
@@ -95,6 +97,14 @@ export async function fetchStats(signal?: AbortSignal): Promise<DownloadStats> {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
   return (await response.json()) as DownloadStats;
+}
+
+/** Delete all download history via `DELETE /api/history`. */
+export async function clearHistory(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/history`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
 }
 
 /** Reveal a file/folder in the OS file manager via `POST /api/open`. */

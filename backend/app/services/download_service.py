@@ -20,6 +20,7 @@ from yt_dlp.utils import DownloadError
 
 from app.core.config import settings
 from app.core.humanize import humanize_bytes
+from app.core.ytdlp_options import cookie_options, normalize_url
 from app.models.media import (
     CompletedEvent,
     DownloadRequest,
@@ -116,6 +117,7 @@ def _build_options(
         "noprogress": True,
         "outtmpl": str(download_dir / "%(title)s.%(ext)s"),
         "progress_hooks": [hook],
+        **cookie_options(),
     }
 
     if request.kind == "audio":
@@ -180,7 +182,7 @@ async def download_events(
     def blocking() -> str | None:
         options = _build_options(request, hook)
         with YoutubeDL(options) as ydl:
-            info = ydl.extract_info(str(request.url), download=True)
+            info = ydl.extract_info(normalize_url(str(request.url)), download=True)
             info = ydl.sanitize_info(info)
             return _final_path(info) or ydl.prepare_filename(info)
 

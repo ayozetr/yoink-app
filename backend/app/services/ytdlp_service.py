@@ -11,7 +11,17 @@ from typing import Any, cast
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
-from app.models.media import MediaFormat, VideoInfo
+from app.core.ytdlp_options import cookie_options, normalize_url
+from app.models.media import (
+    InfoResponse,
+    MediaFormat,
+    PlaylistEntry,
+    PlaylistInfo,
+    VideoInfo,
+)
+
+# Cap the number of playlist entries returned so huge playlists stay snappy.
+_ENTRY_CAP = 200
 
 
 class MediaExtractionError(RuntimeError):
@@ -73,30 +83,8 @@ def _best_thumbnail(raw: dict[str, Any]) -> str | None:
     return None
 
 
-def extract_info(url: str) -> VideoInfo:
-    """Extract clean metadata for a media URL without downloading it.
-
-    Raises:
-        MediaExtractionError: if yt-dlp fails or returns no data.
-    """
-    options: dict[str, Any] = {
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-        "noplaylist": True,
-    }
-
-    try:
-        with YoutubeDL(options) as ydl:
-            raw_info = ydl.extract_info(url, download=False)
-            # sanitize_info makes the dict JSON-serializable and stable.
-            info = cast(dict[str, Any], ydl.sanitize_info(raw_info))
-    except DownloadError as exc:
-        raise MediaExtractionError(str(exc)) from exc
-
-    if not info:
-        raise MediaExtractionError("yt-dlp returned no metadata for this URL.")
-
+def _build_video(info: dict[str, Any]) -> VideoInfo:
+    """Build a fully-typed VideoInfo from a resolved yt-dlp info dict."""
     raw_formats = info.get("formats")
     formats: list[MediaFormat] = (
         [_map_format(fmt) for fmt in raw_formats if isinstance(fmt, dict)]
@@ -120,3 +108,79 @@ def extract_info(url: str) -> VideoInfo:
         extractor=info.get("extractor_key") or info.get("extractor"),
         formats=formats,
     )
+
+
+def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
+    """Build a flat PlaylistEntry, or None if it has no usable URL."""
+    url = raw.get("url") or raw.get("webpage_url")
+    if not isinstance(url, str):
+        return None
+
+    duration = raw.get("duration")
+    duration_value = float(duration) if isinstance(duration, (int, float)) else None
+
+    return PlaylistEntry(
+        id=str(raw.get("id", "")),
+        title=str(raw.get("title") or raw.get("id") or "Untitled"),
+        url=url,
+        duration_string=raw.get("duration_string") or _format_duration(duration_value),
+        thumbnail_url=_best_thumbnail(raw),
+        uploader=raw.get("uploader") or raw.get("channel"),
+    )
+
+
+def _build_playlist(info: dict[str, Any]) -> PlaylistInfo:
+    """Build a (possibly capped) PlaylistInfo from a flat yt-dlp playlist dict."""
+    raw_entries = [e for e in (info.get("entries") or []) if isinstance(e, dict)]
+    total = info.get("playlist_count")
+    if not isinstance(total, int):
+        total = len(raw_entries)
+
+    entries = [
+        entry
+        for entry in (_build_entry(e) for e in raw_entries[:_ENTRY_CAP])
+        if entry is not None
+    ]
+
+    return PlaylistInfo(
+        id=str(info.get("id", "")),
+        title=str(info.get("title") or "Playlist"),
+        uploader=info.get("uploader") or info.get("channel"),
+        entry_count=total,
+        entries=entries,
+        truncated=len(raw_entries) > _ENTRY_CAP,
+    )
+
+
+def extract_info(url: str) -> InfoResponse:
+    """Extract clean metadata for a URL — a single video or a playlist.
+
+    Playlists are listed flat (entries are not individually resolved) so the
+    response stays fast even for large lists.
+
+    Raises:
+        MediaExtractionError: if yt-dlp fails or returns no data.
+    """
+    options: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        # Flatten items *inside* a playlist, but fully resolve a single video.
+        "extract_flat": "in_playlist",
+        **cookie_options(),
+    }
+
+    try:
+        with YoutubeDL(options) as ydl:
+            raw_info = ydl.extract_info(normalize_url(url), download=False)
+            # sanitize_info makes the dict JSON-serializable and stable.
+            info = cast(dict[str, Any], ydl.sanitize_info(raw_info))
+    except DownloadError as exc:
+        raise MediaExtractionError(str(exc)) from exc
+
+    if not info:
+        raise MediaExtractionError("yt-dlp returned no metadata for this URL.")
+
+    if info.get("_type") == "playlist" or info.get("entries") is not None:
+        return InfoResponse(type="playlist", playlist=_build_playlist(info))
+    return InfoResponse(type="video", video=_build_video(info))

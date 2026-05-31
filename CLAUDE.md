@@ -22,8 +22,9 @@ Two layers communicating asynchronously:
 ### Communication contract (strict)
 
 - **Metadata (REST):** when the user pastes a URL, the frontend calls FastAPI.
-  The backend runs yt-dlp with `download=False` to extract title, thumbnail and
-  available formats, returning clean JSON. Endpoint: `POST /api/info`.
+  The backend runs yt-dlp with `download=False` and returns an `InfoResponse`
+  that is **either** a single video (title, thumbnail, formats) **or** a flat
+  playlist listing (entries with title/duration/url). Endpoint: `POST /api/info`.
 - **Download & progress (WebSockets):** on "Download", the frontend opens a
   socket to `WS /api/ws/download` and sends the request. The backend runs the
   yt-dlp job off-thread (`asyncio.to_thread`) and streams typed events —

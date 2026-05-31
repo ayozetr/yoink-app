@@ -59,6 +59,16 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
   (re-issue the last selection) from the UI
 - ✅ Sidebar history + stats load real backend data and refresh after each job
 
+## Extras (beyond the original roadmap) ✅
+
+- ✅ **Playlists:** `POST /api/info` returns a flat playlist listing; the UI
+  shows a `PlaylistCard` with per-item checkboxes and downloads the selected
+  items sequentially ("X of N" progress)
+- ✅ **Cookies** for sign-in-only content, via settings (`YOINK_COOKIES_FROM_BROWSER`
+  or `YOINK_COOKIES_FILE`), applied to both metadata and downloads
+- ✅ **URL normalization** (e.g. TikTok `/photo/` → `/video/`)
+- ✅ **Clear history** button (`DELETE /api/history`)
+
 ## Phase 5 — Packaging & polish ⬜
 
 - ⬜ One-command local startup (frontend + backend)

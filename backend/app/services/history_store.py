@@ -110,6 +110,13 @@ def get_entry(entry_id: int) -> HistoryEntry | None:
     return _row_to_entry(row) if row else None
 
 
+def clear() -> int:
+    """Delete all history records; returns the number removed."""
+    with _connect() as connection:
+        cursor = connection.execute("DELETE FROM downloads")
+        return cursor.rowcount
+
+
 def get_stats() -> HistoryStats:
     """Aggregate count and total bytes across successful downloads."""
     with _connect() as connection:

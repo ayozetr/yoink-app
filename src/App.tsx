@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
-import { fetchHistory, fetchStats, openInFileManager } from "./lib/api";
+import {
+  clearHistory,
+  fetchHistory,
+  fetchStats,
+  openInFileManager,
+} from "./lib/api";
 import type { DownloadStats, HistoryEntry } from "./types/download";
 
 const EMPTY_STATS: DownloadStats = {
@@ -38,6 +43,15 @@ export default function App() {
     void openInFileManager(entry.filepath);
   };
 
+  const handleClear = async () => {
+    try {
+      await clearHistory();
+      await refresh();
+    } catch {
+      // Leave the current view if the clear request fails.
+    }
+  };
+
   return (
     <AppLayout
       main={<DownloaderPanel onDownloadFinished={refresh} />}
@@ -46,6 +60,7 @@ export default function App() {
           items={history}
           stats={stats}
           onOpenFolder={handleOpenFolder}
+          onClear={handleClear}
         />
       }
     />

@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 
 from app.core.config import settings
 from app.models.media import HistoryEntry, HistoryStats, OpenRequest
@@ -25,6 +25,17 @@ def list_history() -> list[HistoryEntry]:
 def history_stats() -> HistoryStats:
     """Return aggregate download statistics (count, total transferred)."""
     return history_store.get_stats()
+
+
+@router.delete(
+    "/history",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Clear the download history",
+)
+def clear_history() -> Response:
+    """Delete all download history records."""
+    history_store.clear()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _open_folder(folder: Path) -> None:

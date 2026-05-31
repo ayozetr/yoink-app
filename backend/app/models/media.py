@@ -54,6 +54,40 @@ class VideoInfo(BaseModel):
     )
 
 
+class PlaylistEntry(BaseModel):
+    """A lightweight (flat) listing of one item inside a playlist."""
+
+    id: str = Field(..., description="Source-specific media id.")
+    title: str = Field(..., description="Item title.")
+    url: str = Field(..., description="URL used to download this item.")
+    duration_string: str | None = Field(default=None)
+    thumbnail_url: str | None = Field(default=None)
+    uploader: str | None = Field(default=None)
+
+
+class PlaylistInfo(BaseModel):
+    """Flat metadata for a playlist (entries are not fully resolved)."""
+
+    id: str = Field(..., description="Playlist id.")
+    title: str = Field(..., description="Playlist title.")
+    uploader: str | None = Field(default=None, description="Playlist owner.")
+    entry_count: int = Field(..., description="Total items reported by yt-dlp.")
+    entries: list[PlaylistEntry] = Field(
+        default_factory=list, description="Listed items (may be capped)."
+    )
+    truncated: bool = Field(
+        default=False, description="True if entries were capped below entry_count."
+    )
+
+
+class InfoResponse(BaseModel):
+    """Unified `/api/info` result: either a single video or a playlist."""
+
+    type: Literal["video", "playlist"] = Field(..., description="Kind of result.")
+    video: VideoInfo | None = Field(default=None)
+    playlist: PlaylistInfo | None = Field(default=None)
+
+
 class DownloadRequest(BaseModel):
     """What the frontend asks to download, sent over the WebSocket."""
 
