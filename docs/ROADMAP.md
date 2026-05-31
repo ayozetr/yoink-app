@@ -69,12 +69,24 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ **URL normalization** (e.g. TikTok `/photo/` → `/video/`)
 - ✅ **Clear history** button (`DELETE /api/history`)
 
-## Phase 5 — Packaging & polish ⬜
+## Phase 5 — Packaging & polish ✅
 
-- ⬜ One-command local startup (frontend + backend)
+- ✅ One-command local startup (`scripts/dev.py` runs backend + frontend;
+  `scripts/setup.py` for venv + deps)
 - ✅ Desktop packaging with Tauri (`src-tauri/`): the FastAPI backend is bundled
   as a PyInstaller sidecar the app launches on startup. Build with
   `python scripts/build_backend.py && npm run tauri build`
 - ✅ Settings UI (download dir, default format/quality, cookies) — persisted
   via `GET`/`PUT /api/settings` to `<data_dir>/settings.json`
 - ✅ End-to-end tests (Playwright, `e2e/`, mocked API)
+
+## Phase 6 — Self-update ⬜
+
+- ⬜ Show the current app version in the Settings modal
+- ⬜ "Check for updates" button that queries the GitHub Releases API
+  (latest release / tag) and reports whether a newer version is available
+- ⬜ Download & install the update — preferably via `tauri-plugin-updater`
+  (signed update artifacts + a release manifest), with a fallback that opens
+  the GitHub release page for a manual download
+- ⬜ Publish update artifacts + `latest.json` manifest as part of the release
+  flow so the updater can find them
