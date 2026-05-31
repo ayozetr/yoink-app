@@ -29,6 +29,8 @@ backend/venv/
 __pycache__/
 *.py[cod]
 .python-version
+.pytest_cache/
+backend/.env
 
 # Downloaded media
 downloads/

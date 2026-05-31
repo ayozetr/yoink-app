@@ -93,6 +93,9 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 uvicorn app.main:app --reload    # http://127.0.0.1:8000  (docs at /docs)
+
+pip install -r requirements-dev.txt   # test deps (pytest, httpx)
+pytest                                # run the backend test suite
 ```
 
 ## Conventions

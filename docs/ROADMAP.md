@@ -24,7 +24,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ `/health` liveness probe
 - ✅ CORS configured for the local Vite dev server
 - ✅ Project documentation (CLAUDE.md, /docs, READMEs)
-- ⬜ Unit tests for the yt-dlp service and the `/api/info` route
+- ✅ Unit tests for the services and routes (`backend/tests`, pytest)
 
 ## Phase 2 — Connect frontend ↔ backend ✅
 
