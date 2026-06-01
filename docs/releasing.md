@@ -10,7 +10,10 @@ Prerequisites on the build host:
 - Rust toolchain, and on Linux `webkit2gtk` (4.1).
 - The backend venv with PyInstaller (`python scripts/setup.py` then
   `backend/.venv/bin/pip install pyinstaller`).
-- `ffmpeg` is a **runtime** dependency of the app (merges); not needed to build.
+- Bundled **ffmpeg + ffprobe**: run `python scripts/fetch_ffmpeg.py` once per
+  platform (downloads LGPL builds to `backend/vendor/ffmpeg/`). The sidecar
+  embeds them, so the shipped app needs no system ffmpeg. See
+  [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the LGPL attribution.
 
 ## 1. Bump the version
 
@@ -36,14 +39,17 @@ Whenever the backend changed since the last release, rebuild the sidecar so the
 bundles ship the new code:
 
 ```bash
+python scripts/fetch_ffmpeg.py   # once per platform — downloads ffmpeg/ffprobe
 python scripts/build_backend.py
 ```
 
-This PyInstaller-bundles `backend/run_backend.py` (collecting yt-dlp's dynamic
-extractors + uvicorn internals) into
+`build_backend.py` PyInstaller-bundles `backend/run_backend.py` (collecting
+yt-dlp's dynamic extractors + uvicorn internals, and embedding ffmpeg/ffprobe
+from `backend/vendor/ffmpeg/` if present) into
 `src-tauri/binaries/yoink-backend-<target-triple>`, the name Tauri's
-`externalBin` sidecar expects. The packaged backend listens on port 8000
-(matching the frontend's default `VITE_API_BASE_URL`).
+`externalBin` sidecar expects. The packaged backend listens on port **8756**
+(matching the frontend's default `VITE_API_BASE_URL`); the bundled ffmpeg is
+wired to yt-dlp via `ffmpeg_location` (`app/core/ffmpeg.py`).
 
 ## 3. Build the bundles
 

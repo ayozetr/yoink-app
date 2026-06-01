@@ -20,6 +20,28 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend"
 BINARIES = ROOT / "src-tauri" / "binaries"
+VENDOR_FFMPEG = BACKEND / "vendor" / "ffmpeg"
+
+
+def _ffmpeg_args() -> list[str]:
+    """PyInstaller args to embed bundled ffmpeg/ffprobe + their license.
+
+    Empty if `scripts/fetch_ffmpeg.py` hasn't been run — the app then falls
+    back to a system ffmpeg on PATH.
+    """
+    if not VENDOR_FFMPEG.is_dir():
+        print("  (no bundled ffmpeg; run scripts/fetch_ffmpeg.py to include it)")
+        return []
+    args: list[str] = []
+    for name in ("ffmpeg", "ffprobe", "ffmpeg.exe", "ffprobe.exe"):
+        binary = VENDOR_FFMPEG / name
+        if binary.exists():
+            # Place at the bundle root so ffmpeg_location() finds it.
+            args += ["--add-binary", f"{binary}{os.pathsep}."]
+    license_file = VENDOR_FFMPEG / "FFMPEG-LICENSE.txt"
+    if license_file.exists():
+        args += ["--add-data", f"{license_file}{os.pathsep}."]
+    return args
 
 
 def _venv_python() -> str:
@@ -54,6 +76,7 @@ def main() -> int:
             "--collect-all", "uvicorn",
             "--collect-submodules", "app",
             "--hidden-import", "app.main",
+            *_ffmpeg_args(),
             "run_backend.py",
         ],
         cwd=BACKEND,

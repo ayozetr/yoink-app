@@ -19,6 +19,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 from app.core.config import settings
+from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import cookie_options, normalize_url
 from app.models.media import (
@@ -119,6 +120,11 @@ def _build_options(
         "progress_hooks": [hook],
         **cookie_options(),
     }
+
+    # Use the bundled ffmpeg/ffprobe when packaged; otherwise yt-dlp uses PATH.
+    location = ffmpeg_location()
+    if location:
+        options["ffmpeg_location"] = location
 
     if request.kind == "audio":
         options["format"] = "bestaudio/best"
