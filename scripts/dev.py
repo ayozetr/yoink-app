@@ -37,7 +37,7 @@ def _venv_python() -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run Yoink (backend + frontend).")
-    parser.add_argument("--api-port", type=int, default=8000)
+    parser.add_argument("--api-port", type=int, default=8756)
     parser.add_argument("--web-port", type=int, default=5173)
     parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args()

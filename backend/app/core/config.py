@@ -35,17 +35,21 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Yoink Backend"
-    app_version: str = "0.7.1"
+    app_version: str = "0.7.2"
     api_prefix: str = "/api"
 
     # GitHub repo used to check for newer releases (owner/name).
     github_repo: str = "ayozetr/yoink-app"
 
-    # Origins allowed to call the API (the local Vite dev server by default).
+    # Origins allowed to call the API: the local Vite dev server plus the
+    # Tauri webview origins (tauri://localhost on Linux/macOS,
+    # https://tauri.localhost on Windows).
     cors_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:5173",
             "http://127.0.0.1:5173",
+            "tauri://localhost",
+            "https://tauri.localhost",
         ]
     )
 

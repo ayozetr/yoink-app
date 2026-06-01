@@ -20,7 +20,7 @@ export function DownloaderHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.06]">
           <Download className="w-4 h-4 text-violet-400" />
           <span className="text-sm text-zinc-300">
             Descargas activas: {activeDownloads}
@@ -29,7 +29,7 @@ export function DownloaderHeader({
         <button
           type="button"
           onClick={onOpenSettings}
-          className="p-2.5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md text-zinc-300 hover:text-white hover:bg-white/10 transition"
+          className="p-2.5 rounded-xl border border-white/10 bg-white/[0.06] text-zinc-300 hover:text-white hover:bg-white/10 transition"
           aria-label="Ajustes"
         >
           <Settings className="w-4 h-4" />

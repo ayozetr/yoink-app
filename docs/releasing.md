@@ -177,3 +177,51 @@ APPIMAGE_EXTRACT_AND_RUN=1       # avoid FUSE for the bundler tools (build-time)
 WEBKIT_DISABLE_DMABUF_RENDERER=1 # Wayland blank screen — set at RUNTIME (in main.rs)
 NO_STRIP=1                       # skip stripping (avoids linuxdeploy strip quirks)
 ```
+
+---
+
+## Packaged-app gotchas (WebKitGTK + sidecar)
+
+The dev server runs in your **system browser** (Chromium); the bundle runs in
+the **Tauri WebKitGTK webview** with origin `tauri://localhost`. Several things
+work in dev but break in the packaged app — these all bit us once. Build with
+devtools (below) and check the console first.
+
+### CORS — allow the Tauri origin
+The webview origin is `tauri://localhost` (Linux/macOS) / `https://tauri.localhost`
+(Windows). The backend must allow it or **every `fetch` is blocked** — the
+backend returns 200 but the webview drops the response, so the UI silently has
+no data (e.g. the Settings modal never opens). Allowed in
+`backend/app/core/config.py` → `cors_origins`. Devtools symptom:
+`Origin tauri://localhost is not allowed by Access-Control-Allow-Origin`.
+
+### Backend port — avoid 8000
+The sidecar listens on a fixed port the frontend hardcodes
+(`VITE_API_BASE_URL` default; `YOINK_PORT` for the backend). 8000 is heavily
+used and collided on the dev machine, so the sidecar couldn't bind and the app
+had no API. We use **8756**. Symptom in the sidecar log:
+`error while attempting to bind on address ('127.0.0.1', 8000): address already in use`.
+
+### No `filter: blur()` / `backdrop-filter` on scrolled content
+WebKitGTK fails to repaint content scrolled over a large CSS blur, leaving
+**ghost/duplicated text** that clears on window resize. `BackgroundGlow` uses a
+`radial-gradient` instead of `blur-3xl`, and glass panels use a solid
+translucent background instead of `backdrop-blur`. Don't reintroduce these.
+
+### Kill the sidecar on exit
+The spawned backend does **not** die with the app by default — it lingers
+holding the port, so the next launch talks to a **stale** backend (e.g. one
+built before a fix). `main.rs` stores the `CommandChild` and kills it on
+`RunEvent::Exit`/`ExitRequested`. A leftover `yoink-backend` on the port is an
+orphan — kill it (`kill $(lsof -ti:8756)`) before retesting.
+
+### Debugging the webview (devtools)
+Release builds have no devtools. To inspect the packaged app temporarily:
+
+```toml
+# src-tauri/Cargo.toml
+tauri = { version = "2", features = ["devtools"] }
+```
+
+Rebuild, then F12 / right-click → *Inspect* in the window. **Remove the feature
+before the real release build.**

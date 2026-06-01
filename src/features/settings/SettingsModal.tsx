@@ -72,13 +72,13 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
     <div
       role="presentation"
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
     >
       <GlassPanel
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-lg p-6"
+        className="w-full max-w-lg p-6 !bg-[#16181f]"
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold flex items-center gap-2">

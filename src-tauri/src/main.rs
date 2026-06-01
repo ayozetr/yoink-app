@@ -1,24 +1,31 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri_plugin_shell::process::CommandEvent;
+use std::sync::Mutex;
+
+use tauri::Manager;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
+
+/// Holds the backend sidecar handle so we can kill it when the app exits.
+struct BackendProcess(Mutex<Option<CommandChild>>);
 
 /// Spawn the bundled FastAPI backend (PyInstaller sidecar) and pipe its logs.
 ///
-/// In development the backend is started by `beforeDevCommand` instead, so a
-/// missing sidecar is not an error — we just skip it.
-fn spawn_backend(app: &tauri::App) {
+/// In development the backend is started separately, so a missing sidecar is
+/// not an error — we just skip it. Returns the child handle so the caller can
+/// terminate it on exit (otherwise it would linger and hold the port).
+fn spawn_backend(app: &tauri::App) -> Option<CommandChild> {
     let sidecar = match app.shell().sidecar("yoink-backend") {
         Ok(command) => command,
         Err(err) => {
             eprintln!("[yoink] backend sidecar unavailable (dev mode?): {err}");
-            return;
+            return None;
         }
     };
 
     match sidecar.spawn() {
-        Ok((mut rx, _child)) => {
+        Ok((mut rx, child)) => {
             tauri::async_runtime::spawn(async move {
                 while let Some(event) = rx.recv().await {
                     match event {
@@ -29,8 +36,12 @@ fn spawn_backend(app: &tauri::App) {
                     }
                 }
             });
+            Some(child)
         }
-        Err(err) => eprintln!("[yoink] failed to start backend: {err}"),
+        Err(err) => {
+            eprintln!("[yoink] failed to start backend: {err}");
+            None
+        }
     }
 }
 
@@ -53,9 +64,26 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            spawn_backend(app);
+            let child = spawn_backend(app);
+            app.manage(BackendProcess(Mutex::new(child)));
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running the Yoink application");
+        .build(tauri::generate_context!())
+        .expect("error while building the Yoink application")
+        .run(|app_handle, event| {
+            // Kill the backend sidecar when the app exits so it doesn't linger
+            // holding the port.
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                if let Some(state) = app_handle.try_state::<BackendProcess>() {
+                    if let Ok(mut guard) = state.0.lock() {
+                        if let Some(child) = guard.take() {
+                            let _ = child.kill();
+                        }
+                    }
+                }
+            }
+        });
 }

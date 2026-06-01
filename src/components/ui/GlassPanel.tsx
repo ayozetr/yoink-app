@@ -16,7 +16,7 @@ export function GlassPanel({
 }: GlassPanelProps) {
   return (
     <div
-      className={`rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl ${className}`}
+      className={`rounded-3xl border border-white/10 bg-white/[0.06] ${className}`}
       {...rest}
     >
       {children}
