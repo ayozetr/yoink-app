@@ -13,7 +13,9 @@ export function DownloaderHeader({
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Media Downloader</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Yoink Media Downloader
+        </h1>
         <p className="text-sm text-zinc-400 mt-1">
           Descarga vídeos y audios rápidamente
         </p>

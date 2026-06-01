@@ -1,4 +1,11 @@
-# Yoink
+# Yoink Media Downloader
+
+[![Release](https://img.shields.io/github/v/release/ayozetr/yoink-app?label=release&color=7c3aed)](https://github.com/ayozetr/yoink-app/releases/latest)
+![Platforms](https://img.shields.io/badge/platforms-Linux%20%C2%B7%20Windows-2563eb)
+![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)
+![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
 
 Yoink is a **local** desktop/web app for downloading high-fidelity video and
 audio from many platforms, powered exclusively by

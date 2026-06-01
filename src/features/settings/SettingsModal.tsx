@@ -133,8 +133,8 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
 
           <div className="pt-1 border-t border-white/10" />
           <p className="text-xs text-zinc-500 -mb-1">
-            Cookies (solo para contenido que requiere sesión; no para vídeos
-            públicos)
+            Cookies (solo para contenido que requiere sesión; no para contenido
+            público)
           </p>
 
           <Field label="Navegador para cookies (p. ej. firefox, chrome)">
