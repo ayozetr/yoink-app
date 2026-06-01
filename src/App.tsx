@@ -76,6 +76,18 @@ export default function App() {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    // Suppress the webview's native context menu (Print, Reload…) so the app
+    // feels native — but keep it on text fields so copy/paste still works.
+    const onContextMenu = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, [contenteditable='true']")) return;
+      event.preventDefault();
+    };
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => window.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   const handleOpenFolder = (entry: HistoryEntry) => {
     void openInFileManager(entry.filepath);
   };
