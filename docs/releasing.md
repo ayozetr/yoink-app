@@ -112,6 +112,33 @@ Verify with `gh release view v<ver> --json assets`.
 
 ---
 
+## Windows builds
+
+The Windows installers (`.msi` + NSIS `.exe`) must be built **on Windows** —
+Tauri uses WebView2 + the MSVC toolchain, so there's no cross-compile from
+Linux. (You can drive it over SSH on a Windows box/VM; the shell there is
+PowerShell, so chain commands with `;`, not `&&`.)
+
+Prerequisites on the Windows machine: **Rust** (MSVC toolchain) + **VS Build
+Tools** (C++ workload), **Node**, **Python**, **Git**, **WebView2 Runtime**.
+
+The scripts are cross-platform; from the repo root:
+
+```powershell
+python scripts/setup.py                               # venv + deps + npm install
+backend\.venv\Scripts\python -m pip install pyinstaller
+python scripts/fetch_ffmpeg.py                        # downloads the win64 ffmpeg
+python scripts/build_backend.py                       # -> yoink-backend-...-windows-msvc.exe
+npm run tauri build                                   # -> target\release\bundle\{msi,nsis}\
+```
+
+Output: `Yoink_<ver>_x64_en-US.msi` (WiX) and `Yoink_<ver>_x64-setup.exe` (NSIS).
+The backend port (8756), CORS and ffmpeg bundling work the same. WebView2 is
+Chromium-based, so the WebKitGTK rendering quirks (blur ghosting) don't apply on
+Windows.
+
+---
+
 ## Troubleshooting the AppImage (`linuxdeploy`)
 
 The AppImage is assembled by `linuxdeploy` + its `gtk` plugin. With no

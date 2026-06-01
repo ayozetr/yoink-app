@@ -9,5 +9,7 @@ This folder holds the project's design docs and explanations.
 | [backend.md](backend.md) | Backend structure, the yt-dlp wrapper, the API |
 | [yt-dlp.md](yt-dlp.md) | yt-dlp reference: how it works, dependencies, the Python embedding API |
 | [ROADMAP.md](ROADMAP.md) | What's done and what's next |
+| [releasing.md](releasing.md) | Cutting a versioned release (Linux + Windows), bundling ffmpeg, and packaged-app troubleshooting |
+| [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) | Attribution for bundled software (ffmpeg LGPL, yt-dlp) |
 
 See also [`../CLAUDE.md`](../CLAUDE.md) for a high-level guide and conventions.

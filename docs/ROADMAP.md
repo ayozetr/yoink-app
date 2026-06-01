@@ -73,9 +73,12 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 
 - ✅ One-command local startup (`scripts/dev.py` runs backend + frontend;
   `scripts/setup.py` for venv + deps)
-- ✅ Desktop packaging with Tauri (`src-tauri/`): the FastAPI backend is bundled
-  as a PyInstaller sidecar the app launches on startup. Build with
-  `python scripts/build_backend.py && npm run tauri build`
+- ✅ Desktop packaging with Tauri (`src-tauri/`) for **Linux & Windows**: the
+  FastAPI backend **and ffmpeg/ffprobe** ship as a PyInstaller sidecar the app
+  launches on startup (self-contained — no Python/ffmpeg needed). Build with
+  `python scripts/fetch_ffmpeg.py && python scripts/build_backend.py && npm run tauri build`.
+  Linux: `.AppImage`/`.deb`/`.rpm`; Windows: `.msi`/NSIS `.exe`. See
+  [`releasing.md`](releasing.md)
 - ✅ Settings UI (download dir, default format/quality, cookies) — persisted
   via `GET`/`PUT /api/settings` to `<data_dir>/settings.json`
 - ✅ End-to-end tests (Playwright, `e2e/`, mocked API)

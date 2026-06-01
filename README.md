@@ -26,26 +26,30 @@ It is split into two layers that communicate asynchronously:
 - **Settings** — download folder, default format/quality, and cookies
   (browser or `cookies.txt`) for sign-in-only content.
 - **Update check** against the latest GitHub release.
-- **Desktop app** (Tauri) bundling the backend as a sidecar — no Python needed.
+- **Self-contained desktop app** (Tauri, Linux & Windows): bundles the backend
+  **and ffmpeg** as a sidecar — no Python or ffmpeg install needed.
 
 ## Quick start
 
 ```bash
 python scripts/setup.py    # one-time: venv + backend deps + npm install
-python scripts/dev.py      # run backend (:8000) + frontend (:5173) together
+python scripts/dev.py      # run backend (:8756) + frontend (:5173) together
 ```
 
-Then open <http://localhost:5173>. (ffmpeg must be installed for high-quality
-video+audio merges.) See [`CLAUDE.md`](CLAUDE.md) for per-layer commands.
+Then open <http://localhost:5173>. For development you need **ffmpeg** on your
+PATH; the packaged desktop app bundles it. See [`CLAUDE.md`](CLAUDE.md) for
+per-layer commands.
 
 ### Desktop build (Tauri)
 
 ```bash
-python scripts/build_backend.py   # bundle the backend as a PyInstaller sidecar
+python scripts/fetch_ffmpeg.py    # once: download ffmpeg+ffprobe (LGPL) to bundle
+python scripts/build_backend.py   # bundle backend + ffmpeg as a PyInstaller sidecar
 npm run tauri build               # installers in src-tauri/target/release/bundle
 ```
 
-Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1).
+Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1); on Windows,
+WebView2 + MSVC build tools. Full flow in [`docs/releasing.md`](docs/releasing.md).
 
 ## Project structure
 
@@ -61,12 +65,13 @@ src/                      # frontend (React + TS + Tailwind)
 
 backend/                  # FastAPI + yt-dlp engine (see backend/README.md)
 src-tauri/                # Tauri desktop shell
-scripts/                  # setup.py, dev.py, build_backend.py
+scripts/                  # setup.py, dev.py, fetch_ffmpeg.py, build_backend.py
 e2e/                      # Playwright end-to-end tests
 ```
 
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions
-- [`docs/`](docs/) — architecture, per-layer guides, the [roadmap](docs/ROADMAP.md)
-  and the [release process](docs/releasing.md)
+- [`docs/`](docs/) — architecture, per-layer guides, the [roadmap](docs/ROADMAP.md),
+  the [release process](docs/releasing.md) and
+  [third-party licenses](docs/THIRD_PARTY_LICENSES.md)

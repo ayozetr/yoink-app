@@ -75,7 +75,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 
 ```bash
 python scripts/setup.py    # one-time: venv + backend deps + npm install
-python scripts/dev.py      # run backend (:8000) + frontend (:5173) together
+python scripts/dev.py      # run backend (:8756) + frontend (:5173) together
 # python scripts/dev.py --api-port 8010 --web-port 5180   # custom ports
 ```
 
