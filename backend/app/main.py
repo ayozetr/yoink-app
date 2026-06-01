@@ -23,11 +23,14 @@ def create_app() -> FastAPI:
         summary="Local yt-dlp wrapper powering the Yoink media downloader.",
     )
 
-    # Allow the local Vite frontend to call the API.
+    # The backend only ever listens on localhost, so allow any origin. This
+    # avoids chasing the Tauri webview's per-platform origin scheme
+    # (tauri://localhost on Linux/macOS, http://tauri.localhost on Windows).
+    # No credentials/cookies are used, so the wildcard is safe.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
+        allow_origins=["*"],
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

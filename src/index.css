@@ -20,3 +20,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Desktop-app feel: the chrome isn't text-selectable (also avoids a duplicated
+   text/I-beam cursor under some VM GPU drivers). Inputs stay selectable. */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
