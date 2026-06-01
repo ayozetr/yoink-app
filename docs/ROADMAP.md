@@ -119,3 +119,82 @@ local HTTP/WebSocket server must be replaced. Three routes:
 > an APK). Distribute via direct APK / F-Droid — Google Play typically rejects
 > YouTube downloaders. This is a separate mini-project, not an extension of the
 > desktop packaging.
+
+## Phase 8 — Branding, i18n & polish ⬜ (→ v0.9.0)
+
+> More immediate than Phase 7 (Android). Grouped by area.
+
+### Branding & naming
+- ⬜ README title → "Yoink Media Downloader"
+- ⬜ App header: "Media Downloader" → "Yoink Media Downloader"
+  (`DownloaderHeader.tsx`)
+- ⬜ Installer/exe metadata: **Copyright** = GitHub user (`© ayozetr`) via Tauri
+  `bundle.copyright`. Leave `productName = "Yoink"` (changing it renames the
+  binary/installer and risks breaking sidecar paths).
+
+### UX fixes
+- ⬜ **"Desarrollado por ayozetr" link doesn't open** the profile in the
+  packaged app — the Tauri webview doesn't follow `target="_blank"` to the
+  system browser (works in the dev browser, not in WebView2/WebKitGTK). Fix with
+  the Tauri **opener** plugin (`openUrl(...)`) on click instead of a bare `href`.
+- ⬜ Cookies hint: "no para vídeos públicos" → "no para **contenido público**"
+  (`SettingsModal.tsx`)
+- ⬜ **Responsive design** review: the fixed 360px sidebar + main column break
+  on narrow windows; collapse/stack the sidebar, fluid widths, test small sizes.
+
+### Internationalization (English + Spanish)
+- ⬜ Translate the UI to **English**; extract all strings (i18n lib, e.g.
+  `react-i18next`, or a small custom dictionary)
+- ⬜ **Language selector** in Settings (persisted to `settings.json`)
+- ⬜ **Detect the system language** (`navigator.language`) as the default
+- ⬜ Backend error messages → **English** (currently Spanish); the frontend
+  shows them as-is and handles its own translations separately
+
+### Legal
+- ⬜ Add a **LICENSE** to the repo (choose: MIT permissive, or GPL-3.0 copyleft;
+  ffmpeg is bundled under LGPL and yt-dlp is Unlicense, so either is compatible)
+
+## Phase 9 — Advanced formats & going public ⬜ (→ v1.0.0)
+
+The 1.0 milestone: richer output formats **and** opening the repo to the world.
+
+### Advanced output formats & quality-aware audio
+
+Today Yoink offers MP4 (video) + MP3 (audio). Expand to give real control, and
+be **honest about source quality** (don't inflate lossy sources into "lossless").
+
+### Video containers
+- ⬜ Offer **MP4** (default), **MOV**, **MKV** (`merge_output_format`)
+- ⬜ MKV power features: **embed subtitles** (`writesubtitles` +
+  `FFmpegEmbedSubtitle`), **chapters/metadata** (`FFmpegMetadata`,
+  `add_chapters`), and optionally **multiple audio tracks** where the source
+  has them (`--audio-multistreams`)
+- ⬜ Subtitle language picker (es / en / all)
+
+### Audio formats
+- ⬜ Lossy: **MP3**, **M4A** — prefer **M4A** when possible (copy the source
+  AAC with no re-encode; truer + faster than MP3)
+- ⬜ Lossless: **FLAC**, **WAV** — only offered/meaningful when the source is
+  actually lossless
+
+### Source-quality detection (honest lossless)
+- ⬜ In `/api/info`, inspect the formats' `acodec`/`abr` → expose
+  `source_lossless` (true for flac/alac/wav/pcm…) and the max bitrate
+- ⬜ Frontend: enable FLAC/WAV **only when `source_lossless`**; otherwise warn
+  ("this source isn't lossless — FLAC would just upscale it") and suggest
+  M4A/Opus (the real max quality)
+- ⬜ Rationale: YouTube serves lossy (Opus ~160 kbps / AAC); transcoding that to
+  FLAC just bloats the file with **no quality gain**. Bandcamp/SoundCloud can be
+  genuinely lossless.
+
+### Going public
+
+- ⬜ **Audit the repo + git history for secrets** before flipping it public
+  (none expected — the VM credentials live outside the repo — but verify) and
+  re-check `.gitignore`
+- ⬜ Ensure the **LICENSE** (from v0.9.0) is in place
+- ⬜ Polish the README for newcomers: badges (release/license), a screenshot,
+  clear install + usage
+- ⬜ GitHub repo **description + topics**
+- ⬜ **Make the repo public** — also enables the in-app "Check for updates"
+  (the unauthenticated GitHub API 404s on private repos)
