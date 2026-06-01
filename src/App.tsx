@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
+import { Splash } from "./components/layout/Splash";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
 import { SettingsModal } from "./features/settings/SettingsModal";
@@ -27,6 +28,7 @@ export default function App() {
   const [stats, setStats] = useState<DownloadStats>(EMPTY_STATS);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [ready, setReady] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -55,9 +57,14 @@ export default function App() {
           if (cancelled) return;
           setSettings(loaded);
           await refresh();
+          setReady(true);
           return;
         } catch {
-          if (attempt >= 60) return; // give up after ~30s
+          if (attempt >= 60) {
+            // Give up after ~30s; drop the splash so the UI is usable anyway.
+            if (!cancelled) setReady(true);
+            return;
+          }
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
       }
@@ -110,6 +117,8 @@ export default function App() {
           onSaved={setSettings}
         />
       )}
+
+      <Splash visible={!ready} />
     </>
   );
 }
