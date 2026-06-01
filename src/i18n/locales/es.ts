@@ -57,6 +57,7 @@ export const es = {
     title: "Ajustes",
     close: "Cerrar",
     downloadDir: "Carpeta de descargas",
+    browse: "Elegir carpeta",
     defaultFormat: "Formato por defecto",
     video: "Vídeo (MP4)",
     audio: "Audio (MP3)",

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowUpCircle,
   CheckCircle2,
+  FolderOpen,
   Loader2,
   Settings as SettingsIcon,
   X,
@@ -12,6 +13,7 @@ import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { checkForUpdates, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
+import { pickDirectory } from "../../lib/pickDirectory";
 import i18n from "../../i18n";
 import type { AppSettings, MediaKind, VersionInfo } from "../../types/download";
 
@@ -39,6 +41,11 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   const [lang, setLang] = useState<string>(
     () => localStorage.getItem(LANG_STORAGE_KEY) ?? "system",
   );
+
+  const pickFolder = async () => {
+    const dir = await pickDirectory(form.download_dir);
+    if (dir) set("download_dir", dir);
+  };
 
   const changeLanguage = (value: string) => {
     setLang(value);
@@ -117,12 +124,23 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
 
         <div className="flex flex-col gap-4">
           <Field label={t("settings.downloadDir")}>
-            <input
-              type="text"
-              value={form.download_dir}
-              onChange={(e) => set("download_dir", e.target.value)}
-              className={INPUT_CLASS}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={form.download_dir}
+                onChange={(e) => set("download_dir", e.target.value)}
+                className={`${INPUT_CLASS} w-full pr-11`}
+              />
+              <button
+                type="button"
+                onClick={pickFolder}
+                aria-label={t("settings.browse")}
+                title={t("settings.browse")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+              >
+                <FolderOpen size={18} />
+              </button>
+            </div>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
