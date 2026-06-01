@@ -19,7 +19,7 @@ export function HistorySidebar({
   onClear,
 }: HistorySidebarProps) {
   return (
-    <GlassPanel className="w-[360px] shrink-0 p-5 flex flex-col">
+    <GlassPanel className="w-full lg:h-full p-5 flex flex-col">
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-semibold text-lg">Historial de Descargas</h3>
         <button

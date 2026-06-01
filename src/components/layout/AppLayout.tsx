@@ -14,12 +14,16 @@ interface AppLayoutProps {
  */
 export function AppLayout({ main, sidebar }: AppLayoutProps) {
   return (
-    <div className="min-h-screen bg-canvas text-white overflow-hidden">
+    <div className="min-h-screen bg-canvas text-white">
       <BackgroundGlow />
 
-      <div className="relative flex h-screen p-6 gap-6">
-        <main className="flex-1 flex flex-col gap-6">{main}</main>
-        {sidebar}
+      {/* Row on wide screens (each column scrolls on its own); stacked with
+          page scroll on narrow ones. */}
+      <div className="relative flex flex-col lg:flex-row lg:h-screen p-4 sm:p-6 gap-4 sm:gap-6">
+        <main className="flex-1 min-w-0 flex flex-col gap-4 sm:gap-6 lg:overflow-y-auto">
+          {main}
+        </main>
+        <div className="w-full lg:w-[360px] lg:shrink-0 lg:h-full">{sidebar}</div>
       </div>
     </div>
   );
