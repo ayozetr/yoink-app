@@ -57,6 +57,11 @@ fail. The **AppImage** step (`linuxdeploy`) is the fragile one — see
 troubleshooting below. `APPIMAGE_EXTRACT_AND_RUN=1` is what makes it work on
 hosts without FUSE.
 
+The Wayland blank-screen fix is **in the binary** (`src-tauri/src/main.rs`
+forces `WEBKIT_DISABLE_DMABUF_RENDERER=1` before any webview code runs), so it
+is present in all three bundles automatically — nothing to set per-package or
+at runtime.
+
 Output paths:
 
 ```
@@ -147,10 +152,28 @@ done < <(find "$directory" -not -path "*/vmware/*" \( -type l -o -type f \) -nam
 
 …or build on a host without VMware.
 
+### C. Blank/white window on Wayland
+
+Symptom: the app launches (icon in the taskbar) but the window stays blank/
+white, or crashes with `Gdk-Message: Error 71`. This is WebKitGTK's DMABUF
+renderer misbehaving on Wayland.
+
+Fix — **already in the binary**: `src-tauri/src/main.rs` sets
+`WEBKIT_DISABLE_DMABUF_RENDERER=1` at startup (unless the user already set it),
+so all three bundles boot on Wayland. If you ever see it again, run with the
+variable exported to confirm:
+
+```bash
+WEBKIT_DISABLE_DMABUF_RENDERER=1 ./Yoink_<ver>_amd64.AppImage
+```
+
+Note: this must be set at **runtime** — setting it only for `tauri build` does
+nothing for the end user, which is why it lives in `main.rs`.
+
 ### Useful env flags
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1       # avoid FUSE for the bundler tools (the key one)
-WEBKIT_DISABLE_DMABUF_RENDERER=1 # avoids some WebKitGTK rendering issues
+APPIMAGE_EXTRACT_AND_RUN=1       # avoid FUSE for the bundler tools (build-time)
+WEBKIT_DISABLE_DMABUF_RENDERER=1 # Wayland blank screen — set at RUNTIME (in main.rs)
 NO_STRIP=1                       # skip stripping (avoids linuxdeploy strip quirks)
 ```

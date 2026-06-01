@@ -35,6 +35,21 @@ fn spawn_backend(app: &tauri::App) {
 }
 
 fn main() {
+    // WebKitGTK's DMABUF renderer leaves a blank window (or crashes with
+    // "Gdk-Message: Error 71") on many Wayland sessions. Force the GL backend
+    // before any Tauri / webview code touches the library, so the app boots
+    // whether launched from a file manager or a terminal. Respect a value the
+    // user has already set.
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            // SAFETY: single-threaded process at this point.
+            unsafe {
+                std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            }
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
