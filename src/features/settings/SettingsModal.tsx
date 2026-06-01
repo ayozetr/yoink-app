@@ -10,6 +10,7 @@ import {
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { checkForUpdates, updateSettings } from "../../lib/api";
+import { openExternal } from "../../lib/openExternal";
 import type { AppSettings, MediaKind, VersionInfo } from "../../types/download";
 
 interface SettingsModalProps {
@@ -182,6 +183,10 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           href="https://github.com/ayozetr"
           target="_blank"
           rel="noreferrer"
+          onClick={(e) => {
+            e.preventDefault();
+            void openExternal("https://github.com/ayozetr");
+          }}
           className="mt-6 flex items-center justify-center gap-1.5 border-y border-white/10 px-2 py-2.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
         >
           <GithubIcon className="h-3 w-3" />
@@ -215,6 +220,10 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               href={version.release_url}
               target="_blank"
               rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                if (version.release_url) void openExternal(version.release_url);
+              }}
               className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200 transition"
             >
               <ArrowUpCircle size={15} />

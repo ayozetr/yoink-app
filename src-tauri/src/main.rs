@@ -63,6 +63,7 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let child = spawn_backend(app);
             app.manage(BackendProcess(Mutex::new(child)));
