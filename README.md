@@ -68,4 +68,5 @@ e2e/                      # Playwright end-to-end tests
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions
-- [`docs/`](docs/) — architecture, per-layer guides, and the [roadmap](docs/ROADMAP.md)
+- [`docs/`](docs/) — architecture, per-layer guides, the [roadmap](docs/ROADMAP.md)
+  and the [release process](docs/releasing.md)
