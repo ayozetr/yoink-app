@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
+import { EditMenu } from "./components/ui/EditMenu";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
 import { SettingsModal } from "./features/settings/SettingsModal";
@@ -76,18 +77,6 @@ export default function App() {
     };
   }, [refresh]);
 
-  useEffect(() => {
-    // Suppress the webview's native context menu (Print, Reload…) so the app
-    // feels native — but keep it on text fields so copy/paste still works.
-    const onContextMenu = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, [contenteditable='true']")) return;
-      event.preventDefault();
-    };
-    window.addEventListener("contextmenu", onContextMenu);
-    return () => window.removeEventListener("contextmenu", onContextMenu);
-  }, []);
-
   const handleOpenFolder = (entry: HistoryEntry) => {
     void openInFileManager(entry.filepath);
   };
@@ -131,6 +120,7 @@ export default function App() {
       )}
 
       <Splash visible={!ready} />
+      <EditMenu />
     </>
   );
 }
