@@ -6,6 +6,7 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)
 ![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 
 Yoink is a **local** desktop/web app for downloading high-fidelity video and
 audio from many platforms, powered exclusively by
