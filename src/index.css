@@ -34,3 +34,15 @@ textarea,
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Custom dropdown arrow with breathing room (the native one sits too close to
+   the right edge). */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.05rem;
+  padding-right: 2.25rem;
+}

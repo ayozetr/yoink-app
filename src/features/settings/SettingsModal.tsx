@@ -79,7 +79,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-lg p-6 !bg-[#16181f]"
+        className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f]"
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold flex items-center gap-2">
