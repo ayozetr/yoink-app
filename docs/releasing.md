@@ -216,17 +216,19 @@ NO_STRIP=1                       # skip stripping (avoids linuxdeploy strip quir
 ## Packaged-app gotchas (WebKitGTK + sidecar)
 
 The dev server runs in your **system browser** (Chromium); the bundle runs in
-the **Tauri WebKitGTK webview** with origin `tauri://localhost`. Several things
+the **Tauri webview** — WebKitGTK on Linux (origin `tauri://localhost`),
+WebView2/Chromium on Windows (origin `http://tauri.localhost`). Several things
 work in dev but break in the packaged app — these all bit us once. Build with
 devtools (below) and check the console first.
 
-### CORS — allow the Tauri origin
-The webview origin is `tauri://localhost` (Linux/macOS) / `https://tauri.localhost`
-(Windows). The backend must allow it or **every `fetch` is blocked** — the
-backend returns 200 but the webview drops the response, so the UI silently has
-no data (e.g. the Settings modal never opens). Allowed in
-`backend/app/core/config.py` → `cors_origins`. Devtools symptom:
-`Origin tauri://localhost is not allowed by Access-Control-Allow-Origin`.
+### CORS — allow any origin (it's a local backend)
+The webview origin differs per platform: `tauri://localhost` (Linux/macOS) and
+`http://tauri.localhost` (Windows — note `http`, not `https`). Rather than chase
+each scheme, the backend (`main.py`) allows **any** origin
+(`allow_origins=["*"]`, no credentials) since it only ever listens on localhost.
+If a request is blocked the backend returns 200 but the webview drops it, so the
+UI silently has no data (Settings won't open). Devtools symptom:
+`... is not allowed by Access-Control-Allow-Origin`.
 
 ### Backend port — avoid 8000
 The sidecar listens on a fixed port the frontend hardcodes
@@ -234,6 +236,13 @@ The sidecar listens on a fixed port the frontend hardcodes
 used and collided on the dev machine, so the sidecar couldn't bind and the app
 had no API. We use **8756**. Symptom in the sidecar log:
 `error while attempting to bind on address ('127.0.0.1', 8000): address already in use`.
+
+### Slow sidecar startup — retry the initial load
+The PyInstaller sidecar unpacks ffmpeg (~155 MB) and starts uvicorn, which takes
+several seconds — notably on Windows. The frontend retries the initial
+settings/history fetch (`App.tsx`) until the backend answers, and a startup
+splash (`Splash.tsx`) covers the wait. Symptom if this regresses:
+`net::ERR_CONNECTION_REFUSED` on load and the app stuck with no data.
 
 ### No `filter: blur()` / `backdrop-filter` on scrolled content
 WebKitGTK fails to repaint content scrolled over a large CSS blur, leaving
@@ -246,7 +255,10 @@ The spawned backend does **not** die with the app by default — it lingers
 holding the port, so the next launch talks to a **stale** backend (e.g. one
 built before a fix). `main.rs` stores the `CommandChild` and kills it on
 `RunEvent::Exit`/`ExitRequested`. A leftover `yoink-backend` on the port is an
-orphan — kill it (`kill $(lsof -ti:8756)`) before retesting.
+orphan — kill it before retesting (especially after installing several test
+builds in a row, where an *old* sidecar with stale CORS keeps serving 8756):
+- Linux: `kill $(lsof -ti:8756)`
+- Windows: `Get-Process yoink-backend,yoink -ErrorAction SilentlyContinue | Stop-Process -Force`
 
 ### Debugging the webview (devtools)
 Release builds have no devtools. To inspect the packaged app temporarily:
