@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowUpCircle,
   CheckCircle2,
@@ -11,7 +12,10 @@ import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { checkForUpdates, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
+import i18n from "../../i18n";
 import type { AppSettings, MediaKind, VersionInfo } from "../../types/download";
+
+const LANG_STORAGE_KEY = "yoink-lang";
 
 interface SettingsModalProps {
   settings: AppSettings;
@@ -25,11 +29,26 @@ const INPUT_CLASS =
 
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
 export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<AppSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [version, setVersion] = useState<VersionInfo | null>(null);
+  // "system" = follow the OS/browser language; otherwise a forced choice.
+  const [lang, setLang] = useState<string>(
+    () => localStorage.getItem(LANG_STORAGE_KEY) ?? "system",
+  );
+
+  const changeLanguage = (value: string) => {
+    setLang(value);
+    if (value === "system") {
+      localStorage.removeItem(LANG_STORAGE_KEY);
+      void i18n.changeLanguage(navigator.language.startsWith("es") ? "es" : "en");
+    } else {
+      void i18n.changeLanguage(value); // the detector caches it in localStorage
+    }
+  };
 
   const handleCheck = async () => {
     setChecking(true);
@@ -41,7 +60,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         latest: null,
         update_available: false,
         release_url: null,
-        error: "No se pudo comprobar (¿backend apagado?).",
+        error: t("settings.checkError"),
       });
     } finally {
       setChecking(false);
@@ -63,7 +82,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
       onSaved(saved);
       onClose();
     } catch {
-      setError("No se pudieron guardar los ajustes.");
+      setError(t("settings.saveError"));
     } finally {
       setSaving(false);
     }
@@ -84,20 +103,20 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <SettingsIcon size={18} className="text-violet-400" />
-            Ajustes
+            {t("settings.title")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="text-zinc-400 hover:text-white transition"
-            aria-label="Cerrar"
+            aria-label={t("settings.close")}
           >
             <X size={18} />
           </button>
         </div>
 
         <div className="flex flex-col gap-4">
-          <Field label="Carpeta de descargas">
+          <Field label={t("settings.downloadDir")}>
             <input
               type="text"
               value={form.download_dir}
@@ -107,17 +126,17 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Formato por defecto">
+            <Field label={t("settings.defaultFormat")}>
               <select
                 value={form.default_kind}
                 onChange={(e) => set("default_kind", e.target.value as MediaKind)}
                 className={INPUT_CLASS}
               >
-                <option value="video">Vídeo (MP4)</option>
-                <option value="audio">Audio (MP3)</option>
+                <option value="video">{t("settings.video")}</option>
+                <option value="audio">{t("settings.audio")}</option>
               </select>
             </Field>
-            <Field label="Calidad por defecto">
+            <Field label={t("settings.defaultQuality")}>
               <select
                 value={form.default_quality}
                 onChange={(e) => set("default_quality", e.target.value)}
@@ -132,26 +151,37 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </Field>
           </div>
 
+          <Field label={t("settings.language")}>
+            <select
+              value={lang}
+              onChange={(e) => changeLanguage(e.target.value)}
+              className={INPUT_CLASS}
+            >
+              <option value="system">{t("settings.langSystem")}</option>
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </Field>
+
           <div className="pt-1 border-t border-white/10" />
           <p className="text-xs text-zinc-500 -mb-1">
-            Cookies (solo para contenido que requiere sesión; no para contenido
-            público)
+            {t("settings.cookiesHint")}
           </p>
 
-          <Field label="Navegador para cookies (p. ej. firefox, chrome)">
+          <Field label={t("settings.cookiesBrowser")}>
             <input
               type="text"
               value={form.cookies_from_browser ?? ""}
-              placeholder="vacío = desactivado"
+              placeholder={t("settings.cookiesBrowserPlaceholder")}
               onChange={(e) => set("cookies_from_browser", e.target.value)}
               className={INPUT_CLASS}
             />
           </Field>
-          <Field label="Archivo cookies.txt (alternativa al navegador)">
+          <Field label={t("settings.cookiesFile")}>
             <input
               type="text"
               value={form.cookies_file ?? ""}
-              placeholder="/ruta/cookies.txt"
+              placeholder={t("settings.cookiesFilePlaceholder")}
               onChange={(e) => set("cookies_file", e.target.value)}
               className={INPUT_CLASS}
             />
@@ -166,7 +196,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             onClick={onClose}
             className="px-4 h-11 rounded-2xl text-sm text-zinc-300 hover:text-white transition"
           >
-            Cancelar
+            {t("settings.cancel")}
           </button>
           <Button
             variant="gradient"
@@ -175,7 +205,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             className="px-5 h-11 disabled:opacity-50"
           >
             {saving && <Loader2 size={16} className="animate-spin" />}
-            Guardar
+            {t("settings.save")}
           </Button>
         </div>
 
@@ -191,23 +221,23 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         >
           <GithubIcon className="h-3 w-3" />
           <span>
-            Desarrollado por{" "}
+            {t("settings.developedBy")}{" "}
             <strong className="font-semibold text-zinc-300">ayozetr</strong>
           </span>
         </a>
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <div className="text-sm">
-            <span className="text-zinc-400">Versión: </span>
+            <span className="text-zinc-400">{t("settings.version")}</span>
             <span className="font-medium">v{__APP_VERSION__}</span>
             {version && !version.error && version.update_available && (
               <span className="ml-2 text-violet-300">
-                · {version.latest} disponible
+                · {t("settings.available", { version: version.latest })}
               </span>
             )}
             {version && !version.error && !version.update_available && (
               <span className="ml-2 inline-flex items-center gap-1 text-emerald-400">
-                <CheckCircle2 size={13} /> al día
+                <CheckCircle2 size={13} /> {t("settings.upToDate")}
               </span>
             )}
             {version?.error && (
@@ -227,7 +257,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200 transition"
             >
               <ArrowUpCircle size={15} />
-              Actualizar
+              {t("settings.update")}
             </a>
           ) : (
             <button
@@ -237,7 +267,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition disabled:opacity-50"
             >
               {checking && <Loader2 size={14} className="animate-spin" />}
-              Comprobar actualizaciones
+              {t("settings.checkUpdates")}
             </button>
           )}
         </div>

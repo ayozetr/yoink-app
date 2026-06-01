@@ -47,22 +47,22 @@ def check_for_updates(timeout: float = 8.0) -> VersionInfo:
             data = json.load(response)
     except urllib.error.HTTPError as exc:
         if exc.code == 403:
-            message = "Límite de la API de GitHub alcanzado; inténtalo más tarde."
+            message = "GitHub API rate limit reached; try again later."
         elif exc.code == 404:
-            message = "No hay releases públicas (¿el repositorio es privado?)."
+            message = "No public releases found (is the repo private?)."
         else:
-            message = f"GitHub respondió con un error ({exc.code})."
+            message = f"GitHub returned an error ({exc.code})."
         return VersionInfo(current=current, error=message)
     except (urllib.error.URLError, TimeoutError, OSError):
         return VersionInfo(
-            current=current, error="No se pudo comprobar (¿sin conexión?)."
+            current=current, error="Couldn't check for updates (offline?)."
         )
     except (ValueError, json.JSONDecodeError):
-        return VersionInfo(current=current, error="Respuesta inesperada de GitHub.")
+        return VersionInfo(current=current, error="Unexpected response from GitHub.")
 
     latest = data.get("tag_name")
     if not isinstance(latest, str):
-        return VersionInfo(current=current, error="No hay releases publicadas todavía.")
+        return VersionInfo(current=current, error="No releases published yet.")
 
     release_url = data.get("html_url")
     return VersionInfo(

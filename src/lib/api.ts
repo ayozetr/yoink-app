@@ -5,6 +5,7 @@
  * backend runs on a non-default port); it defaults to the local uvicorn server.
  */
 
+import i18n from "../i18n";
 import type {
   AppSettings,
   DownloadStats,
@@ -42,7 +43,7 @@ async function readErrorDetail(response: Response): Promise<string> {
   } catch {
     // Body was not JSON — fall through to the generic message.
   }
-  return `La petición falló (${response.status}).`;
+  return i18n.t("errors.requestFailed", { status: response.status });
 }
 
 /**
@@ -68,10 +69,7 @@ export async function fetchInfo(
     if (cause instanceof DOMException && cause.name === "AbortError") {
       throw cause;
     }
-    throw new ApiError(
-      "No se pudo conectar con el backend. ¿Está corriendo en el puerto 8756?",
-      0,
-    );
+    throw new ApiError(i18n.t("errors.backendUnreachable"), 0);
   }
 
   if (!response.ok) {

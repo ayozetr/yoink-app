@@ -5,6 +5,7 @@ import {
   Music4,
   Video,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { HistoryEntry } from "../../../types/download";
 
 interface HistoryItemCardProps {
@@ -14,6 +15,7 @@ interface HistoryItemCardProps {
 
 /** One row in the download history list. */
 export function HistoryItemCard({ item, onOpenFolder }: HistoryItemCardProps) {
+  const { t } = useTranslation();
   const isCompleted = item.status === "completed";
 
   return (
@@ -31,12 +33,16 @@ export function HistoryItemCard({ item, onOpenFolder }: HistoryItemCardProps) {
             {isCompleted ? (
               <>
                 <CheckCircle2 size={14} className="text-emerald-400" />
-                <span className="text-xs text-emerald-400">Completado</span>
+                <span className="text-xs text-emerald-400">
+                  {t("history.completed")}
+                </span>
               </>
             ) : (
               <>
                 <AlertCircle size={14} className="text-red-400" />
-                <span className="text-xs text-red-400">Error</span>
+                <span className="text-xs text-red-400">
+                  {t("history.error")}
+                </span>
               </>
             )}
           </div>
@@ -47,7 +53,7 @@ export function HistoryItemCard({ item, onOpenFolder }: HistoryItemCardProps) {
             type="button"
             onClick={() => onOpenFolder?.(item)}
             className="opacity-60 hover:opacity-100 transition"
-            aria-label="Abrir carpeta"
+            aria-label={t("history.openFolder")}
           >
             <FolderOpen size={18} className="text-zinc-400" />
           </button>

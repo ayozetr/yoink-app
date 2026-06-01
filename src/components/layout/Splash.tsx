@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface SplashProps {
   /** While true the splash covers the app; it fades out when false. */
@@ -10,6 +11,8 @@ interface SplashProps {
  * a few seconds to unpack ffmpeg and start. Fades out once the API responds.
  */
 export function Splash({ visible }: SplashProps) {
+  const { t } = useTranslation();
+
   return (
     <div
       aria-hidden={!visible}
@@ -21,7 +24,7 @@ export function Splash({ visible }: SplashProps) {
       }}
     >
       <Loader2 className="h-9 w-9 animate-spin text-violet-400" />
-      <p className="text-sm text-zinc-400">Preparando todo…</p>
+      <p className="text-sm text-zinc-400">{t("splash.preparing")}</p>
     </div>
   );
 }

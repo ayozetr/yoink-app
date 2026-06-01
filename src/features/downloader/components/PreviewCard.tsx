@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clock3, Download, User, Video } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import type { MediaKind, VideoInfo } from "../../../types/download";
@@ -25,6 +26,7 @@ export function PreviewCard({
   defaultKind,
   defaultQuality,
 }: PreviewCardProps) {
+  const { t } = useTranslation();
   const kinds = useMemo(() => availableKinds(info), [info]);
   const qualities = useMemo(() => videoQualities(info), [info]);
 
@@ -61,7 +63,7 @@ export function PreviewCard({
         <div className="flex-1 flex flex-col justify-between">
           <div>
             <span className="text-xs uppercase tracking-wider text-violet-400">
-              Vista previa
+              {t("preview.label")}
             </span>
             <h2 className="text-xl font-semibold mt-2">{info.title}</h2>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-zinc-400">
@@ -88,7 +90,7 @@ export function PreviewCard({
             >
               {kinds.map((option) => (
                 <option key={option.kind} value={option.kind}>
-                  {option.label}
+                  {option.kind === "video" ? t("preview.video") : t("preview.audio")}
                 </option>
               ))}
             </select>
@@ -106,7 +108,7 @@ export function PreviewCard({
                   </option>
                 ))
               ) : (
-                <option>Mejor calidad</option>
+                <option>{t("preview.bestQuality")}</option>
               )}
             </select>
 
@@ -118,7 +120,7 @@ export function PreviewCard({
               className="h-12"
             >
               <Download size={18} />
-              Descargar
+              {t("preview.download")}
             </Button>
           </div>
         </div>

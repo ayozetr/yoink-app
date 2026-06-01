@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, RotateCw, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { DownloaderHeader } from "./components/DownloaderHeader";
 import { UrlInput } from "./components/UrlInput";
 import { PreviewCard, type DownloadSelection } from "./components/PreviewCard";
@@ -52,6 +53,7 @@ export function DownloaderPanel({
   defaultKind,
   defaultQuality,
 }: DownloaderPanelProps) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<InfoResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -160,7 +162,7 @@ export function DownloaderPanel({
       setError(
         cause instanceof ApiError
           ? cause.message
-          : "Ocurrió un error inesperado al analizar la URL.",
+          : t("panel.analyzeError"),
       );
     } finally {
       if (requestRef.current === controller) {
@@ -245,7 +247,7 @@ export function DownloaderPanel({
 
       {downloading && queueTotal > 1 && (
         <p className="text-xs text-zinc-400 px-1">
-          Descargando {queueIndex + 1} de {queueTotal}:{" "}
+          {t("panel.downloadingOf", { current: queueIndex + 1, total: queueTotal })}{" "}
           <span className="text-zinc-200">{currentTitle}</span>
         </p>
       )}
@@ -261,14 +263,15 @@ export function DownloaderPanel({
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2 text-sm text-zinc-200">
               <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-              {summary.completed} completadas
-              {summary.failed > 0 && ` · ${summary.failed} con error`}
+              {t("panel.summaryDone", { count: summary.completed })}
+              {summary.failed > 0 &&
+                t("panel.summaryFailed", { count: summary.failed })}
             </span>
             <button
               type="button"
               onClick={() => setSummary(null)}
               className="text-zinc-400 hover:text-white transition"
-              aria-label="Cerrar resumen"
+              aria-label={t("panel.closeSummary")}
             >
               <X size={16} />
             </button>
@@ -289,7 +292,7 @@ export function DownloaderPanel({
               className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition shrink-0"
             >
               <RotateCw size={15} />
-              Reintentar
+              {t("panel.retry")}
             </button>
           </div>
         </GlassPanel>

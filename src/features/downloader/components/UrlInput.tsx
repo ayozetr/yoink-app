@@ -1,4 +1,5 @@
 import { Link2, Loader2, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 
@@ -11,6 +12,7 @@ interface UrlInputProps {
 
 /** URL field + "Analizar" action that triggers metadata extraction. */
 export function UrlInput({ value, onChange, onAnalyze, loading }: UrlInputProps) {
+  const { t } = useTranslation();
   const disabled = loading || value.trim().length === 0;
 
   return (
@@ -20,7 +22,7 @@ export function UrlInput({ value, onChange, onAnalyze, loading }: UrlInputProps)
           <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
           <input
             type="text"
-            placeholder="Pega aquí la URL del vídeo..."
+            placeholder={t("url.placeholder")}
             value={value}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={(event) => {
@@ -40,7 +42,7 @@ export function UrlInput({ value, onChange, onAnalyze, loading }: UrlInputProps)
           ) : (
             <Search size={18} />
           )}
-          {loading ? "Analizando..." : "Analizar"}
+          {loading ? t("url.analyzing") : t("url.analyze")}
         </Button>
       </div>
     </GlassPanel>

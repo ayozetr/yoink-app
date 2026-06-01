@@ -1,4 +1,5 @@
 import { CheckCircle2, Loader2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
 import type {
@@ -18,13 +19,15 @@ export function DownloadProgressCard({
   completed,
   onCancel,
 }: DownloadProgressCardProps) {
+  const { t } = useTranslation();
+
   if (completed) {
     return (
       <GlassPanel className="p-5">
         <div className="flex items-center gap-3 text-emerald-300">
           <CheckCircle2 size={18} className="shrink-0" />
           <span className="text-sm">
-            Descarga completada:{" "}
+            {t("progress.completed")}{" "}
             <span className="font-medium text-emerald-200">
               {completed.filename}
             </span>
@@ -37,9 +40,9 @@ export function DownloadProgressCard({
   if (!progress) return null;
 
   const isProcessing = progress.status === "processing";
-  const label = isProcessing ? "Procesando (ffmpeg)..." : "Descargando...";
+  const label = isProcessing ? t("progress.processing") : t("progress.downloading");
   const detail = isProcessing
-    ? "Uniendo pistas"
+    ? t("progress.merging")
     : [progress.speed, progress.eta && `ETA ${progress.eta}`]
         .filter(Boolean)
         .join(" • ");
@@ -60,7 +63,7 @@ export function DownloadProgressCard({
               type="button"
               onClick={onCancel}
               className="text-zinc-400 hover:text-red-400 transition"
-              aria-label="Cancelar descarga"
+              aria-label={t("progress.cancel")}
             >
               <X size={16} />
             </button>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type EditTarget = HTMLInputElement | HTMLTextAreaElement;
 
@@ -35,6 +36,7 @@ function isEditable(el: HTMLElement | null): EditTarget | null {
  * Right-clicking anywhere else shows nothing.
  */
 export function EditMenu() {
+  const { t } = useTranslation();
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   useEffect(() => {
@@ -106,13 +108,13 @@ export function EditMenu() {
       className="fixed z-[200] min-w-[150px] overflow-hidden rounded-lg border border-white/10 bg-[#1a1d27] py-1 text-sm text-zinc-200 shadow-xl"
     >
       <button type="button" disabled={!hasSelection} onMouseDown={run(cut)} className={itemClass}>
-        Cortar
+        {t("common.cut")}
       </button>
       <button type="button" disabled={!hasSelection} onMouseDown={run(copy)} className={itemClass}>
-        Copiar
+        {t("common.copy")}
       </button>
       <button type="button" onMouseDown={run(paste)} className={itemClass}>
-        Pegar
+        {t("common.paste")}
       </button>
     </div>
   );

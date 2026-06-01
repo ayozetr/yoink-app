@@ -7,7 +7,6 @@ import type { MediaFormat, MediaKind, VideoInfo } from "../../types/download";
 
 export interface KindOption {
   kind: MediaKind;
-  label: string;
 }
 
 /** Pull a pixel height out of a yt-dlp resolution/note string. */
@@ -29,11 +28,11 @@ export function availableKinds(info: VideoInfo): KindOption[] {
   const hasAudio = info.formats.some((format) => format.has_audio);
 
   const options: KindOption[] = [];
-  if (hasVideo) options.push({ kind: "video", label: "Vídeo (MP4)" });
-  if (hasAudio) options.push({ kind: "audio", label: "Audio (MP3)" });
+  if (hasVideo) options.push({ kind: "video" });
+  if (hasAudio) options.push({ kind: "audio" });
 
   // Fall back to a video option so the selector is never empty.
-  return options.length > 0 ? options : [{ kind: "video", label: "Vídeo (MP4)" }];
+  return options.length > 0 ? options : [{ kind: "video" }];
 }
 
 /**

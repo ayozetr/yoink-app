@@ -6,6 +6,7 @@
  * client (`VITE_API_BASE_URL`) by swapping the `http`/`https` scheme.
  */
 
+import i18n from "../i18n";
 import type { DownloadEvent, DownloadRequest } from "../types/download";
 
 const API_BASE_URL =
@@ -49,7 +50,7 @@ export function startDownload(
     if (closed) return;
     handlers.onEvent({
       type: "error",
-      message: "Se perdió la conexión con el backend durante la descarga.",
+      message: i18n.t("errors.downloadConnectionLost"),
     });
   };
 

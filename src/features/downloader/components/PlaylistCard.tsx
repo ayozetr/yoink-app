@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Clock3, Download, ListVideo, Music4, Video } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import type {
@@ -29,6 +30,7 @@ export function PlaylistCard({
   defaultKind,
   defaultQuality,
 }: PlaylistCardProps) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(playlist.entries.map((entry) => entry.id)),
   );
@@ -68,22 +70,23 @@ export function PlaylistCard({
       <div className="flex items-center justify-between gap-3 mb-1">
         <span className="text-xs uppercase tracking-wider text-violet-400 flex items-center gap-2">
           <ListVideo size={14} />
-          Playlist
+          {t("playlist.label")}
         </span>
         <button
           type="button"
           onClick={toggleAll}
           className="text-xs text-zinc-400 hover:text-white transition"
         >
-          {allSelected ? "Deseleccionar todo" : "Seleccionar todo"}
+          {allSelected ? t("playlist.deselectAll") : t("playlist.selectAll")}
         </button>
       </div>
 
       <h2 className="text-xl font-semibold truncate">{playlist.title}</h2>
       <p className="text-sm text-zinc-400 mt-1">
         {playlist.uploader ? `${playlist.uploader} • ` : ""}
-        {playlist.entry_count} vídeos
-        {playlist.truncated && ` (mostrando los primeros ${playlist.entries.length})`}
+        {t("playlist.videos", { count: playlist.entry_count })}
+        {playlist.truncated &&
+          ` ${t("playlist.showingFirst", { count: playlist.entries.length })}`}
       </p>
 
       {/* Controls */}
@@ -93,8 +96,8 @@ export function PlaylistCard({
           onChange={(event) => setKind(event.target.value as MediaKind)}
           className="h-12 rounded-xl bg-surface border border-white/10 px-4"
         >
-          <option value="video">Vídeo (MP4)</option>
-          <option value="audio">Audio (MP3)</option>
+          <option value="video">{t("preview.video")}</option>
+          <option value="audio">{t("preview.audio")}</option>
         </select>
 
         <select
@@ -110,7 +113,7 @@ export function PlaylistCard({
               </option>
             ))
           ) : (
-            <option>Mejor calidad</option>
+            <option>{t("preview.bestQuality")}</option>
           )}
         </select>
 
@@ -121,7 +124,7 @@ export function PlaylistCard({
           className="h-12 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download size={18} />
-          Descargar ({selected.size})
+          {t("playlist.download", { count: selected.size })}
         </Button>
       </div>
 
