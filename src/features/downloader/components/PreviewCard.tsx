@@ -54,7 +54,7 @@ export function PreviewCard({
               className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
-            <Video className="w-14 h-14 text-white/80" />
+            <Video className="size-14 text-white/80" />
           )}
           <div className="absolute inset-0 bg-black/20" />
         </div>

@@ -24,6 +24,11 @@ const EMPTY_STATS: DownloadStats = {
   transferred: "0 B",
 };
 
+/** Reveal a finished download in the OS file manager. */
+function handleOpenFolder(entry: HistoryEntry) {
+  void openInFileManager(entry.filepath);
+}
+
 export default function App() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [stats, setStats] = useState<DownloadStats>(EMPTY_STATS);
@@ -76,10 +81,6 @@ export default function App() {
       cancelled = true;
     };
   }, [refresh]);
-
-  const handleOpenFolder = (entry: HistoryEntry) => {
-    void openInFileManager(entry.filepath);
-  };
 
   const handleClear = async () => {
     try {

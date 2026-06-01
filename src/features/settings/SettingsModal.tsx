@@ -127,6 +127,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             <div className="relative">
               <input
                 type="text"
+                aria-label={t("settings.downloadDir")}
                 value={form.download_dir}
                 onChange={(e) => set("download_dir", e.target.value)}
                 className={`${INPUT_CLASS} w-full pr-11`}
@@ -189,6 +190,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           <Field label={t("settings.cookiesBrowser")}>
             <input
               type="text"
+              aria-label={t("settings.cookiesBrowser")}
               value={form.cookies_from_browser ?? ""}
               placeholder={t("settings.cookiesBrowserPlaceholder")}
               onChange={(e) => set("cookies_from_browser", e.target.value)}
@@ -198,6 +200,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           <Field label={t("settings.cookiesFile")}>
             <input
               type="text"
+              aria-label={t("settings.cookiesFile")}
               value={form.cookies_file ?? ""}
               placeholder={t("settings.cookiesFilePlaceholder")}
               onChange={(e) => set("cookies_file", e.target.value)}
@@ -237,7 +240,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           }}
           className="mt-6 flex items-center justify-center gap-1.5 border-y border-white/10 px-2 py-2.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
         >
-          <GithubIcon className="h-3 w-3" />
+          <GithubIcon className="size-3" />
           <span>
             {t("settings.developedBy")}{" "}
             <strong className="font-semibold text-zinc-300">ayozetr</strong>

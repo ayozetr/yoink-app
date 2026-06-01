@@ -22,6 +22,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
+      type="button"
       className={`rounded-2xl transition flex items-center justify-center gap-2 font-medium ${VARIANT_CLASSES[variant]} ${className}`}
       {...rest}
     >

@@ -19,9 +19,10 @@ export function UrlInput({ value, onChange, onAnalyze, loading }: UrlInputProps)
     <GlassPanel className="p-5">
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+          <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-zinc-500" />
           <input
             type="text"
+            aria-label={t("url.placeholder")}
             placeholder={t("url.placeholder")}
             value={value}
             onChange={(event) => onChange(event.target.value)}

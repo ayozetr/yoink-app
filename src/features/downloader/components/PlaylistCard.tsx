@@ -139,7 +139,7 @@ export function PlaylistCard({
               type="checkbox"
               checked={selected.has(entry.id)}
               onChange={() => toggle(entry.id)}
-              className="w-4 h-4 accent-violet-500 shrink-0"
+              className="size-4 accent-violet-500 shrink-0"
             />
             <div className="w-14 h-9 rounded-md bg-gradient-to-br from-violet-500/40 to-blue-500/40 overflow-hidden flex items-center justify-center shrink-0">
               {entry.thumbnail_url ? (

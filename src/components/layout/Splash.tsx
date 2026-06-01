@@ -23,7 +23,7 @@ export function Splash({ visible }: SplashProps) {
         background: "radial-gradient(circle at center, #16131f, #0a0a0f 70%)",
       }}
     >
-      <Loader2 className="h-9 w-9 animate-spin text-violet-400" />
+      <Loader2 className="size-9 animate-spin text-violet-400" />
       <p className="text-sm text-zinc-400">{t("splash.preparing")}</p>
     </div>
   );
