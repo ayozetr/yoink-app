@@ -42,12 +42,31 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Initial load; setState runs asynchronously after the fetches resolve.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refresh();
-    void fetchSettings()
-      .then(setSettings)
-      .catch(() => {});
+    let cancelled = false;
+
+    // The bundled backend (PyInstaller sidecar) can take several seconds to
+    // start — unpacking ffmpeg is slow, especially on Windows. Retry the
+    // initial load until it answers instead of giving up on the first refused
+    // connection (which left the app with no data and Settings unopenable).
+    const load = async () => {
+      for (let attempt = 0; !cancelled; attempt++) {
+        try {
+          const loaded = await fetchSettings();
+          if (cancelled) return;
+          setSettings(loaded);
+          await refresh();
+          return;
+        } catch {
+          if (attempt >= 60) return; // give up after ~30s
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [refresh]);
 
   const handleOpenFolder = (entry: HistoryEntry) => {
