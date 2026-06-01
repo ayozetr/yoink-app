@@ -88,6 +88,24 @@ def test_settings_get_and_put(temp_dirs):
     assert (temp_dirs / "data" / "settings.json").exists()
 
 
+def test_version_endpoint(monkeypatch):
+    from app.models.media import VersionInfo
+
+    monkeypatch.setattr(
+        "app.routers.settings.updates.check_for_updates",
+        lambda: VersionInfo(
+            current="0.5.0",
+            latest="v0.6.0",
+            update_available=True,
+            release_url="https://github.com/ayozetr/yoink-app/releases/tag/v0.6.0",
+        ),
+    )
+    body = client.get("/api/version").json()
+    assert body["current"] == "0.5.0"
+    assert body["update_available"] is True
+    assert body["latest"] == "v0.6.0"
+
+
 def test_open_folder(temp_dirs, monkeypatch):
     opened: list[str] = []
     monkeypatch.setattr(

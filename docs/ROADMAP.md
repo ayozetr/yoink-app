@@ -15,7 +15,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 - ✅ Shared domain types mirroring the backend JSON contract
 - ✅ Git repository synced to `git@github.com:ayozetr/yoink-app.git`
 
-## Phase 1 — Backend metadata 🚧
+## Phase 1 — Backend metadata ✅
 
 - ✅ FastAPI app structure (typed: main, core, models, routers, services)
 - ✅ Python `venv` + pinned `requirements.txt` (fastapi, uvicorn, yt-dlp, pydantic)
@@ -80,16 +80,21 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
   via `GET`/`PUT /api/settings` to `<data_dir>/settings.json`
 - ✅ End-to-end tests (Playwright, `e2e/`, mocked API)
 
-## Phase 6 — Self-update ⬜
+## Phase 6 — Self-update 🚧
 
-- ⬜ Show the current app version in the Settings modal
-- ⬜ "Check for updates" button that queries the GitHub Releases API
-  (latest release / tag) and reports whether a newer version is available
-- ⬜ Download & install the update — preferably via `tauri-plugin-updater`
-  (signed update artifacts + a release manifest), with a fallback that opens
-  the GitHub release page for a manual download
-- ⬜ Publish update artifacts + `latest.json` manifest as part of the release
-  flow so the updater can find them
+- ✅ Show the current app version in the Settings modal (injected from
+  package.json at build time)
+- ✅ "Check for updates" button → `GET /api/version` queries the GitHub
+  Releases API and reports whether a newer release exists
+- ✅ Fallback "Actualizar" link that opens the GitHub release page when an
+  update is available
+- ⬜ In-app download & install via `tauri-plugin-updater` (signed artifacts +
+  `latest.json`). Note: on Linux the updater only supports AppImage (not
+  `.deb`/`.rpm`); it works for the Windows `.exe`/`.msi`.
+- ⬜ Publish signed update artifacts + `latest.json` in the release flow
+
+> The update check needs the GitHub repo to be **public** (the unauthenticated
+> API returns 404 for private repos).
 
 ## Phase 7 — Android (experimental) ⬜
 

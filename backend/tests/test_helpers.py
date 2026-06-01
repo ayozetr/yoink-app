@@ -82,6 +82,16 @@ def test_cookie_options(monkeypatch):
     assert cookie_options() == {"cookiefile": "/tmp/c.txt"}
 
 
+def test_update_version_compare():
+    from app.services.updates import _is_newer, _parse_version
+
+    assert _parse_version("v0.5.0") == (0, 5, 0)
+    assert _parse_version("1.2.3-rc1") == (1, 2, 3)
+    assert _is_newer("v0.6.0", "0.5.0") is True
+    assert _is_newer("v0.5.0", "0.5.0") is False
+    assert _is_newer("v0.4.9", "0.5.0") is False
+
+
 def test_map_progress_downloading():
     event = _map_progress(
         {

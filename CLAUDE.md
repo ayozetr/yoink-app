@@ -46,8 +46,10 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 │   │   ├── layout/           # app shell, background glow
 │   │   └── ui/               # reusable primitives (GlassPanel, Button, …)
 │   ├── features/
-│   │   ├── downloader/       # URL input, preview, progress (main column)
-│   │   └── history/          # download history + stats (sidebar)
+│   │   ├── downloader/       # URL input, preview, playlist, progress (main column)
+│   │   ├── history/          # download history + stats (sidebar)
+│   │   └── settings/         # settings modal (download dir, defaults, cookies, version)
+│   ├── lib/                  # API client + download WebSocket
 │   └── types/                # shared domain types (backend JSON contract)
 └── backend/                  # FastAPI + yt-dlp engine
     └── app/
@@ -55,12 +57,16 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── core/config.py    # typed settings (CORS, download dir)
         ├── models/media.py   # Pydantic models (JSON contract)
         ├── core/humanize.py   # shared byte/size formatting
-        ├── routers/info.py    # POST /api/info
+        ├── core/ytdlp_options.py      # shared URL normalize + cookie options
+        ├── routers/info.py    # POST /api/info (video or playlist)
         ├── routers/download.py        # WS /api/ws/download (live progress)
-        ├── routers/history.py         # GET /api/history(/stats), POST /api/open
+        ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
+        ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
         ├── services/download_service.py  # yt-dlp download + progress stream
-        └── services/history_store.py  # SQLite persistence (history + stats)
+        ├── services/history_store.py  # SQLite persistence (history + stats)
+        ├── services/settings_store.py # persisted user settings overrides
+        └── services/updates.py        # GitHub release update check
 ```
 
 ## Common commands

@@ -166,6 +166,16 @@ class AppSettings(BaseModel):
     )
 
 
+class VersionInfo(BaseModel):
+    """Result of checking the installed version against the latest release."""
+
+    current: str = Field(..., description="Installed app version.")
+    latest: str | None = Field(default=None, description="Latest release tag, if known.")
+    update_available: bool = Field(default=False, description="A newer release exists.")
+    release_url: str | None = Field(default=None, description="Latest release page URL.")
+    error: str | None = Field(default=None, description="Why the check failed, if it did.")
+
+
 class OpenRequest(BaseModel):
     """Body of POST /api/open — reveal a file/folder in the OS file manager."""
 

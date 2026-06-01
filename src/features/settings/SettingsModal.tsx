@@ -1,10 +1,16 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Loader2, Settings as SettingsIcon, X } from "lucide-react";
+import {
+  ArrowUpCircle,
+  CheckCircle2,
+  Loader2,
+  Settings as SettingsIcon,
+  X,
+} from "lucide-react";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
-import { updateSettings } from "../../lib/api";
-import type { AppSettings, MediaKind } from "../../types/download";
+import { checkForUpdates, updateSettings } from "../../lib/api";
+import type { AppSettings, MediaKind, VersionInfo } from "../../types/download";
 
 interface SettingsModalProps {
   settings: AppSettings;
@@ -21,6 +27,25 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   const [form, setForm] = useState<AppSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [version, setVersion] = useState<VersionInfo | null>(null);
+
+  const handleCheck = async () => {
+    setChecking(true);
+    try {
+      setVersion(await checkForUpdates());
+    } catch {
+      setVersion({
+        current: __APP_VERSION__,
+        latest: null,
+        update_available: false,
+        release_url: null,
+        error: "No se pudo comprobar (¿backend apagado?).",
+      });
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -130,6 +155,49 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className={INPUT_CLASS}
             />
           </Field>
+
+          <div className="pt-1 border-t border-white/10" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm">
+              <span className="text-zinc-400">Versión </span>
+              <span className="font-medium">v{__APP_VERSION__}</span>
+              {version && !version.error && version.update_available && (
+                <span className="ml-2 text-violet-300">
+                  · {version.latest} disponible
+                </span>
+              )}
+              {version && !version.error && !version.update_available && (
+                <span className="ml-2 inline-flex items-center gap-1 text-emerald-400">
+                  <CheckCircle2 size={13} /> al día
+                </span>
+              )}
+              {version?.error && (
+                <span className="ml-2 text-zinc-500">· {version.error}</span>
+              )}
+            </div>
+
+            {version?.update_available && version.release_url ? (
+              <a
+                href={version.release_url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200 transition"
+              >
+                <ArrowUpCircle size={15} />
+                Actualizar
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCheck}
+                disabled={checking}
+                className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition disabled:opacity-50"
+              >
+                {checking && <Loader2 size={14} className="animate-spin" />}
+                Comprobar actualizaciones
+              </button>
+            )}
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-400 mt-4">{error}</p>}

@@ -129,6 +129,15 @@ export type DownloadEvent =
   | DownloadCompletedEvent
   | DownloadErrorEvent;
 
+/** Version + update-check result (mirrors backend `VersionInfo`). */
+export interface VersionInfo {
+  current: string;
+  latest: string | null;
+  update_available: boolean;
+  release_url: string | null;
+  error: string | null;
+}
+
 /** User-editable settings (mirrors backend `AppSettings`). */
 export interface AppSettings {
   download_dir: string;

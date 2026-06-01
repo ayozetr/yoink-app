@@ -35,7 +35,11 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Yoink Backend"
+    app_version: str = "0.5.0"
     api_prefix: str = "/api"
+
+    # GitHub repo used to check for newer releases (owner/name).
+    github_repo: str = "ayozetr/yoink-app"
 
     # Origins allowed to call the API (the local Vite dev server by default).
     cors_origins: list[str] = Field(
