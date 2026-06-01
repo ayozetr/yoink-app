@@ -7,8 +7,6 @@ both Linux and Windows.
 
 from __future__ import annotations
 
-import os
-import sys
 from pathlib import Path
 from typing import Literal
 
@@ -16,28 +14,9 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _music_dir() -> Path:
-    """The user's Music folder, localized on Linux via XDG (e.g. ``~/Música``)."""
-    if sys.platform.startswith("linux"):
-        config = (
-            Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-            / "user-dirs.dirs"
-        )
-        try:
-            for line in config.read_text(encoding="utf-8").splitlines():
-                if line.strip().startswith("XDG_MUSIC_DIR"):
-                    value = line.split("=", 1)[1].strip().strip('"')
-                    return Path(value.replace("$HOME", str(Path.home())))
-        except OSError:
-            pass
-        return Path.home() / "Music"
-    # Windows / macOS: the Music folder is always named "Music".
-    return Path.home() / "Music"
-
-
 def _default_download_dir() -> Path:
-    """Default download location: the user's Music folder + ``Yoink``."""
-    return _music_dir() / "Yoink"
+    """Cross-platform default download location (`~/Downloads/Yoink`)."""
+    return Path.home() / "Downloads" / "Yoink"
 
 
 def _default_data_dir() -> Path:
