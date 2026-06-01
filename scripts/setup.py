@@ -32,22 +32,22 @@ def _run(cmd: list[str], cwd: Path) -> None:
 
 
 def main() -> int:
-    print("▸ Creating backend virtualenv…")
+    print("> Creating backend virtualenv...")
     if not _venv_python().exists():
         venv.create(VENV, with_pip=True)
 
-    print("▸ Installing backend dependencies…")
+    print("> Installing backend dependencies...")
     py = str(_venv_python())
     _run([py, "-m", "pip", "install", "--upgrade", "pip"], BACKEND)
     _run([py, "-m", "pip", "install", "-r", "requirements.txt"], BACKEND)
     if (BACKEND / "requirements-dev.txt").exists():
         _run([py, "-m", "pip", "install", "-r", "requirements-dev.txt"], BACKEND)
 
-    print("▸ Installing frontend dependencies…")
+    print("> Installing frontend dependencies...")
     npm = "npm.cmd" if os.name == "nt" else "npm"
     _run([npm, "install"], ROOT)
 
-    print("\n✓ Setup complete. Start everything with:  python scripts/dev.py")
+    print("\n[OK] Setup complete. Start everything with:  python scripts/dev.py")
     return 0
 
 

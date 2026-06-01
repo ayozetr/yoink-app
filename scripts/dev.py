@@ -67,8 +67,8 @@ def main() -> int:
         str(args.web_port),
     ]
 
-    print(f"▸ backend   http://{args.host}:{args.api_port}  (docs at /docs)")
-    print(f"▸ frontend  http://{args.host}:{args.web_port}")
+    print(f"> backend   http://{args.host}:{args.api_port}  (docs at /docs)")
+    print(f"> frontend  http://{args.host}:{args.web_port}")
     print("  Ctrl+C to stop both.\n")
 
     procs: list[subprocess.Popen[bytes]] = []
@@ -90,7 +90,7 @@ def main() -> int:
             except subprocess.TimeoutExpired:
                 continue
     except KeyboardInterrupt:
-        print("\n▸ stopping…")
+        print("\n> stopping...")
         return 0
     finally:
         for proc in procs:

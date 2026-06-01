@@ -89,17 +89,17 @@ def _extract_members(data: bytes, kind: str) -> None:
 def main() -> int:
     asset, kind = _asset()
     url = f"{BASE}/{asset}"
-    print(f"▸ Downloading {url} …")
+    print(f"> Downloading {url} ...")
     with urllib.request.urlopen(url) as response:  # noqa: S310 — trusted host
         data = response.read()
-    print(f"  got {len(data) // (1024 * 1024)} MB; extracting ffmpeg + ffprobe…")
+    print(f"  got {len(data) // (1024 * 1024)} MB; extracting ffmpeg + ffprobe...")
     _extract_members(data, kind)
 
     found = sorted(p.name for p in VENDOR.iterdir())
     if not any(f.startswith("ffmpeg") for f in found):
         print("! ffmpeg not found in the archive.", file=sys.stderr)
         return 1
-    print(f"✓ {', '.join(found)} → {VENDOR.relative_to(ROOT)}")
+    print(f"[OK] {', '.join(found)} -> {VENDOR.relative_to(ROOT)}")
     return 0
 
 

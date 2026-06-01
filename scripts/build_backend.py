@@ -66,7 +66,7 @@ def main() -> int:
     triple = _target_triple()
     exe_suffix = ".exe" if os.name == "nt" else ""
 
-    print(f"▸ Building backend sidecar for {triple}…")
+    print(f"> Building backend sidecar for {triple}...")
     subprocess.run(
         [
             py, "-m", "PyInstaller",
@@ -87,7 +87,7 @@ def main() -> int:
     BINARIES.mkdir(parents=True, exist_ok=True)
     target = BINARIES / f"yoink-backend-{triple}{exe_suffix}"
     shutil.copy2(built, target)
-    print(f"✓ Sidecar ready: {target.relative_to(ROOT)}")
+    print(f"[OK] Sidecar ready: {target.relative_to(ROOT)}")
     return 0
 
 
