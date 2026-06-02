@@ -227,9 +227,9 @@ be **honest about source quality** (don't inflate lossy sources into "lossless")
 - ⬜ **Audit the repo + git history for secrets** before flipping it public
   (none expected — the VM credentials live outside the repo — but verify) and
   re-check `.gitignore`
-- ⬜ Ensure the **LICENSE** (from v0.9.0) is in place
-- ⬜ Polish the README for newcomers: badges (release/license), a screenshot,
-  clear install + usage
+- ✅ **LICENSE** in place (MIT, shipped in v0.9.0)
+- ✅ Polished the README: badges (release/license/stack/React Doctor), a
+  screenshot (`docs/screenshot.png`), and a quick-start
 - ⬜ GitHub repo **description + topics**
 - ⬜ **Make the repo public** — also enables the in-app "Check for updates"
   (the unauthenticated GitHub API 404s on private repos)
