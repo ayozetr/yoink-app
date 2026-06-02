@@ -325,5 +325,15 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
     "exclusively yt-dlp" rule (new external services, all free/open — AcoustID
     wants a key, MusicBrainz a descriptive User-Agent + ~1 req/s rate limit);
     a no-match falls back to tier 1.
+  - **Review before apply (don't tag blindly).** Fingerprinting can return
+    several candidates or the wrong take (live / remix / cover / compilation), so
+    never write tags silently. Split the flow into **identify → preview → apply**
+    (backend endpoints — `identify`, `search`, `apply` — that don't touch the
+    file until confirmed). The review UI shows what will be written (fields +
+    cover), lists the AcoustID/MusicBrainz alternatives to choose from, lets you
+    edit the fields, and offers a manual MusicBrainz search (by artist/title)
+    when no candidate fits. For batches (playlists), an **"auto-apply when the
+    AcoustID score is high, ask only when uncertain"** mode keeps it from being
+    tedious — full control on the ambiguous ones, hands-off on the clear ones.
   - **Format note:** cover embedding works for mp3 / m4a / flac / opus but **not
     wav** (no picture frame in the container).
