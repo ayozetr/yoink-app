@@ -303,19 +303,27 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
   proxy forwards a `Referer` (the page URL), so CDNs that 403 cross-origin image
   requests now serve the cover. Propagated through the `Thumbnail` component
   (direct → proxy-with-referer → placeholder).
-- ⬜ **Audio metadata & cover art** *(opt-in setting)*. When downloading audio,
-  optionally tag the file with title / artist / album / year and embed the cover
-  art — for building a proper music library. yt-dlp does the heavy lifting via
-  two ffmpeg postprocessors, added to the audio chain (after
-  `FFmpegExtractAudio`): `FFmpegMetadata` (`--embed-metadata`) writes the tags
-  the extractor exposes, and `EmbedThumbnail` (`--embed-thumbnail` +
-  `writethumbnail`) embeds the cover. Plan: an `embed_audio_metadata` setting
-  (persisted, toggled in Settings) threaded into `DownloadRequest` and the audio
-  postprocessor list. Notes:
-  - **Tag quality depends on the source** — YouTube Music / SoundCloud / Bandcamp
-    expose real artist/album/track; generic YouTube only has uploader + title (a
-    `--parse-metadata "%(title)s" → artist/title` heuristic could help).
-  - **Cover embedding** works for mp3 / m4a / flac / opus but **not wav** (no
-    picture frame in the container).
-  - YouTube thumbnails are 16:9; an optional **square crop** would yield nicer
-    covers (yt-dlp's `EmbedThumbnail` can crop for known music extractors).
+- ⬜ **Audio metadata & cover art** *(opt-in setting — for building a music
+  library)*. Tag downloaded audio with title / artist / album / year and embed
+  the cover art. Two tiers, ideally tier 2 first with tier 1 as fallback:
+  - **Tier 1 — yt-dlp metadata (cheap, already possible).** Two ffmpeg
+    postprocessors after `FFmpegExtractAudio`: `FFmpegMetadata`
+    (`--embed-metadata`) writes the tags the extractor exposes, and
+    `EmbedThumbnail` (`--embed-thumbnail` + `writethumbnail`) embeds the cover.
+    Quality depends on the source — YouTube Music / SoundCloud / Bandcamp expose
+    real artist/album/track; generic YouTube only has uploader + title (a
+    `--parse-metadata "Artist - Title"` heuristic helps). An
+    `embed_audio_metadata` setting (persisted, in Settings) threaded into
+    `DownloadRequest` and the audio postprocessor list.
+  - **Tier 2 — acoustic fingerprinting (the real goal, à la Automatag/Picard).**
+    Identify the song by its *audio*, not its title, so tagging is correct even
+    for badly-named YouTube rips: **Chromaprint** (`fpcalc`) generates a
+    fingerprint → **AcoustID** (free API key) maps it to a MusicBrainz Recording
+    ID → **MusicBrainz** supplies artist/album/track/year → **Cover Art Archive**
+    supplies the cover. Write tags with **`mutagen`** (already a yt-dlp dep).
+    Cost/caveats: bundle the `fpcalc` binary (like ffmpeg); breaks the
+    "exclusively yt-dlp" rule (new external services, all free/open — AcoustID
+    wants a key, MusicBrainz a descriptive User-Agent + ~1 req/s rate limit);
+    a no-match falls back to tier 1.
+  - **Format note:** cover embedding works for mp3 / m4a / flac / opus but **not
+    wav** (no picture frame in the container).
