@@ -31,6 +31,7 @@ function MedalIcon({ className }: { className?: string }) {
       <path
         fill="none"
         stroke="currentColor"
+        strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         d="m11.061 27.188l5.856-3.474M24 27.758l12.939-7.388v15.064l6.561-4.102V16.476l-6.561-3.91L24 20.146l-12.939-7.58l-6.561 3.91v14.856l6.561 4.102V20.37z"
@@ -38,6 +39,7 @@ function MedalIcon({ className }: { className?: string }) {
       <path
         fill="none"
         stroke="currentColor"
+        strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M36.939 35.434L24 27.758l-12.939 7.676m25.878-8.246l-5.856-3.474"
@@ -124,7 +126,7 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
                   }}
                 />
               ) : site.Icon ? (
-                <site.Icon className="size-[22px] shrink-0" />
+                <site.Icon className="size-[22px] shrink-0 text-white" />
               ) : (
                 <Globe size={20} className="size-[22px] shrink-0 text-zinc-500" />
               )}
