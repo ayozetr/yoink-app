@@ -74,8 +74,10 @@ export interface VideoInfo {
   source_lossless: boolean;
   /** Highest audio bitrate available, in kbps. */
   best_audio_abr: number | null;
-  /** Available subtitle language codes (manual + auto-generated). */
+  /** Published (manual) subtitle language codes. */
   subtitle_langs: string[];
+  /** Auto-generated caption codes (not already in subtitle_langs). */
+  auto_caption_langs: string[];
   /** Whether the source exposes chapter markers. */
   has_chapters: boolean;
 }

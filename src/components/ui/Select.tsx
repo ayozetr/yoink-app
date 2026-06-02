@@ -6,6 +6,8 @@ export interface SelectOption {
   label: string;
   /** When true, the option is shown but cannot be selected. */
   disabled?: boolean;
+  /** Render as a non-selectable section header instead of an option. */
+  header?: boolean;
 }
 
 interface SelectProps {
@@ -122,6 +124,16 @@ export function Select({
           className="z-[100] max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1d27] p-1 shadow-xl"
         >
           {options.map((option) => {
+            if (option.header) {
+              return (
+                <div
+                  key={option.value}
+                  className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500"
+                >
+                  {option.label}
+                </div>
+              );
+            }
             const active = option.value === value;
             const isDisabled = option.disabled ?? false;
             return (

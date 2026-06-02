@@ -16,6 +16,7 @@ from app.services.download_service import (
 )
 from app.services.ytdlp_service import (
     _audio_summary,
+    _auto_caption_langs,
     _build_entry,
     _build_playlist,
     _build_video,
@@ -355,19 +356,22 @@ def test_build_options_subs_and_chapters_together(temp_dirs):
     assert "FFmpegMetadata" in keys
 
 
-def test_subtitle_langs_union_and_sorted():
-    langs = _subtitle_langs(
-        {
-            "subtitles": {"en": [{}], "es": [{}]},
-            "automatic_captions": {"es": [{}], "fr": [{}]},
-        }
-    )
-    assert langs == ["en", "es", "fr"]
+def test_subtitle_langs_manual_and_auto_split():
+    info = {
+        "subtitles": {"en": [{}], "es": [{}]},
+        "automatic_captions": {"es": [{}], "fr": [{}]},
+    }
+    manual = _subtitle_langs(info)
+    assert manual == ["en", "es"]
+    # auto-captions exclude codes already published as manual subs (es)
+    assert _auto_caption_langs(info, manual) == ["fr"]
 
 
 def test_subtitle_langs_defensive():
     assert _subtitle_langs({}) == []
-    assert _subtitle_langs({"subtitles": None, "automatic_captions": "nope"}) == []
+    assert _subtitle_langs({"subtitles": None}) == []
+    assert _auto_caption_langs({}, []) == []
+    assert _auto_caption_langs({"automatic_captions": "nope"}, []) == []
 
 
 def test_build_video_subtitles_and_chapters():
@@ -380,7 +384,8 @@ def test_build_video_subtitles_and_chapters():
             "chapters": [{"title": "Intro", "start_time": 0}],
         }
     )
-    assert video.subtitle_langs == ["de", "en"]
+    assert video.subtitle_langs == ["en"]
+    assert video.auto_caption_langs == ["de"]
     assert video.has_chapters is True
 
 

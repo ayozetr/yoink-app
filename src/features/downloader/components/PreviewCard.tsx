@@ -74,7 +74,8 @@ export function PreviewCard({
   const [embedChapters, setEmbedChapters] = useState(false);
 
   const isVideo = kind === "video";
-  const hasSubtitles = info.subtitle_langs.length > 0;
+  const hasSubtitles =
+    info.subtitle_langs.length > 0 || info.auto_caption_langs.length > 0;
   const embedSubs = subtitle !== SUBS_NONE;
 
   // FLAC/WAV only make sense from a lossless source; otherwise they'd upscale.
@@ -202,10 +203,32 @@ export function PreviewCard({
                     options={[
                       { value: SUBS_NONE, label: t("preview.subtitlesNone") },
                       { value: "all", label: t("preview.subtitlesAll") },
-                      ...info.subtitle_langs.map((code) => ({
-                        value: code,
-                        label: code.toUpperCase(),
-                      })),
+                      ...(info.subtitle_langs.length > 0
+                        ? [
+                            {
+                              value: "__hdr_manual",
+                              label: t("preview.subtitlesManual"),
+                              header: true,
+                            },
+                            ...info.subtitle_langs.map((code) => ({
+                              value: code,
+                              label: code.toUpperCase(),
+                            })),
+                          ]
+                        : []),
+                      ...(info.auto_caption_langs.length > 0
+                        ? [
+                            {
+                              value: "__hdr_auto",
+                              label: t("preview.subtitlesAuto"),
+                              header: true,
+                            },
+                            ...info.auto_caption_langs.map((code) => ({
+                              value: code,
+                              label: code.toUpperCase(),
+                            })),
+                          ]
+                        : []),
                     ]}
                     className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
                   />

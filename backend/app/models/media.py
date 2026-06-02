@@ -67,7 +67,11 @@ class VideoInfo(BaseModel):
     )
     subtitle_langs: list[str] = Field(
         default_factory=list,
-        description="Available subtitle language codes (manual + auto-generated).",
+        description="Published (manual) subtitle language codes.",
+    )
+    auto_caption_langs: list[str] = Field(
+        default_factory=list,
+        description="Auto-generated caption codes not already in subtitle_langs.",
     )
     has_chapters: bool = Field(
         default=False, description="Whether the source exposes chapter markers."

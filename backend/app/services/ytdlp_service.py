@@ -140,20 +140,32 @@ def _best_thumbnail(raw: dict[str, Any]) -> str | None:
 
 
 def _subtitle_langs(info: dict[str, Any]) -> list[str]:
-    """Collect available subtitle language codes (manual + auto-generated).
+    """Published (manual) subtitle language codes, sorted.
 
-    yt-dlp exposes ``subtitles`` (published tracks) and ``automatic_captions``
-    as ``{lang: [...]}`` mappings. Return their sorted, de-duplicated union so a
-    source without auto-captions still surfaces its real tracks (and one with
-    them, like YouTube, offers everything). Defensive against either being
-    missing or malformed.
+    yt-dlp exposes manual ``subtitles`` as a ``{lang: [...]}`` mapping. Defensive
+    against it being missing or malformed.
     """
-    langs: set[str] = set()
-    for key in ("subtitles", "automatic_captions"):
-        tracks = info.get(key)
-        if isinstance(tracks, dict):
-            langs.update(code for code in tracks if isinstance(code, str))
-    return sorted(langs)
+    tracks = info.get("subtitles")
+    if not isinstance(tracks, dict):
+        return []
+    return sorted(code for code in tracks if isinstance(code, str))
+
+
+def _auto_caption_langs(info: dict[str, Any], manual: list[str]) -> list[str]:
+    """Auto-generated caption languages, excluding ones already published.
+
+    yt-dlp lists ``automatic_captions`` separately (YouTube exposes ~100
+    machine-translated tracks). They're returned apart from the manual subs so
+    the UI can group them under their own heading. Codes already present as
+    manual subtitles are dropped to avoid duplicates.
+    """
+    tracks = info.get("automatic_captions")
+    if not isinstance(tracks, dict):
+        return []
+    seen = set(manual)
+    return sorted(
+        code for code in tracks if isinstance(code, str) and code not in seen
+    )
 
 
 def _build_video(info: dict[str, Any]) -> VideoInfo:
@@ -171,6 +183,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
     )
 
     source_lossless, best_audio_abr = _audio_summary(raw_formats)
+    manual_subs = _subtitle_langs(info)
 
     return VideoInfo(
         id=str(info.get("id", "")),
@@ -184,7 +197,8 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         formats=formats,
         source_lossless=source_lossless,
         best_audio_abr=best_audio_abr,
-        subtitle_langs=_subtitle_langs(info),
+        subtitle_langs=manual_subs,
+        auto_caption_langs=_auto_caption_langs(info, manual_subs),
         has_chapters=bool(info.get("chapters")),
     )
 

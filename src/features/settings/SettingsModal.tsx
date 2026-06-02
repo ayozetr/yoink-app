@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowUpCircle,
   CheckCircle2,
+  Coffee,
   FolderOpen,
   Loader2,
   Settings as SettingsIcon,
@@ -293,6 +294,20 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </button>
           )}
         </div>
+
+        <a
+          href="https://ko-fi.com/ayozetr"
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => {
+            e.preventDefault();
+            void openExternal("https://ko-fi.com/ayozetr");
+          }}
+          className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 transition-colors hover:text-violet-300"
+        >
+          <Coffee size={12} />
+          {t("settings.donate")}
+        </a>
       </GlassPanel>
     </div>
   );
