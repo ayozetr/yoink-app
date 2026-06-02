@@ -140,7 +140,7 @@ Verify with `gh release view v<ver> --json assets`.
 The in-app updater (`tauri-plugin-updater`) only works if each build is **signed
 with the updater private key** and the release ships a `latest.json`. The public
 key lives in `tauri.conf.json` (`plugins.updater.pubkey`); `bundle.createUpdaterArtifacts`
-is on, so a signed build emits the `.sig` files and `latest.json`.
+is on, so a signed build emits a `.sig` next to each bundle.
 
 **Sign every platform's build** by exporting the key before `npm run tauri build`
 (set the same on Windows in PowerShell with `$env:`):
@@ -152,16 +152,34 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<the key password>"
 APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 npm run tauri build
 ```
 
-This produces, alongside the bundles:
-- `…/bundle/appimage/Yoink_<ver>_amd64.AppImage.sig` (Linux) and the Windows
-  `…/Yoink_<ver>_x64-setup.exe.sig` / `.msi.sig`,
-- a `latest.json` (under `target/release/bundle/`) describing the version and
-  per-target download URLs + signatures.
+This produces a `.sig` file next to each bundle (`…/Yoink_<ver>_amd64.AppImage.sig`,
+the Windows `…_x64-setup.exe.sig` / `.msi.sig`, etc.). Each `.sig` holds one
+base64 signature string.
 
-**Attach to the GitHub release** the `latest.json` **and** the AppImage/exe/msi
-`.sig` files, in addition to the installers. The updater endpoint points at
-`releases/latest/download/latest.json`, so the file must be a release asset of
-the **latest** release.
+**Build `latest.json` from those signatures** — the CLI does not reliably emit
+it, so assemble it by hand. It maps each updater target to its installer URL and
+the signature **string** (the contents of the matching `.sig`). The updater
+self-installs from the AppImage on Linux and the NSIS `-setup.exe` on Windows,
+so those are the two targets:
+
+```json
+{
+  "version": "1.2.0",
+  "pub_date": "2026-06-02T21:19:27Z",
+  "platforms": {
+    "linux-x86_64":   { "signature": "<contents of …_amd64.AppImage.sig>",   "url": "https://github.com/ayozetr/yoink-app/releases/download/v<ver>/Yoink_<ver>_amd64.AppImage" },
+    "windows-x86_64": { "signature": "<contents of …_x64-setup.exe.sig>", "url": "https://github.com/ayozetr/yoink-app/releases/download/v<ver>/Yoink_<ver>_x64-setup.exe" }
+  }
+}
+```
+
+**Attach to the GitHub release** the `latest.json` plus the installers
+(AppImage/deb/rpm/exe/msi) — and **not** the standalone `.sig` files. The updater
+reads each signature from the `"signature"` field inside `latest.json`, never
+from separate assets, so uploading the `.sig` files is redundant (v1.0.0/v1.1.0
+shipped without them). The endpoint points at
+`releases/latest/download/latest.json`, so that file must be an asset of the
+**latest** release.
 
 Notes:
 - The **private key never goes in the repo or CI logs** — keep it in a password
