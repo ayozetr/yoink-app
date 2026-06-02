@@ -327,3 +327,15 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
     "exclusively yt-dlp" rule (AcoustID key + MusicBrainz descriptive User-Agent,
     ~1 req/s rate limit); cover embedding works for mp3 / m4a / flac / opus but
     **not wav** (no picture frame in the container).
+  - **Build order (when picked up):** (A) **data spike** — run `fpcalc →
+    AcoustID → MusicBrainz → Cover Art Archive` on a test file to validate the
+    pipeline and real-world tag quality before touching UI or packaging; (B)
+    **backend** — bundle `fpcalc`, add `identify` / `search` / `apply` endpoints,
+    write tags with `mutagen`; (C) **review UI** — preview modal (fields + cover
+    + AcoustID/MusicBrainz alternatives + manual search); (D) **integration** —
+    opt-in setting, hook into the download flow, batch auto/ask mode; (E) **tests
+    + `fetch_fpcalc`** in the build scripts. Start small per tier (A→E) so there's
+    something verifiable early.
+  - **Prereq:** a free **AcoustID application API key** (register at
+    `acoustid.org` with a MusicBrainz account); keep it in config/settings, not
+    the repo. Candidate for a **v1.3.0**.
