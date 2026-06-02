@@ -172,9 +172,11 @@ local HTTP/WebSocket server must be replaced. Three routes:
 - ✅ **react-doctor** pass (score 92/100): fixed the genuine, behavior-safe
   findings; documented the verified false positives
 
-## Phase 9 — Advanced formats & going public ⬜ (→ v1.0.0)
+## Phase 9 — Advanced formats & going public ✅ (v1.0.0 released & public)
 
 The 1.0 milestone: richer output formats **and** opening the repo to the world.
+Shipped in **v1.0.0** (public). Multi-audio and the self-terminating backend
+remain as noted follow-ups.
 
 ### Advanced output formats & quality-aware audio
 
@@ -244,9 +246,8 @@ both OSes; pending runtime validation in the next Windows build/update):
   screenshot (`docs/screenshot.png`), and a quick-start
 - ✅ GitHub repo **description + topics** set (12 topics: yt-dlp, ffmpeg, tauri,
   react, typescript, fastapi, python, …)
-- ⬜ **Make the repo public** — also enables the in-app "Check for updates"
-  (the unauthenticated GitHub API 404s on private repos). *Left for the owner to
-  trigger — irreversible.*
+- ✅ **Made the repo public** — the in-app "Check for updates" now works (the
+  unauthenticated GitHub API serves the latest release instead of 404ing)
 
 ## Post-1.0 ideas (backlog) ⬜
 
