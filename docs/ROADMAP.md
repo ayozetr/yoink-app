@@ -282,3 +282,23 @@ Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
     unaffected.**
   - Best-effort overall — aggressive challenges, logins (cookies) or DRM still
     won't work.
+- ✅ **Threads (Meta) support** *(ships in v1.2.0)*. yt-dlp has no Threads
+  extractor, and Threads only serves the media to a real browser TLS
+  fingerprint, so a plain request gets a video-less HTML (hence the old
+  `Unsupported URL`). A small custom extractor
+  (`backend/app/services/threads_extractor.py`, registered on the `YoutubeDL`
+  instances via `add_info_extractor` — yt-dlp itself is never modified, so
+  updates can't clobber it) downloads the post with curl_cffi impersonation and
+  parses the embedded Instagram-style media JSON (video, cover thumbnail,
+  caption, duration). It's inserted ahead of the generic extractor so it wins
+  for `threads.com`/`.net`, and resolves to the Instagram-hosted video.
+- ✅ **More verified sites** *(ships in v1.2.0)*: **Kick** and **Reddit** (native
+  yt-dlp extractors) plus **Threads** added to the "supported sites" popup —
+  inserted after Twitch, X and Instagram respectively.
+- ✅ **Clock-formatted durations** *(ships in v1.2.0)*: durations always read as
+  `M:SS` / `H:MM:SS` (e.g. `0:05`) now, instead of yt-dlp's bare seconds for
+  sub-minute clips — formatted from the raw seconds in `ytdlp_service`.
+- ✅ **Hotlink-protected thumbnails** *(ships in v1.2.0)*: the `/api/thumbnail`
+  proxy forwards a `Referer` (the page URL), so CDNs that 403 cross-origin image
+  requests now serve the cover. Propagated through the `Thumbnail` component
+  (direct → proxy-with-referer → placeholder).

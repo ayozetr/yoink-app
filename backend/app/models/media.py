@@ -49,7 +49,7 @@ class VideoInfo(BaseModel):
     title: str = Field(..., description="Media title.")
     duration: float | None = Field(default=None, description="Duration in seconds.")
     duration_string: str | None = Field(
-        default=None, description="Human-readable duration, e.g. '1h 24m 18s'."
+        default=None, description="Clock-formatted duration, e.g. '1:24:18' or '0:05'."
     )
     uploader: str | None = Field(default=None, description="Channel/uploader name.")
     thumbnail_url: str | None = Field(default=None, description="Best thumbnail URL.")

@@ -22,6 +22,7 @@ from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import cookie_options, normalize_url
+from app.services.threads_extractor import register as register_threads_ie
 from app.models.media import (
     AudioFormat,
     CompletedEvent,
@@ -242,6 +243,7 @@ async def download_events(
     def blocking() -> str | None:
         options = _build_options(request, hook)
         with YoutubeDL(options) as ydl:
+            register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
             info = ydl.sanitize_info(info)
             return _final_path(info) or ydl.prepare_filename(info)

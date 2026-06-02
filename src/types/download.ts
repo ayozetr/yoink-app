@@ -63,7 +63,7 @@ export interface VideoInfo {
   title: string;
   /** Duration in seconds, when known. */
   duration: number | null;
-  /** Human-readable duration, e.g. "1h 24m 18s". */
+  /** Clock-formatted duration, e.g. "1:24:18" or "0:05". */
   duration_string: string | null;
   uploader: string | null;
   thumbnail_url: string | null;

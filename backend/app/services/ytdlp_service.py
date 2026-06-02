@@ -12,6 +12,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 from app.core.ytdlp_options import cookie_options, normalize_url
+from app.services.threads_extractor import register as register_threads_ie
 from app.models.media import (
     InfoResponse,
     MediaFormat,
@@ -85,7 +86,12 @@ class MediaExtractionError(RuntimeError):
 
 
 def _format_duration(seconds: float | None) -> str | None:
-    """Render a duration in seconds as e.g. '1h 24m 18s' (OS-independent)."""
+    """Render a duration as a clock: 'M:SS', or 'H:MM:SS' past an hour.
+
+    Always shows at least minutes:seconds. We format from the raw seconds rather
+    than reusing yt-dlp's own ``duration_string`` because the latter collapses to
+    bare seconds for clips under a minute (e.g. '5' for a 5-second video).
+    """
     if seconds is None:
         return None
 
@@ -93,13 +99,9 @@ def _format_duration(seconds: float | None) -> str | None:
     hours, remainder = divmod(total, 3600)
     minutes, secs = divmod(remainder, 60)
 
-    parts: list[str] = []
     if hours:
-        parts.append(f"{hours}h")
-    if hours or minutes:
-        parts.append(f"{minutes}m")
-    parts.append(f"{secs}s")
-    return " ".join(parts)
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes}:{secs:02d}"
 
 
 def _map_format(raw: dict[str, Any]) -> MediaFormat:
@@ -215,7 +217,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         id=str(info.get("id", "")),
         title=str(info.get("title", "Untitled")),
         duration=duration_value,
-        duration_string=info.get("duration_string") or _format_duration(duration_value),
+        duration_string=_format_duration(duration_value),
         uploader=info.get("uploader"),
         thumbnail_url=_best_thumbnail(info),
         webpage_url=info.get("webpage_url"),
@@ -243,7 +245,7 @@ def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
         id=str(raw.get("id", "")),
         title=str(raw.get("title") or raw.get("id") or "Untitled"),
         url=url,
-        duration_string=raw.get("duration_string") or _format_duration(duration_value),
+        duration_string=_format_duration(duration_value),
         thumbnail_url=_best_thumbnail(raw),
         uploader=raw.get("uploader") or raw.get("channel"),
     )
@@ -292,6 +294,7 @@ def extract_info(url: str) -> InfoResponse:
 
     try:
         with YoutubeDL(options) as ydl:
+            register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             raw_info = ydl.extract_info(normalize_url(url), download=False)
             # sanitize_info makes the dict JSON-serializable and stable.
             info = cast(dict[str, Any], ydl.sanitize_info(raw_info))

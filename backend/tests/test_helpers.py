@@ -39,7 +39,7 @@ def test_humanize_bytes(num, expected):
 
 @pytest.mark.parametrize(
     ("seconds", "expected"),
-    [(None, None), (5, "5s"), (61, "1m 1s"), (3661, "1h 1m 1s")],
+    [(None, None), (5, "0:05"), (61, "1:01"), (3661, "1:01:01")],
 )
 def test_format_duration(seconds, expected):
     assert _format_duration(seconds) == expected
@@ -145,7 +145,7 @@ def test_build_video():
         }
     )
     assert video.id == "abc"
-    assert video.duration_string == "1m 1s"
+    assert video.duration_string == "1:01"
     assert video.thumbnail_url == "http://t/x.jpg"
     assert len(video.formats) == 1
 
@@ -168,7 +168,7 @@ def test_build_entry_and_playlist():
     )
     assert playlist.entry_count == 3  # total reported (incl. the dropped one)
     assert [e.id for e in playlist.entries] == ["a", "b"]
-    assert playlist.entries[0].duration_string == "1m 1s"
+    assert playlist.entries[0].duration_string == "1:01"
     assert playlist.truncated is False
 
 

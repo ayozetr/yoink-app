@@ -23,9 +23,17 @@ const API_BASE_URL =
  * Some source CDNs (e.g. Instagram's cdninstagram/fbcdn) block hotlinking of
  * their images from another origin, so a direct `<img src>` fails. Routing the
  * request through `GET /api/thumbnail` re-serves the bytes from localhost.
+ *
+ * `referer` is forwarded as the upstream `Referer` header — some CDNs
+ * hotlink-protect by Referer and 403 without it; pass the page URL.
  */
-export function thumbnailProxyUrl(remoteUrl: string): string {
-  return `${API_BASE_URL}/thumbnail?url=${encodeURIComponent(remoteUrl)}`;
+export function thumbnailProxyUrl(
+  remoteUrl: string,
+  referer?: string | null,
+): string {
+  const params = new URLSearchParams({ url: remoteUrl });
+  if (referer) params.set("referer", referer);
+  return `${API_BASE_URL}/thumbnail?${params.toString()}`;
 }
 
 /** Error carrying the HTTP status alongside a human-readable message. */

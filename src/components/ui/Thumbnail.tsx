@@ -11,6 +11,11 @@ interface ThumbnailProps {
   className?: string;
   /** Rendered when both the direct and proxied loads fail. */
   fallback: ReactNode;
+  /**
+   * Page URL forwarded as the proxy's `Referer`. Some CDNs hotlink-protect
+   * by Referer and 403 the proxy without it.
+   */
+  referer?: string | null;
 }
 
 /**
@@ -18,10 +23,16 @@ interface ThumbnailProps {
  * direct CDN URL → backend proxy (`/api/thumbnail`) → placeholder.
  *
  * Some CDNs block hotlinking by Referer or origin; `referrerPolicy` handles the
- * easy cases, and the proxy handles the strict ones. A small stage flag guards
- * against an infinite `onError` loop.
+ * easy cases, and the proxy (with the page `referer`) handles the strict ones.
+ * A small stage flag guards against an infinite `onError` loop.
  */
-export function Thumbnail({ src, alt, className, fallback }: ThumbnailProps) {
+export function Thumbnail({
+  src,
+  alt,
+  className,
+  fallback,
+  referer,
+}: ThumbnailProps) {
   const [stage, setStage] = useState<Stage>("direct");
 
   if (stage === "failed") {
@@ -30,7 +41,7 @@ export function Thumbnail({ src, alt, className, fallback }: ThumbnailProps) {
 
   return (
     <img
-      src={stage === "direct" ? src : thumbnailProxyUrl(src)}
+      src={stage === "direct" ? src : thumbnailProxyUrl(src, referer)}
       alt={alt}
       className={className}
       referrerPolicy="no-referrer"

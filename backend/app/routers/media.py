@@ -36,12 +36,22 @@ _CACHE_CONTROL = "public, max-age=86400"
 )
 def proxy_thumbnail(
     url: str = Query(..., description="The remote image URL (url-encoded)."),
+    referer: str | None = Query(
+        default=None,
+        description="Referer to forward (url-encoded). Some CDNs hotlink-protect "
+        "their thumbnails and return 403 unless the request carries a Referer "
+        "from the original page.",
+    ),
 ) -> Response:
     """Fetch a remote image server-side and stream it back.
 
     Validates the scheme (only http/https are allowed) as a basic SSRF guard,
     then re-serves the bytes with the upstream content type and a cache header.
     Any failure becomes a 4xx/5xx so the frontend's `onError` fallback runs.
+
+    The optional ``referer`` is forwarded as the ``Referer`` header so
+    hotlink-protected CDNs (which a browser ``<img>`` can't satisfy across
+    origins) serve the image.
     """
     # The frontend url-encodes the value, but be tolerant of double-decoding.
     target = unquote(url)
@@ -52,9 +62,15 @@ def proxy_thumbnail(
             detail="Only http(s) thumbnail URLs are allowed.",
         )
 
+    headers = {"User-Agent": _USER_AGENT}
+    if referer:
+        referer_value = unquote(referer)
+        if urlparse(referer_value).scheme in ("http", "https"):
+            headers["Referer"] = referer_value
+
     request = urllib.request.Request(  # noqa: S310 — scheme validated above
         target,
-        headers={"User-Agent": _USER_AGENT},
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(  # noqa: S310 — scheme validated above

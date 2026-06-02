@@ -258,6 +258,7 @@ export function PlaylistCard({
                 <Thumbnail
                   src={entry.thumbnail_url}
                   alt={entry.title}
+                  referer={entry.url}
                   className="h-full w-full object-cover"
                   fallback={
                     kind === "audio" ? (

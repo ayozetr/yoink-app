@@ -108,6 +108,7 @@ export function PreviewCard({
             <Thumbnail
               src={info.thumbnail_url}
               alt={info.title}
+              referer={info.webpage_url}
               className="absolute inset-0 h-full w-full object-cover"
               fallback={<Video className="size-14 text-white/80" />}
             />
