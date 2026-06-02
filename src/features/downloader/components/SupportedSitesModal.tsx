@@ -13,8 +13,8 @@ interface SupportedSite {
   name: string;
   /** Page opened when the row is clicked. */
   url: string;
-  /** Simple Icons slug for the CDN logo. */
-  slug: string;
+  /** Simple Icons slug for the CDN logo. Omitted when there's no brand icon. */
+  slug?: string;
 }
 
 /** Manually verified platforms. Typed array so it's easy to extend later. */
@@ -29,6 +29,8 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Facebook", url: "https://facebook.com", slug: "facebook" },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
+  { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
+  { name: "Medal", url: "https://medal.tv" },
 ];
 
 /** Modal listing the manually-verified sites (logo + name), each clickable. */
@@ -75,22 +77,26 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {SUPPORTED_SITES.map((site) => (
             <button
-              key={site.slug}
+              key={site.name}
               type="button"
               onClick={() => void openExternal(site.url)}
               className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/10 hover:text-white"
             >
-              <img
-                src={`https://cdn.simpleicons.org/${site.slug}/white`}
-                alt=""
-                aria-hidden="true"
-                width={22}
-                height={22}
-                className="size-[22px] shrink-0"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              {site.slug ? (
+                <img
+                  src={`https://cdn.simpleicons.org/${site.slug}/white`}
+                  alt=""
+                  aria-hidden="true"
+                  width={22}
+                  height={22}
+                  className="size-[22px] shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <Globe size={20} className="size-[22px] shrink-0 text-zinc-500" />
+              )}
               <span className="truncate">{site.name}</span>
             </button>
           ))}
