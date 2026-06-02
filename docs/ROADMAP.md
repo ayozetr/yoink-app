@@ -303,37 +303,27 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
   proxy forwards a `Referer` (the page URL), so CDNs that 403 cross-origin image
   requests now serve the cover. Propagated through the `Thumbnail` component
   (direct → proxy-with-referer → placeholder).
-- ⬜ **Audio metadata & cover art** *(opt-in setting — for building a music
-  library)*. Tag downloaded audio with title / artist / album / year and embed
-  the cover art. Two tiers, ideally tier 2 first with tier 1 as fallback:
-  - **Tier 1 — yt-dlp metadata (cheap, already possible).** Two ffmpeg
-    postprocessors after `FFmpegExtractAudio`: `FFmpegMetadata`
-    (`--embed-metadata`) writes the tags the extractor exposes, and
-    `EmbedThumbnail` (`--embed-thumbnail` + `writethumbnail`) embeds the cover.
-    Quality depends on the source — YouTube Music / SoundCloud / Bandcamp expose
-    real artist/album/track; generic YouTube only has uploader + title (a
-    `--parse-metadata "Artist - Title"` heuristic helps). An
-    `embed_audio_metadata` setting (persisted, in Settings) threaded into
-    `DownloadRequest` and the audio postprocessor list.
-  - **Tier 2 — acoustic fingerprinting (the real goal, à la Automatag/Picard).**
-    Identify the song by its *audio*, not its title, so tagging is correct even
-    for badly-named YouTube rips: **Chromaprint** (`fpcalc`) generates a
-    fingerprint → **AcoustID** (free API key) maps it to a MusicBrainz Recording
-    ID → **MusicBrainz** supplies artist/album/track/year → **Cover Art Archive**
-    supplies the cover. Write tags with **`mutagen`** (already a yt-dlp dep).
-    Cost/caveats: bundle the `fpcalc` binary (like ffmpeg); breaks the
-    "exclusively yt-dlp" rule (new external services, all free/open — AcoustID
-    wants a key, MusicBrainz a descriptive User-Agent + ~1 req/s rate limit);
-    a no-match falls back to tier 1.
-  - **Review before apply (don't tag blindly).** Fingerprinting can return
+- ⬜ **Audio auto-tagging via acoustic fingerprinting** *(opt-in, with a review
+  step)*. Tag downloaded audio with real artist / album / title / year + cover
+  art for a proper music library. Identify the song by its **audio**, not its
+  title (correct even for badly-named YouTube rips): **Chromaprint** (`fpcalc`)
+  fingerprints the file → **AcoustID** (free API key) maps it to a MusicBrainz
+  Recording ID → **MusicBrainz** supplies the metadata → **Cover Art Archive**
+  the cover. Tags written with **`mutagen`** (already a yt-dlp dep). *(Decided
+  against a separate "yt-dlp metadata only" tier — fingerprinting is strictly
+  better when it matches, and the manual search below covers the rest.)*
+  - **Review before apply (core to the feature).** Fingerprinting can return
     several candidates or the wrong take (live / remix / cover / compilation), so
-    never write tags silently. Split the flow into **identify → preview → apply**
-    (backend endpoints — `identify`, `search`, `apply` — that don't touch the
-    file until confirmed). The review UI shows what will be written (fields +
-    cover), lists the AcoustID/MusicBrainz alternatives to choose from, lets you
-    edit the fields, and offers a manual MusicBrainz search (by artist/title)
-    when no candidate fits. For batches (playlists), an **"auto-apply when the
-    AcoustID score is high, ask only when uncertain"** mode keeps it from being
-    tedious — full control on the ambiguous ones, hands-off on the clear ones.
-  - **Format note:** cover embedding works for mp3 / m4a / flac / opus but **not
-    wav** (no picture frame in the container).
+    never write silently. Flow: **identify → preview → apply** (backend endpoints
+    `identify` / `search` / `apply` that don't touch the file until confirmed).
+    The review UI shows what will be written (fields + cover), the AcoustID/
+    MusicBrainz alternatives to choose from, editable fields, and a manual
+    MusicBrainz search (by artist/title) when no candidate fits.
+  - **Batches (playlists):** an "auto-apply when the AcoustID score is high, ask
+    only when uncertain" mode — hands-off on clear matches, review on ambiguous.
+  - **No match and no manual pick:** leave the file untagged (it keeps yt-dlp's
+    title as the filename) rather than writing low-confidence guesses.
+  - **Cost/caveats:** bundle the `fpcalc` binary (like ffmpeg); breaks the
+    "exclusively yt-dlp" rule (AcoustID key + MusicBrainz descriptive User-Agent,
+    ~1 req/s rate limit); cover embedding works for mp3 / m4a / flac / opus but
+    **not wav** (no picture frame in the container).
