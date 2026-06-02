@@ -62,11 +62,14 @@ export function PlaylistCard({
   );
   const [subtitle, setSubtitle] = useState<string>(SUBS_NONE);
   const [embedChapters, setEmbedChapters] = useState(false);
+  const [audioMultistreams, setAudioMultistreams] = useState(false);
 
   const isVideo = kind === "video";
   const embedSubs = subtitle !== SUBS_NONE;
   // Subtitles embed cleanly only into MKV, so offer the picker for MKV only.
   const showSubtitles = isVideo && container === "mkv";
+  // A flat playlist has no per-item audio_langs, so gate the toggle on MKV only.
+  const showMultiAudio = isVideo && container === "mkv";
   // A flat playlist has no per-item lossless info, so FLAC/WAV are offered with
   // a generic note rather than gated.
   const showLosslessNote =
@@ -99,6 +102,7 @@ export function PlaylistCard({
       embed_subs: showSubtitles ? embedSubs : undefined,
       subtitle_lang: showSubtitles && embedSubs ? subtitle : undefined,
       embed_chapters: isVideo ? embedChapters : undefined,
+      audio_multistreams: showMultiAudio ? audioMultistreams : undefined,
     });
   };
 
@@ -210,6 +214,17 @@ export function PlaylistCard({
               />
               {t("preview.chapters")}
             </label>
+            {showMultiAudio && (
+              <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
+                <input
+                  type="checkbox"
+                  checked={audioMultistreams}
+                  onChange={(e) => setAudioMultistreams(e.target.checked)}
+                  className="size-4 accent-violet-500 shrink-0"
+                />
+                {t("preview.multiAudio")}
+              </label>
+            )}
           </div>
         )}
 

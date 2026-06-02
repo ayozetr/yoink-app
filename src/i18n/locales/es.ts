@@ -27,6 +27,7 @@ export const es = {
     subtitlesManual: "Subtítulos disponibles",
     subtitlesAuto: "Subtítulos auto-generados",
     chapters: "Incrustar capítulos",
+    multiAudio: "Incluir todas las pistas de audio",
     download: "Descargar",
   },
   playlist: {

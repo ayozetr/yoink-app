@@ -153,7 +153,18 @@ def _build_options(
         options["postprocessors"] = [_audio_postprocessor(request.audio_format)]
     else:
         height = _parse_height(request.quality)
-        if height:
+        if request.audio_multistreams:
+            # Keep every audio track (multi-language) in the merged file.
+            # `allow_multiple_audio_streams` is yt-dlp's API equivalent of the
+            # `--audio-multistreams` flag, and `mergeall[vcodec=none]` merges all
+            # audio-only formats on top of the best video (`bv*`, which may
+            # already carry one audio track of its own).
+            options["allow_multiple_audio_streams"] = True
+            if height:
+                options["format"] = f"bv*[height<={height}]+mergeall[vcodec=none]"
+            else:
+                options["format"] = "bv*+mergeall[vcodec=none]"
+        elif height:
             options["format"] = (
                 f"bestvideo[height<={height}]+bestaudio/"
                 f"best[height<={height}]/best"
@@ -161,7 +172,8 @@ def _build_options(
         else:
             options["format"] = "bestvideo+bestaudio/best"
         # Merge separate video+audio streams into the requested container via
-        # ffmpeg (mp4 by default).
+        # ffmpeg (mp4 by default; multi-audio is offered only for mkv, which can
+        # hold multiple audio tracks).
         options["merge_output_format"] = request.container
 
         # Subtitles and chapters are video-only concerns; collect any FFmpeg

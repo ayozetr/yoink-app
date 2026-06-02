@@ -139,6 +139,32 @@ def _best_thumbnail(raw: dict[str, Any]) -> str | None:
     return None
 
 
+def _audio_langs(info: dict[str, Any]) -> list[str]:
+    """Distinct, sorted languages of the available audio tracks.
+
+    Scans every format that carries audio (its ``acodec`` is present and not
+    "none") and collects each non-null/non-empty ``language`` code. Many formats
+    report ``language: null`` (and video-only tracks none at all); those are
+    ignored. More than one distinct language means the source is multi-audio.
+    Defensive against a missing/malformed ``formats`` list.
+    """
+    raw_formats = info.get("formats")
+    if not isinstance(raw_formats, list):
+        return []
+
+    langs: set[str] = set()
+    for fmt in raw_formats:
+        if not isinstance(fmt, dict):
+            continue
+        acodec = fmt.get("acodec")
+        if not isinstance(acodec, str) or not acodec or acodec == "none":
+            continue
+        language = fmt.get("language")
+        if isinstance(language, str) and language:
+            langs.add(language)
+    return sorted(langs)
+
+
 def _subtitle_langs(info: dict[str, Any]) -> list[str]:
     """Published (manual) subtitle language codes, sorted.
 
@@ -200,6 +226,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         subtitle_langs=manual_subs,
         auto_caption_langs=_auto_caption_langs(info, manual_subs),
         has_chapters=bool(info.get("chapters")),
+        audio_langs=_audio_langs(info),
     )
 
 

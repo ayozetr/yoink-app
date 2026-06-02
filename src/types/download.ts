@@ -80,6 +80,8 @@ export interface VideoInfo {
   auto_caption_langs: string[];
   /** Whether the source exposes chapter markers. */
   has_chapters: boolean;
+  /** Languages of the available audio tracks (>1 means multi-audio). */
+  audio_langs: string[];
 }
 
 /** One flat item inside a playlist (mirrors backend `PlaylistEntry`). */
@@ -125,6 +127,8 @@ export interface DownloadRequest {
   subtitle_lang?: string;
   /** Embed chapter markers + metadata when the source has them. */
   embed_chapters?: boolean;
+  /** Include all audio tracks (multi-language) in the video output. */
+  audio_multistreams?: boolean;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */

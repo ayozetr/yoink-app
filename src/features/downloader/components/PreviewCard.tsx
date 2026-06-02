@@ -33,6 +33,8 @@ export interface DownloadSelection {
   subtitle_lang?: string;
   /** Embed chapter markers. Only set for video downloads. */
   embed_chapters?: boolean;
+  /** Include all audio tracks in the video output. Only set for video downloads. */
+  audio_multistreams?: boolean;
 }
 
 /** Sentinel value for the "no subtitles" entry in the language picker. */
@@ -72,6 +74,7 @@ export function PreviewCard({
   // "None" by default: subtitles are opt-in.
   const [subtitle, setSubtitle] = useState<string>(SUBS_NONE);
   const [embedChapters, setEmbedChapters] = useState(false);
+  const [audioMultistreams, setAudioMultistreams] = useState(false);
 
   const isVideo = kind === "video";
   const hasSubtitles =
@@ -80,6 +83,10 @@ export function PreviewCard({
   // Subtitles embed losslessly only into MKV (MP4/MOV are limited to mov_text),
   // so the subtitle picker is offered for MKV only.
   const showSubtitles = isVideo && hasSubtitles && container === "mkv";
+  // Multiple audio tracks embed cleanly only into MKV, and only when the source
+  // actually exposes more than one audio language.
+  const showMultiAudio =
+    isVideo && container === "mkv" && info.audio_langs.length > 1;
 
   // FLAC/WAV only make sense from a lossless source; otherwise they'd upscale.
   const losslessAllowed = info.source_lossless;
@@ -195,8 +202,8 @@ export function PreviewCard({
               </p>
             )}
 
-            {/* Subtitles (MKV only) + chapters: video-only, when available. */}
-            {(showSubtitles || (isVideo && info.has_chapters)) && (
+            {/* Subtitles (MKV only) + chapters + multi-audio: video-only, when available. */}
+            {(showSubtitles || (isVideo && info.has_chapters) || showMultiAudio) && (
               <div className="flex flex-wrap items-center gap-3">
                 {showSubtitles && (
                   <Select
@@ -247,6 +254,17 @@ export function PreviewCard({
                     {t("preview.chapters")}
                   </label>
                 )}
+                {showMultiAudio && (
+                  <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={audioMultistreams}
+                      onChange={(e) => setAudioMultistreams(e.target.checked)}
+                      className="size-4 accent-violet-500 shrink-0"
+                    />
+                    {t("preview.multiAudio")}
+                  </label>
+                )}
               </div>
             )}
 
@@ -262,6 +280,9 @@ export function PreviewCard({
                   subtitle_lang:
                     showSubtitles && embedSubs ? subtitle : undefined,
                   embed_chapters: isVideo ? embedChapters : undefined,
+                  audio_multistreams: showMultiAudio
+                    ? audioMultistreams
+                    : undefined,
                 })
               }
               className="h-12 w-full"

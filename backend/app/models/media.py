@@ -76,6 +76,10 @@ class VideoInfo(BaseModel):
     has_chapters: bool = Field(
         default=False, description="Whether the source exposes chapter markers."
     )
+    audio_langs: list[str] = Field(
+        default_factory=list,
+        description="Languages of the available audio tracks (>1 means multi-audio).",
+    )
 
 
 class PlaylistEntry(BaseModel):
@@ -140,6 +144,10 @@ class DownloadRequest(BaseModel):
     embed_chapters: bool = Field(
         default=False,
         description="Embed chapter markers + metadata when the source has them.",
+    )
+    audio_multistreams: bool = Field(
+        default=False,
+        description="Include all audio tracks (multi-language) in the video output.",
     )
 
 

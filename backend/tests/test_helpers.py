@@ -15,6 +15,7 @@ from app.services.download_service import (
     _parse_height,
 )
 from app.services.ytdlp_service import (
+    _audio_langs,
     _audio_summary,
     _auto_caption_langs,
     _build_entry,
@@ -393,3 +394,73 @@ def test_build_video_no_subtitles_or_chapters():
     video = _build_video({"id": "abc", "title": "Clip"})
     assert video.subtitle_langs == []
     assert video.has_chapters is False
+
+
+def test_build_options_audio_multistreams_no_cap(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", container="mkv",
+                        audio_multistreams=True),
+        hook=lambda raw: None,
+    )
+    assert options["allow_multiple_audio_streams"] is True
+    assert options["format"] == "bv*+mergeall[vcodec=none]"
+    assert options["merge_output_format"] == "mkv"
+
+
+def test_build_options_audio_multistreams_with_cap(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", container="mkv",
+                        quality="1080p", audio_multistreams=True),
+        hook=lambda raw: None,
+    )
+    assert options["allow_multiple_audio_streams"] is True
+    assert options["format"] == "bv*[height<=1080]+mergeall[vcodec=none]"
+
+
+def test_build_options_no_audio_multistreams_by_default(temp_dirs):
+    # audio_multistreams=False leaves the normal selector + options untouched.
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", container="mkv"),
+        hook=lambda raw: None,
+    )
+    assert "allow_multiple_audio_streams" not in options
+    assert "mergeall" not in options["format"]
+    assert options["format"] == "bestvideo+bestaudio/best"
+
+
+def test_audio_langs_distinct_sorted_non_null():
+    info = {
+        "formats": [
+            {"acodec": "none", "vcodec": "avc1", "language": "en"},  # no audio
+            {"acodec": "mp4a", "language": "es"},
+            {"acodec": "opus", "language": "en"},
+            {"acodec": "opus", "language": "en"},  # duplicate
+            {"acodec": "aac", "language": None},  # null lang ignored
+            {"acodec": "aac"},  # missing lang ignored
+            {"acodec": "aac", "language": ""},  # empty lang ignored
+        ]
+    }
+    assert _audio_langs(info) == ["en", "es"]
+
+
+def test_audio_langs_defensive():
+    assert _audio_langs({}) == []
+    assert _audio_langs({"formats": None}) == []
+    assert _audio_langs({"formats": "nope"}) == []
+    assert _audio_langs({"formats": [{"acodec": "none", "language": "en"}]}) == []
+
+
+def test_build_video_audio_langs():
+    video = _build_video(
+        {
+            "id": "abc",
+            "title": "Clip",
+            "formats": [
+                {"format_id": "1", "ext": "mp4", "vcodec": "avc1", "acodec": "mp4a",
+                 "language": "ja"},
+                {"format_id": "2", "ext": "m4a", "vcodec": "none", "acodec": "mp4a",
+                 "language": "en"},
+            ],
+        }
+    )
+    assert video.audio_langs == ["en", "ja"]
