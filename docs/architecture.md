@@ -14,7 +14,7 @@ engine that wraps yt-dlp.
 │  - Progress bar        │ ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ │  - filesystem (pathlib)   │
 │  - History sidebar     │       (percent, speed, ETA)           │                           │
 └────────────────────────┘                                       └──────────────────────────┘
-                                                                  (planned: WS/SSE = dashed)
+                                                                  (dashed = WS download stream)
 ```
 
 ## Why two layers
@@ -28,27 +28,33 @@ engine that wraps yt-dlp.
 
 ### 1. Metadata — REST (implemented)
 
-When the user pastes a URL and clicks **Analizar**:
+When the user pastes a URL and clicks **Analyze**:
 
 1. Frontend → `POST /api/info` with `{ "url": "..." }`.
 2. Backend runs yt-dlp with `download=False` and normalizes the result.
 3. Backend → clean JSON: `title`, `duration`, `duration_string`,
-   `thumbnail_url`, and a list of `formats`.
+   `thumbnail_url`, a list of `formats`, plus capability hints
+   `source_lossless`, `best_audio_abr`, `subtitle_langs`, and `has_chapters`.
 4. Frontend populates the preview card and the format/quality selectors.
 
 The JSON shape is defined once in `backend/app/models/media.py` (Pydantic) and
 mirrored in `src/types/download.ts` (TypeScript).
 
-### 2. Download & progress — WebSockets / SSE (planned)
+### 2. Download & progress — WebSockets (implemented)
 
-When the user clicks **Descargar**:
+When the user clicks **Download**:
 
-1. Frontend requests a download (chosen format/quality).
-2. Backend starts a yt-dlp job in a **background task**.
+1. Frontend opens `WS /api/ws/download` and sends a `DownloadRequest`: `kind`
+   and `quality`, the output `container` (mp4/mov/mkv) or `audio_format`
+   (mp3/m4a/flac/wav), and the `embed_subs` / `subtitle_lang` / `embed_chapters`
+   options.
+2. Backend runs the yt-dlp job off-thread (`asyncio.to_thread`).
 3. yt-dlp `progress_hooks` emit percent / speed / ETA.
-4. Those events stream to the frontend over **WebSockets or SSE**.
-5. The frontend animates the progress bar from real events.
-6. ffmpeg merges separate video/audio streams when needed.
+4. Those events stream back over the same socket as typed events.
+5. The frontend animates the progress bar from real events until a terminal
+   `completed` / `error` event.
+6. ffmpeg merges separate video/audio streams (and extracts/embeds audio,
+   subtitles, and chapters) as needed.
 
 ## Cross-platform notes
 

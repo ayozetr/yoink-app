@@ -19,8 +19,8 @@ for merging high-quality streams).
 It is split into two layers that communicate asynchronously:
 
 - **Frontend** — React + TypeScript + Tailwind CSS (Vite). A reactive, dark-mode
-  UI that shows previews, lets you pick format/quality, and reflects download
-  progress in real time.
+  UI (English/Spanish) that shows previews, lets you pick the container/format,
+  quality, subtitles and chapters, and reflects download progress in real time.
 - **Backend** — Python + FastAPI (in `backend/`). Wraps yt-dlp, manages the local
   filesystem, and invokes ffmpeg. Metadata is served over REST (`POST /api/info`);
   downloads stream live progress to the UI over a WebSocket (`/api/ws/download`).
@@ -29,13 +29,20 @@ It is split into two layers that communicate asynchronously:
 
 - **Analyze any URL** → preview (title, thumbnail, duration) with the real
   available formats. ~1800 sites via yt-dlp.
-- **Live downloads** over WebSocket (percent / speed / ETA); MP4 (ffmpeg merge)
-  or MP3 extraction. **Cancel** and **retry** supported.
+- **Live downloads** over WebSocket (percent / speed / ETA), with **cancel**
+  and **retry**.
+- **Output formats, your choice:**
+  - Video — **MP4**, **MOV** or **MKV** (ffmpeg merge), with optional
+    **embedded subtitles** (language picker) and **chapters/metadata**.
+  - Audio — **MP3**, **M4A**, plus **FLAC**/**WAV** that are only offered when
+    the source is genuinely lossless (no fake upscaling).
 - **Playlists** — pick which items to download with checkboxes; they download
   sequentially with "X of N" progress.
 - **History & stats** persisted locally (SQLite), with open-folder and clear.
-- **Settings** — download folder, default format/quality, and cookies
-  (browser or `cookies.txt`) for sign-in-only content.
+- **Settings** — download folder (native folder picker), default format/quality,
+  **language**, and cookies (browser or `cookies.txt`) for sign-in-only content.
+- **English & Spanish UI** (react-i18next), auto-detected from your system
+  language and switchable in Settings.
 - **Update check** against the latest GitHub release.
 - **Self-contained desktop app** (Tauri, Linux & Windows): bundles the backend
   **and ffmpeg** as a sidecar — no Python or ffmpeg install needed.

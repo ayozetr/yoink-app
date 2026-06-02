@@ -13,25 +13,32 @@ src/
 │   └── ui/                      # reusable, presentational primitives
 │       ├── GlassPanel.tsx       # frosted-glass card container
 │       ├── Button.tsx           # solid / gradient action button
-│       ├── Badge.tsx            # small pill label
+│       ├── Select.tsx           # dark, app-styled dropdown (replaces native <select>)
+│       ├── EditMenu.tsx         # custom right-click Cut/Copy/Paste menu for text fields
 │       └── ProgressBar.tsx      # gradient progress bar
 ├── features/
 │   ├── downloader/              # main column
 │   │   ├── DownloaderPanel.tsx  # orchestrates the column + local state
+│   │   ├── formatOptions.ts     # derive kind/quality/container/audio-format options from formats
 │   │   └── components/
 │   │       ├── DownloaderHeader.tsx
 │   │       ├── UrlInput.tsx
 │   │       ├── PreviewCard.tsx
+│   │       ├── PlaylistCard.tsx
 │   │       └── DownloadProgressCard.tsx
-│   └── history/                 # sidebar
-│       ├── HistorySidebar.tsx
-│       └── components/
-│           ├── HistoryItemCard.tsx
-│           └── StatsCard.tsx
+│   ├── history/                 # sidebar
+│   │   ├── HistorySidebar.tsx
+│   │   └── components/
+│   └── settings/                # settings modal (dir, defaults, cookies, language, version)
+│       └── SettingsModal.tsx
+├── i18n/                        # react-i18next setup + en/es locale strings
+│   ├── index.ts
+│   └── locales/{en,es}.ts
+├── lib/                         # API client, download WebSocket, native dialogs
 ├── types/
 │   └── download.ts              # shared domain types (backend JSON contract)
 ├── App.tsx                      # composition root
-├── main.tsx                     # React entry point
+├── main.tsx                     # React entry point (imports ./i18n)
 └── index.css                    # Tailwind directives + global styles
 ```
 
@@ -45,9 +52,15 @@ src/
   palette lives in one place.
 - **Types:** keep `types/download.ts` aligned with the backend's Pydantic
   models — it's the single source of truth for the API shape on the client.
+- **i18n:** user-facing strings come from `react-i18next` (`useTranslation`),
+  with English + Spanish dictionaries in `i18n/locales`. The language is
+  auto-detected from the system and overridable in Settings; the choice is
+  persisted under the `yoink-lang` localStorage key. Backend error messages
+  arrive in English; the frontend only translates its own UI.
 
 ## Current state
 
-The UI renders with placeholder data (`HISTORY`, `STATS`, `SAMPLE_INFO`).
-`DownloaderPanel` exposes `handleAnalyze` / `handleDownload` stubs that are the
-integration points for the backend (see the [roadmap](ROADMAP.md), Phase 2-3).
+The UI is wired to the live backend. `DownloaderPanel` calls `/api/info` to
+populate the preview/playlist, derives the kind/quality/container/audio-format
+selectors from the real formats (`formatOptions.ts`), and streams download
+progress over the WebSocket client in `lib/`.

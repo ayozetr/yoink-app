@@ -110,7 +110,7 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 > to be a serializable `dict`. Always pass it through `ydl.sanitize_info(...)`
 > before returning it as JSON. Yoink does this in `ytdlp_service.extract_info`.
 
-### Downloading + live progress (Yoink Phase 3, planned)
+### Downloading + live progress (used by `WS /api/ws/download`)
 
 ```python
 import yt_dlp
@@ -138,20 +138,35 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
     error_code = ydl.download([URL])
 ```
 
-In Yoink this runs in a **FastAPI background task**, and the hook forwards
-progress events over **WebSocket/SSE** to animate the UI progress bar.
+In Yoink this runs **off-thread** (`asyncio.to_thread`) and the hook forwards
+progress events over the **WebSocket** to animate the UI progress bar (see
+`download_service.py`).
 
-### Audio-only extraction (e.g. MP3/M4A)
+### Audio-only extraction (e.g. MP3/M4A/FLAC/WAV)
 
 ```python
 ydl_opts = {
     "format": "bestaudio/best",
     "postprocessors": [{
         "key": "FFmpegExtractAudio",   # uses ffmpeg
-        "preferredcodec": "mp3",       # or "m4a", etc.
+        "preferredcodec": "mp3",       # or "m4a", "flac", "wav"
+        "preferredquality": "192",     # omitted for lossless flac/wav
     }],
 }
 ```
+
+Yoink picks the postprocessor from `DownloadRequest.audio_format`. Lossless
+formats (`flac`/`wav`) drop `preferredquality`, and `m4a` selects an AAC/m4a
+source (`bestaudio[ext=m4a]/…`) so ffmpeg can copy the stream instead of
+re-encoding.
+
+### Embedding subtitles and chapters
+
+For video downloads, Yoink optionally fetches subtitles
+(`writesubtitles`/`writeautomaticsub` + `subtitleslangs`) and embeds them with
+the `FFmpegEmbedSubtitle` postprocessor, and writes chapter markers + source
+metadata with `FFmpegMetadata` (`add_chapters`, `add_metadata`) — driven by the
+`embed_subs`/`subtitle_lang`/`embed_chapters` request fields.
 
 ### Useful `ydl_opts` keys
 
@@ -265,8 +280,10 @@ rather than blocking.
   normalizes the result into typed models.
 - **`/api/info`** (`backend/app/routers/info.py`) exposes that as REST; failures
   surface as `MediaExtractionError` → HTTP 422.
-- **Planned:** a download service using `progress_hooks` in a background task,
-  streaming progress over WebSocket/SSE (see the [roadmap](ROADMAP.md), Phase 3).
+- **`backend/app/services/download_service.py`** runs the download off-thread,
+  builds yt-dlp options from a `DownloadRequest` (container, audio format,
+  subtitles, chapters), and streams `progress_hooks` events over
+  **`WS /api/ws/download`**.
 
 ## 9. References
 

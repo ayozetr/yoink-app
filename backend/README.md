@@ -1,8 +1,8 @@
 # Yoink Backend
 
 Local FastAPI service that wraps [yt-dlp](https://github.com/yt-dlp/yt-dlp) to
-power the Yoink frontend. It extracts media metadata over REST and (later) will
-stream download progress to the UI via WebSockets/SSE.
+power the Yoink frontend. It extracts media metadata over REST and streams
+download progress to the UI over a WebSocket.
 
 > For a deeper reference on yt-dlp itself (pipeline, dependencies, the Python
 > embedding API, format selection, progress hooks), see
@@ -79,9 +79,13 @@ Settings are read from `YOINK_`-prefixed environment variables (or a local
 backend/
 ├── app/
 │   ├── main.py              # FastAPI app, CORS, router mounting
-│   ├── core/config.py       # typed settings (CORS, paths)
-│   ├── models/media.py      # Pydantic models (JSON contract)
-│   ├── routers/info.py      # /api/info route
-│   └── services/ytdlp_service.py  # typed yt-dlp wrapper
+│   ├── core/               # typed settings, humanize, shared yt-dlp options
+│   ├── models/media.py     # Pydantic models (JSON contract)
+│   ├── routers/            # info, download (WS), history, settings
+│   └── services/           # yt-dlp metadata + download, history/settings stores, updates
 └── requirements.txt
 ```
+
+> The download contract (the `DownloadRequest` options for container,
+> audio format, subtitles, and chapters) and the per-layer reference live in
+> [`../docs/backend.md`](../docs/backend.md).

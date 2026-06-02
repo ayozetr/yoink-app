@@ -23,13 +23,16 @@ Two layers communicating asynchronously:
 
 - **Metadata (REST):** when the user pastes a URL, the frontend calls FastAPI.
   The backend runs yt-dlp with `download=False` and returns an `InfoResponse`
-  that is **either** a single video (title, thumbnail, formats) **or** a flat
-  playlist listing (entries with title/duration/url). Endpoint: `POST /api/info`.
+  that is **either** a single video (title, thumbnail, formats, plus
+  `source_lossless`/`best_audio_abr`/`subtitle_langs`/`has_chapters`) **or** a
+  flat playlist listing (entries with title/duration/url). Endpoint: `POST /api/info`.
 - **Download & progress (WebSockets):** on "Download", the frontend opens a
-  socket to `WS /api/ws/download` and sends the request. The backend runs the
-  yt-dlp job off-thread (`asyncio.to_thread`) and streams typed events —
-  `progress` (percent, speed, ETA) → terminal `completed`/`error` — back over
-  the same socket to animate the progress bar.
+  socket to `WS /api/ws/download` and sends the request (`DownloadRequest`:
+  `kind`/`quality`, output `container`, `audio_format`, and `embed_subs`/
+  `subtitle_lang`/`embed_chapters`). The backend runs the yt-dlp job off-thread
+  (`asyncio.to_thread`) and streams typed events — `progress` (percent, speed,
+  ETA) → terminal `completed`/`error` — back over the same socket to animate the
+  progress bar.
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` — keep both sides in sync.
@@ -44,12 +47,13 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 ├── src/                      # frontend (React + TS + Tailwind)
 │   ├── components/
 │   │   ├── layout/           # app shell, background glow
-│   │   └── ui/               # reusable primitives (GlassPanel, Button, …)
+│   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, EditMenu, …)
 │   ├── features/
 │   │   ├── downloader/       # URL input, preview, playlist, progress (main column)
 │   │   ├── history/          # download history + stats (sidebar)
-│   │   └── settings/         # settings modal (download dir, defaults, cookies, version)
-│   ├── lib/                  # API client + download WebSocket
+│   │   └── settings/         # settings modal (download dir, defaults, cookies, language, version)
+│   ├── i18n/                 # react-i18next setup + en/es locale strings
+│   ├── lib/                  # API client + download WebSocket + native dialogs
 │   └── types/                # shared domain types (backend JSON contract)
 └── backend/                  # FastAPI + yt-dlp engine
     └── app/
@@ -131,6 +135,10 @@ release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.
   Dependencies isolated in a `venv`.
 - **Security:** keep `npm audit` at **0 vulnerabilities**.
 - **Icons:** `lucide-react`.
+- **i18n:** UI strings go through `react-i18next` (English + Spanish in
+  `src/i18n/locales`); the language is auto-detected from the system and
+  overridable in Settings (persisted under the `yoink-lang` localStorage key).
+  Backend error messages stay in **English**; the frontend translates its own UI.
 
 ## Git conventions
 
