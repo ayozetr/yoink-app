@@ -120,39 +120,57 @@ local HTTP/WebSocket server must be replaced. Three routes:
 > YouTube downloaders. This is a separate mini-project, not an extension of the
 > desktop packaging.
 
-## Phase 8 — Branding, i18n & polish ⬜ (→ v0.9.0)
+## Phase 8 — Branding, i18n & polish ✅ (→ v0.9.0)
 
 > More immediate than Phase 7 (Android). Grouped by area.
 
 ### Branding & naming
-- ⬜ README title → "Yoink Media Downloader"
-- ⬜ App header: "Media Downloader" → "Yoink Media Downloader"
+- ✅ README title → "Yoink Media Downloader" (+ badges: release, platforms,
+  Tauri, React, FastAPI, yt-dlp, license, React Doctor score)
+- ✅ App header: "Media Downloader" → "Yoink Media Downloader"
   (`DownloaderHeader.tsx`)
-- ⬜ Installer/exe metadata: **Copyright** = GitHub user (`© ayozetr`) via Tauri
-  `bundle.copyright`. Leave `productName = "Yoink"` (changing it renames the
+- ✅ Installer/exe metadata: **Copyright** = GitHub user (`© ayozetr`) via Tauri
+  `bundle.copyright`. Left `productName = "Yoink"` (changing it renames the
   binary/installer and risks breaking sidecar paths).
 
 ### UX fixes
-- ⬜ **"Desarrollado por ayozetr" link doesn't open** the profile in the
-  packaged app — the Tauri webview doesn't follow `target="_blank"` to the
-  system browser (works in the dev browser, not in WebView2/WebKitGTK). Fix with
-  the Tauri **opener** plugin (`openUrl(...)`) on click instead of a bare `href`.
-- ⬜ Cookies hint: "no para vídeos públicos" → "no para **contenido público**"
+- ✅ **"Developed by ayozetr" link** now opens the profile in the packaged app
+  via the Tauri **opener** plugin (`openExternal`), with a `window.open`
+  fallback in the dev browser.
+- ✅ Cookies hint: "no para vídeos públicos" → "no para **contenido público**"
   (`SettingsModal.tsx`)
-- ⬜ **Responsive design** review: the fixed 360px sidebar + main column break
-  on narrow windows; collapse/stack the sidebar, fluid widths, test small sizes.
+- ✅ **Responsive design**: the sidebar + main column stack on narrow windows
+  (fluid widths, `lg:` breakpoint); modal scrolls instead of clipping.
 
 ### Internationalization (English + Spanish)
-- ⬜ Translate the UI to **English**; extract all strings (i18n lib, e.g.
-  `react-i18next`, or a small custom dictionary)
-- ⬜ **Language selector** in Settings (persisted to `settings.json`)
-- ⬜ **Detect the system language** (`navigator.language`) as the default
-- ⬜ Backend error messages → **English** (currently Spanish); the frontend
-  shows them as-is and handles its own translations separately
+- ✅ Translated the UI to **English + Spanish** with `react-i18next` (namespaced
+  dictionaries in `src/i18n/locales/`)
+- ✅ **Language selector** in Settings (System / Español / English), persisted to
+  `localStorage` (`yoink-lang`) via the i18next detector
+- ✅ **Detect the system language** (`navigator.language`) as the default
+- ✅ Backend error messages → **English**; the frontend shows them as-is and
+  handles its own translations separately
+- ✅ E2E pin the Playwright locale to `es-ES` so the Spanish assertions stay
+  deterministic after i18n
 
 ### Legal
-- ⬜ Add a **LICENSE** to the repo (choose: MIT permissive, or GPL-3.0 copyleft;
-  ffmpeg is bundled under LGPL and yt-dlp is Unlicense, so either is compatible)
+- ✅ Added an **MIT LICENSE** (compatible with the bundled LGPL ffmpeg and
+  Unlicense yt-dlp, which keep their own licenses)
+
+### Extras shipped in v0.9.0
+- ✅ **Native folder picker** for the download dir (Tauri **dialog** plugin) —
+  a folder icon at the end of the field opens the OS directory chooser
+- ✅ **Custom dropdown** (`Select`) replacing the unstyled native `<select>`
+  popup, used for format/quality/language across Settings, preview and playlist
+  (dark, `fixed`-positioned so it isn't clipped by the modal)
+- ✅ **Custom context menu** (`EditMenu`): minimal Cut/Copy/Paste on text fields
+  only, suppressing the webview's native Print/Save-as menu; closes on the
+  capture phase so it works inside modals
+- ✅ **Security audit**: `npm audit` (0), `pip-audit` (0, bumped pytest to clear
+  CVE-2025-71176), `cargo audit` (0 vulns; only transitive GTK3 "unmaintained"
+  warnings)
+- ✅ **react-doctor** pass (score 92/100): fixed the genuine, behavior-safe
+  findings; documented the verified false positives
 
 ## Phase 9 — Advanced formats & going public ⬜ (→ v1.0.0)
 
