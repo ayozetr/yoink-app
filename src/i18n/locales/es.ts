@@ -56,6 +56,8 @@ export const es = {
   },
   panel: {
     analyzeError: "Ocurrió un error inesperado al analizar la URL.",
+    blockedHint:
+      "Si el sitio bloquea la descarga, prueba a indicar tu navegador en Ajustes → cookies.",
     downloadingOf: "Descargando {{current}} de {{total}}:",
     summaryDone: "{{count}} completadas",
     summaryFailed: " · {{count}} con error",

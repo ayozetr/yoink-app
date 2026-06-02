@@ -237,6 +237,11 @@ export function DownloaderPanel({
             <AlertCircle size={18} className="shrink-0" />
             <span className="text-sm">{error}</span>
           </div>
+          {/forbidden|\b403\b/i.test(error) && (
+            <p className="mt-2 pl-[30px] text-xs text-zinc-400">
+              {t("panel.blockedHint")}
+            </p>
+          )}
         </GlassPanel>
       )}
 
