@@ -8,8 +8,18 @@ sidecar (so users need no Python).
 Prerequisites on the build host:
 
 - Rust toolchain, and on Linux `webkit2gtk` (4.1).
+- **Python 3.13** for the backend venv (not 3.14): `curl_cffi`'s impersonation —
+  which lets yt-dlp pass Cloudflare/anti-bot 403s — only has wheels for the
+  versions yt-dlp supports on 3.13, and 3.14's newer OpenSSL fingerprint is
+  itself blocked by some sites. `scripts/setup.py` picks 3.13 automatically (via
+  `uv python find 3.13`; isolated, the system Python is untouched). Install it
+  once with `uv python install 3.13` if needed.
 - The backend venv with PyInstaller (`python scripts/setup.py` then
   `backend/.venv/bin/pip install pyinstaller`).
+  - **After building the sidecar, confirm impersonation survived packaging:**
+    run the built `yoink-backend ... --list-impersonate-targets` (or test a
+    Cloudflare URL); if targets are empty, PyInstaller dropped `curl_cffi`'s
+    native libs — add `--collect-all curl_cffi` in `scripts/build_backend.py`.
 - Bundled **ffmpeg + ffprobe**: run `python scripts/fetch_ffmpeg.py` once per
   platform (downloads LGPL builds to `backend/vendor/ffmpeg/`). The sidecar
   embeds them, so the shipped app needs no system ffmpeg. See

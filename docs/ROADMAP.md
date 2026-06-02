@@ -263,14 +263,14 @@ Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
   Dailymotion, Instagram, TikTok, X, Facebook, SoundCloud, BandLab, Twitch,
   Medal — curated, not yt-dlp's full ~1800 list. Extend the typed list as more
   are verified.
-- ⬜ **Get past Cloudflare-protected sites.** Some sites sit behind an
-  aggressive Cloudflare/anti-bot challenge that returns HTTP 403 before any
-  page loads; neither a browser User-Agent, browser cookies, nor a `cookies.txt`
-  get through (the `cf_clearance` token is bound to the exact browser
-  fingerprint, and yt-dlp doesn't run the JS challenge). The real lever is
-  yt-dlp's **`--impersonate`** (TLS/HTTP fingerprint via `curl_cffi`), but it
-  needs `curl_cffi` shipped with its browser binaries — **currently unavailable
-  on the Python 3.14 backend** (no wheels yet; 0 impersonate targets). Options:
-  pin the backend to **Python 3.13** (where `curl_cffi` has impersonate) and
-  pass `impersonate` in the yt-dlp options, or wait for 3.14 wheels. Even then,
-  some challenges may still not pass — best-effort, not guaranteed.
+- ✅ **Get past Cloudflare-protected sites** *(in main, ships in v1.2.0)*. The
+  root cause was the backend's **TLS fingerprint**: Python 3.14 ships OpenSSL
+  3.6.x, whose fingerprint Cloudflare blocks with a 403 before any page loads —
+  and `curl_cffi` (impersonation) can't run on 3.14 (no compatible wheels: yt-dlp
+  wants `curl_cffi <0.15`, which has no 3.14 build). Confirmed by Seal (Android),
+  which downloads the same video because its yt-dlp has impersonation. Fix: the
+  backend now runs on **Python 3.13** (isolated via `uv` — the system Python is
+  untouched) with `yt-dlp[default,curl-cffi]`, so yt-dlp impersonates a real
+  browser TLS fingerprint automatically for extractors that require it (verified:
+  the 403 site now resolves). Best-effort — some aggressive challenges, logins
+  (need cookies) or DRM still won't work.

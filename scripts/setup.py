@@ -10,6 +10,7 @@ Creates `backend/.venv`, installs the Python requirements into it, and runs
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import venv
@@ -18,6 +19,31 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend"
 VENV = BACKEND / ".venv"
+
+
+def _find_python313() -> str | None:
+    """Locate a Python 3.13 interpreter — the version the backend is pinned to.
+
+    The backend needs 3.13 (not the bleeding-edge 3.14) so `curl_cffi`'s
+    impersonation works, which lets yt-dlp get past Cloudflare/anti-bot 403s.
+    Prefer uv's managed 3.13 (fully isolated — it does NOT touch the system
+    Python), then a `python3.13` on PATH. Returns None if neither is present.
+    """
+    uv = shutil.which("uv")
+    if uv:
+        try:
+            out = subprocess.run(
+                [uv, "python", "find", "3.13"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            path = out.stdout.strip()
+            if path:
+                return path
+        except (subprocess.CalledProcessError, OSError):
+            pass
+    return shutil.which("python3.13")
 
 
 def _venv_python() -> Path:
@@ -32,9 +58,19 @@ def _run(cmd: list[str], cwd: Path) -> None:
 
 
 def main() -> int:
-    print("> Creating backend virtualenv...")
+    print("> Creating backend virtualenv (Python 3.13)...")
     if not _venv_python().exists():
-        venv.create(VENV, with_pip=True)
+        py313 = _find_python313()
+        if py313:
+            _run([py313, "-m", "venv", str(VENV)], BACKEND)
+        else:
+            print(
+                "  ! Python 3.13 not found. The backend needs it for "
+                "curl_cffi/impersonate (getting past Cloudflare 403s).\n"
+                "    Install it with `uv python install 3.13` and re-run, or\n"
+                "    continue on the current interpreter (some sites may 403)."
+            )
+            venv.create(VENV, with_pip=True)
 
     print("> Installing backend dependencies...")
     py = str(_venv_python())

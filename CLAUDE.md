@@ -99,11 +99,16 @@ npm run test:e2e # Playwright E2E (mocked API; first run: npx playwright install
 
 ### Backend (`backend/`)
 
+> Use **Python 3.13** (not 3.14): yt-dlp's `curl_cffi` impersonation — needed to
+> get past Cloudflare/anti-bot 403s — only works on a Python with compatible
+> `curl_cffi` wheels, and 3.14's newer OpenSSL fingerprint is itself blocked by
+> some sites. `scripts/setup.py` selects 3.13 automatically (via uv, isolated).
+
 ```bash
-python -m venv .venv
+python3.13 -m venv .venv          # or: uv venv --python 3.13 .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-uvicorn app.main:app --reload    # http://127.0.0.1:8000  (docs at /docs)
+uvicorn app.main:app --reload    # http://127.0.0.1:8756  (docs at /docs)
 
 pip install -r requirements-dev.txt   # test deps (pytest, httpx)
 pytest                                # run the backend test suite
