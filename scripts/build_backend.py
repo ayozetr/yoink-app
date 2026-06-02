@@ -74,6 +74,10 @@ def main() -> int:
             "--name", "yoink-backend",
             "--collect-all", "yt_dlp",
             "--collect-all", "uvicorn",
+            # curl_cffi ships native libs (libcurl-impersonate) that PyInstaller
+            # won't pick up on its own; without them yt-dlp can't impersonate a
+            # browser and Cloudflare-protected sites 403 in the packaged app.
+            "--collect-all", "curl_cffi",
             "--collect-submodules", "app",
             "--hidden-import", "app.main",
             *_ffmpeg_args(),

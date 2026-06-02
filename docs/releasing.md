@@ -14,6 +14,8 @@ Prerequisites on the build host:
   itself blocked by some sites. `scripts/setup.py` picks 3.13 automatically (via
   `uv python find 3.13`; isolated, the system Python is untouched). Install it
   once with `uv python install 3.13` if needed.
+- On **Linux**, **`patchelf`** on PATH: setup clears the executable stack on a
+  copy of uv's 3.13 runtime so the packaged sidecar starts (see §2).
 - The backend venv with PyInstaller (`python scripts/setup.py` then
   `backend/.venv/bin/pip install pyinstaller`).
   - **After building the sidecar, confirm impersonation survived packaging:**
@@ -54,12 +56,25 @@ python scripts/build_backend.py
 ```
 
 `build_backend.py` PyInstaller-bundles `backend/run_backend.py` (collecting
-yt-dlp's dynamic extractors + uvicorn internals, and embedding ffmpeg/ffprobe
-from `backend/vendor/ffmpeg/` if present) into
+yt-dlp's dynamic extractors + uvicorn internals + `curl_cffi` for impersonation,
+and embedding ffmpeg/ffprobe from `backend/vendor/ffmpeg/` if present) into
 `src-tauri/binaries/yoink-backend-<target-triple>`, the name Tauri's
 `externalBin` sidecar expects. The packaged backend listens on port **8756**
 (matching the frontend's default `VITE_API_BASE_URL`); the bundled ffmpeg is
 wired to yt-dlp via `ffmpeg_location` (`app/core/ffmpeg.py`).
+
+> **Linux sidecar — executable-stack fix (automated).** uv's managed
+> `libpython3.13.so` is built with an executable stack (`GNU_STACK = RWE`).
+> PyInstaller extracts and `dlopen`s it at runtime, and a hardened kernel then
+> refuses to start the sidecar with `cannot enable executable stack as shared
+> object requires`. `scripts/setup.py` handles this: on Linux it copies the 3.13
+> runtime to `backend/.python-rt` and clears the flag on the **copy**
+> (`patchelf --clear-execstack` — never uv's shared file), then builds
+> `backend/.venv` from there, so the bundled `libpython` is `GNU_STACK = RW` and
+> the sidecar starts. Requirement: **`patchelf` on PATH** at setup time (setup
+> warns if missing). `backend/.python-rt` is git-ignored and rebuilt by setup.
+> Still **verify the sidecar starts** before releasing. **Windows (Python 3.12)
+> is unaffected** (its libpython has no exec stack).
 
 ## 3. Build the bundles
 

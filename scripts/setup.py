@@ -46,6 +46,36 @@ def _find_python313() -> str | None:
     return shutil.which("python3.13")
 
 
+def _runtime_python(py: str) -> str:
+    """Return a Python whose libpython is safe to bundle into the sidecar.
+
+    uv's standalone Python ships `libpython` with an executable stack (RWE).
+    PyInstaller `dlopen`s it at runtime and a hardened kernel then refuses to
+    start the packaged sidecar ("cannot enable executable stack"). On Linux, if
+    `patchelf` is available, copy the runtime into `backend/.python-rt` and clear
+    the flag on the COPY (never uv's shared file), and build the venv from there.
+    No-op on Windows/macOS or without patchelf.
+    """
+    if sys.platform != "linux":
+        return py
+    patchelf = shutil.which("patchelf")
+    if not patchelf:
+        print("  ! patchelf not found; the packaged Linux sidecar may fail to "
+              "start (executable-stack). Install patchelf for release builds.")
+        return py
+    dest = BACKEND / ".python-rt"
+    if not (dest / "bin").exists():
+        home = Path(py).resolve().parents[1]
+        print("> Copying the Python runtime and clearing its executable stack "
+              "(so the packaged Linux sidecar can start)...")
+        shutil.copytree(home, dest, symlinks=True)
+        for lib in (dest / "lib").glob("libpython3.*.so*"):
+            if not lib.is_symlink():
+                subprocess.run([patchelf, "--clear-execstack", str(lib)], check=False)
+    candidate = dest / "bin" / Path(py).name
+    return str(candidate) if candidate.exists() else py
+
+
 def _venv_python() -> Path:
     if os.name == "nt":
         return VENV / "Scripts" / "python.exe"
@@ -62,6 +92,7 @@ def main() -> int:
     if not _venv_python().exists():
         py313 = _find_python313()
         if py313:
+            py313 = _runtime_python(py313)  # clear execstack on Linux (copy)
             _run([py313, "-m", "venv", str(VENV)], BACKEND)
         else:
             print(

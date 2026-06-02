@@ -263,14 +263,22 @@ Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
   Dailymotion, Instagram, TikTok, X, Facebook, SoundCloud, BandLab, Twitch,
   Medal — curated, not yt-dlp's full ~1800 list. Extend the typed list as more
   are verified.
-- ✅ **Get past Cloudflare-protected sites** *(in main, ships in v1.2.0)*. The
-  root cause was the backend's **TLS fingerprint**: Python 3.14 ships OpenSSL
-  3.6.x, whose fingerprint Cloudflare blocks with a 403 before any page loads —
-  and `curl_cffi` (impersonation) can't run on 3.14 (no compatible wheels: yt-dlp
-  wants `curl_cffi <0.15`, which has no 3.14 build). Confirmed by Seal (Android),
-  which downloads the same video because its yt-dlp has impersonation. Fix: the
-  backend now runs on **Python 3.13** (isolated via `uv` — the system Python is
-  untouched) with `yt-dlp[default,curl-cffi]`, so yt-dlp impersonates a real
-  browser TLS fingerprint automatically for extractors that require it (verified:
-  the 403 site now resolves). Best-effort — some aggressive challenges, logins
-  (need cookies) or DRM still won't work.
+- ✅ **Get past Cloudflare-protected sites** *(ships in v1.2.0)*. Root cause: the
+  backend's **TLS fingerprint**. Python 3.14 ships OpenSSL 3.6.x, whose
+  fingerprint Cloudflare blocks with a 403 before any page loads, and `curl_cffi`
+  (impersonation) can't run on 3.14 (yt-dlp wants `curl_cffi <0.15`, no 3.14
+  wheel). Confirmed by Seal (Android), whose yt-dlp impersonates. **Fix (verified
+  end-to-end — the 403 site resolves from the packaged sidecar, 77 tests pass):**
+  - Backend on **Python 3.13** (isolated via `uv`, system Python untouched) with
+    `yt-dlp[default,curl-cffi]` → yt-dlp impersonates a browser TLS fingerprint
+    automatically for extractors that require it.
+  - `scripts/build_backend.py` adds `--collect-all curl_cffi` so impersonation
+    survives PyInstaller packaging.
+  - **Executable-stack fix:** uv's `libpython3.13.so` has an exec stack (`RWE`)
+    the kernel rejects when PyInstaller `dlopen`s it, so the packaged sidecar
+    wouldn't start. `scripts/setup.py` copies the runtime to `backend/.python-rt`
+    and clears the flag on the **copy** (`patchelf --clear-execstack`, never uv's
+    shared file), building the venv from there. **Windows (Python 3.12) is
+    unaffected.**
+  - Best-effort overall — aggressive challenges, logins (cookies) or DRM still
+    won't work.
