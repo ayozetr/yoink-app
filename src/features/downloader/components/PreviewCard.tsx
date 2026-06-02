@@ -1,16 +1,32 @@
 import { useMemo, useState } from "react";
-import { Clock3, Download, User, Video } from "lucide-react";
+import { AlertTriangle, Clock3, Download, User, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
-import type { MediaKind, VideoInfo } from "../../../types/download";
-import { availableKinds, videoQualities } from "../formatOptions";
+import type {
+  AudioFormat,
+  MediaKind,
+  VideoContainer,
+  VideoInfo,
+} from "../../../types/download";
+import {
+  AUDIO_FORMATS,
+  DEFAULT_AUDIO_FORMAT,
+  DEFAULT_CONTAINER,
+  VIDEO_CONTAINERS,
+  availableKinds,
+  videoQualities,
+} from "../formatOptions";
 
 export interface DownloadSelection {
   kind: MediaKind;
   /** Target quality, e.g. "1080p". Undefined for audio-only downloads. */
   quality?: string;
+  /** Output container, only meaningful for video downloads. */
+  container?: VideoContainer;
+  /** Output format, only meaningful for audio downloads. */
+  audio_format?: AudioFormat;
 }
 
 interface PreviewCardProps {
@@ -40,8 +56,22 @@ export function PreviewCard({
       ? defaultQuality
       : (qualities[0] ?? ""),
   );
+  const [container, setContainer] = useState<VideoContainer>(DEFAULT_CONTAINER);
+  const [audioFormat, setAudioFormat] = useState<AudioFormat>(
+    DEFAULT_AUDIO_FORMAT,
+  );
 
   const isVideo = kind === "video";
+
+  // FLAC/WAV only make sense from a lossless source; otherwise they'd upscale.
+  const losslessAllowed = info.source_lossless;
+  // If a lossless format is selected but the source isn't lossless, fall back.
+  const effectiveAudioFormat: AudioFormat =
+    !losslessAllowed &&
+    AUDIO_FORMATS.find((o) => o.value === audioFormat)?.lossless
+      ? DEFAULT_AUDIO_FORMAT
+      : audioFormat;
+  const showLosslessWarning = !isVideo && !losslessAllowed;
 
   return (
     <GlassPanel className="p-5">
@@ -83,40 +113,81 @@ export function PreviewCard({
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-3 mt-6">
-            <Select
-              ariaLabel={t("preview.format")}
-              value={kind}
-              onChange={(v) => setKind(v as MediaKind)}
-              options={kinds.map((option) => ({
-                value: option.kind,
-                label:
-                  option.kind === "video"
-                    ? t("preview.video")
-                    : t("preview.audio"),
-              }))}
-              className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
-            />
+          <div className="mt-6 flex flex-col gap-3">
+            <div className="grid md:grid-cols-3 gap-3">
+              <Select
+                ariaLabel={t("preview.format")}
+                value={kind}
+                onChange={(v) => setKind(v as MediaKind)}
+                options={kinds.map((option) => ({
+                  value: option.kind,
+                  label:
+                    option.kind === "video"
+                      ? t("preview.video")
+                      : t("preview.audio"),
+                }))}
+                className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
+              />
 
-            <Select
-              ariaLabel={t("preview.quality")}
-              value={isVideo && qualities.length > 0 ? quality : "__best__"}
-              onChange={setQuality}
-              disabled={!isVideo || qualities.length === 0}
-              options={
-                isVideo && qualities.length > 0
-                  ? qualities.map((option) => ({ value: option, label: option }))
-                  : [{ value: "__best__", label: t("preview.bestQuality") }]
-              }
-              className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+              {isVideo ? (
+                <>
+                  <Select
+                    ariaLabel={t("preview.quality")}
+                    value={qualities.length > 0 ? quality : "__best__"}
+                    onChange={setQuality}
+                    disabled={qualities.length === 0}
+                    options={
+                      qualities.length > 0
+                        ? qualities.map((option) => ({
+                            value: option,
+                            label: option,
+                          }))
+                        : [{ value: "__best__", label: t("preview.bestQuality") }]
+                    }
+                    className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+
+                  <Select
+                    ariaLabel={t("preview.container")}
+                    value={container}
+                    onChange={(v) => setContainer(v as VideoContainer)}
+                    options={VIDEO_CONTAINERS}
+                    className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
+                  />
+                </>
+              ) : (
+                <Select
+                  ariaLabel={t("preview.audioFormat")}
+                  value={effectiveAudioFormat}
+                  onChange={(v) => setAudioFormat(v as AudioFormat)}
+                  options={AUDIO_FORMATS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                    disabled: option.lossless && !losslessAllowed,
+                  }))}
+                  className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm md:col-span-2"
+                />
+              )}
+            </div>
+
+            {showLosslessWarning && (
+              <p className="flex items-center gap-2 text-xs text-amber-300/90">
+                <AlertTriangle size={14} className="shrink-0" />
+                {t("preview.losslessWarning")}
+              </p>
+            )}
 
             <Button
               variant="gradient"
               onClick={() =>
-                onDownload({ kind, quality: isVideo ? quality : undefined })
+                onDownload({
+                  kind,
+                  quality: isVideo ? quality : undefined,
+                  container: isVideo ? container : undefined,
+                  audio_format: isVideo ? undefined : effectiveAudioFormat,
+                })
               }
-              className="h-12"
+              className="h-12 w-full"
             >
               <Download size={18} />
               {t("preview.download")}

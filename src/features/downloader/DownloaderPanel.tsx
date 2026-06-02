@@ -176,7 +176,13 @@ export function DownloaderPanel({
     const target = url.trim();
     startQueue([
       {
-        request: { url: target, kind: selection.kind, quality: selection.quality },
+        request: {
+          url: target,
+          kind: selection.kind,
+          quality: selection.quality,
+          container: selection.container,
+          audio_format: selection.audio_format,
+        },
         title: info?.video?.title ?? target,
       },
     ]);
@@ -192,6 +198,8 @@ export function DownloaderPanel({
           url: entry.url,
           kind: selection.kind,
           quality: selection.quality,
+          container: selection.container,
+          audio_format: selection.audio_format,
         },
         title: entry.title,
       })),

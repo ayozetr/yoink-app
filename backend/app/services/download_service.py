@@ -23,6 +23,7 @@ from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import cookie_options, normalize_url
 from app.models.media import (
+    AudioFormat,
     CompletedEvent,
     DownloadRequest,
     ErrorEvent,
@@ -31,6 +32,21 @@ from app.models.media import (
 
 # Event objects pushed onto the bridge queue.
 _Event = ProgressEvent | CompletedEvent | ErrorEvent
+
+# Audio extraction settings per output format. Lossless formats (flac/wav)
+# intentionally omit `preferredquality` — a bitrate target is meaningless and
+# yt-dlp/ffmpeg would reject or ignore it.
+_AUDIO_POSTPROCESSORS: dict[AudioFormat, dict[str, str]] = {
+    "mp3": {"preferredcodec": "mp3", "preferredquality": "192"},
+    "m4a": {"preferredcodec": "m4a", "preferredquality": "192"},
+    "flac": {"preferredcodec": "flac"},
+    "wav": {"preferredcodec": "wav"},
+}
+
+
+def _audio_postprocessor(audio_format: AudioFormat) -> dict[str, str]:
+    """Build the FFmpegExtractAudio postprocessor for an output audio format."""
+    return {"key": "FFmpegExtractAudio", **_AUDIO_POSTPROCESSORS[audio_format]}
 
 
 class _DownloadCancelled(Exception):
@@ -128,13 +144,7 @@ def _build_options(
 
     if request.kind == "audio":
         options["format"] = "bestaudio/best"
-        options["postprocessors"] = [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }
-        ]
+        options["postprocessors"] = [_audio_postprocessor(request.audio_format)]
     else:
         height = _parse_height(request.quality)
         if height:
@@ -144,8 +154,9 @@ def _build_options(
             )
         else:
             options["format"] = "bestvideo+bestaudio/best"
-        # Merge separate video+audio streams into a single MP4 via ffmpeg.
-        options["merge_output_format"] = "mp4"
+        # Merge separate video+audio streams into the requested container via
+        # ffmpeg (mp4 by default).
+        options["merge_output_format"] = request.container
 
     return options
 

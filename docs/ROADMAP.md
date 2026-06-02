@@ -181,28 +181,32 @@ The 1.0 milestone: richer output formats **and** opening the repo to the world.
 Today Yoink offers MP4 (video) + MP3 (audio). Expand to give real control, and
 be **honest about source quality** (don't inflate lossy sources into "lossless").
 
+**Phase 1 (done):** containers, audio formats and honest-lossless gating.
+
 ### Video containers
-- ⬜ Offer **MP4** (default), **MOV**, **MKV** (`merge_output_format`)
+- ✅ Offer **MP4** (default), **MOV**, **MKV** (`merge_output_format` driven by
+  `DownloadRequest.container`); a container picker in the preview/playlist cards
 - ⬜ MKV power features: **embed subtitles** (`writesubtitles` +
   `FFmpegEmbedSubtitle`), **chapters/metadata** (`FFmpegMetadata`,
   `add_chapters`), and optionally **multiple audio tracks** where the source
-  has them (`--audio-multistreams`)
-- ⬜ Subtitle language picker (es / en / all)
+  has them (`--audio-multistreams`) — *Phase 2*
+- ⬜ Subtitle language picker (es / en / all) — *Phase 2*
 
 ### Audio formats
-- ⬜ Lossy: **MP3**, **M4A** — prefer **M4A** when possible (copy the source
-  AAC with no re-encode; truer + faster than MP3)
-- ⬜ Lossless: **FLAC**, **WAV** — only offered/meaningful when the source is
-  actually lossless
+- ✅ Lossy: **MP3**, **M4A**; Lossless: **FLAC**, **WAV** — selectable per
+  download (`DownloadRequest.audio_format` → `FFmpegExtractAudio` codec;
+  lossless variants skip `preferredquality`)
+- ⬜ Optimisation: prefer **M4A by copy** (select the source AAC, no re-encode)
+  instead of always transcoding — *Phase 2*
 
 ### Source-quality detection (honest lossless)
-- ⬜ In `/api/info`, inspect the formats' `acodec`/`abr` → expose
-  `source_lossless` (true for flac/alac/wav/pcm…) and the max bitrate
-- ⬜ Frontend: enable FLAC/WAV **only when `source_lossless`**; otherwise warn
-  ("this source isn't lossless — FLAC would just upscale it") and suggest
-  M4A/Opus (the real max quality)
-- ⬜ Rationale: YouTube serves lossy (Opus ~160 kbps / AAC); transcoding that to
-  FLAC just bloats the file with **no quality gain**. Bandcamp/SoundCloud can be
+- ✅ `/api/info` inspects each format's `acodec`/`abr` → exposes
+  `source_lossless` (flac/alac/wav/pcm/tta/wavpack/ape) and `best_audio_abr`
+- ✅ Frontend gates FLAC/WAV to lossless sources: the options are disabled and
+  an inline warning shows ("this source isn't lossless — FLAC/WAV would just
+  upscale it"); a stale lossless choice falls back to MP3
+- ✅ Rationale: YouTube serves lossy (Opus ~160 kbps / AAC); transcoding to FLAC
+  just bloats the file with **no quality gain**. Bandcamp/SoundCloud can be
   genuinely lossless.
 
 ### Packaging robustness (orphaned sidecar) 🚧
@@ -227,9 +231,10 @@ both OSes; pending runtime validation in the next Windows build/update):
 
 ### Going public
 
-- ⬜ **Audit the repo + git history for secrets** before flipping it public
-  (none expected — the VM credentials live outside the repo — but verify) and
-  re-check `.gitignore`
+- ✅ **Audited the repo + git history for secrets** — clean: no secrets in the
+  working tree or full history, no sensitive files tracked
+  (`.env`/db/keys/cookies), no VM/host/IP references; `.gitignore` covers
+  `venv`/`node_modules`/`.env`/`target`/`dist`/`vendor`
 - ✅ **LICENSE** in place (MIT, shipped in v0.9.0)
 - ✅ Polished the README: badges (release/license/stack/React Doctor), a
   screenshot (`docs/screenshot.png`), and a quick-start

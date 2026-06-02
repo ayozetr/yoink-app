@@ -9,6 +9,16 @@ export type DownloadStatus = "completed" | "error" | "downloading" | "queued";
 
 export type MediaKind = "video" | "audio";
 
+/** Output container for a video download (mirrors backend `VideoContainer`). */
+export type VideoContainer = "mp4" | "mov" | "mkv";
+
+/**
+ * Output format for an audio-only download (mirrors backend `AudioFormat`).
+ * mp3/m4a are lossy; flac/wav are lossless and only meaningful when the source
+ * itself is lossless.
+ */
+export type AudioFormat = "mp3" | "m4a" | "flac" | "wav";
+
 /** Final outcome persisted in the history (mirrors backend `HistoryStatus`). */
 export type HistoryStatus = "completed" | "error";
 
@@ -60,6 +70,10 @@ export interface VideoInfo {
   webpage_url: string | null;
   extractor: string | null;
   formats: MediaFormat[];
+  /** True if the best audio source is lossless (flac/alac/wav/pcm/…). */
+  source_lossless: boolean;
+  /** Highest audio bitrate available, in kbps. */
+  best_audio_abr: number | null;
 }
 
 /** One flat item inside a playlist (mirrors backend `PlaylistEntry`). */
@@ -95,6 +109,10 @@ export interface DownloadRequest {
   kind: MediaKind;
   /** Target video quality, e.g. "1080p". Omitted for audio. */
   quality?: string;
+  /** Output container when kind=video (merge target). Defaults to "mp4". */
+  container?: VideoContainer;
+  /** Output format when kind=audio. Defaults to "mp3". */
+  audio_format?: AudioFormat;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */

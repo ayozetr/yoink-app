@@ -13,6 +13,12 @@ from pydantic import BaseModel, Field, HttpUrl
 MediaKind = Literal["video", "audio"]
 HistoryStatus = Literal["completed", "error"]
 
+# Output containers for a video download (merge target).
+VideoContainer = Literal["mp4", "mov", "mkv"]
+# Output formats for an audio-only download. mp3/m4a are lossy; flac/wav are
+# lossless and only meaningful when the source itself is lossless.
+AudioFormat = Literal["mp3", "m4a", "flac", "wav"]
+
 
 class InfoRequest(BaseModel):
     """Body of a POST /api/info request."""
@@ -51,6 +57,13 @@ class VideoInfo(BaseModel):
     extractor: str | None = Field(default=None, description="yt-dlp extractor used.")
     formats: list[MediaFormat] = Field(
         default_factory=list, description="Available downloadable formats."
+    )
+    source_lossless: bool = Field(
+        default=False,
+        description="True if the best audio source is lossless (flac/alac/wav/pcm/tta/…).",
+    )
+    best_audio_abr: float | None = Field(
+        default=None, description="Highest audio bitrate available, in kbps."
     )
 
 
@@ -93,11 +106,17 @@ class DownloadRequest(BaseModel):
 
     url: HttpUrl = Field(..., description="The media URL to download.")
     kind: MediaKind = Field(
-        default="video", description="Whether to fetch video (MP4) or audio (MP3)."
+        default="video", description="Whether to fetch video or audio."
     )
     quality: str | None = Field(
         default=None,
         description="Target video quality, e.g. '1080p'. Ignored for audio.",
+    )
+    container: VideoContainer = Field(
+        default="mp4", description="Output container when kind=video (merge target)."
+    )
+    audio_format: AudioFormat = Field(
+        default="mp3", description="Output format when kind=audio."
     )
 
 

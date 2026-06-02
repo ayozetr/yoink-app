@@ -6,17 +6,21 @@ import pytest
 
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import cookie_options, normalize_url
+from app.models.media import DownloadRequest
 from app.services.download_service import (
+    _build_options,
     _format_eta,
     _format_speed,
     _map_progress,
     _parse_height,
 )
 from app.services.ytdlp_service import (
+    _audio_summary,
     _build_entry,
     _build_playlist,
     _build_video,
     _format_duration,
+    _is_lossless_acodec,
     _map_format,
 )
 
@@ -163,3 +167,103 @@ def test_build_entry_and_playlist():
     assert [e.id for e in playlist.entries] == ["a", "b"]
     assert playlist.entries[0].duration_string == "1m 1s"
     assert playlist.truncated is False
+
+
+@pytest.mark.parametrize("container", ["mp4", "mov", "mkv"])
+def test_build_options_video_container(temp_dirs, container):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", container=container),
+        hook=lambda raw: None,
+    )
+    assert options["merge_output_format"] == container
+    assert "postprocessors" not in options
+    # Height-based selector logic is unchanged.
+    assert options["format"] == "bestvideo+bestaudio/best"
+
+
+def test_build_options_video_quality_selector(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", quality="720p"),
+        hook=lambda raw: None,
+    )
+    assert options["format"] == (
+        "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
+    )
+
+
+@pytest.mark.parametrize(
+    ("audio_format", "expected_codec", "has_quality"),
+    [
+        ("mp3", "mp3", True),
+        ("m4a", "m4a", True),
+        ("flac", "flac", False),
+        ("wav", "wav", False),
+    ],
+)
+def test_build_options_audio_format(
+    temp_dirs, audio_format, expected_codec, has_quality
+):
+    options = _build_options(
+        DownloadRequest(url="http://x/a", kind="audio", audio_format=audio_format),
+        hook=lambda raw: None,
+    )
+    assert options["format"] == "bestaudio/best"
+    assert "merge_output_format" not in options
+    (pp,) = options["postprocessors"]
+    assert pp["key"] == "FFmpegExtractAudio"
+    assert pp["preferredcodec"] == expected_codec
+    assert ("preferredquality" in pp) is has_quality
+    if has_quality:
+        assert pp["preferredquality"] == "192"
+
+
+@pytest.mark.parametrize(
+    ("acodec", "expected"),
+    [
+        ("flac", True),
+        ("ALAC", True),
+        ("wav", True),
+        ("pcm_s16le", True),
+        ("tta", True),
+        ("wavpack", True),
+        ("ape", True),
+        ("aac", False),
+        ("mp3", False),
+        ("opus", False),
+        ("vorbis", False),
+        ("none", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_is_lossless_acodec(acodec, expected):
+    assert _is_lossless_acodec(acodec) is expected
+
+
+def test_audio_summary_lossless_and_best_abr():
+    formats = [
+        {"acodec": "none", "vcodec": "avc1", "abr": None},  # video-only, no audio
+        {"acodec": "mp4a", "abr": 128.0},
+        {"acodec": "opus", "abr": 160},
+        {"acodec": "flac", "abr": 1411.2},  # lossless, highest abr
+    ]
+    lossless, best_abr = _audio_summary(formats)
+    assert lossless is True
+    assert best_abr == 1411.2
+
+
+def test_audio_summary_lossy_only():
+    formats = [
+        {"acodec": "aac", "abr": 192},
+        {"acodec": "mp3", "abr": 320},
+        {"acodec": "opus"},  # no abr
+    ]
+    lossless, best_abr = _audio_summary(formats)
+    assert lossless is False
+    assert best_abr == 320.0
+
+
+def test_audio_summary_no_audio_or_unknown():
+    assert _audio_summary([{"acodec": "none", "abr": 0}]) == (False, None)
+    assert _audio_summary(None) == (False, None)
+    assert _audio_summary([]) == (False, None)

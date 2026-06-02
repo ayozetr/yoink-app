@@ -23,6 +23,62 @@ from app.models.media import (
 # Cap the number of playlist entries returned so huge playlists stay snappy.
 _ENTRY_CAP = 200
 
+# Audio codec name prefixes that denote lossless audio. Matched case-insensitively
+# by startswith against a format's normalized `acodec`. Everything else (aac, mp3,
+# opus, vorbis, ac3, eac3, …) is treated as lossy.
+_LOSSLESS_ACODEC_PREFIXES: tuple[str, ...] = (
+    "flac",
+    "alac",
+    "wav",
+    "pcm",
+    "tta",
+    "wavpack",
+    "ape",
+)
+
+
+def _is_lossless_acodec(acodec: Any) -> bool:
+    """Return True if an audio codec name denotes a lossless codec.
+
+    Matching is case-insensitive and uses startswith so codec variants like
+    ``pcm_s16le`` or ``flac`` are recognized. Missing/"none" codecs are lossy.
+    """
+    if not isinstance(acodec, str):
+        return False
+    normalized = acodec.strip().lower()
+    if not normalized or normalized == "none":
+        return False
+    return normalized.startswith(_LOSSLESS_ACODEC_PREFIXES)
+
+
+def _audio_summary(raw_formats: Any) -> tuple[bool, float | None]:
+    """Compute (source_lossless, best_audio_abr) across all audio-bearing formats.
+
+    A format "has audio" when its `acodec` is present and not "none". The result
+    flags whether any such format is lossless and reports the maximum `abr`
+    (kbps) seen, or None if no audio bitrate is known. Defensive against missing
+    or malformed entries.
+    """
+    if not isinstance(raw_formats, list):
+        return False, None
+
+    lossless = False
+    best_abr: float | None = None
+    for fmt in raw_formats:
+        if not isinstance(fmt, dict):
+            continue
+        acodec = fmt.get("acodec")
+        if not isinstance(acodec, str) or not acodec or acodec == "none":
+            continue
+        if _is_lossless_acodec(acodec):
+            lossless = True
+        abr = fmt.get("abr")
+        if isinstance(abr, (int, float)):
+            abr_value = float(abr)
+            if best_abr is None or abr_value > best_abr:
+                best_abr = abr_value
+    return lossless, best_abr
+
 
 class MediaExtractionError(RuntimeError):
     """Raised when yt-dlp cannot extract metadata for a URL."""
@@ -97,6 +153,8 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         float(duration) if isinstance(duration, (int, float)) else None
     )
 
+    source_lossless, best_audio_abr = _audio_summary(raw_formats)
+
     return VideoInfo(
         id=str(info.get("id", "")),
         title=str(info.get("title", "Untitled")),
@@ -107,6 +165,8 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         webpage_url=info.get("webpage_url"),
         extractor=info.get("extractor_key") or info.get("extractor"),
         formats=formats,
+        source_lossless=source_lossless,
+        best_audio_abr=best_audio_abr,
     )
 
 

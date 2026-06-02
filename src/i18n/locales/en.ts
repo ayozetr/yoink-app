@@ -17,6 +17,10 @@ export const en = {
     video: "Video (MP4)",
     audio: "Audio (MP3)",
     bestQuality: "Best quality",
+    container: "Container",
+    audioFormat: "Audio format",
+    losslessWarning:
+      "This source isn't lossless — FLAC/WAV would just upscale it.",
     download: "Download",
   },
   playlist: {
@@ -25,6 +29,7 @@ export const en = {
     deselectAll: "Deselect all",
     videos: "{{count}} videos",
     showingFirst: "(showing the first {{count}})",
+    losslessNote: "FLAC/WAV are lossless only if the source allows it.",
     download: "Download ({{count}})",
   },
   progress: {

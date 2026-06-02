@@ -3,11 +3,45 @@
  * yt-dlp formats, instead of hard-coded placeholders.
  */
 
-import type { MediaFormat, MediaKind, VideoInfo } from "../../types/download";
+import type {
+  AudioFormat,
+  MediaFormat,
+  MediaKind,
+  VideoContainer,
+  VideoInfo,
+} from "../../types/download";
 
 export interface KindOption {
   kind: MediaKind;
 }
+
+/** Output video containers offered as merge targets, in display order. */
+export const VIDEO_CONTAINERS: { value: VideoContainer; label: string }[] = [
+  { value: "mp4", label: "MP4" },
+  { value: "mov", label: "MOV" },
+  { value: "mkv", label: "MKV" },
+];
+
+/** Default video container (mirrors the backend default). */
+export const DEFAULT_CONTAINER: VideoContainer = "mp4";
+
+export interface AudioFormatOption {
+  value: AudioFormat;
+  label: string;
+  /** True for formats that only make sense from a lossless source (flac/wav). */
+  lossless: boolean;
+}
+
+/** Output audio formats offered for audio-only downloads, in display order. */
+export const AUDIO_FORMATS: AudioFormatOption[] = [
+  { value: "mp3", label: "MP3", lossless: false },
+  { value: "m4a", label: "M4A", lossless: false },
+  { value: "flac", label: "FLAC", lossless: true },
+  { value: "wav", label: "WAV", lossless: true },
+];
+
+/** Default audio format (mirrors the backend default). */
+export const DEFAULT_AUDIO_FORMAT: AudioFormat = "mp3";
 
 /** Pull a pixel height out of a yt-dlp resolution/note string. */
 function formatHeight(format: MediaFormat): number | null {
