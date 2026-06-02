@@ -256,9 +256,8 @@ both OSes; pending runtime validation in the next Windows build/update):
 
 Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
 
-- ⬜ **"Supported sites" popup.** Change the header subtitle from "Download
-  video and audio quickly" to "Download video and audio quickly **from many
-  sites**", where **"many sites"** is a link that opens a popup listing the
-  sites confirmed working (manually tested by the author), each with its **name
-  and logo**. Curate the list by hand rather than dumping yt-dlp's full
-  ~1800-extractor list, so it reflects what's actually verified.
+- ✅ **"Supported sites" popup** *(in main, ships in v1.1.0)*. The header
+  subtitle ends in a "from many sites" / "de múltiples webs" link that opens a
+  modal of hand-verified sites (name + Simple Icons logo): YouTube, YouTube
+  Music, Vimeo, Dailymotion, Instagram, TikTok, X — curated, not yt-dlp's full
+  ~1800 list. Extend the typed list as more are verified.
