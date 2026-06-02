@@ -94,6 +94,11 @@ export const en = {
     cookiesBrowserPlaceholder: "empty = disabled",
     cookiesFile: "cookies.txt file (alternative to the browser)",
     cookiesFilePlaceholder: "/path/cookies.txt",
+    cookiesHelp: "How to generate cookies.txt",
+    cookiesHelpText:
+      "Generate the file with the «Get cookies.txt LOCALLY» extension:",
+    cookiesHelpChromium: "Chromium (Chrome, Brave, Edge…)",
+    cookiesHelpFirefox: "Firefox",
     saveError: "Couldn't save the settings.",
     cancel: "Cancel",
     save: "Save",

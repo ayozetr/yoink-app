@@ -51,17 +51,17 @@ function MedalIcon({ className }: { className?: string }) {
 /** Manually verified platforms. Typed array so it's easy to extend later. */
 const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "YouTube", url: "https://youtube.com", slug: "youtube" },
-  { name: "YouTube Music", url: "https://music.youtube.com", slug: "youtubemusic" },
-  { name: "Vimeo", url: "https://vimeo.com", slug: "vimeo" },
   { name: "Dailymotion", url: "https://dailymotion.com", slug: "dailymotion" },
-  { name: "Instagram", url: "https://instagram.com", slug: "instagram" },
   { name: "TikTok", url: "https://tiktok.com", slug: "tiktok" },
-  { name: "X (Twitter)", url: "https://x.com", slug: "x" },
   { name: "Facebook", url: "https://facebook.com", slug: "facebook" },
+  { name: "Instagram", url: "https://instagram.com", slug: "instagram" },
+  { name: "X (Twitter)", url: "https://x.com", slug: "x" },
+  { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
+  { name: "Vimeo", url: "https://vimeo.com", slug: "vimeo" },
+  { name: "Medal", url: "https://medal.tv", Icon: MedalIcon },
+  { name: "YouTube Music", url: "https://music.youtube.com", slug: "youtubemusic" },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
-  { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
-  { name: "Medal", url: "https://medal.tv", Icon: MedalIcon },
 ];
 
 /** Modal listing the manually-verified sites (logo + name), each clickable. */

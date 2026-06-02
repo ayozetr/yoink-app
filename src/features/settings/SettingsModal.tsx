@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Coffee,
   FolderOpen,
+  HelpCircle,
   Loader2,
   Settings as SettingsIcon,
   X,
@@ -211,7 +212,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className={INPUT_CLASS}
             />
           </Field>
-          <Field label={t("settings.cookiesFile")}>
+          <Field label={t("settings.cookiesFile")} hint={<CookiesHelp />}>
             <input
               type="text"
               aria-label={t("settings.cookiesFile")}
@@ -362,11 +363,67 @@ function GithubIcon({ className }: { className?: string }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs text-zinc-400">{label}</span>
+    <div className="flex flex-col gap-1.5">
+      <span className="flex items-center gap-1.5 text-xs text-zinc-400">
+        {label}
+        {hint}
+      </span>
       {children}
-    </label>
+    </div>
+  );
+}
+
+const COOKIES_EXT_CHROMIUM =
+  "https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc?utm_source=item-share-cb";
+const COOKIES_EXT_FIREFOX =
+  "https://addons.mozilla.org/es-ES/firefox/addon/get-cookies-txt-locally/";
+
+/** A "?" button that reveals how to generate a cookies.txt with the browser extension. */
+function CookiesHelp() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={t("settings.cookiesHelp")}
+        title={t("settings.cookiesHelp")}
+        className="text-zinc-500 transition hover:text-zinc-200"
+      >
+        <HelpCircle size={13} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-6 z-10 w-72 rounded-lg border border-white/10 bg-[#1a1d27] p-3 text-xs leading-relaxed text-zinc-300 shadow-xl">
+          {t("settings.cookiesHelpText")}
+          <div className="mt-2 flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => void openExternal(COOKIES_EXT_CHROMIUM)}
+              className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
+            >
+              {t("settings.cookiesHelpChromium")}
+            </button>
+            <button
+              type="button"
+              onClick={() => void openExternal(COOKIES_EXT_FIREFOX)}
+              className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
+            >
+              {t("settings.cookiesHelpFirefox")}
+            </button>
+          </div>
+        </div>
+      )}
+    </span>
   );
 }

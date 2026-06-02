@@ -94,6 +94,11 @@ export const es = {
     cookiesBrowserPlaceholder: "vacío = desactivado",
     cookiesFile: "Archivo cookies.txt (alternativa al navegador)",
     cookiesFilePlaceholder: "/ruta/cookies.txt",
+    cookiesHelp: "Cómo generar cookies.txt",
+    cookiesHelpText:
+      "Genera el fichero con la extensión «Get cookies.txt LOCALLY»:",
+    cookiesHelpChromium: "Chromium (Chrome, Brave, Edge…)",
+    cookiesHelpFirefox: "Firefox",
     saveError: "No se pudieron guardar los ajustes.",
     cancel: "Cancelar",
     save: "Guardar",
