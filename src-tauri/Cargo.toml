@@ -4,7 +4,7 @@ version = "0.9.0"
 description = "Yoink — local high-fidelity media downloader"
 authors = ["Ayoze Torres"]
 edition = "2021"
-license = "MIT"
+license = "CC-BY-NC-SA-4.0"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

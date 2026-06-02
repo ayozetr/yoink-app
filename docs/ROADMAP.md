@@ -154,8 +154,8 @@ local HTTP/WebSocket server must be replaced. Three routes:
   deterministic after i18n
 
 ### Legal
-- ✅ Added an **MIT LICENSE** (compatible with the bundled LGPL ffmpeg and
-  Unlicense yt-dlp, which keep their own licenses)
+- ✅ Added a **LICENSE** — **CC BY-NC-SA 4.0** from v1.0.0 (v0.9.0 shipped under
+  MIT). The bundled LGPL ffmpeg and Unlicense yt-dlp keep their own licenses.
 
 ### Extras shipped in v0.9.0
 - ✅ **Native folder picker** for the download dir (Tauri **dialog** plugin) —
@@ -238,7 +238,8 @@ both OSes; pending runtime validation in the next Windows build/update):
   working tree or full history, no sensitive files tracked
   (`.env`/db/keys/cookies), no VM/host/IP references; `.gitignore` covers
   `venv`/`node_modules`/`.env`/`target`/`dist`/`vendor`
-- ✅ **LICENSE** in place (MIT, shipped in v0.9.0)
+- ✅ **LICENSE** in place — **CC BY-NC-SA 4.0** (non-commercial, share-alike);
+  v0.9.0 shipped under MIT
 - ✅ Polished the README: badges (release/license/stack/React Doctor), a
   screenshot (`docs/screenshot.png`), and a quick-start
 - ✅ GitHub repo **description + topics** set (12 topics: yt-dlp, ffmpeg, tauri,

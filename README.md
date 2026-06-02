@@ -6,7 +6,7 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)
 ![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
-[![License: MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-lightgrey)](LICENSE)
 [![React Doctor](https://www.react.doctor/share/badge?p=yoink&s=92&e=1&w=11&f=6)](https://www.react.doctor/share?p=yoink&s=92&e=1&w=11&f=6)
 
 ![Yoink — analyzing a video with the format/quality picker and download history sidebar](docs/screenshot.png)
