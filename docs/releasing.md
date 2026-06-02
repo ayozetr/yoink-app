@@ -110,6 +110,43 @@ Verify with `gh release view v<ver> --json assets`.
 > once the GitHub repo is **public** — the unauthenticated API returns 404 for
 > a private repo.
 
+## 6. Signed updater artifacts (self-update)
+
+The in-app updater (`tauri-plugin-updater`) only works if each build is **signed
+with the updater private key** and the release ships a `latest.json`. The public
+key lives in `tauri.conf.json` (`plugins.updater.pubkey`); `bundle.createUpdaterArtifacts`
+is on, so a signed build emits the `.sig` files and `latest.json`.
+
+**Sign every platform's build** by exporting the key before `npm run tauri build`
+(set the same on Windows in PowerShell with `$env:`):
+
+```bash
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yoink.key)"   # or the file path
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<the key password>"
+# then the normal build (Linux):
+APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 npm run tauri build
+```
+
+This produces, alongside the bundles:
+- `…/bundle/appimage/Yoink_<ver>_amd64.AppImage.sig` (Linux) and the Windows
+  `…/Yoink_<ver>_x64-setup.exe.sig` / `.msi.sig`,
+- a `latest.json` (under `target/release/bundle/`) describing the version and
+  per-target download URLs + signatures.
+
+**Attach to the GitHub release** the `latest.json` **and** the AppImage/exe/msi
+`.sig` files, in addition to the installers. The updater endpoint points at
+`releases/latest/download/latest.json`, so the file must be a release asset of
+the **latest** release.
+
+Notes:
+- The **private key never goes in the repo or CI logs** — keep it in a password
+  manager / local secret. Only the public key is committed (in `tauri.conf.json`).
+- The updater self-installs on **Windows** and the **Linux AppImage** only; the
+  app detects this (the `is_appimage` command) and offers ".deb/.rpm" users a
+  "view release" link instead.
+- Self-update only kicks in **from a version that already shipped the updater**
+  (v1.1.0+). Earlier installs must update once by hand.
+
 ---
 
 ## Windows builds

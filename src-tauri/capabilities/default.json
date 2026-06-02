@@ -7,6 +7,9 @@
     "core:default",
     "opener:default",
     "dialog:default",
+    "updater:default",
+    "os:default",
+    "process:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [{ "name": "binaries/yoink-backend", "sidecar": true }]

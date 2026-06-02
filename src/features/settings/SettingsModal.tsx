@@ -13,11 +13,17 @@ import {
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
-import { checkForUpdates, updateSettings } from "../../lib/api";
+import { updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory } from "../../lib/pickDirectory";
+import {
+  checkForUpdate,
+  installUpdate,
+  RELEASES_URL,
+  type UpdateCheck,
+} from "../../lib/updater";
 import i18n from "../../i18n";
-import type { AppSettings, MediaKind, VersionInfo } from "../../types/download";
+import type { AppSettings, MediaKind } from "../../types/download";
 
 const LANG_STORAGE_KEY = "yoink-lang";
 
@@ -38,7 +44,8 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
-  const [version, setVersion] = useState<VersionInfo | null>(null);
+  const [result, setResult] = useState<UpdateCheck | null>(null);
+  const [installing, setInstalling] = useState(false);
   // "system" = follow the OS/browser language; otherwise a forced choice.
   const [lang, setLang] = useState<string>(
     () => localStorage.getItem(LANG_STORAGE_KEY) ?? "system",
@@ -61,18 +68,23 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
 
   const handleCheck = async () => {
     setChecking(true);
+    setResult(null);
     try {
-      setVersion(await checkForUpdates());
-    } catch {
-      setVersion({
-        current: __APP_VERSION__,
-        latest: null,
-        update_available: false,
-        release_url: null,
-        error: t("settings.checkError"),
-      });
+      setResult(await checkForUpdate());
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleInstall = async () => {
+    if (result?.status !== "available") return;
+    setInstalling(true);
+    try {
+      await installUpdate(result.update);
+      // installUpdate relaunches the app; control won't return on success.
+    } catch {
+      setInstalling(false);
+      setResult({ status: "error" });
     }
   };
 
@@ -253,34 +265,53 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           <div className="text-sm">
             <span className="text-zinc-400">{t("settings.version")}</span>
             <span className="font-medium ml-1.5">v{__APP_VERSION__}</span>
-            {version && !version.error && version.update_available && (
+            {result?.status === "available" && (
               <span className="ml-2 text-violet-300">
-                · {t("settings.available", { version: version.latest })}
+                · {t("settings.updateAvailable", { version: result.version })}
               </span>
             )}
-            {version && !version.error && !version.update_available && (
+            {result?.status === "up-to-date" && (
               <span className="ml-2 inline-flex items-center gap-1 text-emerald-400">
                 <CheckCircle2 size={13} /> {t("settings.upToDate")}
               </span>
             )}
-            {version?.error && (
-              <span className="ml-2 text-zinc-500">· {version.error}</span>
+            {(result?.status === "error" ||
+              result?.status === "tauri-unavailable") && (
+              <span className="ml-2 text-zinc-500">
+                · {t("settings.checkError")}
+              </span>
             )}
           </div>
 
-          {version?.update_available && version.release_url ? (
+          {result?.status === "available" && result.autoInstallable ? (
+            <button
+              type="button"
+              onClick={handleInstall}
+              disabled={installing}
+              className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200 transition disabled:opacity-50"
+            >
+              {installing ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <ArrowUpCircle size={15} />
+              )}
+              {installing
+                ? t("settings.installing")
+                : t("settings.downloadInstall")}
+            </button>
+          ) : result?.status === "available" ? (
             <a
-              href={version.release_url}
+              href={RELEASES_URL}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => {
                 e.preventDefault();
-                if (version.release_url) void openExternal(version.release_url);
+                void openExternal(RELEASES_URL);
               }}
               className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200 transition"
             >
               <ArrowUpCircle size={15} />
-              {t("settings.update")}
+              {t("settings.viewRelease")}
             </a>
           ) : (
             <button

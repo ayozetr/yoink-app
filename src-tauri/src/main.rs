@@ -70,6 +70,14 @@ fn kill_sidecar(child: CommandChild) {
     }
 }
 
+/// Whether the app is running as a Linux AppImage — the only Linux package the
+/// updater can replace in place. The frontend uses this to choose between an
+/// in-app "download & install" and a "view release" link (for .deb/.rpm).
+#[tauri::command]
+fn is_appimage() -> bool {
+    std::env::var_os("APPIMAGE").is_some()
+}
+
 fn main() {
     // WebKitGTK's DMABUF renderer leaves a blank window (or crashes with
     // "Gdk-Message: Error 71") on many Wayland sessions. Force the GL backend
@@ -90,6 +98,10 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .invoke_handler(tauri::generate_handler![is_appimage])
         .setup(|app| {
             let child = spawn_backend(app);
             app.manage(BackendProcess(Mutex::new(child)));

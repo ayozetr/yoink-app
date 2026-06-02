@@ -26,6 +26,8 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Instagram", url: "https://instagram.com", slug: "instagram" },
   { name: "TikTok", url: "https://tiktok.com", slug: "tiktok" },
   { name: "X (Twitter)", url: "https://x.com", slug: "x" },
+  { name: "Facebook", url: "https://facebook.com", slug: "facebook" },
+  { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
 ];
 
 /** Modal listing the manually-verified sites (logo + name), each clickable. */
