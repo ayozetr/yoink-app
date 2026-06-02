@@ -194,8 +194,10 @@ be **honest about source quality** (don't inflate lossy sources into "lossless")
 - ✅ Subtitle language picker (None / All / available codes), shown only when
   the source actually exposes subtitles; `/api/info` reports `subtitle_langs`
   and `has_chapters`
-- ⬜ **Multiple audio tracks** where the source has them
-  (`--audio-multistreams`) — niche, deferred
+- ✅ **Multiple audio tracks** (MKV) — `audio_multistreams` uses
+  `bv*+mergeall[vcodec=none]` + `allow_multiple_audio_streams`; a UI toggle is
+  shown for MKV when the source has more than one audio language *(in main,
+  ships in v1.1.0)*
 
 ### Audio formats
 - ✅ Lossy: **MP3**, **M4A**; Lossless: **FLAC**, **WAV** — selectable per
@@ -231,8 +233,9 @@ both OSes; pending runtime validation in the next Windows build/update):
 - ✅ **NSIS pre-install hook** (`src-tauri/installer-hooks.nsh`,
   `NSIS_HOOK_PREINSTALL`): `taskkill` of `yoink.exe` / `yoink-backend.exe`
   before copying files, so an in-place update never trips on the locked exe.
-- ⬜ Optional follow-up: a **self-terminating backend** (exit on stdin EOF)
-  would also cover a hard crash where `RunEvent::Exit` never fires.
+- ✅ **Self-terminating backend** — exits on stdin EOF (packaged build only,
+  `sys.frozen`), covering a hard crash where `RunEvent::Exit` never fires
+  *(in main, ships in v1.1.0)*
 
 ### Going public
 
