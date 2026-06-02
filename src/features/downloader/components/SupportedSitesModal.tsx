@@ -20,7 +20,7 @@ interface SupportedSite {
 /** Manually verified platforms. Typed array so it's easy to extend later. */
 const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "YouTube", url: "https://youtube.com", slug: "youtube" },
-  { name: "YouTube Music", url: "https://music.youtube.com", slug: "ytmusic" },
+  { name: "YouTube Music", url: "https://music.youtube.com", slug: "youtubemusic" },
   { name: "Vimeo", url: "https://vimeo.com", slug: "vimeo" },
   { name: "Dailymotion", url: "https://dailymotion.com", slug: "dailymotion" },
   { name: "Instagram", url: "https://instagram.com", slug: "instagram" },
