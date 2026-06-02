@@ -355,16 +355,14 @@ def test_build_options_subs_and_chapters_together(temp_dirs):
     assert "FFmpegMetadata" in keys
 
 
-def test_subtitle_langs_manual_only_sorted():
-    # Only published (manual) subtitles count; automatic_captions are ignored
-    # (YouTube lists ~100 machine translations there, flooding the picker).
+def test_subtitle_langs_union_and_sorted():
     langs = _subtitle_langs(
         {
-            "subtitles": {"es": [{}], "en": [{}]},
-            "automatic_captions": {"fr": [{}], "de": [{}]},
+            "subtitles": {"en": [{}], "es": [{}]},
+            "automatic_captions": {"es": [{}], "fr": [{}]},
         }
     )
-    assert langs == ["en", "es"]
+    assert langs == ["en", "es", "fr"]
 
 
 def test_subtitle_langs_defensive():
@@ -382,7 +380,7 @@ def test_build_video_subtitles_and_chapters():
             "chapters": [{"title": "Intro", "start_time": 0}],
         }
     )
-    assert video.subtitle_langs == ["en"]
+    assert video.subtitle_langs == ["de", "en"]
     assert video.has_chapters is True
 
 
