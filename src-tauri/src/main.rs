@@ -45,6 +45,31 @@ fn spawn_backend(app: &tauri::App) -> Option<CommandChild> {
     }
 }
 
+/// Terminate the backend sidecar and its entire process tree.
+///
+/// PyInstaller's `--onefile` exe is a *bootloader* that spawns the real Python
+/// process as a child. `CommandChild::kill()` only reaps the bootloader, so on
+/// Windows the Python child can linger — holding port 8756 and the on-disk
+/// `yoink-backend.exe`, which then breaks the NSIS updater ("Error opening file
+/// for writing"). Kill the whole tree by PID on Windows; elsewhere `kill()` is
+/// enough.
+fn kill_sidecar(child: CommandChild) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let pid = child.pid();
+        let _ = std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = child.kill();
+    }
+}
+
 fn main() {
     // WebKitGTK's DMABUF renderer leaves a blank window (or crashes with
     // "Gdk-Message: Error 71") on many Wayland sessions. Force the GL backend
@@ -82,7 +107,7 @@ fn main() {
                 if let Some(state) = app_handle.try_state::<BackendProcess>() {
                     if let Ok(mut guard) = state.0.lock() {
                         if let Some(child) = guard.take() {
-                            let _ = child.kill();
+                            kill_sidecar(child);
                         }
                     }
                 }
