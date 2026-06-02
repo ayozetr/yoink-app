@@ -83,18 +83,19 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
   via `GET`/`PUT /api/settings` to `<data_dir>/settings.json`
 - ✅ End-to-end tests (Playwright, `e2e/`, mocked API)
 
-## Phase 6 — Self-update 🚧
+## Phase 6 — Self-update ✅ (ships in v1.1.0)
 
 - ✅ Show the current app version in the Settings modal (injected from
   package.json at build time)
-- ✅ "Check for updates" button → `GET /api/version` queries the GitHub
-  Releases API and reports whether a newer release exists
-- ✅ Fallback "Actualizar" link that opens the GitHub release page when an
-  update is available
-- ⬜ In-app download & install via `tauri-plugin-updater` (signed artifacts +
-  `latest.json`). Note: on Linux the updater only supports AppImage (not
-  `.deb`/`.rpm`); it works for the Windows `.exe`/`.msi`.
-- ⬜ Publish signed update artifacts + `latest.json` in the release flow
+- ✅ "Check for updates" → now uses `tauri-plugin-updater`'s `check()` against
+  the release `latest.json`
+- ✅ **In-app download & install** via `tauri-plugin-updater` (signed artifacts
+  + `latest.json`). Auto-installs on **Windows** and the **Linux AppImage**;
+  `.deb`/`.rpm` (and other cases) fall back to a "view release" link — platform
+  detected via `plugin-os` + the `is_appimage` command.
+- ✅ Release flow signs builds (`TAURI_SIGNING_PRIVATE_KEY[/_PASSWORD]`) and
+  publishes `latest.json` + `.sig` assets — see `docs/releasing.md` §6
+  *(in main, ships in v1.1.0; self-update applies from v1.1.0 onward)*
 
 > The update check needs the GitHub repo to be **public** (the unauthenticated
 > API returns 404 for private repos).
