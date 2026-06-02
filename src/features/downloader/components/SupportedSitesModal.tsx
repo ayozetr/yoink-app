@@ -28,6 +28,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "X (Twitter)", url: "https://x.com", slug: "x" },
   { name: "Facebook", url: "https://facebook.com", slug: "facebook" },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
+  { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
 ];
 
 /** Modal listing the manually-verified sites (logo + name), each clickable. */
