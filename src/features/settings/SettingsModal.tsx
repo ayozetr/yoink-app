@@ -275,10 +275,14 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
                 <CheckCircle2 size={13} /> {t("settings.upToDate")}
               </span>
             )}
-            {(result?.status === "error" ||
-              result?.status === "tauri-unavailable") && (
+            {result?.status === "error" && (
               <span className="ml-2 text-zinc-500">
                 · {t("settings.checkError")}
+              </span>
+            )}
+            {result?.status === "tauri-unavailable" && (
+              <span className="ml-2 text-zinc-500">
+                · {t("settings.checkDesktopOnly")}
               </span>
             )}
           </div>

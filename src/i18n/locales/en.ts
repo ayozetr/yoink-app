@@ -103,6 +103,7 @@ export const en = {
     update: "Update",
     checkUpdates: "Check for updates",
     checkError: "Couldn't check for updates.",
+    checkDesktopOnly: "Only available in the desktop app.",
     updateAvailable: "{{version}} available",
     downloadInstall: "Download & install",
     installing: "Installing…",
