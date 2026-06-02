@@ -20,10 +20,10 @@ export const en = {
     container: "Container",
     audioFormat: "Audio format",
     losslessWarning:
-      "This source isn't lossless — FLAC/WAV would just upscale it.",
+      "This content has no lossless audio — FLAC/WAV unavailable.",
     subtitles: "Subtitles",
-    subtitlesNone: "None",
-    subtitlesAll: "All",
+    subtitlesNone: "No subtitles",
+    subtitlesAll: "All subtitles",
     chapters: "Embed chapters",
     download: "Download",
   },

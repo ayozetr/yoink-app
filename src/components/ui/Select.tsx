@@ -63,17 +63,23 @@ export function Select({
       }
       setOpen(false);
     };
+    const onScroll = (event: Event) => {
+      // Scrolling inside the dropdown's own list must NOT close it; only a
+      // scroll outside (which would move the anchored trigger) should dismiss.
+      if (dropdownRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
     const dismiss = () => setOpen(false);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     window.addEventListener("click", onPointer, true);
-    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", dismiss);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("click", onPointer, true);
-      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", dismiss);
       window.removeEventListener("keydown", onKey);
     };

@@ -20,10 +20,10 @@ export const es = {
     container: "Contenedor",
     audioFormat: "Formato de audio",
     losslessWarning:
-      "Esta fuente no es sin pérdidas — FLAC/WAV solo la reescalarían.",
+      "El contenido no tiene audio sin pérdida — FLAC/WAV no disponibles.",
     subtitles: "Subtítulos",
-    subtitlesNone: "Ninguno",
-    subtitlesAll: "Todos",
+    subtitlesNone: "Ningún subtítulo",
+    subtitlesAll: "Todos los subtítulos",
     chapters: "Incrustar capítulos",
     download: "Descargar",
   },

@@ -140,18 +140,17 @@ def _best_thumbnail(raw: dict[str, Any]) -> str | None:
 
 
 def _subtitle_langs(info: dict[str, Any]) -> list[str]:
-    """Collect available subtitle language codes (manual + auto-generated).
+    """Collect the real, available subtitle language codes.
 
-    yt-dlp exposes ``subtitles`` and ``automatic_captions`` as ``{lang: [...]}``
-    mappings. Return their sorted, de-duplicated union, defensive against either
-    being missing or malformed.
+    yt-dlp exposes manual ``subtitles`` as ``{lang: [...]}``. We deliberately
+    ignore ``automatic_captions``: YouTube lists ~100 machine-translated tracks
+    there, which would flood the picker with languages that aren't genuinely
+    available. Only published subtitle tracks are offered.
     """
-    langs: set[str] = set()
-    for key in ("subtitles", "automatic_captions"):
-        tracks = info.get(key)
-        if isinstance(tracks, dict):
-            langs.update(code for code in tracks if isinstance(code, str))
-    return sorted(langs)
+    tracks = info.get("subtitles")
+    if not isinstance(tracks, dict):
+        return []
+    return sorted(code for code in tracks if isinstance(code, str))
 
 
 def _build_video(info: dict[str, Any]) -> VideoInfo:
