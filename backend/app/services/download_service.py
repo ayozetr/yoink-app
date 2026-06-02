@@ -143,7 +143,13 @@ def _build_options(
         options["ffmpeg_location"] = location
 
     if request.kind == "audio":
-        options["format"] = "bestaudio/best"
+        # For m4a, prefer a source already in an AAC/m4a container so the
+        # FFmpegExtractAudio postprocessor can copy the stream (`-c copy`)
+        # instead of re-encoding it; other formats fall back to bestaudio.
+        if request.audio_format == "m4a":
+            options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
+        else:
+            options["format"] = "bestaudio/best"
         options["postprocessors"] = [_audio_postprocessor(request.audio_format)]
     else:
         height = _parse_height(request.quality)
@@ -157,6 +163,31 @@ def _build_options(
         # Merge separate video+audio streams into the requested container via
         # ffmpeg (mp4 by default).
         options["merge_output_format"] = request.container
+
+        # Subtitles and chapters are video-only concerns; collect any FFmpeg
+        # postprocessors needed to embed them into the merged output.
+        postprocessors: list[dict[str, Any]] = []
+
+        if request.embed_subs:
+            # Fetch subtitles (auto-captions as a fallback) and embed them.
+            # A null/"all" language requests every available track.
+            options["writesubtitles"] = True
+            options["writeautomaticsub"] = True
+            options["subtitleslangs"] = (
+                ["all"]
+                if request.subtitle_lang in (None, "all")
+                else [request.subtitle_lang]
+            )
+            postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+
+        if request.embed_chapters:
+            # Write chapter markers and source metadata into the container.
+            postprocessors.append(
+                {"key": "FFmpegMetadata", "add_chapters": True, "add_metadata": True}
+            )
+
+        if postprocessors:
+            options["postprocessors"] = postprocessors
 
     return options
 

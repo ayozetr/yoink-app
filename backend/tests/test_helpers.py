@@ -22,6 +22,7 @@ from app.services.ytdlp_service import (
     _format_duration,
     _is_lossless_acodec,
     _map_format,
+    _subtitle_langs,
 )
 
 
@@ -207,7 +208,11 @@ def test_build_options_audio_format(
         DownloadRequest(url="http://x/a", kind="audio", audio_format=audio_format),
         hook=lambda raw: None,
     )
-    assert options["format"] == "bestaudio/best"
+    # m4a prefers an AAC/m4a source so extraction copies the stream (no re-encode).
+    expected_format = (
+        "bestaudio[ext=m4a]/bestaudio/best" if audio_format == "m4a" else "bestaudio/best"
+    )
+    assert options["format"] == expected_format
     assert "merge_output_format" not in options
     (pp,) = options["postprocessors"]
     assert pp["key"] == "FFmpegExtractAudio"
@@ -267,3 +272,119 @@ def test_audio_summary_no_audio_or_unknown():
     assert _audio_summary([{"acodec": "none", "abr": 0}]) == (False, None)
     assert _audio_summary(None) == (False, None)
     assert _audio_summary([]) == (False, None)
+
+
+def _pp_keys(options):
+    """Postprocessor `key` values present on a built options dict."""
+    return [pp["key"] for pp in options.get("postprocessors", [])]
+
+
+def test_build_options_embed_subs_specific_lang(temp_dirs):
+    options = _build_options(
+        DownloadRequest(
+            url="http://x/v", kind="video", embed_subs=True, subtitle_lang="en"
+        ),
+        hook=lambda raw: None,
+    )
+    assert options["writesubtitles"] is True
+    assert options["writeautomaticsub"] is True
+    assert options["subtitleslangs"] == ["en"]
+    assert "FFmpegEmbedSubtitle" in _pp_keys(options)
+
+
+@pytest.mark.parametrize("subtitle_lang", [None, "all"])
+def test_build_options_embed_subs_all(temp_dirs, subtitle_lang):
+    options = _build_options(
+        DownloadRequest(
+            url="http://x/v",
+            kind="video",
+            embed_subs=True,
+            subtitle_lang=subtitle_lang,
+        ),
+        hook=lambda raw: None,
+    )
+    assert options["subtitleslangs"] == ["all"]
+    assert "FFmpegEmbedSubtitle" in _pp_keys(options)
+
+
+def test_build_options_no_subs_by_default(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video"),
+        hook=lambda raw: None,
+    )
+    assert "writesubtitles" not in options
+    assert "writeautomaticsub" not in options
+    assert "subtitleslangs" not in options
+    assert "FFmpegEmbedSubtitle" not in _pp_keys(options)
+
+
+def test_build_options_embed_chapters(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", embed_chapters=True),
+        hook=lambda raw: None,
+    )
+    metadata = [
+        pp for pp in options["postprocessors"] if pp["key"] == "FFmpegMetadata"
+    ]
+    assert len(metadata) == 1
+    assert metadata[0]["add_chapters"] is True
+    assert metadata[0]["add_metadata"] is True
+
+
+def test_build_options_no_chapters_by_default(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video"),
+        hook=lambda raw: None,
+    )
+    assert "FFmpegMetadata" not in _pp_keys(options)
+
+
+def test_build_options_subs_and_chapters_together(temp_dirs):
+    options = _build_options(
+        DownloadRequest(
+            url="http://x/v",
+            kind="video",
+            embed_subs=True,
+            subtitle_lang="es",
+            embed_chapters=True,
+        ),
+        hook=lambda raw: None,
+    )
+    keys = _pp_keys(options)
+    assert "FFmpegEmbedSubtitle" in keys
+    assert "FFmpegMetadata" in keys
+
+
+def test_subtitle_langs_union_and_sorted():
+    langs = _subtitle_langs(
+        {
+            "subtitles": {"en": [{}], "es": [{}]},
+            "automatic_captions": {"es": [{}], "fr": [{}]},
+        }
+    )
+    assert langs == ["en", "es", "fr"]
+
+
+def test_subtitle_langs_defensive():
+    assert _subtitle_langs({}) == []
+    assert _subtitle_langs({"subtitles": None, "automatic_captions": "nope"}) == []
+
+
+def test_build_video_subtitles_and_chapters():
+    video = _build_video(
+        {
+            "id": "abc",
+            "title": "Clip",
+            "subtitles": {"en": [{}]},
+            "automatic_captions": {"de": [{}]},
+            "chapters": [{"title": "Intro", "start_time": 0}],
+        }
+    )
+    assert video.subtitle_langs == ["de", "en"]
+    assert video.has_chapters is True
+
+
+def test_build_video_no_subtitles_or_chapters():
+    video = _build_video({"id": "abc", "title": "Clip"})
+    assert video.subtitle_langs == []
+    assert video.has_chapters is False

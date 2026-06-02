@@ -31,6 +31,13 @@ interface PlaylistCardProps {
 // best-effort target shared by the whole batch.
 const QUALITY_OPTIONS = ["1080p", "720p", "480p", "360p"];
 
+// A flat playlist exposes no per-item subtitle info, so we offer a generic set
+// of common languages applied to the whole batch (yt-dlp skips any that are
+// missing for a given item).
+const SUBTITLE_LANGS = ["en", "es"];
+/** Sentinel value for the "no subtitles" entry in the language picker. */
+const SUBS_NONE = "__none__";
+
 /** Preview of an analyzed playlist: pick which items to download. */
 export function PlaylistCard({
   playlist,
@@ -53,8 +60,11 @@ export function PlaylistCard({
   const [audioFormat, setAudioFormat] = useState<AudioFormat>(
     DEFAULT_AUDIO_FORMAT,
   );
+  const [subtitle, setSubtitle] = useState<string>(SUBS_NONE);
+  const [embedChapters, setEmbedChapters] = useState(false);
 
   const isVideo = kind === "video";
+  const embedSubs = subtitle !== SUBS_NONE;
   // A flat playlist has no per-item lossless info, so FLAC/WAV are offered with
   // a generic note rather than gated.
   const showLosslessNote =
@@ -84,6 +94,9 @@ export function PlaylistCard({
       quality: isVideo ? quality : undefined,
       container: isVideo ? container : undefined,
       audio_format: isVideo ? undefined : audioFormat,
+      embed_subs: isVideo ? embedSubs : undefined,
+      subtitle_lang: isVideo && embedSubs ? subtitle : undefined,
+      embed_chapters: isVideo ? embedChapters : undefined,
     });
   };
 
@@ -165,6 +178,35 @@ export function PlaylistCard({
             <Info size={14} className="shrink-0" />
             {t("playlist.losslessNote")}
           </p>
+        )}
+
+        {/* Subtitles + chapters, applied to the whole batch. Video-only. */}
+        {isVideo && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Select
+              ariaLabel={t("preview.subtitles")}
+              value={subtitle}
+              onChange={setSubtitle}
+              options={[
+                { value: SUBS_NONE, label: t("preview.subtitlesNone") },
+                { value: "all", label: t("preview.subtitlesAll") },
+                ...SUBTITLE_LANGS.map((code) => ({
+                  value: code,
+                  label: code.toUpperCase(),
+                })),
+              ]}
+              className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
+            />
+            <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
+              <input
+                type="checkbox"
+                checked={embedChapters}
+                onChange={(e) => setEmbedChapters(e.target.checked)}
+                className="size-4 accent-violet-500 shrink-0"
+              />
+              {t("preview.chapters")}
+            </label>
+          </div>
         )}
 
         <Button

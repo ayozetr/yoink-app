@@ -65,6 +65,13 @@ class VideoInfo(BaseModel):
     best_audio_abr: float | None = Field(
         default=None, description="Highest audio bitrate available, in kbps."
     )
+    subtitle_langs: list[str] = Field(
+        default_factory=list,
+        description="Available subtitle language codes (manual + auto-generated).",
+    )
+    has_chapters: bool = Field(
+        default=False, description="Whether the source exposes chapter markers."
+    )
 
 
 class PlaylistEntry(BaseModel):
@@ -117,6 +124,18 @@ class DownloadRequest(BaseModel):
     )
     audio_format: AudioFormat = Field(
         default="mp3", description="Output format when kind=audio."
+    )
+    embed_subs: bool = Field(
+        default=False,
+        description="Embed subtitles into the video output when available.",
+    )
+    subtitle_lang: str | None = Field(
+        default=None,
+        description="Subtitle language to embed: a code like 'en'/'es', 'all', or None.",
+    )
+    embed_chapters: bool = Field(
+        default=False,
+        description="Embed chapter markers + metadata when the source has them.",
     )
 
 

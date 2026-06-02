@@ -21,6 +21,10 @@ export const en = {
     audioFormat: "Audio format",
     losslessWarning:
       "This source isn't lossless — FLAC/WAV would just upscale it.",
+    subtitles: "Subtitles",
+    subtitlesNone: "None",
+    subtitlesAll: "All",
+    chapters: "Embed chapters",
     download: "Download",
   },
   playlist: {

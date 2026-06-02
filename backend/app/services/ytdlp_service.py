@@ -139,6 +139,21 @@ def _best_thumbnail(raw: dict[str, Any]) -> str | None:
     return None
 
 
+def _subtitle_langs(info: dict[str, Any]) -> list[str]:
+    """Collect available subtitle language codes (manual + auto-generated).
+
+    yt-dlp exposes ``subtitles`` and ``automatic_captions`` as ``{lang: [...]}``
+    mappings. Return their sorted, de-duplicated union, defensive against either
+    being missing or malformed.
+    """
+    langs: set[str] = set()
+    for key in ("subtitles", "automatic_captions"):
+        tracks = info.get(key)
+        if isinstance(tracks, dict):
+            langs.update(code for code in tracks if isinstance(code, str))
+    return sorted(langs)
+
+
 def _build_video(info: dict[str, Any]) -> VideoInfo:
     """Build a fully-typed VideoInfo from a resolved yt-dlp info dict."""
     raw_formats = info.get("formats")
@@ -167,6 +182,8 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         formats=formats,
         source_lossless=source_lossless,
         best_audio_abr=best_audio_abr,
+        subtitle_langs=_subtitle_langs(info),
+        has_chapters=bool(info.get("chapters")),
     )
 
 

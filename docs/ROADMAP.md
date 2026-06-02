@@ -186,18 +186,21 @@ be **honest about source quality** (don't inflate lossy sources into "lossless")
 ### Video containers
 - ✅ Offer **MP4** (default), **MOV**, **MKV** (`merge_output_format` driven by
   `DownloadRequest.container`); a container picker in the preview/playlist cards
-- ⬜ MKV power features: **embed subtitles** (`writesubtitles` +
-  `FFmpegEmbedSubtitle`), **chapters/metadata** (`FFmpegMetadata`,
-  `add_chapters`), and optionally **multiple audio tracks** where the source
-  has them (`--audio-multistreams`) — *Phase 2*
-- ⬜ Subtitle language picker (es / en / all) — *Phase 2*
+- ✅ **Embed subtitles** (`writesubtitles`/`writeautomaticsub` +
+  `FFmpegEmbedSubtitle`) and **chapters/metadata** (`FFmpegMetadata`,
+  `add_chapters`/`add_metadata`) into the merged output
+- ✅ Subtitle language picker (None / All / available codes), shown only when
+  the source actually exposes subtitles; `/api/info` reports `subtitle_langs`
+  and `has_chapters`
+- ⬜ **Multiple audio tracks** where the source has them
+  (`--audio-multistreams`) — niche, deferred
 
 ### Audio formats
 - ✅ Lossy: **MP3**, **M4A**; Lossless: **FLAC**, **WAV** — selectable per
   download (`DownloadRequest.audio_format` → `FFmpegExtractAudio` codec;
   lossless variants skip `preferredquality`)
-- ⬜ Optimisation: prefer **M4A by copy** (select the source AAC, no re-encode)
-  instead of always transcoding — *Phase 2*
+- ✅ **M4A by copy**: m4a selects an AAC/m4a source so `FFmpegExtractAudio`
+  copies the stream (`-c copy`) instead of re-encoding it
 
 ### Source-quality detection (honest lossless)
 - ✅ `/api/info` inspects each format's `acodec`/`abr` → exposes

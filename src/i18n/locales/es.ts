@@ -21,6 +21,10 @@ export const es = {
     audioFormat: "Formato de audio",
     losslessWarning:
       "Esta fuente no es sin pérdidas — FLAC/WAV solo la reescalarían.",
+    subtitles: "Subtítulos",
+    subtitlesNone: "Ninguno",
+    subtitlesAll: "Todos",
+    chapters: "Incrustar capítulos",
     download: "Descargar",
   },
   playlist: {

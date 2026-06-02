@@ -27,7 +27,16 @@ export interface DownloadSelection {
   container?: VideoContainer;
   /** Output format, only meaningful for audio downloads. */
   audio_format?: AudioFormat;
+  /** Embed subtitles into the video output. Only set for video downloads. */
+  embed_subs?: boolean;
+  /** Subtitle language to embed: a code like "en"/"es" or "all". */
+  subtitle_lang?: string;
+  /** Embed chapter markers. Only set for video downloads. */
+  embed_chapters?: boolean;
 }
+
+/** Sentinel value for the "no subtitles" entry in the language picker. */
+const SUBS_NONE = "__none__";
 
 interface PreviewCardProps {
   info: VideoInfo;
@@ -60,8 +69,13 @@ export function PreviewCard({
   const [audioFormat, setAudioFormat] = useState<AudioFormat>(
     DEFAULT_AUDIO_FORMAT,
   );
+  // "None" by default: subtitles are opt-in.
+  const [subtitle, setSubtitle] = useState<string>(SUBS_NONE);
+  const [embedChapters, setEmbedChapters] = useState(false);
 
   const isVideo = kind === "video";
+  const hasSubtitles = info.subtitle_langs.length > 0;
+  const embedSubs = subtitle !== SUBS_NONE;
 
   // FLAC/WAV only make sense from a lossless source; otherwise they'd upscale.
   const losslessAllowed = info.source_lossless;
@@ -177,6 +191,39 @@ export function PreviewCard({
               </p>
             )}
 
+            {/* Subtitles + chapters: video-only, and only when available. */}
+            {isVideo && (hasSubtitles || info.has_chapters) && (
+              <div className="flex flex-wrap items-center gap-3">
+                {hasSubtitles && (
+                  <Select
+                    ariaLabel={t("preview.subtitles")}
+                    value={subtitle}
+                    onChange={setSubtitle}
+                    options={[
+                      { value: SUBS_NONE, label: t("preview.subtitlesNone") },
+                      { value: "all", label: t("preview.subtitlesAll") },
+                      ...info.subtitle_langs.map((code) => ({
+                        value: code,
+                        label: code.toUpperCase(),
+                      })),
+                    ]}
+                    className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
+                  />
+                )}
+                {info.has_chapters && (
+                  <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={embedChapters}
+                      onChange={(e) => setEmbedChapters(e.target.checked)}
+                      className="size-4 accent-violet-500 shrink-0"
+                    />
+                    {t("preview.chapters")}
+                  </label>
+                )}
+              </div>
+            )}
+
             <Button
               variant="gradient"
               onClick={() =>
@@ -185,6 +232,10 @@ export function PreviewCard({
                   quality: isVideo ? quality : undefined,
                   container: isVideo ? container : undefined,
                   audio_format: isVideo ? undefined : effectiveAudioFormat,
+                  embed_subs: isVideo ? embedSubs : undefined,
+                  subtitle_lang:
+                    isVideo && embedSubs ? subtitle : undefined,
+                  embed_chapters: isVideo ? embedChapters : undefined,
                 })
               }
               className="h-12 w-full"

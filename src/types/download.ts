@@ -74,6 +74,10 @@ export interface VideoInfo {
   source_lossless: boolean;
   /** Highest audio bitrate available, in kbps. */
   best_audio_abr: number | null;
+  /** Available subtitle language codes (manual + auto-generated). */
+  subtitle_langs: string[];
+  /** Whether the source exposes chapter markers. */
+  has_chapters: boolean;
 }
 
 /** One flat item inside a playlist (mirrors backend `PlaylistEntry`). */
@@ -113,6 +117,12 @@ export interface DownloadRequest {
   container?: VideoContainer;
   /** Output format when kind=audio. Defaults to "mp3". */
   audio_format?: AudioFormat;
+  /** Embed subtitles into the video output when available. */
+  embed_subs?: boolean;
+  /** Subtitle language to embed: a code like "en"/"es", "all", or omitted. */
+  subtitle_lang?: string;
+  /** Embed chapter markers + metadata when the source has them. */
+  embed_chapters?: boolean;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */
