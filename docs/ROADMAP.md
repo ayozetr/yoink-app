@@ -205,6 +205,23 @@ be **honest about source quality** (don't inflate lossy sources into "lossless")
   FLAC just bloats the file with **no quality gain**. Bandcamp/SoundCloud can be
   genuinely lossless.
 
+### Packaging robustness (orphaned sidecar)
+
+- ⬜ **Kill the backend sidecar reliably on exit / update.** The PyInstaller
+  `--onefile` `yoink-backend.exe` is a *bootloader* that unpacks to a temp dir
+  and spawns the real Python process as a child. On Windows `child.kill()`
+  (Tauri's `RunEvent::Exit`) only kills the bootloader, so the Python child can
+  linger — holding port 8756 and the on-disk `yoink-backend.exe`. That makes the
+  NSIS updater fail with *"Error opening file for writing …\yoink-backend.exe"*
+  (seen upgrading to 0.9.0; worked around by `taskkill` before Retry). Combine:
+  - **NSIS pre-install hook**: `taskkill /IM yoink-backend.exe /F` (and
+    `yoink.exe`) before copying files (`bundle.windows.nsis.installerHooks`).
+  - **Self-terminating backend**: a small thread reads stdin and `os._exit`s on
+    EOF — when Tauri dies it closes the pipe, so the child exits too. Portable
+    (also covers a hard window close) and kills the orphan at the source. As an
+    OS-specific alternative, a Windows **Job Object** with `KILL_ON_JOB_CLOSE`
+    or a `taskkill /T` of the child tree on exit.
+
 ### Going public
 
 - ⬜ **Audit the repo + git history for secrets** before flipping it public
