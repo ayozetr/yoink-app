@@ -9,6 +9,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 [![React Doctor](https://www.react.doctor/share/badge?p=yoink&s=92&e=1&w=11&f=6)](https://www.react.doctor/share?p=yoink&s=92&e=1&w=11&f=6)
 
+![Yoink — analyzing a video with the format/quality picker and download history sidebar](docs/screenshot.png)
+
 Yoink is a **local** desktop/web app for downloading high-fidelity video and
 audio from many platforms, powered exclusively by
 [yt-dlp](https://github.com/yt-dlp/yt-dlp) (with [ffmpeg](https://ffmpeg.org/)
