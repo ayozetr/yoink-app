@@ -21,7 +21,10 @@ void i18n
     detection: {
       // Use the saved choice, else the system/browser language.
       order: ["localStorage", "navigator"],
-      caches: ["localStorage"],
+      // Don't auto-cache the detected language: no saved key means "System"
+      // (follow the OS), which is the default on first run. The Settings
+      // selector persists an explicit choice itself.
+      caches: [],
       lookupLocalStorage: "yoink-lang",
     },
   });

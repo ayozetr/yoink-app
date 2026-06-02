@@ -63,7 +63,8 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
       localStorage.removeItem(LANG_STORAGE_KEY);
       void i18n.changeLanguage(navigator.language.startsWith("es") ? "es" : "en");
     } else {
-      void i18n.changeLanguage(value); // the detector caches it in localStorage
+      localStorage.setItem(LANG_STORAGE_KEY, value); // persist the explicit choice
+      void i18n.changeLanguage(value);
     }
   };
 

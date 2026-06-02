@@ -52,6 +52,12 @@ const VIDEO_INFO = {
         has_audio: true,
       },
     ],
+    source_lossless: false,
+    best_audio_abr: null,
+    subtitle_langs: [],
+    auto_caption_langs: [],
+    has_chapters: false,
+    audio_langs: [],
   },
 };
 
@@ -104,12 +110,11 @@ test("analyzes a playlist with per-item selection", async ({ page }) => {
   await expect(page.getByText("My Playlist")).toBeVisible();
   await expect(page.getByText("First Clip")).toBeVisible();
   await expect(page.getByText("Second Clip")).toBeVisible();
-  await expect(page.getByRole("checkbox")).toHaveCount(2);
-  // Both selected by default -> button shows (2).
+  // Both items selected by default -> button shows (2).
   await expect(page.getByRole("button", { name: /Descargar \(2\)/ })).toBeVisible();
 
-  // Deselect one -> count drops to 1.
-  await page.getByRole("checkbox").first().uncheck();
+  // Deselect one item (by name, so the chapters checkbox doesn't interfere).
+  await page.getByRole("checkbox", { name: /First Clip/ }).uncheck();
   await expect(page.getByRole("button", { name: /Descargar \(1\)/ })).toBeVisible();
 });
 
