@@ -13,6 +13,9 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "on-first-retry",
+    // Pin the UI language: the app auto-detects from navigator.language, and the
+    // assertions below are written against the Spanish strings.
+    locale: "es-ES",
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },

@@ -3,6 +3,7 @@ import { Clock3, Download, User, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
+import { Select } from "../../../components/ui/Select";
 import type { MediaKind, VideoInfo } from "../../../types/download";
 import { availableKinds, videoQualities } from "../formatOptions";
 
@@ -83,34 +84,32 @@ export function PreviewCard({
           </div>
 
           <div className="grid md:grid-cols-3 gap-3 mt-6">
-            <select
+            <Select
+              ariaLabel={t("preview.format")}
               value={kind}
-              onChange={(event) => setKind(event.target.value as MediaKind)}
-              className="h-12 rounded-xl bg-surface border border-white/10 px-4"
-            >
-              {kinds.map((option) => (
-                <option key={option.kind} value={option.kind}>
-                  {option.kind === "video" ? t("preview.video") : t("preview.audio")}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setKind(v as MediaKind)}
+              options={kinds.map((option) => ({
+                value: option.kind,
+                label:
+                  option.kind === "video"
+                    ? t("preview.video")
+                    : t("preview.audio"),
+              }))}
+              className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
+            />
 
-            <select
-              value={quality}
-              onChange={(event) => setQuality(event.target.value)}
+            <Select
+              ariaLabel={t("preview.quality")}
+              value={isVideo && qualities.length > 0 ? quality : "__best__"}
+              onChange={setQuality}
               disabled={!isVideo || qualities.length === 0}
-              className="h-12 rounded-xl bg-surface border border-white/10 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isVideo && qualities.length > 0 ? (
-                qualities.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))
-              ) : (
-                <option>{t("preview.bestQuality")}</option>
-              )}
-            </select>
+              options={
+                isVideo && qualities.length > 0
+                  ? qualities.map((option) => ({ value: option, label: option }))
+                  : [{ value: "__best__", label: t("preview.bestQuality") }]
+              }
+              className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            />
 
             <Button
               variant="gradient"

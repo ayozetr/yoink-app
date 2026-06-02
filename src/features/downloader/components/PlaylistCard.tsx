@@ -3,6 +3,7 @@ import { Clock3, Download, ListVideo, Music4, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
+import { Select } from "../../../components/ui/Select";
 import type {
   MediaKind,
   PlaylistEntry,
@@ -91,31 +92,29 @@ export function PlaylistCard({
 
       {/* Controls */}
       <div className="grid md:grid-cols-3 gap-3 mt-4">
-        <select
+        <Select
+          ariaLabel={t("preview.format")}
           value={kind}
-          onChange={(event) => setKind(event.target.value as MediaKind)}
-          className="h-12 rounded-xl bg-surface border border-white/10 px-4"
-        >
-          <option value="video">{t("preview.video")}</option>
-          <option value="audio">{t("preview.audio")}</option>
-        </select>
+          onChange={(v) => setKind(v as MediaKind)}
+          options={[
+            { value: "video", label: t("preview.video") },
+            { value: "audio", label: t("preview.audio") },
+          ]}
+          className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
+        />
 
-        <select
-          value={quality}
-          onChange={(event) => setQuality(event.target.value)}
+        <Select
+          ariaLabel={t("preview.quality")}
+          value={isVideo ? quality : "__best__"}
+          onChange={setQuality}
           disabled={!isVideo}
-          className="h-12 rounded-xl bg-surface border border-white/10 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isVideo ? (
-            QUALITY_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))
-          ) : (
-            <option>{t("preview.bestQuality")}</option>
-          )}
-        </select>
+          options={
+            isVideo
+              ? QUALITY_OPTIONS.map((option) => ({ value: option, label: option }))
+              : [{ value: "__best__", label: t("preview.bestQuality") }]
+          }
+          className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        />
 
         <Button
           variant="gradient"

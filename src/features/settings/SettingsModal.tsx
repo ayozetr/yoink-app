@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
+import { Select } from "../../components/ui/Select";
 import { checkForUpdates, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory } from "../../lib/pickDirectory";
@@ -146,40 +147,40 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("settings.defaultFormat")}>
-              <select
+              <Select
+                ariaLabel={t("settings.defaultFormat")}
                 value={form.default_kind}
-                onChange={(e) => set("default_kind", e.target.value as MediaKind)}
-                className={INPUT_CLASS}
-              >
-                <option value="video">{t("settings.video")}</option>
-                <option value="audio">{t("settings.audio")}</option>
-              </select>
+                onChange={(v) => set("default_kind", v as MediaKind)}
+                options={[
+                  { value: "video", label: t("settings.video") },
+                  { value: "audio", label: t("settings.audio") },
+                ]}
+                className={`${INPUT_CLASS} w-full`}
+              />
             </Field>
             <Field label={t("settings.defaultQuality")}>
-              <select
+              <Select
+                ariaLabel={t("settings.defaultQuality")}
                 value={form.default_quality}
-                onChange={(e) => set("default_quality", e.target.value)}
-                className={INPUT_CLASS}
-              >
-                {QUALITY_OPTIONS.map((q) => (
-                  <option key={q} value={q}>
-                    {q}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => set("default_quality", v)}
+                options={QUALITY_OPTIONS.map((q) => ({ value: q, label: q }))}
+                className={`${INPUT_CLASS} w-full`}
+              />
             </Field>
           </div>
 
           <Field label={t("settings.language")}>
-            <select
+            <Select
+              ariaLabel={t("settings.language")}
               value={lang}
-              onChange={(e) => changeLanguage(e.target.value)}
-              className={INPUT_CLASS}
-            >
-              <option value="system">{t("settings.langSystem")}</option>
-              <option value="es">Español</option>
-              <option value="en">English</option>
-            </select>
+              onChange={changeLanguage}
+              options={[
+                { value: "system", label: t("settings.langSystem") },
+                { value: "es", label: "Español" },
+                { value: "en", label: "English" },
+              ]}
+              className={`${INPUT_CLASS} w-full`}
+            />
           </Field>
 
           <div className="pt-1 border-t border-white/10" />
@@ -250,7 +251,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         <div className="mt-4 flex items-center justify-between gap-3">
           <div className="text-sm">
             <span className="text-zinc-400">{t("settings.version")}</span>
-            <span className="font-medium">v{__APP_VERSION__}</span>
+            <span className="font-medium ml-1.5">v{__APP_VERSION__}</span>
             {version && !version.error && version.update_available && (
               <span className="ml-2 text-violet-300">
                 · {t("settings.available", { version: version.latest })}

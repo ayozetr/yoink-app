@@ -55,12 +55,15 @@ export function EditMenu() {
       if (e.key === "Escape") close();
     };
     window.addEventListener("contextmenu", onContextMenu);
-    window.addEventListener("click", close);
+    // Close on the capture phase: modals stopPropagation() on their panel to
+    // avoid closing when you click inside, which would also swallow a bubbling
+    // "click" before it reaches window. Capture runs window -> target first.
+    window.addEventListener("click", close, true);
     window.addEventListener("scroll", close, true);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("contextmenu", onContextMenu);
-      window.removeEventListener("click", close);
+      window.removeEventListener("click", close, true);
       window.removeEventListener("scroll", close, true);
       window.removeEventListener("keydown", onKey);
     };

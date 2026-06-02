@@ -12,6 +12,8 @@ export const en = {
   },
   preview: {
     label: "Preview",
+    format: "Format",
+    quality: "Quality",
     video: "Video (MP4)",
     audio: "Audio (MP3)",
     bestQuality: "Best quality",

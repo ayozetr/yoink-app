@@ -1,0 +1,142 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
+
+export interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface SelectProps {
+  value: string;
+  options: SelectOption[];
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+  disabled?: boolean;
+  /** Classes for the trigger button (e.g. the shared input style). */
+  className?: string;
+}
+
+/**
+ * Dark, app-styled dropdown replacing the native `<select>`, whose popup the OS
+ * renders unstyled (the "square, ugly" menu). The list is positioned with
+ * `fixed` from the trigger's rect so it is never clipped by a scrollable modal,
+ * and it closes on outside click (capture phase, to survive a modal panel's
+ * `stopPropagation`), scroll, resize, or Escape.
+ */
+export function Select({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  disabled = false,
+  className = "",
+}: SelectProps) {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selected = options.find((o) => o.value === value);
+
+  // Anchor the floating list to the trigger each time it opens.
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        triggerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+    const dismiss = () => setOpen(false);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("click", onPointer, true);
+    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("resize", dismiss);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", onPointer, true);
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("resize", dismiss);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const choose = (next: string) => {
+    onChange(next);
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex cursor-pointer items-center justify-between gap-2 ${className}`}
+      >
+        <span className="truncate">{selected?.label ?? ""}</span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && rect && (
+        <div
+          ref={dropdownRef}
+          role="listbox"
+          style={{
+            position: "fixed",
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+          }}
+          className="z-[100] max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1d27] p-1 shadow-xl"
+        >
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => choose(option.value)}
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                  active
+                    ? "bg-violet-600/30 text-white"
+                    : "text-zinc-200 hover:bg-white/10"
+                }`}
+              >
+                <span className="truncate">{option.label}</span>
+                {active && (
+                  <Check size={15} className="shrink-0 text-violet-300" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
