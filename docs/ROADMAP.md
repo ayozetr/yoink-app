@@ -259,6 +259,18 @@ Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
 
 - ✅ **"Supported sites" popup** *(in main, ships in v1.1.0)*. The header
   subtitle ends in a "from many sites" / "de múltiples webs" link that opens a
-  modal of hand-verified sites (name + Simple Icons logo): YouTube, YouTube
-  Music, Vimeo, Dailymotion, Instagram, TikTok, X — curated, not yt-dlp's full
-  ~1800 list. Extend the typed list as more are verified.
+  modal of hand-verified sites (name + logo): YouTube, YouTube Music, Vimeo,
+  Dailymotion, Instagram, TikTok, X, Facebook, SoundCloud, BandLab, Twitch,
+  Medal — curated, not yt-dlp's full ~1800 list. Extend the typed list as more
+  are verified.
+- ⬜ **Get past Cloudflare-protected sites.** Some sites sit behind an
+  aggressive Cloudflare/anti-bot challenge that returns HTTP 403 before any
+  page loads; neither a browser User-Agent, browser cookies, nor a `cookies.txt`
+  get through (the `cf_clearance` token is bound to the exact browser
+  fingerprint, and yt-dlp doesn't run the JS challenge). The real lever is
+  yt-dlp's **`--impersonate`** (TLS/HTTP fingerprint via `curl_cffi`), but it
+  needs `curl_cffi` shipped with its browser binaries — **currently unavailable
+  on the Python 3.14 backend** (no wheels yet; 0 impersonate targets). Options:
+  pin the backend to **Python 3.13** (where `curl_cffi` has impersonate) and
+  pass `impersonate` in the yt-dlp options, or wait for 3.14 wheels. Even then,
+  some challenges may still not pass — best-effort, not guaranteed.
