@@ -40,7 +40,7 @@ export const es = {
   },
   progress: {
     downloading: "Descargando...",
-    processing: "Procesando (ffmpeg)...",
+    processing: "Procesando...",
     merging: "Uniendo pistas",
     completed: "Descarga completada:",
     cancel: "Cancelar descarga",
