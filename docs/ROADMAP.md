@@ -83,7 +83,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
   via `GET`/`PUT /api/settings` to `<data_dir>/settings.json`
 - ✅ End-to-end tests (Playwright, `e2e/`, mocked API)
 
-## Phase 6 — Self-update ✅ (ships in v1.1.0)
+## Phase 6 — Self-update ✅ (shipped in v1.1.0)
 
 - ✅ Show the current app version in the Settings modal (injected from
   package.json at build time)
@@ -95,7 +95,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
   detected via `plugin-os` + the `is_appimage` command.
 - ✅ Release flow signs builds (`TAURI_SIGNING_PRIVATE_KEY[/_PASSWORD]`) and
   publishes `latest.json` + `.sig` assets — see `docs/releasing.md` §6
-  *(in main, ships in v1.1.0; self-update applies from v1.1.0 onward)*
+  *(shipped in v1.1.0; self-update applies from v1.1.0 onward)*
 
 > The update check needs the GitHub repo to be **public** (the unauthenticated
 > API returns 404 for private repos).
@@ -198,7 +198,7 @@ be **honest about source quality** (don't inflate lossy sources into "lossless")
 - ✅ **Multiple audio tracks** (MKV) — `audio_multistreams` uses
   `bv*+mergeall[vcodec=none]` + `allow_multiple_audio_streams`; a UI toggle is
   shown for MKV when the source has more than one audio language *(in main,
-  ships in v1.1.0)*
+  shipped in v1.1.0)*
 
 ### Audio formats
 - ✅ Lossy: **MP3**, **M4A**; Lossless: **FLAC**, **WAV** — selectable per
@@ -236,7 +236,7 @@ both OSes; pending runtime validation in the next Windows build/update):
   before copying files, so an in-place update never trips on the locked exe.
 - ✅ **Self-terminating backend** — exits on stdin EOF (packaged build only,
   `sys.frozen`), covering a hard crash where `RunEvent::Exit` never fires
-  *(in main, ships in v1.1.0)*
+  *(shipped in v1.1.0)*
 
 ### Going public
 
@@ -257,7 +257,7 @@ both OSes; pending runtime validation in the next Windows build/update):
 
 Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
 
-- ✅ **"Supported sites" popup** *(in main, ships in v1.1.0)*. The header
+- ✅ **"Supported sites" popup** *(shipped in v1.1.0)*. The header
   subtitle ends in a "from many sites" / "de múltiples webs" link that opens a
   modal of hand-verified sites (name + logo): YouTube, YouTube Music, Vimeo,
   Dailymotion, Instagram, TikTok, X, Facebook, SoundCloud, BandLab, Twitch,
