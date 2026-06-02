@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -392,19 +392,58 @@ const COOKIES_EXT_FIREFOX =
 function CookiesHelp() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const WIDTH = 288; // w-72
+
+  // Anchor the popover with `fixed` so the modal's overflow can't clip it.
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const left = Math.min(r.left, window.innerWidth - WIDTH - 12);
+    setPos({ top: r.bottom + 6, left: Math.max(12, left) });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (btnRef.current?.contains(target) || popRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    // Capture phase: the modal panel calls stopPropagation() on click.
+    window.addEventListener("click", onPointer, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", onPointer, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <span className="relative inline-flex">
+    <>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={t("settings.cookiesHelp")}
         title={t("settings.cookiesHelp")}
-        className="text-zinc-500 transition hover:text-zinc-200"
+        className="inline-flex text-zinc-500 transition hover:text-zinc-200"
       >
         <HelpCircle size={13} />
       </button>
-      {open && (
-        <div className="absolute left-0 top-6 z-10 w-72 rounded-lg border border-white/10 bg-[#1a1d27] p-3 text-xs leading-relaxed text-zinc-300 shadow-xl">
+      {open && pos && (
+        <div
+          ref={popRef}
+          style={{ position: "fixed", top: pos.top, left: pos.left, width: WIDTH }}
+          className="z-[200] rounded-lg border border-white/10 bg-[#1a1d27] p-3 text-xs leading-relaxed text-zinc-300 shadow-xl"
+        >
           {t("settings.cookiesHelpText")}
           <div className="mt-2 flex flex-col gap-1">
             <button
@@ -424,6 +463,6 @@ function CookiesHelp() {
           </div>
         </div>
       )}
-    </span>
+    </>
   );
 }
