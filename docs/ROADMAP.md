@@ -247,3 +247,14 @@ both OSes; pending runtime validation in the next Windows build/update):
 - ⬜ **Make the repo public** — also enables the in-app "Check for updates"
   (the unauthenticated GitHub API 404s on private repos). *Left for the owner to
   trigger — irreversible.*
+
+## Post-1.0 ideas (backlog) ⬜
+
+Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
+
+- ⬜ **"Supported sites" popup.** Change the header subtitle from "Download
+  video and audio quickly" to "Download video and audio quickly **from many
+  sites**", where **"many sites"** is a link that opens a popup listing the
+  sites confirmed working (manually tested by the author), each with its **name
+  and logo**. Curate the list by hand rather than dumping yt-dlp's full
+  ~1800-extractor list, so it reflects what's actually verified.
