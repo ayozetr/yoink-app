@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, X } from "lucide-react";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
@@ -15,6 +15,35 @@ interface SupportedSite {
   url: string;
   /** Simple Icons slug for the CDN logo. Omitted when there's no brand icon. */
   slug?: string;
+  /** Inline logo for brands missing from Simple Icons (takes precedence over slug). */
+  Icon?: ComponentType<{ className?: string }>;
+}
+
+/** Medal's logo (not in Simple Icons); strokes use currentColor. */
+function MedalIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 48 48"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m11.061 27.188l5.856-3.474M24 27.758l12.939-7.388v15.064l6.561-4.102V16.476l-6.561-3.91L24 20.146l-12.939-7.58l-6.561 3.91v14.856l6.561 4.102V20.37z"
+      />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M36.939 35.434L24 27.758l-12.939 7.676m25.878-8.246l-5.856-3.474"
+      />
+    </svg>
+  );
 }
 
 /** Manually verified platforms. Typed array so it's easy to extend later. */
@@ -30,7 +59,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
   { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
-  { name: "Medal", url: "https://medal.tv" },
+  { name: "Medal", url: "https://medal.tv", Icon: MedalIcon },
 ];
 
 /** Modal listing the manually-verified sites (logo + name), each clickable. */
@@ -94,6 +123,8 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
                     e.currentTarget.style.display = "none";
                   }}
                 />
+              ) : site.Icon ? (
+                <site.Icon className="size-[22px] shrink-0" />
               ) : (
                 <Globe size={20} className="size-[22px] shrink-0 text-zinc-500" />
               )}
