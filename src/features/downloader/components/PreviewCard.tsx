@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
+import { Thumbnail } from "../../../components/ui/Thumbnail";
 import type {
   AudioFormat,
   MediaKind,
@@ -104,10 +105,11 @@ export function PreviewCard({
         {/* Thumbnail */}
         <div className="w-[320px] h-[180px] rounded-2xl overflow-hidden relative bg-gradient-to-br from-violet-600/40 to-blue-600/40 flex items-center justify-center">
           {info.thumbnail_url ? (
-            <img
+            <Thumbnail
               src={info.thumbnail_url}
               alt={info.title}
               className="absolute inset-0 h-full w-full object-cover"
+              fallback={<Video className="size-14 text-white/80" />}
             />
           ) : (
             <Video className="size-14 text-white/80" />

@@ -17,6 +17,17 @@ import type {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8756/api";
 
+/**
+ * Build a URL that proxies a remote thumbnail through the local backend.
+ *
+ * Some source CDNs (e.g. Instagram's cdninstagram/fbcdn) block hotlinking of
+ * their images from another origin, so a direct `<img src>` fails. Routing the
+ * request through `GET /api/thumbnail` re-serves the bytes from localhost.
+ */
+export function thumbnailProxyUrl(remoteUrl: string): string {
+  return `${API_BASE_URL}/thumbnail?url=${encodeURIComponent(remoteUrl)}`;
+}
+
 /** Error carrying the HTTP status alongside a human-readable message. */
 export class ApiError extends Error {
   readonly status: number;

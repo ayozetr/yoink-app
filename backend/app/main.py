@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import download, history, info, settings as settings_router
+from app.routers import download, history, info, media, settings as settings_router
 from app.services import history_store, settings_store
 
 
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     history_store.init_db()
 
     app.include_router(info.router, prefix=settings.api_prefix)
+    app.include_router(media.router, prefix=settings.api_prefix)
     app.include_router(download.router, prefix=settings.api_prefix)
     app.include_router(history.router, prefix=settings.api_prefix)
     app.include_router(settings_router.router, prefix=settings.api_prefix)

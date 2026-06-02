@@ -2,8 +2,16 @@ export const es = {
   header: {
     title: "Yoink Media Downloader",
     subtitle: "Descarga vídeos y audios rápidamente",
+    subtitlePrefix: "Descarga vídeos y audios rápidamente de ",
+    subtitleSitesLink: "múltiples webs",
     active: "Descargas activas: {{count}}",
     settings: "Ajustes",
+  },
+  sites: {
+    title: "Webs soportadas",
+    intro: "Plataformas verificadas.",
+    footer: "Y muchas más a través de yt-dlp.",
+    close: "Cerrar",
   },
   url: {
     placeholder: "Pega aquí la URL del vídeo...",

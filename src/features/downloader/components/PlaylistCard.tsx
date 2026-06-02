@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
+import { Thumbnail } from "../../../components/ui/Thumbnail";
 import type {
   AudioFormat,
   MediaKind,
@@ -254,10 +255,17 @@ export function PlaylistCard({
             />
             <div className="w-14 h-9 rounded-md bg-gradient-to-br from-violet-500/40 to-blue-500/40 overflow-hidden flex items-center justify-center shrink-0">
               {entry.thumbnail_url ? (
-                <img
+                <Thumbnail
                   src={entry.thumbnail_url}
                   alt={entry.title}
                   className="h-full w-full object-cover"
+                  fallback={
+                    kind === "audio" ? (
+                      <Music4 size={14} />
+                    ) : (
+                      <Video size={14} />
+                    )
+                  }
                 />
               ) : kind === "audio" ? (
                 <Music4 size={14} />

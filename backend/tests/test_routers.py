@@ -106,6 +106,14 @@ def test_version_endpoint(monkeypatch):
     assert body["latest"] == "v0.6.0"
 
 
+def test_thumbnail_rejects_non_http_scheme():
+    # SSRF guard: only http(s) URLs are proxied; other schemes are rejected
+    # before any network access happens.
+    for bad in ("file:///etc/passwd", "ftp://example.com/img.jpg"):
+        response = client.get("/api/thumbnail", params={"url": bad})
+        assert response.status_code == 400
+
+
 def test_open_folder(temp_dirs, monkeypatch):
     opened: list[str] = []
     monkeypatch.setattr(

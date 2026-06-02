@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Download, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SupportedSitesModal } from "./SupportedSitesModal";
 
 interface DownloaderHeaderProps {
   activeDownloads: number;
@@ -12,6 +14,7 @@ export function DownloaderHeader({
   onOpenSettings,
 }: DownloaderHeaderProps) {
   const { t } = useTranslation();
+  const [showSites, setShowSites] = useState(false);
 
   return (
     <div className="flex items-center justify-between">
@@ -20,9 +23,18 @@ export function DownloaderHeader({
           {t("header.title")}
         </h1>
         <p className="text-sm text-zinc-400 mt-1">
-          {t("header.subtitle")}
+          {t("header.subtitlePrefix")}
+          <button
+            type="button"
+            onClick={() => setShowSites(true)}
+            className="text-violet-400 underline-offset-2 transition hover:text-violet-300 hover:underline"
+          >
+            {t("header.subtitleSitesLink")}
+          </button>
         </p>
       </div>
+
+      {showSites && <SupportedSitesModal onClose={() => setShowSites(false)} />}
 
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.06]">
