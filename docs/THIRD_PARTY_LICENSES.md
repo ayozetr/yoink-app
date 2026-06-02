@@ -7,7 +7,8 @@ attribution and license obligations.
 
 The desktop app bundles the `ffmpeg` and `ffprobe` binaries so downloads work
 without a system install. They are used by the download engine (via yt-dlp) to
-merge high-quality video+audio and to extract audio (MP3).
+merge high-quality video+audio, to extract/recode audio (MP3/M4A/FLAC/WAV), and
+to embed subtitles, chapters and metadata.
 
 - **Project:** FFmpeg — <https://ffmpeg.org>
 - **Source code:** <https://github.com/FFmpeg/FFmpeg>

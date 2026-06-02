@@ -10,7 +10,7 @@ engine that wraps yt-dlp.
 │      (Vite, :5173)     │ ◀─────────────────────────────────── │        (:8000)            │
 │                        │     clean JSON (title, formats…)      │                           │
 │  - URL input           │                                       │  - yt-dlp wrapper         │
-│  - Preview card        │     WS/SSE: live download progress    │  - ffmpeg merge           │
+│  - Preview card        │       WS: live download progress      │  - ffmpeg merge           │
 │  - Progress bar        │ ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ │  - filesystem (pathlib)   │
 │  - History sidebar     │       (percent, speed, ETA)           │                           │
 └────────────────────────┘                                       └──────────────────────────┘
@@ -34,7 +34,8 @@ When the user pastes a URL and clicks **Analyze**:
 2. Backend runs yt-dlp with `download=False` and normalizes the result.
 3. Backend → clean JSON: `title`, `duration`, `duration_string`,
    `thumbnail_url`, a list of `formats`, plus capability hints
-   `source_lossless`, `best_audio_abr`, `subtitle_langs`, and `has_chapters`.
+   `source_lossless`, `best_audio_abr`, `subtitle_langs`, `auto_caption_langs`,
+   and `has_chapters`.
 4. Frontend populates the preview card and the format/quality selectors.
 
 The JSON shape is defined once in `backend/app/models/media.py` (Pydantic) and

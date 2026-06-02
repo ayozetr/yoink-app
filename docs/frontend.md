@@ -45,7 +45,7 @@ src/
 ## Conventions
 
 - **`components/ui`** holds dumb, reusable visuals — no business logic.
-- **`features/`** holds screen-specific composition and (later) data fetching.
+- **`features/`** holds screen-specific composition and data fetching.
   Each feature has a top-level panel plus a `components/` subfolder.
 - **Styling:** Tailwind utility classes. Shared color tokens (`canvas`,
   `surface`, `surface-hover`) are defined in `tailwind.config.js` so the dark

@@ -39,8 +39,9 @@ backend/
   models: `_map_format` (codecs → has_video/has_audio, filesize), `_best_thumbnail`,
   `_format_duration` (seconds → `"1h 24m 18s"`).
 - It also derives download-capability hints for the UI: `source_lossless` and
-  `best_audio_abr` (from the audio formats), `subtitle_langs` (manual + auto
-  captions), and `has_chapters`.
+  `best_audio_abr` (from the audio formats), `subtitle_langs` (manual subtitle
+  codes) and `auto_caption_langs` (auto-generated captions not already in
+  `subtitle_langs`), and `has_chapters`.
 - A single video is fully resolved; a playlist is listed flat (entries capped at
   200) as `PlaylistInfo`. The route returns the unified `InfoResponse`.
 - Failures raise `MediaExtractionError`, which the route turns into HTTP 422.

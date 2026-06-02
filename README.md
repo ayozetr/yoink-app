@@ -87,9 +87,22 @@ scripts/                  # setup.py, dev.py, fetch_ffmpeg.py, build_backend.py
 e2e/                      # Playwright end-to-end tests
 ```
 
+## Contributing
+
+Issues and pull requests are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md)
+for how to propose a change and the checks to run.
+
+## License
+
+Yoink's own source code is licensed under **CC BY-NC-SA 4.0** (non-commercial,
+share-alike) — see [`LICENSE`](LICENSE). Bundled third-party components keep
+their own licenses (ffmpeg = LGPL, yt-dlp = Unlicense); see
+[`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md).
+
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to contribute
 - [`docs/`](docs/) — architecture, per-layer guides, the [roadmap](docs/ROADMAP.md),
   the [release process](docs/releasing.md) and
   [third-party licenses](docs/THIRD_PARTY_LICENSES.md)

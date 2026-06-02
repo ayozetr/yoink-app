@@ -81,7 +81,7 @@ src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm
 ```bash
 ./src-tauri/target/release/bundle/appimage/Yoink_<ver>_amd64.AppImage &
 # the window should open; pasting a URL + Analizar should hit the bundled
-# backend on :8000. (ffmpeg must be installed for video+audio merges.)
+# backend on :8756. (ffmpeg is bundled in the sidecar — no system install needed.)
 ```
 
 Quick structural check (no GUI needed) — confirm the sidecar is inside:
