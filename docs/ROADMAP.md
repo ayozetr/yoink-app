@@ -241,6 +241,8 @@ both OSes; pending runtime validation in the next Windows build/update):
 - ✅ **LICENSE** in place (MIT, shipped in v0.9.0)
 - ✅ Polished the README: badges (release/license/stack/React Doctor), a
   screenshot (`docs/screenshot.png`), and a quick-start
-- ⬜ GitHub repo **description + topics**
+- ✅ GitHub repo **description + topics** set (12 topics: yt-dlp, ffmpeg, tauri,
+  react, typescript, fastapi, python, …)
 - ⬜ **Make the repo public** — also enables the in-app "Check for updates"
-  (the unauthenticated GitHub API 404s on private repos)
+  (the unauthenticated GitHub API 404s on private repos). *Left for the owner to
+  trigger — irreversible.*
