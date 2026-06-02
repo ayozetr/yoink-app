@@ -254,9 +254,9 @@ on Windows upgraded cleanly, with no locked-exe error):
 - ✅ **Made the repo public** — the in-app "Check for updates" now works (the
   unauthenticated GitHub API serves the latest release instead of 404ing)
 
-## Post-1.0 ideas (backlog) ✅
+## Post-1.0 ideas (backlog)
 
-All shipped across v1.1.0–v1.2.0.
+Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
 
 - ✅ **"Supported sites" popup** *(shipped in v1.1.0)*. The header
   subtitle ends in a "from many sites" / "de múltiples webs" link that opens a
@@ -303,3 +303,19 @@ All shipped across v1.1.0–v1.2.0.
   proxy forwards a `Referer` (the page URL), so CDNs that 403 cross-origin image
   requests now serve the cover. Propagated through the `Thumbnail` component
   (direct → proxy-with-referer → placeholder).
+- ⬜ **Audio metadata & cover art** *(opt-in setting)*. When downloading audio,
+  optionally tag the file with title / artist / album / year and embed the cover
+  art — for building a proper music library. yt-dlp does the heavy lifting via
+  two ffmpeg postprocessors, added to the audio chain (after
+  `FFmpegExtractAudio`): `FFmpegMetadata` (`--embed-metadata`) writes the tags
+  the extractor exposes, and `EmbedThumbnail` (`--embed-thumbnail` +
+  `writethumbnail`) embeds the cover. Plan: an `embed_audio_metadata` setting
+  (persisted, toggled in Settings) threaded into `DownloadRequest` and the audio
+  postprocessor list. Notes:
+  - **Tag quality depends on the source** — YouTube Music / SoundCloud / Bandcamp
+    expose real artist/album/track; generic YouTube only has uploader + title (a
+    `--parse-metadata "%(title)s" → artist/title` heuristic could help).
+  - **Cover embedding** works for mp3 / m4a / flac / opus but **not wav** (no
+    picture frame in the container).
+  - YouTube thumbnails are 16:9; an optional **square crop** would yield nicer
+    covers (yt-dlp's `EmbedThumbnail` can crop for known music extractors).
