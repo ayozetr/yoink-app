@@ -65,6 +65,8 @@ export function PlaylistCard({
 
   const isVideo = kind === "video";
   const embedSubs = subtitle !== SUBS_NONE;
+  // Subtitles embed cleanly only into MKV, so offer the picker for MKV only.
+  const showSubtitles = isVideo && container === "mkv";
   // A flat playlist has no per-item lossless info, so FLAC/WAV are offered with
   // a generic note rather than gated.
   const showLosslessNote =
@@ -94,8 +96,8 @@ export function PlaylistCard({
       quality: isVideo ? quality : undefined,
       container: isVideo ? container : undefined,
       audio_format: isVideo ? undefined : audioFormat,
-      embed_subs: isVideo ? embedSubs : undefined,
-      subtitle_lang: isVideo && embedSubs ? subtitle : undefined,
+      embed_subs: showSubtitles ? embedSubs : undefined,
+      subtitle_lang: showSubtitles && embedSubs ? subtitle : undefined,
       embed_chapters: isVideo ? embedChapters : undefined,
     });
   };
@@ -183,20 +185,22 @@ export function PlaylistCard({
         {/* Subtitles + chapters, applied to the whole batch. Video-only. */}
         {isVideo && (
           <div className="flex flex-wrap items-center gap-3">
-            <Select
-              ariaLabel={t("preview.subtitles")}
-              value={subtitle}
-              onChange={setSubtitle}
-              options={[
-                { value: SUBS_NONE, label: t("preview.subtitlesNone") },
-                { value: "all", label: t("preview.subtitlesAll") },
-                ...SUBTITLE_LANGS.map((code) => ({
-                  value: code,
-                  label: code.toUpperCase(),
-                })),
-              ]}
-              className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
-            />
+            {showSubtitles && (
+              <Select
+                ariaLabel={t("preview.subtitles")}
+                value={subtitle}
+                onChange={setSubtitle}
+                options={[
+                  { value: SUBS_NONE, label: t("preview.subtitlesNone") },
+                  { value: "all", label: t("preview.subtitlesAll") },
+                  ...SUBTITLE_LANGS.map((code) => ({
+                    value: code,
+                    label: code.toUpperCase(),
+                  })),
+                ]}
+                className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
+              />
+            )}
             <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
               <input
                 type="checkbox"

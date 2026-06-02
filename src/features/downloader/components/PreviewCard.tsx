@@ -77,6 +77,9 @@ export function PreviewCard({
   const hasSubtitles =
     info.subtitle_langs.length > 0 || info.auto_caption_langs.length > 0;
   const embedSubs = subtitle !== SUBS_NONE;
+  // Subtitles embed losslessly only into MKV (MP4/MOV are limited to mov_text),
+  // so the subtitle picker is offered for MKV only.
+  const showSubtitles = isVideo && hasSubtitles && container === "mkv";
 
   // FLAC/WAV only make sense from a lossless source; otherwise they'd upscale.
   const losslessAllowed = info.source_lossless;
@@ -192,10 +195,10 @@ export function PreviewCard({
               </p>
             )}
 
-            {/* Subtitles + chapters: video-only, and only when available. */}
-            {isVideo && (hasSubtitles || info.has_chapters) && (
+            {/* Subtitles (MKV only) + chapters: video-only, when available. */}
+            {(showSubtitles || (isVideo && info.has_chapters)) && (
               <div className="flex flex-wrap items-center gap-3">
-                {hasSubtitles && (
+                {showSubtitles && (
                   <Select
                     ariaLabel={t("preview.subtitles")}
                     value={subtitle}
@@ -255,9 +258,9 @@ export function PreviewCard({
                   quality: isVideo ? quality : undefined,
                   container: isVideo ? container : undefined,
                   audio_format: isVideo ? undefined : effectiveAudioFormat,
-                  embed_subs: isVideo ? embedSubs : undefined,
+                  embed_subs: showSubtitles ? embedSubs : undefined,
                   subtitle_lang:
-                    isVideo && embedSubs ? subtitle : undefined,
+                    showSubtitles && embedSubs ? subtitle : undefined,
                   embed_chapters: isVideo ? embedChapters : undefined,
                 })
               }
