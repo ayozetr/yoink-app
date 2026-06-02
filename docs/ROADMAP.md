@@ -217,7 +217,7 @@ be **honest about source quality** (don't inflate lossy sources into "lossless")
   just bloats the file with **no quality gain**. Bandcamp/SoundCloud can be
   genuinely lossless.
 
-### Packaging robustness (orphaned sidecar) 🚧
+### Packaging robustness (orphaned sidecar) ✅
 
 The PyInstaller `--onefile` `yoink-backend.exe` is a *bootloader* that unpacks
 to a temp dir and spawns the real Python process as a child. On Windows
@@ -226,7 +226,8 @@ Python child lingered — holding port 8756 and the on-disk `yoink-backend.exe`.
 That made the NSIS updater fail with *"Error opening file for writing
 …\yoink-backend.exe"* (seen upgrading to 0.9.0; worked around by `taskkill`
 before Retry). Implemented two complementary layers (built & compile-checked on
-both OSes; pending runtime validation in the next Windows build/update):
+both OSes, and **validated in runtime**: the in-app v1.1.0 → v1.2.0 self-update
+on Windows upgraded cleanly, with no locked-exe error):
 
 - ✅ **Rust kills the process tree on exit** — `kill_sidecar()` runs
   `taskkill /PID <pid> /T /F` on Windows (was a bare `child.kill()`), reaping
@@ -253,9 +254,9 @@ both OSes; pending runtime validation in the next Windows build/update):
 - ✅ **Made the repo public** — the in-app "Check for updates" now works (the
   unauthenticated GitHub API serves the latest release instead of 404ing)
 
-## Post-1.0 ideas (backlog) ⬜
+## Post-1.0 ideas (backlog) ✅
 
-Not scheduled yet (a v1.0.2 / v1.1.0 thing — TBD).
+All shipped across v1.1.0–v1.2.0.
 
 - ✅ **"Supported sites" popup** *(shipped in v1.1.0)*. The header
   subtitle ends in a "from many sites" / "de múltiples webs" link that opens a
