@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     cookies_from_browser: str | None = Field(default=None)
     cookies_file: Path | None = Field(default=None)
 
+    # AcoustID application API key for audio auto-tagging (acoustic-fingerprint
+    # lookup). Free key from acoustid.org/new-application. Set via
+    # YOINK_ACOUSTID_API_KEY or the settings UI; empty disables auto-tagging.
+    acoustid_api_key: str = Field(default="")
+
     # User-editable defaults (persisted via the settings store / settings UI).
     default_kind: Literal["video", "audio"] = "video"
     default_quality: str = "1080p"
