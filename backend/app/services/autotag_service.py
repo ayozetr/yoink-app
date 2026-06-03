@@ -1,22 +1,24 @@
-"""Audio auto-tagging: acoustic fingerprint → AcoustID → MusicBrainz → tags.
+"""Audio auto-tagging via the Apple Music (iTunes) catalogue.
 
-`identify()` fingerprints a file (Chromaprint/`fpcalc`), looks it up on AcoustID,
-and resolves the song's metadata + candidate albums on MusicBrainz (the album is
-ambiguous — a song can be on hundreds of releases — so we suggest the earliest
-plain studio album but return the alternatives for the user to pick). `search()`
-is a manual MusicBrainz fallback. `apply()` writes the (possibly user-edited)
-tags + cover art into the file with mutagen. Nothing is written until `apply()`.
+`identify()` searches the catalogue for the file's "Artist - Title" (parsed from
+its filename); `search()` is the manual version. Neither writes anything —
+`apply()` writes the chosen tags + cover into the file with mutagen.
+
+The iTunes Search API is free and key-less, with broad streaming coverage (it
+returns the single / EP / album versions a song appears on, each with its own
+cover) — the same approach apps like Automatag use.
 """
 
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-import acoustid
-import musicbrainzngs
 import mutagen
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError, TALB, TDRC, TIT2, TPE1, TRCK
@@ -24,192 +26,91 @@ from mutagen.mp4 import MP4, MP4Cover
 
 from app.core.config import settings
 from app.models.autotag import (
-    AlbumOption,
     ApplyRequest,
     ApplyResponse,
-    IdentifyResponse,
-    SearchResponse,
+    CandidateList,
     TagCandidate,
 )
 
 _USER_AGENT = f"Yoink/{settings.app_version} (https://github.com/ayozetr/yoink-app)"
-
-musicbrainzngs.set_useragent(
-    "Yoink", settings.app_version, "https://github.com/ayozetr/yoink-app"
-)
-musicbrainzngs.set_rate_limit()  # MusicBrainz requires ≤1 req/s
-
-# Secondary release-group types that disqualify a "plain studio album".
-_NON_STUDIO = {
-    "Compilation", "Live", "Soundtrack", "Remix", "DJ-mix",
-    "Mixtape/Street", "Demo", "Interview", "Audiobook",
-}
-# How many albums to date-lookup / return, to bound MusicBrainz calls.
-_ALBUM_LIMIT = 8
+_ITUNES_URL = "https://itunes.apple.com/search"
 
 
 class AutotagError(RuntimeError):
     """Raised for any auto-tagging failure surfaced to the client."""
 
 
-# --- identify --------------------------------------------------------------
+# --- identify / search -----------------------------------------------------
 
-def identify(path: Path) -> IdentifyResponse:
-    """Fingerprint + AcoustID + MusicBrainz → a proposed tagging (no write)."""
-    api_key = settings.acoustid_api_key.strip()
-    if not api_key:
-        raise AutotagError(
-            "No AcoustID API key configured — add one in Settings "
-            "(free at acoustid.org/new-application)."
+def identify(path: Path) -> CandidateList:
+    """Catalogue matches for a downloaded file, keyed on its filename."""
+    artist, title = guess_from_filename(path.name)
+    results = _itunes_search(artist, title) if title else []
+    return CandidateList(results=results)
+
+
+def search(artist: str, title: str) -> CandidateList:
+    """Manual catalogue search."""
+    return CandidateList(results=_itunes_search(artist, title))
+
+
+def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
+    term = f"{artist} {title}".strip()
+    if not term:
+        return []
+    query = urlencode({"term": term, "entity": "song", "limit": limit})
+    try:
+        request = Request(  # noqa: S310 — fixed https host
+            f"{_ITUNES_URL}?{query}", headers={"User-Agent": _USER_AGENT}
         )
-
-    try:
-        duration, fingerprint = acoustid.fingerprint_file(str(path))
-    except acoustid.NoBackendError as exc:
-        raise AutotagError("fpcalc (Chromaprint) is not available.") from exc
-    except acoustid.FingerprintGenerationError as exc:
-        raise AutotagError(f"Could not fingerprint the audio: {exc}") from exc
-
-    try:
-        response = acoustid.lookup(
-            api_key, fingerprint, duration, meta="recordings releasegroups"
-        )
-    except acoustid.WebServiceError as exc:
-        raise AutotagError(f"AcoustID lookup failed: {exc}") from exc
-
-    recording, score = _best_recording(response)
-    if recording is None:
-        return IdentifyResponse(matched=False, candidate=None)
-
-    albums = _album_options(recording.get("releasegroups", []))
-    suggested = albums[0] if albums else None
-
-    candidate = TagCandidate(
-        title=recording.get("title") or "",
-        artist=_join_artists(recording.get("artists", [])),
-        album=suggested.title if suggested else None,
-        year=suggested.year if suggested else None,
-        cover_url=suggested.cover_url if suggested else None,
-        recording_id=recording.get("id"),
-        score=round(float(score), 3),
-        album_options=albums,
-    )
-    return IdentifyResponse(matched=True, candidate=candidate)
-
-
-def _best_recording(response: dict[str, Any]) -> tuple[dict[str, Any] | None, float]:
-    """The highest-scoring AcoustID recording that actually has artist + title."""
-    for result in sorted(
-        response.get("results", []), key=lambda r: -r.get("score", 0.0)
-    ):
-        score = result.get("score", 0.0)
-        for recording in result.get("recordings", []):
-            if recording.get("title") and recording.get("artists"):
-                return recording, score
-    return None, 0.0
-
-
-def _join_artists(artists: list[dict[str, Any]]) -> str:
-    return ", ".join(a.get("name", "") for a in artists if a.get("name"))
-
-
-def _cover_url(release_group_id: str) -> str:
-    """Cover Art Archive front-image URL for a release group (may 404)."""
-    return f"https://coverartarchive.org/release-group/{release_group_id}/front"
-
-
-def _album_options(release_groups: list[dict[str, Any]]) -> list[AlbumOption]:
-    """Rank candidate albums: earliest plain studio album first, others after.
-
-    A recording can appear on hundreds of release groups, so we (1) split into
-    plain studio albums vs everything else, (2) date-lookup only the studio ones
-    (few; bounded by `_ALBUM_LIMIT`) and sort them oldest-first — the original
-    album — and (3) append a few non-studio groups as extra manual choices.
-    """
-    studio: list[dict[str, Any]] = []
-    other: list[dict[str, Any]] = []
-    for group in release_groups:
-        secondary = set(group.get("secondarytypes", []))
-        is_studio = group.get("type") == "Album" and not (secondary & _NON_STUDIO)
-        (studio if is_studio else other).append(group)
-
-    options = [
-        _make_option(group, is_studio=True, year=_release_group_year(group["id"]))
-        for group in studio[:_ALBUM_LIMIT]
-    ]
-    options.sort(key=lambda o: o.year or "9999")
-    options += [
-        _make_option(group, is_studio=False, year=None)
-        for group in other[:_ALBUM_LIMIT]
-    ]
-    return options
-
-
-def _make_option(
-    group: dict[str, Any], *, is_studio: bool, year: str | None
-) -> AlbumOption:
-    return AlbumOption(
-        title=group.get("title", ""),
-        year=year,
-        release_group_id=group["id"],
-        primary_type=group.get("type"),
-        is_studio_album=is_studio,
-        cover_url=_cover_url(group["id"]),
-    )
-
-
-def _release_group_year(release_group_id: str) -> str | None:
-    try:
-        info = musicbrainzngs.get_release_group_by_id(release_group_id)
-    except musicbrainzngs.MusicBrainzError:
-        return None
-    date = info.get("release-group", {}).get("first-release-date") or ""
-    return date[:4] or None
-
-
-# --- search (manual fallback) ----------------------------------------------
-
-def search(artist: str, title: str) -> SearchResponse:
-    """Manual MusicBrainz recording search for when fingerprinting doesn't fit."""
-    try:
-        result = musicbrainzngs.search_recordings(
-            recording=title, artist=artist or None, limit=8
-        )
-    except musicbrainzngs.MusicBrainzError as exc:
-        raise AutotagError(f"MusicBrainz search failed: {exc}") from exc
+        with urlopen(request, timeout=15) as response:  # noqa: S310
+            data = json.loads(response.read())
+    except (URLError, OSError, ValueError) as exc:
+        raise AutotagError(f"Apple Music search failed: {exc}") from exc
 
     candidates: list[TagCandidate] = []
-    for recording in result.get("recording-list", []):
-        releases = recording.get("release-list", [])
-        first = releases[0] if releases else {}
-        date = first.get("date", "")
-        group_id = first.get("release-group", {}).get("id")
+    for item in data.get("results", []):
+        artwork = item.get("artworkUrl100") or ""
+        date = item.get("releaseDate") or ""
         candidates.append(
             TagCandidate(
-                title=recording.get("title", ""),
-                artist=_credit_name(recording.get("artist-credit", [])),
-                album=first.get("title"),
+                title=item.get("trackName", ""),
+                artist=item.get("artistName", ""),
+                album=_clean_album(item.get("collectionName")),
                 year=(date[:4] or None),
-                cover_url=_cover_url(group_id) if group_id else None,
-                recording_id=recording.get("id"),
-                score=_int_or_zero(recording.get("ext:score")) / 100,
+                track_number=item.get("trackNumber"),
+                # bump the 100px thumb to a 1000px cover
+                cover_url=artwork.replace("100x100bb", "1000x1000bb") or None,
             )
         )
-    return SearchResponse(results=candidates)
+    return candidates
 
 
-def _credit_name(artist_credit: list[Any]) -> str:
-    return "".join(
-        part["artist"]["name"] if isinstance(part, dict) else part
-        for part in artist_credit
-    )
+def _clean_album(name: str | None) -> str | None:
+    """Drop Apple's ' - Single' / ' - EP' suffixes from a collection name."""
+    if not name:
+        return None
+    return re.sub(r"\s*-\s*(Single|EP)$", "", name).strip() or None
 
 
-def _int_or_zero(value: Any) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 0
+_FILENAME_TAGS = re.compile(
+    r"\s*[([](?:official|video|audio|lyrics?|visualizer|hd|4k|mv|prod\b)[^)\]]*[)\]]",
+    re.IGNORECASE,
+)
+
+
+def guess_from_filename(name: str) -> tuple[str, str]:
+    """Best-effort (artist, title) from a download filename.
+
+    Strips the extension and trailing tags like "(Official Video)"/"(prod. …)",
+    then splits on the first " - ". Returns ("", base) when there's no dash.
+    """
+    base = re.sub(r"\.[^.]+$", "", name)
+    base = _FILENAME_TAGS.sub("", base).strip()
+    match = re.match(r"^(.+?)\s[-–—]\s(.+)$", base)
+    if match:
+        return match.group(1).strip(), match.group(2).strip()
+    return "", base
 
 
 # --- apply -----------------------------------------------------------------
@@ -231,8 +132,8 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
 def _fetch_cover(url: str) -> tuple[bytes, str] | None:
     """Download cover art bytes + content-type (None on any failure)."""
     try:
-        req = Request(url, headers={"User-Agent": _USER_AGENT})  # noqa: S310 — https CAA url
-        with urlopen(req, timeout=15) as resp:  # noqa: S310
+        request = Request(url, headers={"User-Agent": _USER_AGENT})  # noqa: S310 — https art url
+        with urlopen(request, timeout=15) as resp:  # noqa: S310
             data = resp.read()
             return data, (resp.headers.get_content_type() or "image/jpeg")
     except (URLError, OSError):

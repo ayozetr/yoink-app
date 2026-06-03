@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, RotateCw, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Music4, RotateCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DownloaderHeader } from "./components/DownloaderHeader";
 import { UrlInput } from "./components/UrlInput";
 import { PreviewCard, type DownloadSelection } from "./components/PreviewCard";
 import { PlaylistCard } from "./components/PlaylistCard";
 import { DownloadProgressCard } from "./components/DownloadProgressCard";
+import { AutoTagModal } from "../autotag/AutoTagModal";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { fetchInfo, ApiError } from "../../lib/api";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
@@ -70,6 +71,10 @@ export function DownloaderPanel({
   const [summary, setSummary] = useState<{ completed: number; failed: number } | null>(
     null,
   );
+  // Auto-tag: the audio file to tag (opens the modal) + the last download kind
+  // so the "Tag audio" action only shows for audio downloads.
+  const [tagPath, setTagPath] = useState<string | null>(null);
+  const [lastKind, setLastKind] = useState<MediaKind | null>(null);
 
   const requestRef = useRef<AbortController | null>(null);
   const downloadRef = useRef<DownloadHandle | null>(null);
@@ -174,6 +179,7 @@ export function DownloaderPanel({
 
   const handleDownload = (selection: DownloadSelection) => {
     const target = url.trim();
+    setLastKind(selection.kind);
     startQueue([
       {
         request: {
@@ -279,6 +285,17 @@ export function DownloaderPanel({
         onCancel={resetDownload}
       />
 
+      {completed?.filepath && lastKind === "audio" && !downloading && (
+        <button
+          type="button"
+          onClick={() => setTagPath(completed.filepath)}
+          className="flex items-center gap-2 self-start rounded-2xl bg-violet-600/20 px-4 py-2 text-sm text-violet-200 hover:bg-violet-600/30 transition"
+        >
+          <Music4 size={16} />
+          {t("autotag.title")}
+        </button>
+      )}
+
       {summary && (
         <GlassPanel className="p-4">
           <div className="flex items-center justify-between gap-3">
@@ -317,6 +334,14 @@ export function DownloaderPanel({
             </button>
           </div>
         </GlassPanel>
+      )}
+
+      {tagPath && (
+        <AutoTagModal
+          path={tagPath}
+          filename={completed?.filename}
+          onClose={() => setTagPath(null)}
+        />
       )}
     </>
   );

@@ -303,39 +303,29 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
   proxy forwards a `Referer` (the page URL), so CDNs that 403 cross-origin image
   requests now serve the cover. Propagated through the `Thumbnail` component
   (direct → proxy-with-referer → placeholder).
-- ⬜ **Audio auto-tagging via acoustic fingerprinting** *(opt-in, with a review
-  step)*. Tag downloaded audio with real artist / album / title / year + cover
-  art for a proper music library. Identify the song by its **audio**, not its
-  title (correct even for badly-named YouTube rips): **Chromaprint** (`fpcalc`)
-  fingerprints the file → **AcoustID** (free API key) maps it to a MusicBrainz
-  Recording ID → **MusicBrainz** supplies the metadata → **Cover Art Archive**
-  the cover. Tags written with **`mutagen`** (already a yt-dlp dep). *(Decided
-  against a separate "yt-dlp metadata only" tier — fingerprinting is strictly
-  better when it matches, and the manual search below covers the rest.)*
-  - **Review before apply (core to the feature).** Fingerprinting can return
-    several candidates or the wrong take (live / remix / cover / compilation), so
-    never write silently. Flow: **identify → preview → apply** (backend endpoints
-    `identify` / `search` / `apply` that don't touch the file until confirmed).
-    The review UI shows what will be written (fields + cover), the AcoustID/
-    MusicBrainz alternatives to choose from, editable fields, and a manual
-    MusicBrainz search (by artist/title) when no candidate fits.
-  - **Batches (playlists):** an "auto-apply when the AcoustID score is high, ask
-    only when uncertain" mode — hands-off on clear matches, review on ambiguous.
-  - **No match and no manual pick:** leave the file untagged (it keeps yt-dlp's
-    title as the filename) rather than writing low-confidence guesses.
-  - **Cost/caveats:** bundle the `fpcalc` binary (like ffmpeg); breaks the
-    "exclusively yt-dlp" rule (AcoustID key + MusicBrainz descriptive User-Agent,
-    ~1 req/s rate limit); cover embedding works for mp3 / m4a / flac / opus but
-    **not wav** (no picture frame in the container).
-  - **Build order (when picked up):** (A) **data spike** — run `fpcalc →
-    AcoustID → MusicBrainz → Cover Art Archive` on a test file to validate the
-    pipeline and real-world tag quality before touching UI or packaging; (B)
-    **backend** — bundle `fpcalc`, add `identify` / `search` / `apply` endpoints,
-    write tags with `mutagen`; (C) **review UI** — preview modal (fields + cover
-    + AcoustID/MusicBrainz alternatives + manual search); (D) **integration** —
-    opt-in setting, hook into the download flow, batch auto/ask mode; (E) **tests
-    + `fetch_fpcalc`** in the build scripts. Start small per tier (A→E) so there's
-    something verifiable early.
-  - **Prereq:** a free **AcoustID application API key** (register at
-    `acoustid.org` with a MusicBrainz account); keep it in config/settings, not
-    the repo. Candidate for a **v1.3.0**.
+- 🚧 **Audio auto-tagging via Apple Music** *(opt-in, with a review step — in
+  `feature/audio-autotag`)*. Tag downloaded audio with real artist / album /
+  title / year + cover art for a proper music library. Metadata comes from the
+  **iTunes Search API** (Apple Music) — free, key-less, broad streaming coverage,
+  and it returns the single / EP / album versions a song appears on, each with
+  its own high-res cover (the approach Automatag uses). Tags are written with
+  **`mutagen`** (already a yt-dlp dep), so **no new dependencies, nothing to
+  bundle, no API key**.
+  - **Why not acoustic fingerprinting?** Prototyped AcoustID/Chromaprint +
+    MusicBrainz + Cover Art Archive, but it needs a bundled `fpcalc` binary and
+    an API key, and its open DB misses non-mainstream/streaming tracks (verified:
+    an underground release AcoustID had never seen). Searching Apple Music by the
+    file's "Artist - Title" covers far more for YouTube rips, with the review
+    step + manual search for the rest. Dropped fingerprinting entirely.
+  - **Flow: identify → review → apply.** Backend endpoints `identify` (search by
+    filename) / `search` (manual) / `apply` — nothing touches the file until
+    confirmed. The modal lists the matching versions to pick from, shows editable
+    fields + cover, and a manual search box; Apply writes the tags + cover.
+  - **Done (backend + UI):** `autotag_service` + `/api/autotag/{identify,search,
+    apply}` and the review modal, wired to a "Tag audio" button after an audio
+    download. Tests for filename parsing, response mapping, and per-format tag
+    writing (mp3/m4a/flac).
+  - **Remaining:** opt-in setting in Settings, auto-open after audio downloads,
+    and a batch mode for playlists.
+  - **Format note:** cover embedding works for mp3 / m4a / flac / opus but **not
+    wav** (no picture frame in the container). Candidate for **v1.3.0**.

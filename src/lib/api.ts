@@ -13,6 +13,11 @@ import type {
   InfoResponse,
   VersionInfo,
 } from "../types/download";
+import type {
+  ApplyRequest,
+  ApplyResponse,
+  CandidateList,
+} from "../types/autotag";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8756/api";
@@ -171,4 +176,54 @@ export async function updateSettings(
     throw new ApiError(await readErrorDetail(response), response.status);
   }
   return (await response.json()) as AppSettings;
+}
+
+/** Match a downloaded audio file via `POST /api/autotag/identify`. */
+export async function identifyAudio(
+  path: string,
+  signal?: AbortSignal,
+): Promise<CandidateList> {
+  const response = await fetch(`${API_BASE_URL}/autotag/identify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+    signal,
+  });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as CandidateList;
+}
+
+/** Manual MusicBrainz search via `POST /api/autotag/search`. */
+export async function searchAudio(
+  artist: string,
+  title: string,
+  signal?: AbortSignal,
+): Promise<CandidateList> {
+  const response = await fetch(`${API_BASE_URL}/autotag/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ artist, title }),
+    signal,
+  });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as CandidateList;
+}
+
+/** Write the chosen tags + cover into the file via `POST /api/autotag/apply`. */
+export async function applyAudioTags(
+  request: ApplyRequest,
+): Promise<ApplyResponse> {
+  const response = await fetch(`${API_BASE_URL}/autotag/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as ApplyResponse;
 }

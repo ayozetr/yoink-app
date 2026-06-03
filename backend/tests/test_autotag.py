@@ -1,12 +1,12 @@
-"""Tests for the audio auto-tagging service.
+"""Tests for the audio auto-tagging service (Apple Music / iTunes).
 
-The AcoustID/MusicBrainz network calls are not exercised here; we test the pure
-selection logic (best recording, album-ranking heuristic, small helpers) and the
-per-format tag writing round-trip (mp3/m4a/flac, skipped without ffmpeg).
+The iTunes HTTP call is mocked (no network); we test the filename parsing, the
+response mapping, and the per-format tag writing round-trip (skipped w/o ffmpeg).
 """
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 
@@ -16,74 +16,84 @@ import pytest
 from app.services import autotag_service as svc
 
 FFMPEG = shutil.which("ffmpeg")
-# Arbitrary bytes — mutagen stores cover data verbatim, it doesn't decode it.
 FAKE_COVER = (b"\x89PNG\r\n\x1a\n" + b"\x00" * 64, "image/png")
 
 
-# --- best-recording selection ---------------------------------------------
+class _FakeResponse:
+    """Minimal context-manager stand-in for urlopen()."""
 
-def test_best_recording_skips_metadataless_and_honours_score():
-    response = {
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def read(self) -> bytes:
+        return json.dumps(self._payload).encode()
+
+    def __enter__(self) -> "_FakeResponse":
+        return self
+
+    def __exit__(self, *_: object) -> bool:
+        return False
+
+
+# --- filename → (artist, title) -------------------------------------------
+
+@pytest.mark.parametrize(
+    ("name", "artist", "title"),
+    [
+        ("Las Ninyas del Corro - Hood Films.m4a", "Las Ninyas del Corro", "Hood Films"),
+        (
+            "Rick Astley - Never Gonna Give You Up (Official Video).mp3",
+            "Rick Astley",
+            "Never Gonna Give You Up",
+        ),
+        ("Artist - Title (prod. X) [4K].opus", "Artist", "Title"),
+        ("JustATitle.flac", "", "JustATitle"),
+    ],
+)
+def test_guess_from_filename(name, artist, title):
+    assert svc.guess_from_filename(name) == (artist, title)
+
+
+# --- album cleanup ---------------------------------------------------------
+
+def test_clean_album():
+    assert svc._clean_album("Hood Films - Single") == "Hood Films"
+    assert svc._clean_album("#SKIT2025 - EP") == "#SKIT2025"
+    assert svc._clean_album("Whenever You Need Somebody") == "Whenever You Need Somebody"
+    assert svc._clean_album(None) is None
+
+
+# --- iTunes response mapping (mocked) --------------------------------------
+
+def test_itunes_search_maps_results(monkeypatch):
+    payload = {
         "results": [
-            {"score": 0.95, "recordings": [{"id": "r1"}]},  # no title/artists
             {
-                "score": 0.80,
-                "recordings": [
-                    {"id": "r2", "title": "Song", "artists": [{"name": "A"}]}
-                ],
-            },
+                "trackName": "Hood Films",
+                "artistName": "Las Ninyas del Corro",
+                "collectionName": "#SKIT2025 - EP",
+                "releaseDate": "2025-12-10T12:00:00Z",
+                "trackNumber": 2,
+                "artworkUrl100": "https://is1.example/abc/100x100bb.jpg",
+            }
         ]
     }
-    rec, score = svc._best_recording(response)
-    assert rec["id"] == "r2"
-    assert score == 0.80
+    monkeypatch.setattr(svc, "urlopen", lambda *a, **k: _FakeResponse(payload))
+    results = svc._itunes_search("Las Ninyas del Corro", "Hood Films")
+
+    assert len(results) == 1
+    c = results[0]
+    assert c.title == "Hood Films"
+    assert c.artist == "Las Ninyas del Corro"
+    assert c.album == "#SKIT2025"  # " - EP" stripped
+    assert c.year == "2025"
+    assert c.track_number == 2
+    assert c.cover_url.endswith("1000x1000bb.jpg")  # bumped from 100px
 
 
-def test_best_recording_no_match():
-    rec, score = svc._best_recording({"results": []})
-    assert rec is None
-    assert score == 0.0
-
-
-# --- album ranking heuristic ----------------------------------------------
-
-def test_album_options_studio_first_oldest_first(monkeypatch):
-    years = {"old": "1980", "new": "2010", "comp": "1995"}
-    monkeypatch.setattr(svc, "_release_group_year", lambda rgid: years.get(rgid))
-
-    groups = [
-        {"id": "new", "title": "New Album", "type": "Album", "secondarytypes": []},
-        {"id": "comp", "title": "Greatest Hits", "type": "Album",
-         "secondarytypes": ["Compilation"]},
-        {"id": "old", "title": "Debut", "type": "Album", "secondarytypes": []},
-    ]
-    options = svc._album_options(groups)
-
-    # Plain studio albums first, oldest first.
-    assert options[0].title == "Debut"
-    assert options[0].year == "1980"
-    assert options[0].is_studio_album is True
-    assert options[1].title == "New Album"
-    # The compilation is included but flagged non-studio (and ranked after).
-    comp = next(o for o in options if o.title == "Greatest Hits")
-    assert comp.is_studio_album is False
-    assert options.index(comp) > 1
-
-
-def test_album_options_empty():
-    assert svc._album_options([]) == []
-
-
-# --- small helpers ---------------------------------------------------------
-
-def test_helpers():
-    assert svc._join_artists([{"name": "A"}, {"name": "B"}, {}]) == "A, B"
-    assert svc._credit_name([{"artist": {"name": "X"}}, " feat. ",
-                             {"artist": {"name": "Y"}}]) == "X feat. Y"
-    assert svc._int_or_zero("42") == 42
-    assert svc._int_or_zero(None) == 0
-    assert svc._int_or_zero("nope") == 0
-    assert svc._cover_url("abc").endswith("/release-group/abc/front")
+def test_itunes_search_empty_term_skips_network():
+    # No term → returns [] without touching the network.
+    assert svc._itunes_search("", "") == []
 
 
 # --- tag writing round-trip (per format) ----------------------------------
@@ -101,7 +111,7 @@ def test_write_and_reread_tags(tmp_path, ext):
             "date": "1999", "tracknumber": 3}
 
     embedded = svc._write_tags(path, tags, FAKE_COVER)
-    assert embedded is True  # mp3/m4a/flac all support cover art
+    assert embedded is True
 
     reread = mutagen.File(str(path), easy=True)
     assert reread["title"][0] == "Title"
@@ -117,6 +127,5 @@ def test_write_without_cover(tmp_path):
          "-i", "anullsrc=r=44100:cl=mono", "-t", "1", str(path)],
         check=True,
     )
-    embedded = svc._write_tags(path, {"title": "Only Title"}, None)
-    assert embedded is False
+    assert svc._write_tags(path, {"title": "Only Title"}, None) is False
     assert mutagen.File(str(path), easy=True)["title"][0] == "Only Title"

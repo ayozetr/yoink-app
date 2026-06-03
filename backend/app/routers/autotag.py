@@ -1,8 +1,8 @@
-"""`/api/autotag` — audio auto-tagging (AcoustID + MusicBrainz).
+"""`/api/autotag` — audio auto-tagging via the Apple Music (iTunes) catalogue.
 
-identify → (the user reviews/edits/picks in the UI) → apply. The endpoints are
-plain `def` so FastAPI runs the blocking fingerprint/network work in a thread.
-File paths are constrained to the download directory (SSRF/path guard).
+identify/search → (the user picks a version + edits in the UI) → apply. The
+endpoints are plain `def` so FastAPI runs the blocking network/file work in a
+thread. File paths are confined to the download directory (path guard).
 """
 
 from __future__ import annotations
@@ -15,10 +15,9 @@ from app.core.config import settings
 from app.models.autotag import (
     ApplyRequest,
     ApplyResponse,
+    CandidateList,
     IdentifyRequest,
-    IdentifyResponse,
     SearchRequest,
-    SearchResponse,
 )
 from app.services.autotag_service import AutotagError, apply, identify, search
 
@@ -46,8 +45,8 @@ def _validate_audio_path(path_str: str) -> Path:
     return resolved
 
 
-@router.post("/identify", response_model=IdentifyResponse, summary="Identify a song")
-def identify_endpoint(request: IdentifyRequest) -> IdentifyResponse:
+@router.post("/identify", response_model=CandidateList, summary="Match a file")
+def identify_endpoint(request: IdentifyRequest) -> CandidateList:
     path = _validate_audio_path(request.path)
     try:
         return identify(path)
@@ -57,8 +56,8 @@ def identify_endpoint(request: IdentifyRequest) -> IdentifyResponse:
         ) from exc
 
 
-@router.post("/search", response_model=SearchResponse, summary="Manual MusicBrainz search")
-def search_endpoint(request: SearchRequest) -> SearchResponse:
+@router.post("/search", response_model=CandidateList, summary="Manual catalogue search")
+def search_endpoint(request: SearchRequest) -> CandidateList:
     try:
         return search(request.artist, request.title)
     except AutotagError as exc:

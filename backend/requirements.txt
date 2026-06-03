@@ -7,8 +7,6 @@ uvicorn[standard]>=0.30,<1.0
 yt-dlp[default,curl-cffi]>=2024.0
 pydantic>=2.7,<3.0
 pydantic-settings>=2.2,<3.0
-# Audio auto-tagging: acoustic-fingerprint lookup (AcoustID, via the bundled
-# fpcalc/Chromaprint binary) + music metadata (MusicBrainz). mutagen — used to
-# write the tags + cover art — is already pulled in by yt-dlp[default].
-pyacoustid>=1.3,<2.0
-musicbrainzngs>=0.7,<1.0
+# Audio auto-tagging looks up metadata + cover art on the Apple Music (iTunes)
+# catalogue over plain HTTPS (stdlib urllib) and writes the tags with mutagen,
+# which already ships with yt-dlp[default]. No extra dependencies needed.
