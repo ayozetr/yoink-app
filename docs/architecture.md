@@ -64,7 +64,8 @@ When the user clicks **Download**:
 ### 3. Audio auto-tagging — REST (implemented)
 
 After an audio download (single or playlist), the UI offers to tag the file(s)
-from the user-selected catalogue — Apple Music (iTunes Search API) or Deezer,
+from the user-selected catalogue — Apple Music (iTunes Search API), Deezer or
+MusicBrainz (with cover art from the Cover Art Archive),
 both free, key-less and over plain HTTPS via stdlib `urllib` (`autotag_source` in
 Settings). The flow is **identify/search → user picks a version and edits →
 apply**; nothing is written to the file until **Apply**.

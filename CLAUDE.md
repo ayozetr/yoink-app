@@ -34,7 +34,8 @@ Two layers communicating asynchronously:
   ETA) → terminal `completed`/`error` — back over the same socket to animate the
   progress bar.
 - **Audio auto-tagging (REST):** after an audio download the frontend looks the
-  file up in the Apple Music **or Deezer** catalogue (chosen in Settings via
+  file up in the Apple Music, Deezer **or MusicBrainz** catalogue (chosen in
+  Settings via
   `autotag_source`) and writes tags + cover art via
   `POST /api/autotag/{identify,search,apply}` — nothing is written until `apply`.
 

@@ -18,7 +18,7 @@ VideoContainer = Literal["mp4", "mov", "mkv"]
 # Output formats for an audio-only download. mp3/m4a are lossy; flac/wav are
 # lossless and only meaningful when the source itself is lossless.
 AudioFormat = Literal["mp3", "m4a", "flac", "wav"]
-AutotagSource = Literal["apple", "deezer"]
+AutotagSource = Literal["apple", "deezer", "musicbrainz"]
 
 
 class InfoRequest(BaseModel):

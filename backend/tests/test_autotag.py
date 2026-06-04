@@ -1,4 +1,4 @@
-"""Tests for the audio auto-tagging service (Apple Music / iTunes + Deezer).
+"""Tests for the audio auto-tagging service (Apple Music / iTunes, Deezer, MusicBrainz).
 
 The catalogue HTTP calls are mocked (no network); we test the filename parsing,
 the per-source response mapping, the source dispatch, and the per-format tag
@@ -141,15 +141,55 @@ def test_deezer_search_empty_term_skips_network():
     assert svc._deezer_search("", "") == []
 
 
+# --- MusicBrainz response mapping (mocked) ---------------------------------
+
+def test_musicbrainz_search_maps_results(monkeypatch):
+    payload = {
+        "recordings": [
+            {
+                "title": "DISOCIANDO",
+                "artist-credit": [
+                    {"name": "Los Diozes", "joinphrase": " & "},
+                    {"name": "Orslok"},
+                ],
+                "releases": [
+                    {
+                        "id": "a5eb9479-c94d-4191-83dd-929b6c89ef5e",
+                        "title": "MESÓN MASÓN",
+                        "date": "2026-05-26",
+                    }
+                ],
+            }
+        ]
+    }
+    monkeypatch.setattr(svc, "urlopen", lambda *a, **k: _FakeResponse(payload))
+    results = svc._musicbrainz_search("Los Diozes", "DISOCIANDO")
+
+    assert len(results) == 1
+    c = results[0]
+    assert c.title == "DISOCIANDO"
+    assert c.artist == "Los Diozes & Orslok"  # artist-credit joined via joinphrase
+    assert c.album == "MESÓN MASÓN"
+    assert c.year == "2026"
+    assert c.cover_url.endswith("/a5eb9479-c94d-4191-83dd-929b6c89ef5e/front-500")
+
+
+def test_musicbrainz_search_empty_term_skips_network():
+    assert svc._musicbrainz_search("", "") == []
+
+
 # --- source dispatch -------------------------------------------------------
 
 def test_search_dispatches_on_source(monkeypatch):
     monkeypatch.setattr(svc, "_itunes_search", lambda *a: ["apple"])
     monkeypatch.setattr(svc, "_deezer_search", lambda *a: ["deezer"])
+    monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a: ["mb"])
     monkeypatch.setattr(svc.settings, "autotag_source", "apple")
     assert svc._search("a", "b") == ["apple"]
     monkeypatch.setattr(svc.settings, "autotag_source", "deezer")
     assert svc._search("a", "b") == ["deezer"]
+    monkeypatch.setattr(svc.settings, "autotag_source", "musicbrainz")
+    assert svc._search("a", "b") == ["mb"]
 
 
 # --- tag writing round-trip (per format) ----------------------------------

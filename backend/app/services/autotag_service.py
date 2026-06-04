@@ -1,13 +1,14 @@
-"""Audio auto-tagging via the Apple Music (iTunes) or Deezer catalogue.
+"""Audio auto-tagging via Apple Music (iTunes), Deezer or MusicBrainz.
 
 `identify()` searches the catalogue for the file's "Artist - Title" (parsed from
 its filename); `search()` is the manual version. Neither writes anything —
 `apply()` writes the chosen tags + cover into the file with mutagen.
 
-The catalogue source is user-selectable (`settings.autotag_source`): Apple Music
-(the iTunes Search API) or Deezer — both free and key-less. Apple returns the
-single / EP / album versions of a song, each with its own cover; Deezer's search
-index reaches recent or niche releases the iTunes Search API hasn't indexed yet.
+The catalogue source is user-selectable (`settings.autotag_source`), all free and
+key-less: Apple Music (iTunes Search API), Deezer, or MusicBrainz (with cover art
+from the Cover Art Archive). Deezer and MusicBrainz reach recent or niche
+releases the iTunes Search API hasn't indexed yet; MusicBrainz is rate-limited to
+~1 request/second, so it's slower for large playlist batches.
 """
 
 from __future__ import annotations
@@ -36,6 +37,8 @@ from app.models.autotag import (
 _USER_AGENT = f"Yoink/{settings.app_version} (https://github.com/ayozetr/yoink-app)"
 _ITUNES_URL = "https://itunes.apple.com/search"
 _DEEZER_URL = "https://api.deezer.com/search"
+_MUSICBRAINZ_URL = "https://musicbrainz.org/ws/2/recording"
+_COVERART_URL = "https://coverartarchive.org/release"
 
 
 class AutotagError(RuntimeError):
@@ -57,9 +60,12 @@ def search(artist: str, title: str) -> CandidateList:
 
 
 def _search(artist: str, title: str) -> list[TagCandidate]:
-    """Search the user-selected catalogue (Apple Music or Deezer)."""
-    if settings.autotag_source == "deezer":
+    """Search the user-selected catalogue (Apple Music, Deezer or MusicBrainz)."""
+    source = settings.autotag_source
+    if source == "deezer":
         return _deezer_search(artist, title)
+    if source == "musicbrainz":
+        return _musicbrainz_search(artist, title)
     return _itunes_search(artist, title)
 
 
@@ -122,6 +128,51 @@ def _deezer_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate
                 year=None,
                 track_number=None,
                 cover_url=album.get("cover_xl") or album.get("cover_big") or None,
+            )
+        )
+    return candidates
+
+
+def _mb_escape(value: str) -> str:
+    """Escape Lucene specials so the query value matches literally."""
+    return re.sub(r'(["\\])', r"\\\1", value)
+
+
+def _musicbrainz_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
+    if not title.strip():
+        return []
+    # Lucene query; quote the values so multi-word names match as phrases.
+    terms = [f'recording:"{_mb_escape(title)}"']
+    if artist.strip():
+        terms.insert(0, f'artist:"{_mb_escape(artist)}"')
+    query = urlencode({"query": " AND ".join(terms), "fmt": "json", "limit": limit})
+    try:
+        request = Request(  # noqa: S310 — fixed https host
+            f"{_MUSICBRAINZ_URL}?{query}", headers={"User-Agent": _USER_AGENT}
+        )
+        with urlopen(request, timeout=15) as response:  # noqa: S310
+            data = json.loads(response.read())
+    except (URLError, OSError, ValueError) as exc:
+        raise AutotagError(f"MusicBrainz search failed: {exc}") from exc
+
+    candidates: list[TagCandidate] = []
+    for rec in data.get("recordings", []):
+        credit = rec.get("artist-credit") or []
+        name = "".join(c.get("name", "") + (c.get("joinphrase") or "") for c in credit)
+        release = (rec.get("releases") or [{}])[0]
+        mbid = release.get("id")
+        date = release.get("date") or ""
+        candidates.append(
+            TagCandidate(
+                title=rec.get("title", ""),
+                artist=name,
+                album=release.get("title") or None,
+                year=(date[:4] or None),
+                track_number=None,
+                # Cover Art Archive serves the front cover by release MBID — it
+                # 307-redirects to the image, or 404s when there's none (the UI
+                # then falls back to a placeholder).
+                cover_url=f"{_COVERART_URL}/{mbid}/front-500" if mbid else None,
             )
         )
     return candidates

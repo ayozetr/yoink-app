@@ -110,8 +110,9 @@ export const es = {
     autotagSource: "Fuente de etiquetado",
     autotagApple: "Apple Music",
     autotagDeezer: "Deezer",
+    autotagMusicbrainz: "MusicBrainz",
     autotagHint:
-      "Deezer suele encontrar temas recientes o de nicho que la búsqueda de Apple Music no.",
+      "Deezer y MusicBrainz suelen encontrar temas recientes o de nicho que Apple Music no; MusicBrainz va más lento en playlists grandes.",
     language: "Idioma",
     langSystem: "Sistema",
     cookiesHint:

@@ -25,7 +25,7 @@ backend/
 │   └── services/
 │       ├── ytdlp_service.py    # typed yt-dlp metadata wrapper (extract_info, download=False)
 │       ├── download_service.py # yt-dlp download + typed progress stream
-│       ├── autotag_service.py  # Apple Music (iTunes) / Deezer lookup + mutagen tag/cover writing
+│       ├── autotag_service.py  # Apple Music (iTunes) / Deezer / MusicBrainz lookup + mutagen tag/cover writing
 │       ├── history_store.py    # SQLite persistence (history + stats)
 │       ├── settings_store.py   # persisted user settings overrides
 │       └── updates.py          # GitHub release update check
@@ -124,7 +124,8 @@ Response (`VideoInfo`, abridged):
 ### `POST /api/autotag/identify` · `/search` · `/apply`
 
 Audio auto-tagging against the user-selected catalogue — Apple Music (iTunes
-Search API) or Deezer, both free and key-less (`settings.autotag_source`):
+Search API), Deezer, or MusicBrainz (cover art via the Cover Art Archive); all
+free and key-less (`settings.autotag_source`):
 
 - `identify` (`{ "path": … }`) and `search` (`{ "artist": …, "title": … }`)
   both return a `CandidateList` of matches.

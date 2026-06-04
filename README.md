@@ -39,9 +39,10 @@ It is split into two layers that communicate asynchronously:
 - **Playlists** — pick which items to download with checkboxes; they download
   sequentially with "X of N" progress.
 - **Audio auto-tagging** — after an audio download, an inline card tags the file
-  with real artist / album / title / year + **cover art** from **Apple Music or
-  Deezer** (free, no account; pick the source in Settings); you review, edit or
-  search before anything is written. Works per song and across whole playlists.
+  with real artist / album / title / year + **cover art** from **Apple Music,
+  Deezer or MusicBrainz** (free, no account; pick the source in Settings); you
+  review, edit or search before anything is written. Works per song and across
+  whole playlists.
 - **History & stats** persisted locally (SQLite), with open-folder and clear.
 - **Settings** — download folder (native folder picker), default format/quality,
   **language**, and cookies (browser or `cookies.txt`) for sign-in-only content.

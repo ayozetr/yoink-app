@@ -214,6 +214,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               options={[
                 { value: "apple", label: t("settings.autotagApple") },
                 { value: "deezer", label: t("settings.autotagDeezer") },
+                { value: "musicbrainz", label: t("settings.autotagMusicbrainz") },
               ]}
               className={`${INPUT_CLASS} w-full`}
             />
