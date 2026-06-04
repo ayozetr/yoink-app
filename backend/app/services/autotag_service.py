@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 import mutagen
@@ -265,8 +265,12 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
 
 def _fetch_cover(url: str) -> tuple[bytes, str] | None:
     """Download cover art bytes + content-type (None on any failure)."""
+    # Only http(s): urlopen also honors file:// / ftp://, so an attacker-supplied
+    # cover_url could otherwise read a local file or hit an internal host (SSRF).
+    if urlparse(url).scheme not in ("https", "http"):
+        return None
     try:
-        request = Request(url, headers={"User-Agent": _USER_AGENT})  # noqa: S310 — https art url
+        request = Request(url, headers={"User-Agent": _USER_AGENT})  # noqa: S310 — http(s) art url
         with urlopen(request, timeout=15) as resp:  # noqa: S310
             data = resp.read()
             return data, (resp.headers.get_content_type() or "image/jpeg")

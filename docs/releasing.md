@@ -339,13 +339,13 @@ WebView2/Chromium on Windows (origin `http://tauri.localhost`). Several things
 work in dev but break in the packaged app — these all bit us once. Build with
 devtools (below) and check the console first.
 
-### CORS — allow any origin (it's a local backend)
+### CORS — scoped to local origins
 The webview origin differs per platform: `tauri://localhost` (Linux/macOS) and
-`http://tauri.localhost` (Windows — note `http`, not `https`). Rather than chase
-each scheme, the backend (`main.py`) allows **any** origin
-(`allow_origins=["*"]`, no credentials) since it only ever listens on localhost.
-If a request is blocked the backend returns 200 but the webview drops it, so the
-UI silently has no data (Settings won't open). Devtools symptom:
+`http://tauri.localhost` (Windows — note `http`, not `https`). `main.py` allows
+those plus the dev server via an `allow_origin_regex` (`config.cors_origin_regex`),
+not a blanket `*`, so a random web page open in a browser can't reach the local
+API. If you change the webview origin (e.g. enabling https on Windows) update the
+regex, or the UI silently gets no data (Settings won't open). Devtools symptom:
 `... is not allowed by Access-Control-Allow-Origin`.
 
 ### Backend port — avoid 8000

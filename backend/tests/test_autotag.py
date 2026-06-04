@@ -235,6 +235,12 @@ def test_apply_invalid_audio_file_raises_autotag_error(tmp_path):
         svc.apply(ApplyRequest(path=str(bad), title="X"), bad)
 
 
+def test_fetch_cover_rejects_non_http_schemes():
+    # urlopen honors file:///ftp://; the guard must block them (SSRF / file read).
+    assert svc._fetch_cover("file:///etc/passwd") is None
+    assert svc._fetch_cover("ftp://internal-host/secret") is None
+
+
 # --- tag writing round-trip (per format) ----------------------------------
 
 @pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")

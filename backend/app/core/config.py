@@ -41,16 +41,14 @@ class Settings(BaseSettings):
     # GitHub repo used to check for newer releases (owner/name).
     github_repo: str = "ayozetr/yoink-app"
 
-    # Origins allowed to call the API: the local Vite dev server plus the
-    # Tauri webview origins (tauri://localhost on Linux/macOS,
-    # https://tauri.localhost on Windows).
-    cors_origins: list[str] = Field(
-        default_factory=lambda: [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "tauri://localhost",
-            "https://tauri.localhost",
-        ]
+    # Origins allowed to call the API: the local Vite dev server (any port) and
+    # the Tauri webview, whose origin scheme is per-platform — tauri://localhost
+    # on Linux/macOS, http://tauri.localhost on Windows (WebView2). A regex keeps
+    # the local API closed to remote web pages without breaking any local origin.
+    cors_origin_regex: str = (
+        r"^(tauri://localhost"
+        r"|https?://tauri\.localhost"
+        r"|https?://(localhost|127\.0\.0\.1)(:\d+)?)$"
     )
 
     # Where downloaded media is written. Kept as a pathlib.Path for OS-agnostic
