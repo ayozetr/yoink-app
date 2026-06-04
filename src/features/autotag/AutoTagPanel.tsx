@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, Check, Loader2, Music4, Search, X } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  Loader2,
+  Music4,
+  Search,
+} from "lucide-react";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { Thumbnail } from "../../components/ui/Thumbnail";
@@ -52,8 +59,10 @@ function guessFromFilename(name?: string): { artist: string; title: string } {
  */
 export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("loading");
   const [error, setError] = useState<string | null>(null);
+  const startedRef = useRef(false);
 
   const [results, setResults] = useState<TagCandidate[]>([]);
   const [selected, setSelected] = useState(-1);
@@ -88,10 +97,10 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
     [selectVersion],
   );
 
-  // Look up on mount.
-  useEffect(() => {
-    const controller = new AbortController();
-    identifyAudio(path, controller.signal)
+  // Look up the catalogue the first time the card is opened (not on mount, so
+  // we don't hit Apple Music unless the user actually wants to tag).
+  const runIdentify = useCallback(() => {
+    identifyAudio(path)
       .then((data) => {
         if (data.results.length > 0) {
           showResults(data.results);
@@ -107,12 +116,18 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
         setStage("review");
       })
       .catch((cause) => {
-        if (cause instanceof DOMException && cause.name === "AbortError") return;
         setError(cause instanceof ApiError ? cause.message : t("autotag.error"));
         setStage("error");
       });
-    return () => controller.abort();
   }, [path, filename, t, showResults]);
+
+  const toggleOpen = () => {
+    if (!open && !startedRef.current) {
+      startedRef.current = true;
+      runIdentify();
+    }
+    setOpen((v) => !v);
+  };
 
   const runSearch = async () => {
     if (!searchTitle.trim()) return;
@@ -157,23 +172,27 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
 
   return (
     <GlassPanel className="p-5">
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-semibold flex items-center gap-2 text-zinc-200">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between text-sm font-semibold text-zinc-200 hover:text-white transition"
+      >
+        <span className="flex items-center gap-2">
           <Music4 size={16} className="text-violet-400" />
           {t("autotag.title")}
-        </h3>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="text-zinc-400 hover:text-white transition"
-          aria-label={t("autotag.dismiss")}
-        >
-          <X size={16} />
-        </button>
-      </div>
-      {filename && (
-        <p className="text-xs text-zinc-500 mb-3 truncate">{filename}</p>
-      )}
+        </span>
+        <ChevronDown
+          size={18}
+          className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="mt-3">
+          {filename && (
+            <p className="text-xs text-zinc-500 mb-3 truncate">{filename}</p>
+          )}
 
       {stage === "loading" && (
         <div className="py-6 flex items-center gap-3 text-zinc-400">
@@ -367,6 +386,8 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
             </Button>
           </div>
         </>
+      )}
+        </div>
       )}
     </GlassPanel>
   );

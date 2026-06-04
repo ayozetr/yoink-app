@@ -34,3 +34,16 @@ textarea,
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Hidden scrollbars for a native-app feel — scrolling (wheel / touchpad / keys)
+   still works, there's just no visible bar. Covers the dev browser, the Linux
+   WebKitGTK webview and the Windows WebView2 (Chromium). */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Standards version (modern WebKitGTK / Firefox). */
+* {
+  scrollbar-width: none;
+}
