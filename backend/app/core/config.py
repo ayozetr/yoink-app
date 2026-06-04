@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     default_quality: str = "1080p"
 
     # Catalogue used by the audio auto-tagger ("auto" = cascade through all).
-    autotag_source: Literal["auto", "apple", "deezer", "musicbrainz"] = "apple"
+    autotag_source: Literal["auto", "apple", "deezer", "musicbrainz"] = "auto"
 
     def ensure_download_dir(self) -> Path:
         """Create the download directory if missing and return it."""

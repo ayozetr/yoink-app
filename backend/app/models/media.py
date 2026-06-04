@@ -225,7 +225,7 @@ class AppSettings(BaseModel):
         default=None, description="Path to a Netscape cookies.txt file."
     )
     autotag_source: AutotagSource = Field(
-        default="apple", description="Catalogue for audio auto-tagging."
+        default="auto", description="Catalogue for audio auto-tagging."
     )
 
 
