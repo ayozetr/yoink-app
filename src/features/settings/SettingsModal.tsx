@@ -16,7 +16,7 @@ import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
 import { updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
-import { pickDirectory } from "../../lib/pickDirectory";
+import { pickDirectory, pickFile } from "../../lib/pickDirectory";
 import {
   checkForUpdate,
   installUpdate,
@@ -55,6 +55,13 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   const pickFolder = async () => {
     const dir = await pickDirectory(form.download_dir);
     if (dir) set("download_dir", dir);
+  };
+
+  const pickCookiesFile = async () => {
+    const file = await pickFile(form.cookies_file ?? undefined, [
+      { name: "cookies.txt", extensions: ["txt"] },
+    ]);
+    if (file) set("cookies_file", file);
   };
 
   const changeLanguage = (value: string) => {
@@ -214,14 +221,25 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             />
           </Field>
           <Field label={t("settings.cookiesFile")} hint={<CookiesHelp />}>
-            <input
-              type="text"
-              aria-label={t("settings.cookiesFile")}
-              value={form.cookies_file ?? ""}
-              placeholder={t("settings.cookiesFilePlaceholder")}
-              onChange={(e) => set("cookies_file", e.target.value)}
-              className={INPUT_CLASS}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                aria-label={t("settings.cookiesFile")}
+                value={form.cookies_file ?? ""}
+                placeholder={t("settings.cookiesFilePlaceholder")}
+                onChange={(e) => set("cookies_file", e.target.value)}
+                className={`${INPUT_CLASS} w-full pr-11`}
+              />
+              <button
+                type="button"
+                onClick={pickCookiesFile}
+                aria-label={t("settings.browse")}
+                title={t("settings.browse")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+              >
+                <FolderOpen size={18} />
+              </button>
+            </div>
           </Field>
         </div>
 
