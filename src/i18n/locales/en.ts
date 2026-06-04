@@ -127,6 +127,12 @@ export const en = {
     cookiesBrowser: "Browser for cookies",
     cookiesBrowserNone: "None",
     cookiesBrowserNote: "If your browser isn't listed, use the alternative method.",
+    cookiesBrowserHelpIntro:
+      "Yoink reads your logged-in session cookies straight from the browser.",
+    cookiesBrowserHelpClosed:
+      "Close the browser before downloading — Chrome, Edge and Brave lock their cookie database while open, so the read can fail.",
+    cookiesBrowserHelpLogin:
+      "You must be signed in to the site in that browser for its cookies to work.",
     cookiesBrowserPlaceholder: "empty = disabled",
     cookiesFile: "cookies.txt file (alternative method)",
     cookiesFilePlaceholder: "/path/cookies.txt",

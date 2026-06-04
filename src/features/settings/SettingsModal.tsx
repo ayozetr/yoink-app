@@ -243,7 +243,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             {t("settings.cookiesHint")}
           </p>
 
-          <Field label={t("settings.cookiesBrowser")}>
+          <Field label={t("settings.cookiesBrowser")} hint={<BrowserCookiesHelp />}>
             <Select
               ariaLabel={t("settings.cookiesBrowser")}
               value={form.cookies_from_browser ?? ""}
@@ -449,8 +449,9 @@ const COOKIES_EXT_CHROMIUM =
 const COOKIES_EXT_FIREFOX =
   "https://addons.mozilla.org/es-ES/firefox/addon/get-cookies-txt-locally/";
 
-/** A "?" button that reveals how to generate a cookies.txt with the browser extension. */
-function CookiesHelp() {
+/** A "?" button that reveals `children` in a popover, anchored with `fixed` so
+ *  the modal's overflow can't clip it. */
+function HelpPopover({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -458,7 +459,6 @@ function CookiesHelp() {
   const popRef = useRef<HTMLDivElement>(null);
   const WIDTH = 288; // w-72
 
-  // Anchor the popover with `fixed` so the modal's overflow can't clip it.
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
@@ -505,25 +505,49 @@ function CookiesHelp() {
           style={{ position: "fixed", top: pos.top, left: pos.left, width: WIDTH }}
           className="z-[200] rounded-lg border border-white/10 bg-[#1a1d27] p-3 text-xs leading-relaxed text-zinc-300 shadow-xl"
         >
-          {t("settings.cookiesHelpText")}
-          <div className="mt-2 flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={() => void openExternal(COOKIES_EXT_CHROMIUM)}
-              className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
-            >
-              {t("settings.cookiesHelpChromium")}
-            </button>
-            <button
-              type="button"
-              onClick={() => void openExternal(COOKIES_EXT_FIREFOX)}
-              className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
-            >
-              {t("settings.cookiesHelpFirefox")}
-            </button>
-          </div>
+          {children}
         </div>
       )}
     </>
+  );
+}
+
+/** "?" help for the cookies.txt file field — how to generate it. */
+function CookiesHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover>
+      {t("settings.cookiesHelpText")}
+      <div className="mt-2 flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => void openExternal(COOKIES_EXT_CHROMIUM)}
+          className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
+        >
+          {t("settings.cookiesHelpChromium")}
+        </button>
+        <button
+          type="button"
+          onClick={() => void openExternal(COOKIES_EXT_FIREFOX)}
+          className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
+        >
+          {t("settings.cookiesHelpFirefox")}
+        </button>
+      </div>
+    </HelpPopover>
+  );
+}
+
+/** "?" help for the browser cookies field — caveats for reading them. */
+function BrowserCookiesHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover>
+      {t("settings.cookiesBrowserHelpIntro")}
+      <ul className="mt-2 list-disc space-y-1 pl-4">
+        <li>{t("settings.cookiesBrowserHelpClosed")}</li>
+        <li>{t("settings.cookiesBrowserHelpLogin")}</li>
+      </ul>
+    </HelpPopover>
   );
 }

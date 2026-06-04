@@ -127,6 +127,12 @@ export const es = {
     cookiesBrowser: "Navegador para cookies",
     cookiesBrowserNone: "Ninguno",
     cookiesBrowserNote: "Si tu navegador no está en la lista, usa el método alternativo.",
+    cookiesBrowserHelpIntro:
+      "Yoink lee las cookies de tu sesión directamente del navegador.",
+    cookiesBrowserHelpClosed:
+      "Cierra el navegador antes de descargar: Chrome, Edge y Brave bloquean su base de datos de cookies mientras están abiertos y la lectura puede fallar.",
+    cookiesBrowserHelpLogin:
+      "Debes tener la sesión iniciada en esa web en ese navegador para que sus cookies sirvan.",
     cookiesBrowserPlaceholder: "vacío = desactivado",
     cookiesFile: "Archivo cookies.txt (método alternativo)",
     cookiesFilePlaceholder: "/ruta/cookies.txt",
