@@ -102,6 +102,9 @@ export interface PlaylistInfo {
   entry_count: number;
   entries: PlaylistEntry[];
   truncated: boolean;
+  /** Probed from the first entry (assumes a homogeneous playlist). */
+  source_lossless: boolean;
+  best_audio_abr: number | null;
 }
 
 /** Unified `/api/info` result: a single video or a playlist. */

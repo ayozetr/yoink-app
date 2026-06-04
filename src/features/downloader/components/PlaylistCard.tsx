@@ -71,10 +71,15 @@ export function PlaylistCard({
   const showSubtitles = isVideo && container === "mkv";
   // A flat playlist has no per-item audio_langs, so gate the toggle on MKV only.
   const showMultiAudio = isVideo && container === "mkv";
-  // A flat playlist has no per-item lossless info, so FLAC/WAV are offered with
-  // a generic note rather than gated.
-  const showLosslessNote =
-    !isVideo && AUDIO_FORMATS.find((o) => o.value === audioFormat)?.lossless;
+  // Probed from the first entry (assumes a homogeneous playlist): gate FLAC/WAV
+  // like a single video.
+  const losslessAllowed = playlist.source_lossless;
+  const effectiveAudioFormat: AudioFormat =
+    !losslessAllowed &&
+    AUDIO_FORMATS.find((o) => o.value === audioFormat)?.lossless
+      ? DEFAULT_AUDIO_FORMAT
+      : audioFormat;
+  const showLosslessWarning = !isVideo && !losslessAllowed;
   const allSelected = selected.size === playlist.entries.length;
 
   const toggle = (id: string) => {
@@ -99,7 +104,7 @@ export function PlaylistCard({
       kind,
       quality: isVideo ? quality : undefined,
       container: isVideo ? container : undefined,
-      audio_format: isVideo ? undefined : audioFormat,
+      audio_format: isVideo ? undefined : effectiveAudioFormat,
       embed_subs: showSubtitles ? embedSubs : undefined,
       subtitle_lang: showSubtitles && embedSubs ? subtitle : undefined,
       embed_chapters: isVideo ? embedChapters : undefined,
@@ -169,21 +174,22 @@ export function PlaylistCard({
           ) : (
             <Select
               ariaLabel={t("preview.audioFormat")}
-              value={audioFormat}
+              value={effectiveAudioFormat}
               onChange={(v) => setAudioFormat(v as AudioFormat)}
               options={AUDIO_FORMATS.map((option) => ({
                 value: option.value,
                 label: option.label,
+                disabled: option.lossless && !losslessAllowed,
               }))}
               className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm md:col-span-2"
             />
           )}
         </div>
 
-        {showLosslessNote && (
+        {showLosslessWarning && (
           <p className="flex items-center gap-2 text-xs text-zinc-400">
             <Info size={14} className="shrink-0" />
-            {t("playlist.losslessNote")}
+            {t("preview.losslessWarning")}
           </p>
         )}
 

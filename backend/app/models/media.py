@@ -106,6 +106,15 @@ class PlaylistInfo(BaseModel):
     truncated: bool = Field(
         default=False, description="True if entries were capped below entry_count."
     )
+    # Probed from the first entry (playlists are flat, so this assumes the list
+    # is homogeneous in source quality) to gate FLAC/WAV like a single video.
+    source_lossless: bool = Field(
+        default=False,
+        description="Whether the first entry's best audio source is lossless.",
+    )
+    best_audio_abr: float | None = Field(
+        default=None, description="Best audio bitrate (kbps) of the first entry."
+    )
 
 
 class InfoResponse(BaseModel):
