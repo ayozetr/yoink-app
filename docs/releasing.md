@@ -142,19 +142,35 @@ with the updater private key** and the release ships a `latest.json`. The public
 key lives in `tauri.conf.json` (`plugins.updater.pubkey`); `bundle.createUpdaterArtifacts`
 is on, so a signed build emits a `.sig` next to each bundle.
 
-**Sign every platform's build** by exporting the key before `npm run tauri build`
-(set the same on Windows in PowerShell with `$env:`):
+**Linux — sign at build time** by exporting the key before `npm run tauri build`:
 
 ```bash
-export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yoink.key)"   # or the file path
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="<the key password>"
-# then the normal build (Linux):
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yoink.key)"      # path or contents
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat ~/.tauri/pass)"  # a temp file — never inline the password
 APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 npm run tauri build
 ```
 
-This produces a `.sig` file next to each bundle (`…/Yoink_<ver>_amd64.AppImage.sig`,
-the Windows `…_x64-setup.exe.sig` / `.msi.sig`, etc.). Each `.sig` holds one
-base64 signature string.
+This emits a `.sig` next to each bundle (`…/Yoink_<ver>_amd64.AppImage.sig`). Each
+`.sig` holds one base64 signature string.
+
+**Windows — sign locally, never on the build VM.** The signing key must not leave
+your machine, so the Windows installers are built **unsigned** on the VM
+(`createUpdaterArtifacts: false` there — see [Windows builds](#windows-builds))
+and then signed **here** with `tauri signer sign`, which signs an already-built
+file without rebuilding. Copy the `.msi`/`-setup.exe` back from the VM, then:
+
+```bash
+npx tauri signer sign --private-key "$(cat ~/.tauri/yoink.key)" \
+  --password "$(cat ~/.tauri/pass)" /path/to/Yoink_<ver>_x64-setup.exe
+```
+
+That writes `Yoink_<ver>_x64-setup.exe.sig` beside the installer. The updater
+self-installs from the NSIS `-setup.exe`, so that's the one that must be signed.
+
+> The password lives **temporarily** in `~/.tauri/pass` (`printf %s 'PW' >
+> ~/.tauri/pass`) so it never appears inline in a command or shell history; delete
+> it after the release with `shred -u ~/.tauri/pass`. The key (`~/.tauri/yoink.key`)
+> and password stay out of the repo, CI and the VM — always.
 
 **Build `latest.json` from those signatures** — the CLI does not reliably emit
 it, so assemble it by hand. It maps each updater target to its installer URL and
@@ -216,6 +232,28 @@ Output: `Yoink_<ver>_x64_en-US.msi` (WiX) and `Yoink_<ver>_x64-setup.exe` (NSIS)
 The backend port (8756), CORS and ffmpeg bundling work the same. WebView2 is
 Chromium-based, so the WebKitGTK rendering quirks (blur ghosting) don't apply on
 Windows.
+
+**Driving the VM over SSH.** The shell is PowerShell, so chain with `;`. Sync the
+repo as a tarball (excluding `node_modules`/`.venv`/`target`/`vendor`/…) and
+extract it **over** the existing checkout to reuse the cached venv/node_modules/
+target — much faster; re-run `setup.py` only when deps change. SSH output can
+carry banner noise (OpenSSH/post-quantum notices) — filter it if scripting.
+
+**Build unsigned on the VM, sign locally.** The signing key must not touch the
+VM, so flip `createUpdaterArtifacts` to `false` in the VM's copy of
+`tauri.conf.json` before `npm run tauri build`, produce the `.msi`/`-setup.exe`
+**unsigned**, copy them back, and sign the `-setup.exe` here with `tauri signer
+sign` — see [§6](#6-signed-updater-artifacts-self-update). Minimal toggle script:
+
+```python
+# disable_updater.py  →  python disable_updater.py src-tauri/tauri.conf.json
+import sys
+p = sys.argv[1]
+c = open(p, encoding="utf-8").read()
+n = '"createUpdaterArtifacts": true'
+open(p, "w", encoding="utf-8").write(
+    c.replace(n, '"createUpdaterArtifacts": false')) if n in c else print("already off")
+```
 
 ---
 
