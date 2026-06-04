@@ -343,10 +343,9 @@ non-critical:
 
 **Hardening / quality**
 
-- ⬜ **TypeScript `strict`**. Enable `strict` (esp. `strictNullChecks`) in the
-  tsconfigs and fix the fallout — the frontend isn't as strict as the backend
-  against the JSON contract. *(Deferred: many compile errors to resolve; do it in
-  a dedicated pass.)*
+- ✅ **TypeScript `strict`** — enabled in both tsconfigs. The code already
+  satisfied it (zero fallout), so the frontend is now as strictly typed as the
+  backend against the JSON contract.
 - ✅ **Frontend unit tests** (Vitest) — `src/lib/` (API client, download socket)
   and the filename parser; run in CI.
 - ✅ **Autotag router tests** — `TestClient` tests for
