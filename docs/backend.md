@@ -125,7 +125,9 @@ Response (`VideoInfo`, abridged):
 
 Audio auto-tagging against the user-selected catalogue — Apple Music (iTunes
 Search API), Deezer, or MusicBrainz (cover art via the Cover Art Archive); all
-free and key-less (`settings.autotag_source`):
+free and key-less. `settings.autotag_source` picks one, or `auto` cascades
+Apple → Deezer → MusicBrainz and returns the first non-empty match (a source that
+errors is skipped):
 
 - `identify` (`{ "path": … }`) and `search` (`{ "artist": …, "title": … }`)
   both return a `CandidateList` of matches.

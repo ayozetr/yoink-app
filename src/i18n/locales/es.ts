@@ -108,9 +108,12 @@ export const es = {
     audio: "Audio",
     defaultQuality: "Calidad por defecto",
     autotagSource: "Fuente de etiquetado",
+    autotagAuto: "Automático",
     autotagApple: "Apple Music",
     autotagDeezer: "Deezer",
     autotagMusicbrainz: "MusicBrainz",
+    autotagHint_auto:
+      "Prueba Apple Music, luego Deezer y luego MusicBrainz hasta encontrar coincidencias.",
     autotagHint_apple:
       "Si el tema es muy reciente, puede que aún no esté indexado aquí.",
     autotagHint_deezer:

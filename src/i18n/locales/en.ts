@@ -108,9 +108,12 @@ export const en = {
     audio: "Audio",
     defaultQuality: "Default quality",
     autotagSource: "Tagging source",
+    autotagAuto: "Automatic",
     autotagApple: "Apple Music",
     autotagDeezer: "Deezer",
     autotagMusicbrainz: "MusicBrainz",
+    autotagHint_auto:
+      "Tries Apple Music, then Deezer, then MusicBrainz until it finds matches.",
     autotagHint_apple:
       "If the track is very recent, it might not be indexed here yet.",
     autotagHint_deezer:

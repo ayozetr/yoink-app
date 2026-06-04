@@ -34,10 +34,10 @@ Two layers communicating asynchronously:
   ETA) → terminal `completed`/`error` — back over the same socket to animate the
   progress bar.
 - **Audio auto-tagging (REST):** after an audio download the frontend looks the
-  file up in the Apple Music, Deezer **or MusicBrainz** catalogue (chosen in
-  Settings via
-  `autotag_source`) and writes tags + cover art via
-  `POST /api/autotag/{identify,search,apply}` — nothing is written until `apply`.
+  file up in the Apple Music, Deezer or MusicBrainz catalogue — or `auto`, which
+  cascades through them (Settings, `autotag_source`) — and writes tags + cover
+  art via `POST /api/autotag/{identify,search,apply}`; nothing is written until
+  `apply`.
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` (and `src/types/autotag.ts` ↔

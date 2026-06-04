@@ -176,7 +176,7 @@ export interface VersionInfo {
 }
 
 /** Catalogue used by the audio auto-tagger. */
-export type AutotagSource = "apple" | "deezer" | "musicbrainz";
+export type AutotagSource = "auto" | "apple" | "deezer" | "musicbrainz";
 
 /** User-editable settings (mirrors backend `AppSettings`). */
 export interface AppSettings {

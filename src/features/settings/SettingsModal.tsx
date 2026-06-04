@@ -212,6 +212,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               value={form.autotag_source}
               onChange={(v) => set("autotag_source", v as AutotagSource)}
               options={[
+                { value: "auto", label: t("settings.autotagAuto") },
                 { value: "apple", label: t("settings.autotagApple") },
                 { value: "deezer", label: t("settings.autotagDeezer") },
                 { value: "musicbrainz", label: t("settings.autotagMusicbrainz") },

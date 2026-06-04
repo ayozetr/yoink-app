@@ -60,13 +60,32 @@ def search(artist: str, title: str) -> CandidateList:
 
 
 def _search(artist: str, title: str) -> list[TagCandidate]:
-    """Search the user-selected catalogue (Apple Music, Deezer or MusicBrainz)."""
+    """Search the selected catalogue (auto / Apple Music / Deezer / MusicBrainz)."""
     source = settings.autotag_source
+    if source == "auto":
+        return _auto_search(artist, title)
     if source == "deezer":
         return _deezer_search(artist, title)
     if source == "musicbrainz":
         return _musicbrainz_search(artist, title)
     return _itunes_search(artist, title)
+
+
+def _auto_search(artist: str, title: str) -> list[TagCandidate]:
+    """Try each catalogue in turn, returning the first non-empty match.
+
+    Apple Music and Deezer go first (fast, hi-res covers); MusicBrainz last
+    (broad coverage but rate-limited). A source that errors (network / rate
+    limit) is treated as "no match" so the next source is still tried.
+    """
+    for source in (_itunes_search, _deezer_search, _musicbrainz_search):
+        try:
+            results = source(artist, title)
+        except AutotagError:
+            continue
+        if results:
+            return results
+    return []
 
 
 def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:

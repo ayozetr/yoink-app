@@ -33,7 +33,7 @@ def _apply(data: dict[str, Any]) -> None:
     cookies_file = data.get("cookies_file")
     settings.cookies_file = Path(cookies_file) if cookies_file else None
 
-    if data.get("autotag_source") in ("apple", "deezer", "musicbrainz"):
+    if data.get("autotag_source") in ("auto", "apple", "deezer", "musicbrainz"):
         settings.autotag_source = data["autotag_source"]
 
 

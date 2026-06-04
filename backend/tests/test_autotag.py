@@ -190,6 +190,37 @@ def test_search_dispatches_on_source(monkeypatch):
     assert svc._search("a", "b") == ["deezer"]
     monkeypatch.setattr(svc.settings, "autotag_source", "musicbrainz")
     assert svc._search("a", "b") == ["mb"]
+    monkeypatch.setattr(svc.settings, "autotag_source", "auto")
+    assert svc._search("a", "b") == ["apple"]  # auto → first non-empty source
+
+
+# --- automatic cascade -----------------------------------------------------
+
+def test_auto_search_falls_through_to_first_match(monkeypatch):
+    order: list[str] = []
+
+    def stub(name, result):
+        def fn(*a):
+            order.append(name)
+            return result
+
+        return fn
+
+    monkeypatch.setattr(svc, "_itunes_search", stub("apple", []))
+    monkeypatch.setattr(svc, "_deezer_search", stub("deezer", []))
+    monkeypatch.setattr(svc, "_musicbrainz_search", stub("mb", ["hit"]))
+    assert svc._auto_search("a", "b") == ["hit"]
+    assert order == ["apple", "deezer", "mb"]  # tried in order until a match
+
+
+def test_auto_search_skips_a_failing_source(monkeypatch):
+    def boom(*a):
+        raise svc.AutotagError("source down")
+
+    monkeypatch.setattr(svc, "_itunes_search", boom)
+    monkeypatch.setattr(svc, "_deezer_search", lambda *a: ["deezer"])
+    monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a: [])
+    assert svc._auto_search("a", "b") == ["deezer"]  # apple errored → next source
 
 
 # --- tag writing round-trip (per format) ----------------------------------
