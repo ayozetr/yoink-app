@@ -111,8 +111,12 @@ export const es = {
     autotagApple: "Apple Music",
     autotagDeezer: "Deezer",
     autotagMusicbrainz: "MusicBrainz",
-    autotagHint:
-      "Deezer y MusicBrainz suelen encontrar temas recientes o de nicho que Apple Music no; MusicBrainz va más lento en playlists grandes.",
+    autotagHint_apple:
+      "Si el tema es muy reciente, puede que aún no esté indexado aquí.",
+    autotagHint_deezer:
+      "Deezer no siempre incluye el año; puedes añadirlo a mano.",
+    autotagHint_musicbrainz:
+      "MusicBrainz puede ir más lento en playlists grandes (~1 petición/segundo).",
     language: "Idioma",
     langSystem: "Sistema",
     cookiesHint:

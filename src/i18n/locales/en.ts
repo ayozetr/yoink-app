@@ -111,8 +111,12 @@ export const en = {
     autotagApple: "Apple Music",
     autotagDeezer: "Deezer",
     autotagMusicbrainz: "MusicBrainz",
-    autotagHint:
-      "Deezer and MusicBrainz often find recent or niche tracks Apple Music's search misses; MusicBrainz is slower for big playlists.",
+    autotagHint_apple:
+      "If the track is very recent, it might not be indexed here yet.",
+    autotagHint_deezer:
+      "Deezer doesn't always include the release year — you can add it by hand.",
+    autotagHint_musicbrainz:
+      "MusicBrainz can be slower for large playlists (~1 request/second).",
     language: "Language",
     langSystem: "System",
     cookiesHint:

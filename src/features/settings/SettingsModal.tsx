@@ -220,7 +220,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             />
           </Field>
           <p className="text-[11px] italic text-zinc-500 -mt-1">
-            {t("settings.autotagHint")}
+            {t(`settings.autotagHint_${form.autotag_source}`)}
           </p>
 
           <Field label={t("settings.language")}>
