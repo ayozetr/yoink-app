@@ -67,6 +67,7 @@ export const en = {
   autotag: {
     title: "Tag audio",
     close: "Close",
+    dismiss: "Dismiss",
     identifying: "Identifying the song…",
     versions: "Versions",
     noResults: "No matches found.",

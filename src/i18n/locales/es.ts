@@ -67,6 +67,7 @@ export const es = {
   autotag: {
     title: "Etiquetar audio",
     close: "Cerrar",
+    dismiss: "Descartar",
     identifying: "Identificando la canción…",
     versions: "Versiones",
     noResults: "Sin resultados.",
