@@ -84,6 +84,7 @@ export const en = {
     apply: "Apply tags",
     batchTitle: "Tag {{count}} songs",
     applyMarked: "Apply to {{count}} selected",
+    includeTrack: "Include this track",
   },
   history: {
     title: "Download History",

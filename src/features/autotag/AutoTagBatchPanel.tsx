@@ -225,6 +225,7 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <input
                   type="checkbox"
+                  aria-label={t("autotag.includeTrack")}
                   checked={tr.included}
                   disabled={applying || tr.status === "applied" || tr.status === "loading"}
                   onChange={() => patch(i, { included: !tr.included })}

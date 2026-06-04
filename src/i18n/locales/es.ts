@@ -84,6 +84,7 @@ export const es = {
     apply: "Aplicar etiquetas",
     batchTitle: "Etiquetar {{count}} canciones",
     applyMarked: "Aplicar a {{count}} marcadas",
+    includeTrack: "Incluir este tema",
   },
   history: {
     title: "Historial de Descargas",

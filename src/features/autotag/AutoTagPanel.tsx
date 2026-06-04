@@ -336,12 +336,14 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
             <div className="mt-2 grid grid-cols-[1fr_1fr_auto] gap-2">
               <input
                 className={INPUT}
+                aria-label={t("autotag.fieldArtist")}
                 placeholder={t("autotag.fieldArtist")}
                 value={searchArtist}
                 onChange={(e) => setSearchArtist(e.target.value)}
               />
               <input
                 className={INPUT}
+                aria-label={t("autotag.fieldTitle")}
                 placeholder={t("autotag.fieldTitle")}
                 value={searchTitle}
                 onChange={(e) => setSearchTitle(e.target.value)}

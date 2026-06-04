@@ -11,7 +11,6 @@ import type {
   DownloadStats,
   HistoryEntry,
   InfoResponse,
-  VersionInfo,
 } from "../types/download";
 import type {
   ApplyRequest,
@@ -141,17 +140,6 @@ export async function openInFileManager(path?: string | null): Promise<void> {
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
-}
-
-/** Check the current version against the latest release via `GET /api/version`. */
-export async function checkForUpdates(
-  signal?: AbortSignal,
-): Promise<VersionInfo> {
-  const response = await fetch(`${API_BASE_URL}/version`, { signal });
-  if (!response.ok) {
-    throw new ApiError(await readErrorDetail(response), response.status);
-  }
-  return (await response.json()) as VersionInfo;
 }
 
 /** Fetch the current settings via `GET /api/settings`. */

@@ -27,7 +27,7 @@ function isTauri(): boolean {
  * Windows can always self-update; Linux only when shipped as an AppImage.
  * Returns false outside Tauri or on any error.
  */
-export async function canAutoUpdate(): Promise<boolean> {
+async function canAutoUpdate(): Promise<boolean> {
   if (!isTauri()) return false;
   try {
     const { platform } = await import("@tauri-apps/plugin-os");
