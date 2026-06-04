@@ -101,7 +101,7 @@ export const es = {
   settings: {
     title: "Ajustes",
     close: "Cerrar",
-    downloadDir: "Carpeta de descargas",
+    downloadDir: "Carpeta para descargas",
     browse: "Elegir carpeta",
     defaultFormat: "Formato por defecto",
     video: "Vídeo",
@@ -113,8 +113,9 @@ export const es = {
       "Cookies (solo para contenido que requiere sesión; no para contenido público)",
     cookiesBrowser: "Navegador para cookies",
     cookiesBrowserNone: "Ninguno",
+    cookiesBrowserNote: "Si tu navegador no está en la lista, usa el método alternativo.",
     cookiesBrowserPlaceholder: "vacío = desactivado",
-    cookiesFile: "Archivo cookies.txt (alternativa al navegador)",
+    cookiesFile: "Archivo cookies.txt (método alternativo)",
     cookiesFilePlaceholder: "/ruta/cookies.txt",
     cookiesHelp: "Cómo generar cookies.txt",
     cookiesHelpText:

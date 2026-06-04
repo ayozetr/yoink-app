@@ -240,6 +240,10 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
+          <p className="text-[11px] italic text-zinc-500 -mt-1">
+            {t("settings.cookiesBrowserNote")}
+          </p>
+
           <Field label={t("settings.cookiesFile")} hint={<CookiesHelp />}>
             <div className="relative">
               <input

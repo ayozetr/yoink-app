@@ -113,8 +113,9 @@ export const en = {
       "Cookies (only for sign-in-only content; not for public content)",
     cookiesBrowser: "Browser for cookies",
     cookiesBrowserNone: "None",
+    cookiesBrowserNote: "If your browser isn't listed, use the alternative method.",
     cookiesBrowserPlaceholder: "empty = disabled",
-    cookiesFile: "cookies.txt file (alternative to the browser)",
+    cookiesFile: "cookies.txt file (alternative method)",
     cookiesFilePlaceholder: "/path/cookies.txt",
     cookiesHelp: "How to generate cookies.txt",
     cookiesHelpText:
