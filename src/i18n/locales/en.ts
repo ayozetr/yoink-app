@@ -15,6 +15,7 @@ export const en = {
   },
   url: {
     placeholder: "Paste the video URL here...",
+    paste: "Paste from clipboard",
     analyze: "Analyze",
     analyzing: "Analyzing...",
   },

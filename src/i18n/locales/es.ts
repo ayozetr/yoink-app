@@ -15,6 +15,7 @@ export const es = {
   },
   url: {
     placeholder: "Pega aquí la URL del vídeo...",
+    paste: "Pegar del portapapeles",
     analyze: "Analizar",
     analyzing: "Analizando...",
   },

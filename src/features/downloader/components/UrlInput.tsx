@@ -1,4 +1,4 @@
-import { Link2, Loader2, Search } from "lucide-react";
+import { ClipboardPaste, Link2, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -15,6 +15,15 @@ export function UrlInput({ value, onChange, onAnalyze, loading }: UrlInputProps)
   const { t } = useTranslation();
   const disabled = loading || value.trim().length === 0;
 
+  const handlePaste = async () => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (text) onChange(text);
+    } catch {
+      // Clipboard unavailable or permission denied — ignore silently.
+    }
+  };
+
   return (
     <GlassPanel className="p-5">
       <div className="flex gap-3">
@@ -29,8 +38,17 @@ export function UrlInput({ value, onChange, onAnalyze, loading }: UrlInputProps)
             onKeyDown={(event) => {
               if (event.key === "Enter" && !disabled) onAnalyze();
             }}
-            className="w-full h-14 pl-12 pr-4 rounded-2xl bg-surface border border-white/10 outline-none focus:border-violet-500 text-sm"
+            className="w-full h-14 pl-12 pr-12 rounded-2xl bg-surface border border-white/10 outline-none focus:border-violet-500 text-sm"
           />
+          <button
+            type="button"
+            onClick={handlePaste}
+            aria-label={t("url.paste")}
+            title={t("url.paste")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+          >
+            <ClipboardPaste size={18} />
+          </button>
         </div>
 
         <Button
