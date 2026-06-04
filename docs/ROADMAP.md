@@ -356,8 +356,9 @@ non-critical:
 
 **Features** (fit the local / high-fidelity philosophy)
 
-- ⬜ **SponsorBlock** — toggle to skip/mark sponsor segments (yt-dlp's
-  `SponsorBlock` + `ModifyChapters` postprocessors). High value for YouTube rips.
+- ✅ **SponsorBlock** — Settings toggle (off by default) with a remove/mark
+  dropdown; wires yt-dlp's `SponsorBlock` + `ModifyChapters` postprocessors into
+  both audio and video downloads (sponsor / intro / outro / selfpromo / … cats).
 - ⬜ **Trim / clip a section** — download a time range (e.g. `00:30–02:10`) via
   yt-dlp's `download_ranges`, with start/end inputs in the preview.
 - ⬜ **Persist all download defaults** — remember container, audio format,
@@ -365,10 +366,10 @@ non-critical:
   user for now.)*
 - ⬜ **Configurable filename template** — a settings field for `outtmpl` with safe
   presets (`%(uploader)s - %(title)s`); pairs well with the auto-tagger.
-- ⬜ **Smaller wins** — paste URL from clipboard · re-download / re-analyze from
-  history · open the file (not just its folder) · bandwidth rate limit · embed
-  thumbnail as cover art on audio · list which playlist items failed · hint that
-  WAV can't hold cover art when chosen with auto-tagging.
+- 🚧 **Smaller wins** — ✅ paste URL from clipboard · ⬜ re-download / re-analyze
+  from history · ⬜ open the file (not just its folder) · ⬜ bandwidth rate limit ·
+  ⬜ embed thumbnail as cover art on audio · ⬜ list which playlist items failed ·
+  ⬜ hint that WAV can't hold cover art when chosen with auto-tagging.
 - ⬜ **Concurrent playlist downloads** (configurable N) — currently strictly
   sequential; needs multi-socket orchestration + aggregate progress. Bigger.
 - ⬜ **Surface / update yt-dlp version** — it breaks as sites change; show its

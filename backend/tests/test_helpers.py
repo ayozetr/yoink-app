@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.config import settings
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import cookie_options, normalize_url
 from app.models.media import DownloadRequest
@@ -464,3 +465,40 @@ def test_build_video_audio_langs():
         }
     )
     assert video.audio_langs == ["en", "ja"]
+
+
+def test_build_options_sponsorblock_off_by_default(temp_dirs):
+    """No SponsorBlock postprocessors unless it's explicitly enabled."""
+    options = _build_options(
+        DownloadRequest(url="http://x/a", kind="audio", audio_format="mp3"),
+        hook=lambda raw: None,
+    )
+    assert [pp["key"] for pp in options["postprocessors"]] == ["FFmpegExtractAudio"]
+
+
+def test_build_options_sponsorblock_remove_audio(temp_dirs, monkeypatch):
+    monkeypatch.setattr(settings, "sponsorblock_enabled", True)
+    monkeypatch.setattr(settings, "sponsorblock_action", "remove")
+    options = _build_options(
+        DownloadRequest(url="http://x/a", kind="audio", audio_format="mp3"),
+        hook=lambda raw: None,
+    )
+    keys = [pp["key"] for pp in options["postprocessors"]]
+    # SponsorBlock fetch + chapter modify run before the audio extraction.
+    assert keys == ["SponsorBlock", "ModifyChapters", "FFmpegExtractAudio"]
+    assert options["postprocessors"][1]["remove_sponsor_segments"]
+
+
+def test_build_options_sponsorblock_mark_video(temp_dirs, monkeypatch):
+    monkeypatch.setattr(settings, "sponsorblock_enabled", True)
+    monkeypatch.setattr(settings, "sponsorblock_action", "mark")
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video"),
+        hook=lambda raw: None,
+    )
+    assert [pp["key"] for pp in options["postprocessors"]] == [
+        "SponsorBlock",
+        "ModifyChapters",
+    ]
+    # "mark" only adds chapter markers — it doesn't cut anything out.
+    assert options["postprocessors"][1]["remove_sponsor_segments"] == []

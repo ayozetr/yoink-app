@@ -177,6 +177,7 @@ export interface VersionInfo {
 
 /** Catalogue used by the audio auto-tagger. */
 export type AutotagSource = "auto" | "apple" | "deezer" | "musicbrainz";
+export type SponsorblockAction = "remove" | "mark";
 
 /** User-editable settings (mirrors backend `AppSettings`). */
 export interface AppSettings {
@@ -186,6 +187,8 @@ export interface AppSettings {
   cookies_from_browser: string | null;
   cookies_file: string | null;
   autotag_source: AutotagSource;
+  sponsorblock_enabled: boolean;
+  sponsorblock_action: SponsorblockAction;
 }
 
 /** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */

@@ -36,6 +36,11 @@ def _apply(data: dict[str, Any]) -> None:
     if data.get("autotag_source") in ("auto", "apple", "deezer", "musicbrainz"):
         settings.autotag_source = data["autotag_source"]
 
+    if isinstance(data.get("sponsorblock_enabled"), bool):
+        settings.sponsorblock_enabled = data["sponsorblock_enabled"]
+    if data.get("sponsorblock_action") in ("remove", "mark"):
+        settings.sponsorblock_action = data["sponsorblock_action"]
+
 
 def load_overrides() -> None:
     """Load persisted overrides at startup (no-op if none/invalid)."""
@@ -59,6 +64,8 @@ def get_current() -> AppSettings:
         cookies_from_browser=settings.cookies_from_browser,
         cookies_file=str(settings.cookies_file) if settings.cookies_file else None,
         autotag_source=settings.autotag_source,
+        sponsorblock_enabled=settings.sponsorblock_enabled,
+        sponsorblock_action=settings.sponsorblock_action,
     )
 
 

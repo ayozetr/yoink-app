@@ -25,7 +25,12 @@ import {
   type UpdateCheck,
 } from "../../lib/updater";
 import i18n from "../../i18n";
-import type { AppSettings, AutotagSource, MediaKind } from "../../types/download";
+import type {
+  AppSettings,
+  AutotagSource,
+  MediaKind,
+  SponsorblockAction,
+} from "../../types/download";
 
 const LANG_STORAGE_KEY = "yoink-lang";
 
@@ -227,6 +232,37 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           <p className="text-[11px] italic text-zinc-500 -mt-1">
             {t(`settings.autotagHint_${form.autotag_source}`)}
           </p>
+
+          <div className="flex flex-col gap-2">
+            <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
+              <input
+                type="checkbox"
+                checked={form.sponsorblock_enabled}
+                onChange={(e) => set("sponsorblock_enabled", e.target.checked)}
+                className="size-4 accent-violet-500 shrink-0"
+              />
+              {t("settings.sponsorblock")}
+            </label>
+            {form.sponsorblock_enabled && (
+              <>
+                <Select
+                  ariaLabel={t("settings.sponsorblockAction")}
+                  value={form.sponsorblock_action}
+                  onChange={(v) =>
+                    set("sponsorblock_action", v as SponsorblockAction)
+                  }
+                  options={[
+                    { value: "remove", label: t("settings.sponsorblockRemove") },
+                    { value: "mark", label: t("settings.sponsorblockMark") },
+                  ]}
+                  className={`${INPUT_CLASS} w-full`}
+                />
+                <p className="text-[11px] italic text-zinc-500">
+                  {t(`settings.sponsorblockHint_${form.sponsorblock_action}`)}
+                </p>
+              </>
+            )}
+          </div>
 
           <Field label={t("settings.language")}>
             <Select

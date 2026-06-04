@@ -123,6 +123,45 @@ def _basename(path: str | None) -> str | None:
     return Path(path).name if path else None
 
 
+# SponsorBlock segment categories to act on (the ones users typically skip).
+_SPONSORBLOCK_CATEGORIES = [
+    "sponsor",
+    "intro",
+    "outro",
+    "selfpromo",
+    "interaction",
+    "preview",
+    "music_offtopic",
+]
+
+
+def _sponsorblock_postprocessors(action: str) -> list[dict[str, Any]]:
+    """yt-dlp postprocessors that mark or remove SponsorBlock segments.
+
+    Mirrors `--sponsorblock-mark`/`--sponsorblock-remove`: the SponsorBlock PP
+    fetches the crowd-sourced segments and ModifyChapters either turns them into
+    chapter markers ("mark") or cuts them out of the file ("remove").
+    """
+    return [
+        {
+            "key": "SponsorBlock",
+            "when": "after_filter",
+            "categories": _SPONSORBLOCK_CATEGORIES,
+            "api": "https://sponsor.ajay.app",
+        },
+        {
+            "key": "ModifyChapters",
+            "remove_sponsor_segments": (
+                _SPONSORBLOCK_CATEGORIES if action == "remove" else []
+            ),
+            "remove_chapters_patterns": [],
+            "remove_ranges": [],
+            "sponsorblock_chapter_title": "[SponsorBlock]: %(category_names)l",
+            "force_keyframes": False,
+        },
+    ]
+
+
 def _build_options(
     request: DownloadRequest, hook: Any
 ) -> dict[str, Any]:
@@ -143,6 +182,14 @@ def _build_options(
     if location:
         options["ffmpeg_location"] = location
 
+    # SponsorBlock postprocessors (mark/remove) must run before audio extraction
+    # or subtitle/chapter embedding, so they prefix whichever list we build.
+    sponsorblock: list[dict[str, Any]] = (
+        _sponsorblock_postprocessors(settings.sponsorblock_action)
+        if settings.sponsorblock_enabled
+        else []
+    )
+
     if request.kind == "audio":
         # For m4a, prefer a source already in an AAC/m4a container so the
         # FFmpegExtractAudio postprocessor can copy the stream (`-c copy`)
@@ -151,7 +198,10 @@ def _build_options(
             options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
         else:
             options["format"] = "bestaudio/best"
-        options["postprocessors"] = [_audio_postprocessor(request.audio_format)]
+        options["postprocessors"] = [
+            *sponsorblock,
+            _audio_postprocessor(request.audio_format),
+        ]
     else:
         height = _parse_height(request.quality)
         if request.audio_multistreams:
@@ -179,7 +229,7 @@ def _build_options(
 
         # Subtitles and chapters are video-only concerns; collect any FFmpeg
         # postprocessors needed to embed them into the merged output.
-        postprocessors: list[dict[str, Any]] = []
+        postprocessors: list[dict[str, Any]] = list(sponsorblock)
 
         if request.embed_subs:
             # Fetch subtitles (auto-captions as a fallback) and embed them.

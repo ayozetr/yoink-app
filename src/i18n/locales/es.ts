@@ -122,6 +122,14 @@ export const es = {
       "Deezer no siempre incluye el año; puedes añadirlo a mano.",
     autotagHint_musicbrainz:
       "MusicBrainz puede ir más lento en playlists grandes (~1 petición/segundo).",
+    sponsorblock: "SponsorBlock (saltar patrocinios)",
+    sponsorblockAction: "Acción de SponsorBlock",
+    sponsorblockRemove: "Eliminar segmentos",
+    sponsorblockMark: "Marcar como capítulos",
+    sponsorblockHint_remove:
+      "Corta los patrocinios / intros / outros del archivo (solo YouTube; recodifica las partes afectadas).",
+    sponsorblockHint_mark:
+      "Mantiene el vídeo completo pero añade capítulos para que saltes tú los segmentos (solo YouTube).",
     language: "Idioma",
     langSystem: "Sistema",
     cookiesHint:

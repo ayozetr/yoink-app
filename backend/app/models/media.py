@@ -19,6 +19,7 @@ VideoContainer = Literal["mp4", "mov", "mkv"]
 # lossless and only meaningful when the source itself is lossless.
 AudioFormat = Literal["mp3", "m4a", "flac", "wav"]
 AutotagSource = Literal["auto", "apple", "deezer", "musicbrainz"]
+SponsorblockAction = Literal["remove", "mark"]
 
 
 class InfoRequest(BaseModel):
@@ -226,6 +227,12 @@ class AppSettings(BaseModel):
     )
     autotag_source: AutotagSource = Field(
         default="auto", description="Catalogue for audio auto-tagging."
+    )
+    sponsorblock_enabled: bool = Field(
+        default=False, description="Strip/mark SponsorBlock segments (YouTube)."
+    )
+    sponsorblock_action: SponsorblockAction = Field(
+        default="remove", description="Remove the segments or just mark them."
     )
 
 

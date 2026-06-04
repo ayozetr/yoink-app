@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     # Catalogue used by the audio auto-tagger ("auto" = cascade through all).
     autotag_source: Literal["auto", "apple", "deezer", "musicbrainz"] = "auto"
 
+    # SponsorBlock (YouTube): strip or just mark sponsor / intro / outro segments.
+    sponsorblock_enabled: bool = False
+    sponsorblock_action: Literal["remove", "mark"] = "remove"
+
     def ensure_download_dir(self) -> Path:
         """Create the download directory if missing and return it."""
         self.download_dir.mkdir(parents=True, exist_ok=True)
