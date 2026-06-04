@@ -252,30 +252,46 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
               {expanded === i && tr.status !== "loading" && (
                 <div className="border-t border-white/5 px-3 py-3 space-y-2">
                   <div className="grid grid-cols-2 gap-2">
-                    <input
-                      className={INPUT}
-                      placeholder={t("autotag.fieldTitle")}
-                      value={tr.title}
-                      onChange={(e) => patch(i, { title: e.target.value })}
-                    />
-                    <input
-                      className={INPUT}
-                      placeholder={t("autotag.fieldArtist")}
-                      value={tr.artist}
-                      onChange={(e) => patch(i, { artist: e.target.value })}
-                    />
-                    <input
-                      className={INPUT}
-                      placeholder={t("autotag.fieldAlbum")}
-                      value={tr.album}
-                      onChange={(e) => patch(i, { album: e.target.value })}
-                    />
-                    <input
-                      className={INPUT}
-                      placeholder={t("autotag.fieldYear")}
-                      value={tr.year}
-                      onChange={(e) => patch(i, { year: e.target.value })}
-                    />
+                    <label className="block">
+                      <span className="text-xs text-zinc-500">
+                        {t("autotag.fieldTitle")}
+                      </span>
+                      <input
+                        className={INPUT}
+                        value={tr.title}
+                        onChange={(e) => patch(i, { title: e.target.value })}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-zinc-500">
+                        {t("autotag.fieldArtist")}
+                      </span>
+                      <input
+                        className={INPUT}
+                        value={tr.artist}
+                        onChange={(e) => patch(i, { artist: e.target.value })}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-zinc-500">
+                        {t("autotag.fieldAlbum")}
+                      </span>
+                      <input
+                        className={INPUT}
+                        value={tr.album}
+                        onChange={(e) => patch(i, { album: e.target.value })}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-zinc-500">
+                        {t("autotag.fieldYear")}
+                      </span>
+                      <input
+                        className={INPUT}
+                        value={tr.year}
+                        onChange={(e) => patch(i, { year: e.target.value })}
+                      />
+                    </label>
                   </div>
 
                   <button
