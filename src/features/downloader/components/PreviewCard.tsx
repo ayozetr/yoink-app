@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Clock3, Download, User, Video } from "lucide-react";
+import { Clock3, Download, Info, User, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -199,8 +199,8 @@ export function PreviewCard({
             </div>
 
             {showLosslessWarning && (
-              <p className="flex items-center gap-2 text-xs text-amber-300/90">
-                <AlertTriangle size={14} className="shrink-0" />
+              <p className="flex items-center gap-2 text-xs text-zinc-400">
+                <Info size={14} className="shrink-0" />
                 {t("preview.losslessWarning")}
               </p>
             )}
