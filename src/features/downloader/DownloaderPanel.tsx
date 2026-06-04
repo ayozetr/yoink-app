@@ -133,12 +133,14 @@ export function DownloaderPanel({
     setDownloading(true);
     setProgress(initialProgress());
 
+    let settled = false;
     downloadRef.current = startDownload(job.request, {
       onEvent: (event) => {
         if (event.type === "progress") {
           setProgress(event);
           return;
         }
+        settled = true;
         if (event.type === "completed") {
           resultsRef.current.push(true);
           if (jobs.length === 1) setCompleted(event);
@@ -151,6 +153,18 @@ export function DownloaderPanel({
         } else {
           resultsRef.current.push(false);
           if (jobs.length === 1) setDownloadError(event.message);
+        }
+        onDownloadFinished?.();
+        runJob(index + 1);
+      },
+      onClose: () => {
+        // Socket closed with no terminal event (backend crash / dropped
+        // connection): fail this job so the queue doesn't spin forever.
+        if (settled) return;
+        settled = true;
+        resultsRef.current.push(false);
+        if (jobs.length === 1) {
+          setDownloadError(t("errors.downloadConnectionLost"));
         }
         onDownloadFinished?.();
         runJob(index + 1);

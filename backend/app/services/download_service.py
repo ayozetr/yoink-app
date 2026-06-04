@@ -287,9 +287,14 @@ async def download_events(
         return
 
     path = Path(path_str)
-    size = path.stat().st_size if path.exists() else None
+    if not path.exists():
+        # yt-dlp reported a name but the file isn't on disk (postprocessor rename
+        # mismatch, race, …). Don't emit a "completed" pointing at a missing file
+        # — the history entry and "Open" action would dangle.
+        yield ErrorEvent(message="Download finished but the output file is missing.")
+        return
     yield CompletedEvent(
         filename=path.name,
         filepath=str(path),
-        total_bytes=size,
+        total_bytes=path.stat().st_size,
     )

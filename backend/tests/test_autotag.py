@@ -14,6 +14,7 @@ import subprocess
 import mutagen
 import pytest
 
+from app.models.autotag import ApplyRequest
 from app.services import autotag_service as svc
 
 FFMPEG = shutil.which("ffmpeg")
@@ -221,6 +222,17 @@ def test_auto_search_skips_a_failing_source(monkeypatch):
     monkeypatch.setattr(svc, "_deezer_search", lambda *a: ["deezer"])
     monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a: [])
     assert svc._auto_search("a", "b") == ["deezer"]  # apple errored → next source
+
+
+# --- apply error handling --------------------------------------------------
+
+def test_apply_invalid_audio_file_raises_autotag_error(tmp_path):
+    # A corrupt / mistyped file makes mutagen raise; apply() must surface it as
+    # AutotagError (router → 422), not let a raw MutagenError become a 500.
+    bad = tmp_path / "broken.flac"
+    bad.write_bytes(b"this is definitely not a FLAC file")
+    with pytest.raises(svc.AutotagError):
+        svc.apply(ApplyRequest(path=str(bad), title="X"), bad)
 
 
 # --- tag writing round-trip (per format) ----------------------------------

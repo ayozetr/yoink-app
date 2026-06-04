@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
@@ -48,6 +48,14 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
   const [stage, setStage] = useState<Stage>("loading");
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // One controller for the panel's lifetime; cancels in-flight lookups on unmount.
+  useEffect(() => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    return () => controller.abort();
+  }, []);
 
   const [results, setResults] = useState<TagCandidate[]>([]);
   const [selected, setSelected] = useState(-1);
@@ -85,8 +93,9 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
   // Look up the catalogue the first time the card is opened (not on mount, so
   // we don't hit Apple Music unless the user actually wants to tag).
   const runIdentify = useCallback(() => {
-    identifyAudio(path)
+    identifyAudio(path, abortRef.current?.signal)
       .then((data) => {
+        if (abortRef.current?.signal.aborted) return;
         if (data.results.length > 0) {
           showResults(data.results);
         } else {
@@ -101,6 +110,7 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
         setStage("review");
       })
       .catch((cause) => {
+        if (abortRef.current?.signal.aborted) return;
         setError(cause instanceof ApiError ? cause.message : t("autotag.error"));
         setStage("error");
       });
@@ -118,7 +128,12 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
     if (!searchTitle.trim()) return;
     setSearching(true);
     try {
-      const data = await searchAudio(searchArtist.trim(), searchTitle.trim());
+      const data = await searchAudio(
+        searchArtist.trim(),
+        searchTitle.trim(),
+        abortRef.current?.signal,
+      );
+      if (abortRef.current?.signal.aborted) return;
       if (data.results.length > 0) {
         showResults(data.results);
         setError(null);
@@ -126,6 +141,7 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
         setError(t("autotag.noResults"));
       }
     } catch (cause) {
+      if (abortRef.current?.signal.aborted) return;
       setError(cause instanceof ApiError ? cause.message : t("autotag.error"));
     } finally {
       setSearching(false);

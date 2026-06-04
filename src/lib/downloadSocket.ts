@@ -35,6 +35,7 @@ export function startDownload(
 ): DownloadHandle {
   const socket = new WebSocket(wsUrl("/ws/download"));
   let closed = false;
+  let cancelled = false;
 
   socket.onopen = () => socket.send(JSON.stringify(request));
 
@@ -56,11 +57,14 @@ export function startDownload(
 
   socket.onclose = () => {
     closed = true;
-    handlers.onClose?.();
+    // A client-initiated cancel() is intentional; only report server-side
+    // closes so the caller can react to an unexpected drop (and not stall).
+    if (!cancelled) handlers.onClose?.();
   };
 
   return {
     cancel: () => {
+      cancelled = true;
       closed = true;
       socket.close();
     },

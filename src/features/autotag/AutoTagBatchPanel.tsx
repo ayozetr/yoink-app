@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, Loader2, Music4, Search } from "lucide-react";
 import { GlassPanel } from "../../components/ui/GlassPanel";
@@ -68,6 +68,10 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
   const [expanded, setExpanded] = useState(-1);
   const [applying, setApplying] = useState(false);
   const startedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cancel any in-flight catalogue lookups when the card unmounts.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const patch = useCallback(
     (i: number, p: Partial<Track>) =>
@@ -85,11 +89,21 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
       coverUrl: c.cover_url,
     });
 
-  // Identify every track the first time the card is opened.
+  // Identify the tracks the first time the card is opened — through a small
+  // concurrency pool so we don't fire N parallel requests at once (MusicBrainz
+  // caps at ~1 req/s). Cancellable on unmount via the shared AbortController.
   const identifyAll = useCallback(() => {
-    items.forEach((item, i) => {
-      identifyAudio(item.path)
-        .then((data) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const queue = items.map((item, i) => ({ item, i }));
+
+    const worker = async () => {
+      let next = queue.shift();
+      while (next) {
+        const { item, i } = next;
+        try {
+          const data = await identifyAudio(item.path, controller.signal);
+          if (controller.signal.aborted) return;
           const top = data.results[0];
           if (top) {
             patch(i, {
@@ -111,9 +125,16 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
               artist: guess.artist,
             });
           }
-        })
-        .catch(() => patch(i, { status: "error" }));
-    });
+        } catch {
+          if (controller.signal.aborted) return;
+          patch(i, { status: "error" });
+        }
+        next = queue.shift();
+      }
+    };
+
+    const POOL = 3;
+    for (let w = 0; w < POOL; w += 1) void worker();
   }, [items, patch]);
 
   const toggleOpen = () => {
@@ -128,7 +149,12 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
     if (!title.trim()) return;
     patch(i, { status: "loading" });
     try {
-      const data = await searchAudio(artist.trim(), title.trim());
+      const data = await searchAudio(
+        artist.trim(),
+        title.trim(),
+        abortRef.current?.signal,
+      );
+      if (abortRef.current?.signal.aborted) return;
       const top = data.results[0];
       if (top) {
         patch(i, { status: "ready", results: data.results });

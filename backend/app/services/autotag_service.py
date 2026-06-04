@@ -254,7 +254,12 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         "date": request.year,
         "tracknumber": request.track_number,
     }
-    embedded = _write_tags(path, tags, cover)
+    try:
+        embedded = _write_tags(path, tags, cover)
+    except mutagen.MutagenError as exc:
+        # Corrupt / mistyped / partial audio file: surface as a clean 422 rather
+        # than an unhandled 500 (only _write_mp3 guarded its own open before).
+        raise AutotagError(f"Could not write tags to the file: {exc}") from exc
     return ApplyResponse(ok=True, embedded_cover=embedded)
 
 

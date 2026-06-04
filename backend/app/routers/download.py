@@ -69,7 +69,8 @@ async def download_ws(websocket: WebSocket) -> None:
             await websocket.send_json(event.model_dump())
 
             if event.type == "completed":
-                history_store.add_entry(
+                await asyncio.to_thread(
+                    history_store.add_entry,
                     title=Path(event.filename).stem,
                     url=url,
                     kind=request.kind,
@@ -79,7 +80,8 @@ async def download_ws(websocket: WebSocket) -> None:
                     filesize=event.total_bytes,
                 )
             elif event.type == "error":
-                history_store.add_entry(
+                await asyncio.to_thread(
+                    history_store.add_entry,
                     title=_title_from_url(url),
                     url=url,
                     kind=request.kind,
