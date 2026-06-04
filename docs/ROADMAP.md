@@ -334,3 +334,43 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
   ffmpeg bundle should port; needs a Mac to build / sign / notarize). Once it
   ships, add **Safari** back to the cookies "browser" selector — yt-dlp can only
   read Safari cookies on macOS.
+
+### From the codebase audit (post-v1.3.0)
+
+Security, the found bugs, accessibility, CI, a download-WebSocket test and a
+Tauri CSP are **already done** in `feature/autotag-deezer`. What's left is
+non-critical:
+
+**Hardening / quality**
+
+- ⬜ **TypeScript `strict`**. Enable `strict` (esp. `strictNullChecks`) in the
+  tsconfigs and fix the fallout — the frontend isn't as strict as the backend
+  against the JSON contract. *(Deferred: many compile errors to resolve; do it in
+  a dedicated pass.)*
+- ✅ **Frontend unit tests** (Vitest) — `src/lib/` (API client, download socket)
+  and the filename parser; run in CI.
+- ✅ **Autotag router tests** — `TestClient` tests for
+  `POST /api/autotag/{identify,search,apply}` (path guard 403/404, error → 422).
+- ✅ **Reproducible ffmpeg** — `fetch_ffmpeg.py` verifies the download against
+  BtbN's `checksums.sha256`.
+- ✅ **Type-aware ESLint** (`recommendedTypeChecked`).
+
+**Features** (fit the local / high-fidelity philosophy)
+
+- ⬜ **SponsorBlock** — toggle to skip/mark sponsor segments (yt-dlp's
+  `SponsorBlock` + `ModifyChapters` postprocessors). High value for YouTube rips.
+- ⬜ **Trim / clip a section** — download a time range (e.g. `00:30–02:10`) via
+  yt-dlp's `download_ranges`, with start/end inputs in the preview.
+- ⬜ **Persist all download defaults** — remember container, audio format,
+  subtitles and chapters (today only kind/quality persist). *(Postponed by the
+  user for now.)*
+- ⬜ **Configurable filename template** — a settings field for `outtmpl` with safe
+  presets (`%(uploader)s - %(title)s`); pairs well with the auto-tagger.
+- ⬜ **Smaller wins** — paste URL from clipboard · re-download / re-analyze from
+  history · open the file (not just its folder) · bandwidth rate limit · embed
+  thumbnail as cover art on audio · list which playlist items failed · hint that
+  WAV can't hold cover art when chosen with auto-tagging.
+- ⬜ **Concurrent playlist downloads** (configurable N) — currently strictly
+  sequential; needs multi-socket orchestration + aggregate progress. Bigger.
+- ⬜ **Surface / update yt-dlp version** — it breaks as sites change; show its
+  version in Settings, maybe allow updating the bundled binary.

@@ -15,6 +15,7 @@ function setReactValue(el: EditTarget, value: string) {
     el instanceof HTMLTextAreaElement
       ? HTMLTextAreaElement.prototype
       : HTMLInputElement.prototype;
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- invoked via .call below
   const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
   setter?.call(el, value);
   el.dispatchEvent(new Event("input", { bubbles: true }));

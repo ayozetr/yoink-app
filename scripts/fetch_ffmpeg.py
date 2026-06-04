@@ -14,6 +14,7 @@ YouTube merges are stream copies (remux), so no GPL-only encoders are needed.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import os
 import platform
@@ -28,6 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 VENDOR = ROOT / "backend" / "vendor" / "ffmpeg"
 
 BASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
+CHECKSUMS_URL = f"{BASE}/checksums.sha256"
 
 
 def _asset() -> tuple[str, str]:
@@ -86,12 +88,42 @@ def _extract_members(data: bytes, kind: str) -> None:
             )
 
 
+def _verify_checksum(data: bytes, asset: str) -> None:
+    """Verify the download against BtbN's published checksums.sha256 (integrity).
+
+    BtbN ships a `latest` (moving) tag with no per-asset `.sha256`, but the
+    release does carry a global `checksums.sha256`. We match the asset's line and
+    compare, so a corrupt or tampered download fails loudly instead of being
+    bundled into the app.
+    """
+    with urllib.request.urlopen(CHECKSUMS_URL) as response:  # noqa: S310 — trusted host
+        lines = response.read().decode().splitlines()
+    expected = next(
+        (
+            line.split()[0].lower()
+            for line in lines
+            if line.split() and line.split()[-1].endswith(asset)
+        ),
+        None,
+    )
+    if expected is None:
+        raise SystemExit(f"! {asset} not listed in checksums.sha256")
+    actual = hashlib.sha256(data).hexdigest().lower()
+    if actual != expected:
+        raise SystemExit(
+            f"! ffmpeg checksum mismatch for {asset}:\n"
+            f"  expected {expected}\n  actual   {actual}"
+        )
+    print("  checksum verified (sha256)")
+
+
 def main() -> int:
     asset, kind = _asset()
     url = f"{BASE}/{asset}"
     print(f"> Downloading {url} ...")
     with urllib.request.urlopen(url) as response:  # noqa: S310 — trusted host
         data = response.read()
+    _verify_checksum(data, asset)
     print(f"  got {len(data) // (1024 * 1024)} MB; extracting ffmpeg + ffprobe...")
     _extract_members(data, kind)
 

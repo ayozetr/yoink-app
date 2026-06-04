@@ -60,7 +60,7 @@ async function readErrorDetail(response: Response): Promise<string> {
       data &&
       typeof data === "object" &&
       "detail" in data &&
-      typeof (data as { detail: unknown }).detail === "string"
+      typeof data.detail === "string"
     ) {
       return (data as { detail: string }).detail;
     }

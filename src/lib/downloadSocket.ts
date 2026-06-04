@@ -41,7 +41,7 @@ export function startDownload(
 
   socket.onmessage = (message) => {
     try {
-      handlers.onEvent(JSON.parse(message.data) as DownloadEvent);
+      handlers.onEvent(JSON.parse(message.data as string) as DownloadEvent);
     } catch {
       // Ignore malformed frames rather than killing the download.
     }
