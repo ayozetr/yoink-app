@@ -82,6 +82,8 @@ export const en = {
     searchAction: "Search",
     cancel: "Cancel",
     apply: "Apply tags",
+    batchTitle: "Tag {{count}} songs",
+    applyMarked: "Apply to {{count}} selected",
   },
   history: {
     title: "Download History",

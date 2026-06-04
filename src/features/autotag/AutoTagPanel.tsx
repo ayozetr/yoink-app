@@ -18,6 +18,7 @@ import {
   searchAudio,
 } from "../../lib/api";
 import type { TagCandidate } from "../../types/autotag";
+import { guessFromFilename } from "./filename";
 
 interface AutoTagPanelProps {
   /** Absolute path of the downloaded audio file to tag. */
@@ -33,22 +34,6 @@ const INPUT =
   "text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50";
 
 type Stage = "loading" | "review" | "applying" | "done" | "error";
-
-/** Best-effort "Artist - Title" guess from a filename, to seed the search box. */
-function guessFromFilename(name?: string): { artist: string; title: string } {
-  if (!name) return { artist: "", title: "" };
-  const base = name
-    .replace(/\.[^.]+$/, "")
-    .replace(
-      /\s*[([](?:official|video|audio|lyrics?|visualizer|hd|4k|mv|prod)[^)\]]*[)\]]/gi,
-      "",
-    )
-    .trim();
-  const match = base.match(/^(.+?)\s[-–—]\s(.+)$/);
-  return match
-    ? { artist: match[1].trim(), title: match[2].trim() }
-    : { artist: "", title: base };
-}
 
 /**
  * Inline audio auto-tagging card shown in the main column after an audio

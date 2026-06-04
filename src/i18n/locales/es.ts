@@ -82,6 +82,8 @@ export const es = {
     searchAction: "Buscar",
     cancel: "Cancelar",
     apply: "Aplicar etiquetas",
+    batchTitle: "Etiquetar {{count}} canciones",
+    applyMarked: "Aplicar a {{count}} marcadas",
   },
   history: {
     title: "Historial de Descargas",

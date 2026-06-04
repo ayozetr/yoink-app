@@ -7,6 +7,7 @@ import { PreviewCard, type DownloadSelection } from "./components/PreviewCard";
 import { PlaylistCard } from "./components/PlaylistCard";
 import { DownloadProgressCard } from "./components/DownloadProgressCard";
 import { AutoTagPanel } from "../autotag/AutoTagPanel";
+import { AutoTagBatchPanel } from "../autotag/AutoTagBatchPanel";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { fetchInfo, ApiError } from "../../lib/api";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
@@ -33,6 +34,12 @@ interface DownloadJob {
   request: DownloadRequest;
   title: string;
 }
+
+/** A finished audio file eligible for tagging. */
+type TagItem = { path: string; filename: string };
+
+/** Audio extensions Yoink can tag (matched on the output filepath). */
+const AUDIO_EXT = /\.(mp3|m4a|flac|wav|opus|ogg|aac)$/i;
 
 function initialProgress(): DownloadProgressEvent {
   return {
@@ -75,12 +82,15 @@ export function DownloaderPanel({
   // download kind so the card only shows for audio downloads.
   const [tagDismissed, setTagDismissed] = useState(false);
   const [lastKind, setLastKind] = useState<MediaKind | null>(null);
+  // Audio files from a finished playlist, for the batch tagging card.
+  const [batchItems, setBatchItems] = useState<TagItem[]>([]);
 
   const requestRef = useRef<AbortController | null>(null);
   const downloadRef = useRef<DownloadHandle | null>(null);
   const queueRef = useRef<DownloadJob[]>([]);
   const resultsRef = useRef<boolean[]>([]);
   const lastJobsRef = useRef<DownloadJob[]>([]);
+  const audioPathsRef = useRef<TagItem[]>([]);
 
   // Tear down the socket if the panel unmounts mid-download.
   useEffect(() => () => downloadRef.current?.cancel(), []);
@@ -98,6 +108,8 @@ export function DownloaderPanel({
     setQueueTotal(0);
     setQueueIndex(0);
     setTagDismissed(false);
+    setBatchItems([]);
+    audioPathsRef.current = [];
   };
 
   const runJob = (index: number) => {
@@ -108,6 +120,9 @@ export function DownloaderPanel({
       if (jobs.length > 1) {
         const failed = resultsRef.current.filter((ok) => !ok).length;
         setSummary({ completed: resultsRef.current.length - failed, failed });
+        if (audioPathsRef.current.length > 0) {
+          setBatchItems([...audioPathsRef.current]);
+        }
       }
       return;
     }
@@ -127,6 +142,12 @@ export function DownloaderPanel({
         if (event.type === "completed") {
           resultsRef.current.push(true);
           if (jobs.length === 1) setCompleted(event);
+          else if (AUDIO_EXT.test(event.filepath)) {
+            audioPathsRef.current.push({
+              path: event.filepath,
+              filename: event.filename,
+            });
+          }
         } else {
           resultsRef.current.push(false);
           if (jobs.length === 1) setDownloadError(event.message);
@@ -290,6 +311,13 @@ export function DownloaderPanel({
         <AutoTagPanel
           path={completed.filepath}
           filename={completed.filename}
+          onDismiss={() => setTagDismissed(true)}
+        />
+      )}
+
+      {batchItems.length > 0 && !downloading && !tagDismissed && (
+        <AutoTagBatchPanel
+          items={batchItems}
           onDismiss={() => setTagDismissed(true)}
         />
       )}
