@@ -230,15 +230,25 @@ async def download_events(
     """
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[ProgressEvent] = asyncio.Queue()
+    last_percent = 0.0
 
     def hook(raw: dict[str, Any]) -> None:
+        nonlocal last_percent
         if cancel_event is not None and cancel_event.is_set():
             # Raising from the hook aborts the yt-dlp download.
             raise _DownloadCancelled
         event = _map_progress(raw)
-        if event is not None:
-            # Hook runs on the worker thread; hand off to the loop thread.
-            loop.call_soon_threadsafe(queue.put_nowait, event)
+        if event is None:
+            return
+        # total_bytes can flip from estimate to real mid-download, making percent
+        # jump backward; clamp it so the progress bar never goes down.
+        if event.status == "downloading":
+            if event.percent < last_percent:
+                event = event.model_copy(update={"percent": last_percent})
+            else:
+                last_percent = event.percent
+        # Hook runs on the worker thread; hand off to the loop thread.
+        loop.call_soon_threadsafe(queue.put_nowait, event)
 
     def blocking() -> str | None:
         options = _build_options(request, hook)

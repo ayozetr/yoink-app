@@ -17,6 +17,7 @@ import { Select } from "../../components/ui/Select";
 import { updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
+import { useFocusTrap } from "../../lib/useFocusTrap";
 import {
   checkForUpdate,
   installUpdate,
@@ -56,6 +57,7 @@ const COOKIE_BROWSERS = [
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
 export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps) {
   const { t } = useTranslation();
+  const dialogRef = useFocusTrap<HTMLDivElement>();
   const [form, setForm] = useState<AppSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,10 +142,12 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
     >
       <GlassPanel
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f]"
+        className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold flex items-center gap-2">

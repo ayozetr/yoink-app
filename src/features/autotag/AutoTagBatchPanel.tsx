@@ -73,6 +73,13 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
   // Cancel any in-flight catalogue lookups when the card unmounts.
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Latest tracks for applyMarked, so edits made mid-apply aren't lost to a
+  // stale snapshot captured at click time.
+  const tracksRef = useRef(tracks);
+  useEffect(() => {
+    tracksRef.current = tracks;
+  }, [tracks]);
+
   const patch = useCallback(
     (i: number, p: Partial<Track>) =>
       setTracks((ts) => ts.map((tr, idx) => (idx === i ? { ...tr, ...p } : tr))),
@@ -169,8 +176,8 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
 
   const applyMarked = async () => {
     setApplying(true);
-    for (let i = 0; i < tracks.length; i += 1) {
-      const tr = tracks[i];
+    for (let i = 0; i < tracksRef.current.length; i += 1) {
+      const tr = tracksRef.current[i];
       if (!tr.included || tr.status === "applied") continue;
       try {
         const sel = tr.selected >= 0 ? tr.results[tr.selected] : null;
@@ -219,7 +226,7 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
                 <input
                   type="checkbox"
                   checked={tr.included}
-                  disabled={tr.status === "applied" || tr.status === "loading"}
+                  disabled={applying || tr.status === "applied" || tr.status === "loading"}
                   onChange={() => patch(i, { included: !tr.included })}
                   className="size-4 accent-violet-500 shrink-0 disabled:opacity-40"
                 />

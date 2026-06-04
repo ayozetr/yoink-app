@@ -78,9 +78,11 @@ export function DownloaderPanel({
   const [summary, setSummary] = useState<{ completed: number; failed: number } | null>(
     null,
   );
-  // Auto-tag: whether the user dismissed the inline tagging card, + the last
-  // download kind so the card only shows for audio downloads.
-  const [tagDismissed, setTagDismissed] = useState(false);
+  // Auto-tag: whether the user dismissed each inline tagging card (single vs
+  // playlist batch are independent), + the last download kind so the card only
+  // shows for audio downloads.
+  const [tagDismissedSingle, setTagDismissedSingle] = useState(false);
+  const [tagDismissedBatch, setTagDismissedBatch] = useState(false);
   const [lastKind, setLastKind] = useState<MediaKind | null>(null);
   // Audio files from a finished playlist, for the batch tagging card.
   const [batchItems, setBatchItems] = useState<TagItem[]>([]);
@@ -107,7 +109,8 @@ export function DownloaderPanel({
     setSummary(null);
     setQueueTotal(0);
     setQueueIndex(0);
-    setTagDismissed(false);
+    setTagDismissedSingle(false);
+    setTagDismissedBatch(false);
     setBatchItems([]);
     audioPathsRef.current = [];
   };
@@ -124,6 +127,8 @@ export function DownloaderPanel({
           setBatchItems([...audioPathsRef.current]);
         }
       }
+      // Refresh history/stats once, when the whole queue is done — not per item.
+      onDownloadFinished?.();
       return;
     }
 
@@ -154,7 +159,6 @@ export function DownloaderPanel({
           resultsRef.current.push(false);
           if (jobs.length === 1) setDownloadError(event.message);
         }
-        onDownloadFinished?.();
         runJob(index + 1);
       },
       onClose: () => {
@@ -166,7 +170,6 @@ export function DownloaderPanel({
         if (jobs.length === 1) {
           setDownloadError(t("errors.downloadConnectionLost"));
         }
-        onDownloadFinished?.();
         runJob(index + 1);
       },
     });
@@ -321,18 +324,18 @@ export function DownloaderPanel({
         onCancel={resetDownload}
       />
 
-      {completed?.filepath && lastKind === "audio" && !downloading && !tagDismissed && (
+      {completed?.filepath && lastKind === "audio" && !downloading && !tagDismissedSingle && (
         <AutoTagPanel
           path={completed.filepath}
           filename={completed.filename}
-          onDismiss={() => setTagDismissed(true)}
+          onDismiss={() => setTagDismissedSingle(true)}
         />
       )}
 
-      {batchItems.length > 0 && !downloading && !tagDismissed && (
+      {batchItems.length > 0 && !downloading && !tagDismissedBatch && (
         <AutoTagBatchPanel
           items={batchItems}
-          onDismiss={() => setTagDismissed(true)}
+          onDismiss={() => setTagDismissedBatch(true)}
         />
       )}
 

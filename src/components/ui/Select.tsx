@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 export interface SelectOption {
@@ -43,8 +49,12 @@ export function Select({
   } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLButtonElement>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const selected = options.find((o) => o.value === value);
+  const selectable = () =>
+    options.map((o, i) => (o.header || o.disabled ? -1 : i)).filter((i) => i >= 0);
 
   // Anchor the floating list to the trigger each time it opens.
   useLayoutEffect(() => {
@@ -87,9 +97,50 @@ export function Select({
     };
   }, [open]);
 
+  // Keep the highlighted option scrolled into view as it changes.
+  useEffect(() => {
+    if (open) activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open]);
+
+  // Open the list and highlight the current value (for keyboard nav).
+  const openList = () => {
+    setActiveIndex(options.findIndex((o) => o.value === value));
+    setOpen(true);
+  };
+
   const choose = (next: string) => {
     onChange(next);
     setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const moveActive = (delta: number) => {
+    const sel = selectable();
+    if (!sel.length) return;
+    const cur = sel.indexOf(activeIndex);
+    const pos =
+      cur < 0
+        ? delta > 0
+          ? 0
+          : sel.length - 1
+        : Math.max(0, Math.min(sel.length - 1, cur + delta));
+    setActiveIndex(sel[pos]);
+  };
+
+  const onKeyDown = (event: ReactKeyboardEvent) => {
+    if (disabled) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!open) openList();
+      else moveActive(event.key === "ArrowDown" ? 1 : -1);
+    } else if (open && event.key === "Enter") {
+      event.preventDefault();
+      if (activeIndex >= 0) choose(options[activeIndex].value);
+    } else if (open && (event.key === "Home" || event.key === "End")) {
+      event.preventDefault();
+      const sel = selectable();
+      if (sel.length) setActiveIndex(event.key === "Home" ? sel[0] : sel[sel.length - 1]);
+    }
   };
 
   return (
@@ -101,7 +152,8 @@ export function Select({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? setOpen(false) : openList())}
+        onKeyDown={onKeyDown}
         className={`flex cursor-pointer items-center justify-between gap-2 ${className}`}
       >
         <span className="truncate">{selected?.label ?? ""}</span>
@@ -123,7 +175,7 @@ export function Select({
           }}
           className="z-[100] max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1d27] p-1 shadow-xl"
         >
-          {options.map((option) => {
+          {options.map((option, i) => {
             if (option.header) {
               return (
                 <div
@@ -135,22 +187,27 @@ export function Select({
               );
             }
             const active = option.value === value;
+            const highlighted = i === activeIndex;
             const isDisabled = option.disabled ?? false;
             return (
               <button
                 key={option.value}
+                ref={highlighted ? activeRef : undefined}
                 type="button"
                 role="option"
                 aria-selected={active}
                 aria-disabled={isDisabled}
                 disabled={isDisabled}
+                onMouseEnter={() => setActiveIndex(i)}
                 onClick={() => choose(option.value)}
                 className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   isDisabled
                     ? "cursor-not-allowed text-zinc-500"
                     : active
                       ? "bg-violet-600/30 text-white"
-                      : "text-zinc-200 hover:bg-white/10"
+                      : highlighted
+                        ? "bg-white/10 text-white"
+                        : "text-zinc-200 hover:bg-white/10"
                 }`}
               >
                 <span className="truncate">{option.label}</span>

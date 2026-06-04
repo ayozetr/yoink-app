@@ -1,7 +1,9 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode, Ref } from "react";
 
 interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
+  /** Optional ref to the underlying div (React 19 ref-as-prop). */
+  ref?: Ref<HTMLDivElement>;
 }
 
 /**
@@ -12,10 +14,12 @@ interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
 export function GlassPanel({
   children,
   className = "",
+  ref,
   ...rest
 }: GlassPanelProps) {
   return (
     <div
+      ref={ref}
       className={`rounded-3xl border border-white/10 bg-white/[0.06] ${className}`}
       {...rest}
     >

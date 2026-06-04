@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the Yoink backend and frontend together with one command.
 
-    python scripts/dev.py                 # backend :8000, frontend :5173
+    python scripts/dev.py                 # backend :8756, frontend :5173
     python scripts/dev.py --api-port 8010 --web-port 5180
 
 Starts uvicorn (with --reload) and the Vite dev server, points the frontend at

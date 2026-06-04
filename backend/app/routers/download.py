@@ -10,12 +10,14 @@ the history store.
 from __future__ import annotations
 
 import asyncio
+import re
 import threading
 from pathlib import Path
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
+from app.core.config import settings
 from app.models.media import DownloadRequest, ErrorEvent
 from app.services import history_store
 from app.services.download_service import download_events
@@ -44,6 +46,13 @@ def _title_from_url(url: str) -> str:
 @router.websocket("/ws/download")
 async def download_ws(websocket: WebSocket) -> None:
     """Drive a single download job for the lifetime of the connection."""
+    # Browsers always send Origin on a WS handshake and CORS isn't enforced on
+    # WebSockets, so reject a cross-origin page trying to force downloads. A
+    # missing Origin (non-browser client) is allowed — it isn't the web vector.
+    origin = websocket.headers.get("origin")
+    if origin is not None and not re.match(settings.cors_origin_regex, origin):
+        await websocket.close(code=1008)  # policy violation
+        return
     await websocket.accept()
 
     try:
