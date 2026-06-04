@@ -38,6 +38,10 @@ When the user pastes a URL and clicks **Analyze**:
    and `has_chapters`.
 4. Frontend populates the preview card and the format/quality selectors.
 
+For a playlist, the backend additionally resolves the **first entry** to set
+`source_lossless` / `best_audio_abr` on the listing, so the playlist UI gates
+FLAC/WAV like a single video (assuming a homogeneous playlist).
+
 The JSON shape is defined once in `backend/app/models/media.py` (Pydantic) and
 mirrored in `src/types/download.ts` (TypeScript).
 
@@ -56,6 +60,25 @@ When the user clicks **Download**:
    `completed` / `error` event.
 6. ffmpeg merges separate video/audio streams (and extracts/embeds audio,
    subtitles, and chapters) as needed.
+
+### 3. Audio auto-tagging — REST (implemented)
+
+After an audio download (single or playlist), the UI offers to tag the file(s)
+from the Apple Music catalogue (iTunes Search API — free, key-less, plain
+HTTPS via stdlib `urllib`). The flow is **identify/search → user picks a version
+and edits → apply**; nothing is written to the file until **Apply**.
+
+1. `POST /api/autotag/identify` — `{ "path" }`. The backend parses the
+   filename's `Artist - Title` and looks it up, returning a `CandidateList` of
+   matching releases (single/EP/album, each with cover art).
+2. `POST /api/autotag/search` — `{ "artist", "title" }`. Manual catalogue
+   search, returning the same `CandidateList`.
+3. `POST /api/autotag/apply` — the (possibly user-edited) `TagCandidate` fields
+   + `path`. The backend writes tags and cover art with `mutagen` (full tags for
+   mp3/m4a/flac; text-only for opus/ogg/wav) and returns an `ApplyResponse`.
+
+All file paths are confined to the download directory (path guard). Models live
+in `backend/app/models/autotag.py`, mirrored in `src/types/autotag.ts`.
 
 ## Cross-platform notes
 

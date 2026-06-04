@@ -63,6 +63,16 @@ Response (abridged):
 }
 ```
 
+For a playlist URL the response is a flat listing; the backend resolves the
+first entry to set `source_lossless` / `best_audio_abr` on it.
+
+### `POST /api/autotag/{identify,search,apply}`
+
+Audio auto-tagging against the Apple Music (iTunes) catalogue. `identify`
+matches a downloaded file, `search` queries by artist/title, and `apply` writes
+the chosen tags + cover art with `mutagen` (mp3/m4a/flac native, opus/ogg/wav
+text-only). Paths are confined to the download directory.
+
 ## Configuration
 
 Settings are read from `YOINK_`-prefixed environment variables (or a local
@@ -80,9 +90,9 @@ backend/
 ├── app/
 │   ├── main.py              # FastAPI app, CORS, router mounting
 │   ├── core/               # typed settings, humanize, shared yt-dlp options
-│   ├── models/media.py     # Pydantic models (JSON contract)
-│   ├── routers/            # info, download (WS), history, settings
-│   └── services/           # yt-dlp metadata + download, history/settings stores, updates
+│   ├── models/            # Pydantic models (JSON contract): media, autotag
+│   ├── routers/            # info, download (WS), history, settings, autotag
+│   └── services/           # yt-dlp metadata + download, history/settings stores, updates, autotag
 └── requirements.txt
 ```
 

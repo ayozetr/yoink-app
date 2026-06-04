@@ -38,6 +38,10 @@ It is split into two layers that communicate asynchronously:
     the source is genuinely lossless (no fake upscaling).
 - **Playlists** — pick which items to download with checkboxes; they download
   sequentially with "X of N" progress.
+- **Audio auto-tagging** — after an audio download, an inline card tags the file
+  with real artist / album / title / year + **cover art** from Apple Music (free,
+  no account); you review, edit or search before anything is written. Works per
+  song and across whole playlists.
 - **History & stats** persisted locally (SQLite), with open-folder and clear.
 - **Settings** — download folder (native folder picker), default format/quality,
   **language**, and cookies (browser or `cookies.txt`) for sign-in-only content.
@@ -75,6 +79,7 @@ WebView2 + MSVC build tools. Full flow in [`docs/releasing.md`](docs/releasing.m
 src/                      # frontend (React + TS + Tailwind)
 ├── components/{layout,ui}
 ├── features/
+│   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
 │   ├── downloader/       # URL input, preview, playlist, progress (main column)
 │   ├── history/          # download history + stats (sidebar)
 │   └── settings/         # settings modal (download dir, defaults, cookies, version)

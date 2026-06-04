@@ -195,7 +195,7 @@ export async function identifyAudio(
   return (await response.json()) as CandidateList;
 }
 
-/** Manual MusicBrainz search via `POST /api/autotag/search`. */
+/** Manual Apple Music search via `POST /api/autotag/search`. */
 export async function searchAudio(
   artist: string,
   title: string,

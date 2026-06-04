@@ -33,9 +33,13 @@ Two layers communicating asynchronously:
   (`asyncio.to_thread`) and streams typed events — `progress` (percent, speed,
   ETA) → terminal `completed`/`error` — back over the same socket to animate the
   progress bar.
+- **Audio auto-tagging (REST):** after an audio download the frontend looks the
+  file up in the Apple Music catalogue and writes tags + cover art via
+  `POST /api/autotag/{identify,search,apply}` — nothing is written until `apply`.
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
-`backend/app/models/media.py` — keep both sides in sync.
+`backend/app/models/media.py` (and `src/types/autotag.ts` ↔
+`backend/app/models/autotag.py`) — keep both sides in sync.
 
 ## Repository layout
 
@@ -49,6 +53,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 │   │   ├── layout/           # app shell, background glow
 │   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, EditMenu, …)
 │   ├── features/
+│   │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
 │   │   ├── downloader/       # URL input, preview, playlist, progress (main column)
 │   │   ├── history/          # download history + stats (sidebar)
 │   │   └── settings/         # settings modal (download dir, defaults, cookies, language, version)
@@ -60,14 +65,18 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── main.py           # app factory, CORS, router mounting
         ├── core/config.py    # typed settings (CORS, download dir)
         ├── models/media.py   # Pydantic models (JSON contract)
+        ├── models/autotag.py  # auto-tagging models (TagCandidate, CandidateList, …)
         ├── core/humanize.py   # shared byte/size formatting
         ├── core/ytdlp_options.py      # shared URL normalize + cookie options
         ├── routers/info.py    # POST /api/info (video or playlist)
         ├── routers/download.py        # WS /api/ws/download (live progress)
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
         ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version
+        ├── routers/autotag.py         # POST /api/autotag/{identify,search,apply}
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
         ├── services/download_service.py  # yt-dlp download + progress stream
+        ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor
+        ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing
         ├── services/history_store.py  # SQLite persistence (history + stats)
         ├── services/settings_store.py # persisted user settings overrides
         └── services/updates.py        # GitHub release update check
