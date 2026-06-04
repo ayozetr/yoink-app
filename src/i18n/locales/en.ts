@@ -111,7 +111,8 @@ export const en = {
     langSystem: "System",
     cookiesHint:
       "Cookies (only for sign-in-only content; not for public content)",
-    cookiesBrowser: "Browser for cookies (e.g. firefox, chrome)",
+    cookiesBrowser: "Browser for cookies",
+    cookiesBrowserNone: "None",
     cookiesBrowserPlaceholder: "empty = disabled",
     cookiesFile: "cookies.txt file (alternative to the browser)",
     cookiesFilePlaceholder: "/path/cookies.txt",

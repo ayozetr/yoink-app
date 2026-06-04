@@ -38,6 +38,21 @@ const QUALITY_OPTIONS = ["1080p", "720p", "480p", "360p"];
 const INPUT_CLASS =
   "h-11 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500";
 
+/**
+ * Browsers yt-dlp can read cookies from directly (same names on Linux &
+ * Windows). Safari is macOS-only — added once a macOS build ships (see
+ * ROADMAP); Naver Whale is too niche to list.
+ */
+const COOKIE_BROWSERS = [
+  "brave",
+  "chrome",
+  "chromium",
+  "edge",
+  "firefox",
+  "opera",
+  "vivaldi",
+] as const;
+
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
 export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps) {
   const { t } = useTranslation();
@@ -211,13 +226,18 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           </p>
 
           <Field label={t("settings.cookiesBrowser")}>
-            <input
-              type="text"
-              aria-label={t("settings.cookiesBrowser")}
+            <Select
+              ariaLabel={t("settings.cookiesBrowser")}
               value={form.cookies_from_browser ?? ""}
-              placeholder={t("settings.cookiesBrowserPlaceholder")}
-              onChange={(e) => set("cookies_from_browser", e.target.value)}
-              className={INPUT_CLASS}
+              onChange={(v) => set("cookies_from_browser", v)}
+              options={[
+                { value: "", label: t("settings.cookiesBrowserNone") },
+                ...COOKIE_BROWSERS.map((b) => ({
+                  value: b,
+                  label: b.charAt(0).toUpperCase() + b.slice(1),
+                })),
+              ]}
+              className={`${INPUT_CLASS} w-full`}
             />
           </Field>
           <Field label={t("settings.cookiesFile")} hint={<CookiesHelp />}>

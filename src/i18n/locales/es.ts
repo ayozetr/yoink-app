@@ -111,7 +111,8 @@ export const es = {
     langSystem: "Sistema",
     cookiesHint:
       "Cookies (solo para contenido que requiere sesión; no para contenido público)",
-    cookiesBrowser: "Navegador para cookies (p. ej. firefox, chrome)",
+    cookiesBrowser: "Navegador para cookies",
+    cookiesBrowserNone: "Ninguno",
     cookiesBrowserPlaceholder: "vacío = desactivado",
     cookiesFile: "Archivo cookies.txt (alternativa al navegador)",
     cookiesFilePlaceholder: "/ruta/cookies.txt",

@@ -325,7 +325,12 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
     apply}` and the review modal, wired to a "Tag audio" button after an audio
     download. Tests for filename parsing, response mapping, and per-format tag
     writing (mp3/m4a/flac).
-  - **Remaining:** opt-in setting in Settings, auto-open after audio downloads,
-    and a batch mode for playlists.
+  - **Remaining:** none — single + batch (playlist) tagging are both done in the
+    branch; the opt-in toggle was dropped (the cards are unobtrusive, collapsed
+    by default).
   - **Format note:** cover embedding works for mp3 / m4a / flac / opus but **not
     wav** (no picture frame in the container). Candidate for **v1.3.0**.
+- ⬜ **macOS build**. Package the Tauri app for macOS (the FastAPI sidecar +
+  ffmpeg bundle should port; needs a Mac to build / sign / notarize). Once it
+  ships, add **Safari** back to the cookies "browser" selector — yt-dlp can only
+  read Safari cookies on macOS.
