@@ -64,9 +64,10 @@ When the user clicks **Download**:
 ### 3. Audio auto-tagging — REST (implemented)
 
 After an audio download (single or playlist), the UI offers to tag the file(s)
-from the Apple Music catalogue (iTunes Search API — free, key-less, plain
-HTTPS via stdlib `urllib`). The flow is **identify/search → user picks a version
-and edits → apply**; nothing is written to the file until **Apply**.
+from the user-selected catalogue — Apple Music (iTunes Search API) or Deezer,
+both free, key-less and over plain HTTPS via stdlib `urllib` (`autotag_source` in
+Settings). The flow is **identify/search → user picks a version and edits →
+apply**; nothing is written to the file until **Apply**.
 
 1. `POST /api/autotag/identify` — `{ "path" }`. The backend parses the
    filename's `Artist - Title` and looks it up, returning a `CandidateList` of

@@ -1,7 +1,8 @@
-"""Tests for the audio auto-tagging service (Apple Music / iTunes).
+"""Tests for the audio auto-tagging service (Apple Music / iTunes + Deezer).
 
-The iTunes HTTP call is mocked (no network); we test the filename parsing, the
-response mapping, and the per-format tag writing round-trip (skipped w/o ffmpeg).
+The catalogue HTTP calls are mocked (no network); we test the filename parsing,
+the per-source response mapping, the source dispatch, and the per-format tag
+writing round-trip (skipped w/o ffmpeg).
 """
 
 from __future__ import annotations
@@ -48,6 +49,18 @@ class _FakeResponse:
         ),
         ("Artist - Title (prod. X) [4K].opus", "Artist", "Title"),
         ("JustATitle.flac", "", "JustATitle"),
+        # feat./ft. and stray emoji are stripped from the parsed title
+        (
+            "LOS DIOZES - DISOCIANDO ft. ORSLOK 📱 (Prod. Sceno).mp3",
+            "LOS DIOZES",
+            "DISOCIANDO",
+        ),
+        (
+            "Bad Bunny - Tití Me Preguntó (feat. Nobody).mp3",
+            "Bad Bunny",
+            "Tití Me Preguntó",
+        ),
+        ("Soft Cell - Tainted Love.mp3", "Soft Cell", "Tainted Love"),  # 'ft' kept
     ],
 )
 def test_guess_from_filename(name, artist, title):
@@ -94,6 +107,49 @@ def test_itunes_search_maps_results(monkeypatch):
 def test_itunes_search_empty_term_skips_network():
     # No term → returns [] without touching the network.
     assert svc._itunes_search("", "") == []
+
+
+# --- Deezer response mapping (mocked) --------------------------------------
+
+def test_deezer_search_maps_results(monkeypatch):
+    payload = {
+        "data": [
+            {
+                "title": "DISOCIANDO",
+                "artist": {"name": "Los Diozes"},
+                "album": {
+                    "title": "MESÓN MASÓN",
+                    "cover_xl": "https://cdn.deezer/cover/xl.jpg",
+                    "cover_big": "https://cdn.deezer/cover/big.jpg",
+                },
+            }
+        ]
+    }
+    monkeypatch.setattr(svc, "urlopen", lambda *a, **k: _FakeResponse(payload))
+    results = svc._deezer_search("Los Diozes", "DISOCIANDO")
+
+    assert len(results) == 1
+    c = results[0]
+    assert c.title == "DISOCIANDO"
+    assert c.artist == "Los Diozes"
+    assert c.album == "MESÓN MASÓN"
+    assert c.cover_url.endswith("xl.jpg")  # prefers cover_xl
+    assert c.year is None and c.track_number is None  # not in Deezer search
+
+
+def test_deezer_search_empty_term_skips_network():
+    assert svc._deezer_search("", "") == []
+
+
+# --- source dispatch -------------------------------------------------------
+
+def test_search_dispatches_on_source(monkeypatch):
+    monkeypatch.setattr(svc, "_itunes_search", lambda *a: ["apple"])
+    monkeypatch.setattr(svc, "_deezer_search", lambda *a: ["deezer"])
+    monkeypatch.setattr(svc.settings, "autotag_source", "apple")
+    assert svc._search("a", "b") == ["apple"]
+    monkeypatch.setattr(svc.settings, "autotag_source", "deezer")
+    assert svc._search("a", "b") == ["deezer"]
 
 
 # --- tag writing round-trip (per format) ----------------------------------

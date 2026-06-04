@@ -33,6 +33,9 @@ def _apply(data: dict[str, Any]) -> None:
     cookies_file = data.get("cookies_file")
     settings.cookies_file = Path(cookies_file) if cookies_file else None
 
+    if data.get("autotag_source") in ("apple", "deezer"):
+        settings.autotag_source = data["autotag_source"]
+
 
 def load_overrides() -> None:
     """Load persisted overrides at startup (no-op if none/invalid)."""
@@ -55,6 +58,7 @@ def get_current() -> AppSettings:
         default_quality=settings.default_quality,
         cookies_from_browser=settings.cookies_from_browser,
         cookies_file=str(settings.cookies_file) if settings.cookies_file else None,
+        autotag_source=settings.autotag_source,
     )
 
 

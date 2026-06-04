@@ -1,12 +1,13 @@
-"""Audio auto-tagging via the Apple Music (iTunes) catalogue.
+"""Audio auto-tagging via the Apple Music (iTunes) or Deezer catalogue.
 
 `identify()` searches the catalogue for the file's "Artist - Title" (parsed from
 its filename); `search()` is the manual version. Neither writes anything —
 `apply()` writes the chosen tags + cover into the file with mutagen.
 
-The iTunes Search API is free and key-less, with broad streaming coverage (it
-returns the single / EP / album versions a song appears on, each with its own
-cover) — the same approach apps like Automatag use.
+The catalogue source is user-selectable (`settings.autotag_source`): Apple Music
+(the iTunes Search API) or Deezer — both free and key-less. Apple returns the
+single / EP / album versions of a song, each with its own cover; Deezer's search
+index reaches recent or niche releases the iTunes Search API hasn't indexed yet.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from app.models.autotag import (
 
 _USER_AGENT = f"Yoink/{settings.app_version} (https://github.com/ayozetr/yoink-app)"
 _ITUNES_URL = "https://itunes.apple.com/search"
+_DEEZER_URL = "https://api.deezer.com/search"
 
 
 class AutotagError(RuntimeError):
@@ -45,13 +47,20 @@ class AutotagError(RuntimeError):
 def identify(path: Path) -> CandidateList:
     """Catalogue matches for a downloaded file, keyed on its filename."""
     artist, title = guess_from_filename(path.name)
-    results = _itunes_search(artist, title) if title else []
+    results = _search(artist, title) if title else []
     return CandidateList(results=results)
 
 
 def search(artist: str, title: str) -> CandidateList:
     """Manual catalogue search."""
-    return CandidateList(results=_itunes_search(artist, title))
+    return CandidateList(results=_search(artist, title))
+
+
+def _search(artist: str, title: str) -> list[TagCandidate]:
+    """Search the user-selected catalogue (Apple Music or Deezer)."""
+    if settings.autotag_source == "deezer":
+        return _deezer_search(artist, title)
+    return _itunes_search(artist, title)
 
 
 def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
@@ -86,6 +95,38 @@ def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate
     return candidates
 
 
+def _deezer_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
+    term = f"{artist} {title}".strip()
+    if not term:
+        return []
+    query = urlencode({"q": term, "limit": limit})
+    try:
+        request = Request(  # noqa: S310 — fixed https host
+            f"{_DEEZER_URL}?{query}", headers={"User-Agent": _USER_AGENT}
+        )
+        with urlopen(request, timeout=15) as response:  # noqa: S310
+            data = json.loads(response.read())
+    except (URLError, OSError, ValueError) as exc:
+        raise AutotagError(f"Deezer search failed: {exc}") from exc
+
+    candidates: list[TagCandidate] = []
+    for item in data.get("data", []):
+        album = item.get("album") or {}
+        performer = item.get("artist") or {}
+        candidates.append(
+            TagCandidate(
+                title=item.get("title", ""),
+                artist=performer.get("name", ""),
+                album=album.get("title") or None,
+                # Deezer's /search returns no release date or track number.
+                year=None,
+                track_number=None,
+                cover_url=album.get("cover_xl") or album.get("cover_big") or None,
+            )
+        )
+    return candidates
+
+
 def _clean_album(name: str | None) -> str | None:
     """Drop Apple's ' - Single' / ' - EP' suffixes from a collection name."""
     if not name:
@@ -99,18 +140,36 @@ _FILENAME_TAGS = re.compile(
 )
 
 
+# A trailing "feat./ft./featuring …" (bracketed or not) and stray emoji muddy
+# the catalogue query, so they're dropped from the parsed artist/title.
+_FEAT = re.compile(
+    r"\s*[([]?\s*\b(?:feat|ft|featuring)\b\.?\s+[^)\]]+[)\]]?\s*$", re.IGNORECASE
+)
+_EMOJI = re.compile(
+    "[\U0001f000-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff"
+    "\U00002190-\U000021ff\U00002300-\U000023ff\U0000fe00-\U0000fe0f]+"
+)
+
+
+def _strip_noise(text: str) -> str:
+    text = _EMOJI.sub("", text)
+    text = _FEAT.sub("", text)
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
 def guess_from_filename(name: str) -> tuple[str, str]:
     """Best-effort (artist, title) from a download filename.
 
-    Strips the extension and trailing tags like "(Official Video)"/"(prod. …)",
-    then splits on the first " - ". Returns ("", base) when there's no dash.
+    Strips the extension, trailing tags like "(Official Video)"/"(prod. …)", a
+    trailing "feat. …" and stray emoji, then splits on the first " - ". Returns
+    ("", base) when there's no dash.
     """
     base = re.sub(r"\.[^.]+$", "", name)
     base = _FILENAME_TAGS.sub("", base).strip()
     match = re.match(r"^(.+?)\s[-–—]\s(.+)$", base)
     if match:
-        return match.group(1).strip(), match.group(2).strip()
-    return "", base
+        return _strip_noise(match.group(1)), _strip_noise(match.group(2))
+    return "", _strip_noise(base)
 
 
 # --- apply -----------------------------------------------------------------

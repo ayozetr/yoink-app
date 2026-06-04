@@ -26,7 +26,7 @@ src/
 │   │       ├── PreviewCard.tsx
 │   │       ├── PlaylistCard.tsx
 │   │       └── DownloadProgressCard.tsx
-│   ├── autotag/                 # audio auto-tagging (Apple Music), wired into DownloaderPanel
+│   ├── autotag/                 # audio auto-tagging (Apple Music / Deezer), wired into DownloaderPanel
 │   │   ├── AutoTagPanel.tsx     # inline "Tag audio" card after a single audio download
 │   │   ├── AutoTagBatchPanel.tsx # per-track tagging list after an audio playlist
 │   │   └── filename.ts          # "Artist - Title" filename parser (seeds catalogue search)
@@ -72,8 +72,9 @@ progress over the WebSocket client in `lib/`. FLAC/WAV are gated behind probed
 lossless detection — `PreviewCard` uses the single video's `source_lossless`
 and `PlaylistCard` uses `playlist.source_lossless` (probed from the first entry).
 
-After an audio download, `DownloaderPanel` offers opt-in **Apple Music
-auto-tagging**: a single one-song download shows the collapsible `AutoTagPanel`,
+After an audio download, `DownloaderPanel` offers opt-in **audio auto-tagging**
+(Apple Music or Deezer, chosen in Settings): a single one-song download shows the
+collapsible `AutoTagPanel`,
 and a finished audio playlist shows `AutoTagBatchPanel` (a per-track list with
 include checkboxes and an accordion editor). Both look files up via
 `identifyAudio`, allow manual `searchAudio`, let the user pick a version and

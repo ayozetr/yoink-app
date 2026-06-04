@@ -24,7 +24,7 @@ import {
   type UpdateCheck,
 } from "../../lib/updater";
 import i18n from "../../i18n";
-import type { AppSettings, MediaKind } from "../../types/download";
+import type { AppSettings, AutotagSource, MediaKind } from "../../types/download";
 
 const LANG_STORAGE_KEY = "yoink-lang";
 
@@ -205,6 +205,22 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               />
             </Field>
           </div>
+
+          <Field label={t("settings.autotagSource")}>
+            <Select
+              ariaLabel={t("settings.autotagSource")}
+              value={form.autotag_source}
+              onChange={(v) => set("autotag_source", v as AutotagSource)}
+              options={[
+                { value: "apple", label: t("settings.autotagApple") },
+                { value: "deezer", label: t("settings.autotagDeezer") },
+              ]}
+              className={`${INPUT_CLASS} w-full`}
+            />
+          </Field>
+          <p className="text-[11px] italic text-zinc-500 -mt-1">
+            {t("settings.autotagHint")}
+          </p>
 
           <Field label={t("settings.language")}>
             <Select

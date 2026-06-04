@@ -175,6 +175,9 @@ export interface VersionInfo {
   error: string | null;
 }
 
+/** Catalogue used by the audio auto-tagger. */
+export type AutotagSource = "apple" | "deezer";
+
 /** User-editable settings (mirrors backend `AppSettings`). */
 export interface AppSettings {
   download_dir: string;
@@ -182,6 +185,7 @@ export interface AppSettings {
   default_quality: string;
   cookies_from_browser: string | null;
   cookies_file: string | null;
+  autotag_source: AutotagSource;
 }
 
 /** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */

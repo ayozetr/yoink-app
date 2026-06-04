@@ -107,6 +107,11 @@ export const en = {
     video: "Video",
     audio: "Audio",
     defaultQuality: "Default quality",
+    autotagSource: "Tagging source",
+    autotagApple: "Apple Music",
+    autotagDeezer: "Deezer",
+    autotagHint:
+      "Deezer often finds recent or niche tracks that Apple Music's search doesn't.",
     language: "Language",
     langSystem: "System",
     cookiesHint:

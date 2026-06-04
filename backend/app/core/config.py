@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     default_kind: Literal["video", "audio"] = "video"
     default_quality: str = "1080p"
 
+    # Catalogue used by the audio auto-tagger: Apple Music (iTunes) or Deezer.
+    autotag_source: Literal["apple", "deezer"] = "apple"
+
     def ensure_download_dir(self) -> Path:
         """Create the download directory if missing and return it."""
         self.download_dir.mkdir(parents=True, exist_ok=True)
