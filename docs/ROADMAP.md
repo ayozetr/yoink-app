@@ -370,7 +370,7 @@ non-critical:
 - 🚧 **Smaller wins** — ✅ paste URL from clipboard · ⬜ re-download / re-analyze
   from history · ⬜ open the file (not just its folder) · ⬜ bandwidth rate limit ·
   ⬜ embed thumbnail as cover art on audio · ⬜ list which playlist items failed ·
-  ⬜ hint that WAV can't hold cover art when chosen with auto-tagging · ⬜ unify the
+  ✅ hint that WAV can't hold cover art when chosen with auto-tagging · ✅ unify the
   preview checkboxes (subs / chapters / multi-audio) onto the new `Toggle` switch.
 - ⬜ **Concurrent playlist downloads** (configurable N) — currently strictly
   sequential; needs multi-socket orchestration + aggregate progress. Bigger.
