@@ -191,6 +191,13 @@ def _build_options(
         if settings.sponsorblock_enabled
         else []
     )
+    # SponsorBlock "mark" only computes chapter markers; an FFmpegMetadata PP is
+    # what actually writes them to the file (yt-dlp's CLI auto-enables this for
+    # --sponsorblock-mark). Without it, mark mode would be a silent no-op.
+    mark_chapters = (
+        settings.sponsorblock_enabled and settings.sponsorblock_action == "mark"
+    )
+    chapters_pp = {"key": "FFmpegMetadata", "add_chapters": True, "add_metadata": True}
 
     if request.kind == "audio":
         # For m4a, prefer a source already in an AAC/m4a container so the
@@ -200,10 +207,10 @@ def _build_options(
             options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
         else:
             options["format"] = "bestaudio/best"
-        options["postprocessors"] = [
-            *sponsorblock,
-            _audio_postprocessor(request.audio_format),
-        ]
+        audio_pps = [*sponsorblock, _audio_postprocessor(request.audio_format)]
+        if mark_chapters:
+            audio_pps.append(chapters_pp)
+        options["postprocessors"] = audio_pps
     else:
         height = _parse_height(request.quality)
         if request.audio_multistreams:
@@ -245,11 +252,10 @@ def _build_options(
             )
             postprocessors.append({"key": "FFmpegEmbedSubtitle"})
 
-        if request.embed_chapters:
-            # Write chapter markers and source metadata into the container.
-            postprocessors.append(
-                {"key": "FFmpegMetadata", "add_chapters": True, "add_metadata": True}
-            )
+        if request.embed_chapters or mark_chapters:
+            # Write chapter markers + source metadata into the container — needed
+            # both for the embed-chapters toggle and for SponsorBlock "mark".
+            postprocessors.append(chapters_pp)
 
         if postprocessors:
             options["postprocessors"] = postprocessors
@@ -319,50 +325,64 @@ async def download_events(
     worker = asyncio.create_task(asyncio.to_thread(blocking))
 
     # Drain progress events until the worker finishes, then flush the queue.
-    while True:
-        getter = asyncio.create_task(queue.get())
-        done, _ = await asyncio.wait(
-            {getter, worker}, return_when=asyncio.FIRST_COMPLETED
-        )
-        if getter in done:
-            yield getter.result()
-            continue
-        getter.cancel()
-        while not queue.empty():
-            yield queue.get_nowait()
-        break
-
-    if cancel_event is not None and cancel_event.is_set():
-        # Cancelled by the client: swallow the worker's error and stop.
-        worker.cancel()
-        return
-
+    getter: asyncio.Task[ProgressEvent] | None = None
     try:
-        path_str = worker.result()
-    except _DownloadCancelled:
-        return
-    except DownloadError as exc:
+        while True:
+            getter = asyncio.create_task(queue.get())
+            done, _ = await asyncio.wait(
+                {getter, worker}, return_when=asyncio.FIRST_COMPLETED
+            )
+            if getter in done:
+                yield getter.result()
+                continue
+            getter.cancel()
+            getter = None
+            while not queue.empty():
+                yield queue.get_nowait()
+            break
+
         if cancel_event is not None and cancel_event.is_set():
+            # Cancelled by the client: stop (the finally tears down the worker).
             return
-        yield ErrorEvent(message=str(exc))
-        return
-    except Exception as exc:  # noqa: BLE001 — surface any failure to the client.
-        yield ErrorEvent(message=f"Unexpected download error: {exc}")
-        return
 
-    if not path_str:
-        yield ErrorEvent(message="Download finished but no output file was produced.")
-        return
+        try:
+            path_str = worker.result()
+        except _DownloadCancelled:
+            return
+        except DownloadError as exc:
+            if cancel_event is not None and cancel_event.is_set():
+                return
+            yield ErrorEvent(message=str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001 — surface any failure to the client.
+            yield ErrorEvent(message=f"Unexpected download error: {exc}")
+            return
 
-    path = Path(path_str)
-    if not path.exists():
-        # yt-dlp reported a name but the file isn't on disk (postprocessor rename
-        # mismatch, race, …). Don't emit a "completed" pointing at a missing file
-        # — the history entry and "Open" action would dangle.
-        yield ErrorEvent(message="Download finished but the output file is missing.")
-        return
-    yield CompletedEvent(
-        filename=path.name,
-        filepath=str(path),
-        total_bytes=path.stat().st_size,
-    )
+        if not path_str:
+            yield ErrorEvent(message="Download finished but no output file was produced.")
+            return
+
+        path = Path(path_str)
+        if not path.exists():
+            # yt-dlp reported a name but the file isn't on disk (postprocessor
+            # rename mismatch, race, …). Don't emit a "completed" pointing at a
+            # missing file — the history entry and "Open" action would dangle.
+            yield ErrorEvent(message="Download finished but the output file is missing.")
+            return
+        yield CompletedEvent(
+            filename=path.name,
+            filepath=str(path),
+            total_bytes=path.stat().st_size,
+        )
+    finally:
+        # Tear down the bridge on every exit path — including when the consumer
+        # closes the generator early (client disconnect -> GeneratorExit at a
+        # yield). Set cancel_event so the yt-dlp worker stops at its next hook
+        # fire, drop a pending getter, and await the worker so its
+        # result/_DownloadCancelled is retrieved (no "Task exception was never
+        # retrieved" log) and nothing leaks.
+        if cancel_event is not None:
+            cancel_event.set()
+        if getter is not None and not getter.done():
+            getter.cancel()
+        await asyncio.gather(worker, return_exceptions=True)

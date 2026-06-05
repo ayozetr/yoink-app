@@ -498,9 +498,26 @@ def test_build_options_sponsorblock_mark_video(temp_dirs, monkeypatch):
         DownloadRequest(url="http://x/v", kind="video"),
         hook=lambda raw: None,
     )
+    # "mark" computes markers (ModifyChapters with no cuts) and an FFmpegMetadata
+    # PP must follow to actually write them — without it mark mode is a no-op.
+    assert [pp["key"] for pp in options["postprocessors"]] == [
+        "SponsorBlock",
+        "ModifyChapters",
+        "FFmpegMetadata",
+    ]
+    assert options["postprocessors"][1]["remove_sponsor_segments"] == []
+    assert options["postprocessors"][2]["add_chapters"] is True
+
+
+def test_build_options_sponsorblock_remove_no_chapters_pp(temp_dirs, monkeypatch):
+    # "remove" cuts segments; it must NOT add the FFmpegMetadata chapters PP.
+    monkeypatch.setattr(settings, "sponsorblock_enabled", True)
+    monkeypatch.setattr(settings, "sponsorblock_action", "remove")
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video"),
+        hook=lambda raw: None,
+    )
     assert [pp["key"] for pp in options["postprocessors"]] == [
         "SponsorBlock",
         "ModifyChapters",
     ]
-    # "mark" only adds chapter markers — it doesn't cut anything out.
-    assert options["postprocessors"][1]["remove_sponsor_segments"] == []
