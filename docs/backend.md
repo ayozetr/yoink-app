@@ -21,7 +21,8 @@ backend/
 │   │   ├── download.py         # WS /api/ws/download (live progress)
 │   │   ├── history.py          # GET/DELETE /api/history(/stats), POST /api/open
 │   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version
-│   │   └── autotag.py          # POST /api/autotag/{identify,search,apply}
+│   │   ├── autotag.py          # POST /api/autotag/{identify,search,apply}
+│   │   └── media.py            # GET /api/thumbnail (host-guarded image proxy)
 │   └── services/
 │       ├── ytdlp_service.py    # typed yt-dlp metadata wrapper (extract_info, download=False)
 │       ├── download_service.py # yt-dlp download + typed progress stream
