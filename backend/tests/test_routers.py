@@ -128,3 +128,17 @@ def test_open_folder(temp_dirs, monkeypatch):
     # A path outside the download dir is rejected.
     rejected = client.post("/api/open", json={"path": "/etc/passwd"})
     assert rejected.status_code == 403
+
+
+def test_thumbnail_rejects_internal_and_non_http_hosts():
+    # SSRF guard: the proxy must refuse loopback/private/link-local/metadata
+    # hosts and non-http(s) schemes, before any network fetch.
+    for target in (
+        "http://127.0.0.1:8756/x.jpg",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/x.jpg",
+        "http://192.168.1.1/x.jpg",
+        "file:///etc/passwd",
+    ):
+        resp = client.get("/api/thumbnail", params={"url": target})
+        assert resp.status_code == 400, target
