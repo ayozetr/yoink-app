@@ -48,11 +48,12 @@ fn spawn_backend(app: &tauri::App) -> Option<CommandChild> {
 /// Terminate the backend sidecar and its entire process tree.
 ///
 /// PyInstaller's `--onefile` exe is a *bootloader* that spawns the real Python
-/// process as a child. `CommandChild::kill()` only reaps the bootloader, so on
-/// Windows the Python child can linger — holding port 8756 and the on-disk
-/// `yoink-backend.exe`, which then breaks the NSIS updater ("Error opening file
-/// for writing"). Kill the whole tree by PID on Windows; elsewhere `kill()` is
-/// enough.
+/// process as a child. `CommandChild::kill()` only reaps the bootloader, so the
+/// Python child must be taken down separately or it lingers holding port 8756
+/// (on Windows it also keeps `yoink-backend.exe` open, breaking the NSIS
+/// updater). Kill the whole tree by PID on Windows; on Unix kill the bootloader
+/// and its child explicitly (closing stdin also trips the sidecar's in-process
+/// watchdog as a backstop).
 fn kill_sidecar(child: CommandChild) {
     #[cfg(windows)]
     {
@@ -66,6 +67,12 @@ fn kill_sidecar(child: CommandChild) {
     }
     #[cfg(not(windows))]
     {
+        // Kill the bootloader's Python child directly (by parent PID) so it can't
+        // linger on port 8756 if the stdin-EOF watchdog is slow, then reap the
+        // bootloader itself.
+        let _ = std::process::Command::new("pkill")
+            .args(["-TERM", "-P", &child.pid().to_string()])
+            .status();
         let _ = child.kill();
     }
 }
@@ -95,6 +102,15 @@ fn main() {
     }
 
     tauri::Builder::default()
+        // single-instance MUST be the first plugin. A second launch (or a launch
+        // while an orphaned instance is still up) focuses the existing window
+        // instead of starting a second sidecar that can't bind port 8756.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.webview_windows().values().next() {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
