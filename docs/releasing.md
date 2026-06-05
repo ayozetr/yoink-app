@@ -303,6 +303,17 @@ done < <(find "$directory" -not -path "*/vmware/*" \( -type l -o -type f \) -nam
 
 …or build on a host without VMware.
 
+> **Heads-up:** Tauri re-downloads the plugin into `~/.cache/tauri/` whenever it
+> is missing — a clean cache, a fresh machine, or the first AppImage build of a
+> session — which **silently reverts this patch**. v1.5.0's first build hit
+> exactly this (the previous release's patch was gone). Always verify the patch
+> is present **right before** the AppImage build:
+>
+> ```bash
+> grep -q vmware ~/.cache/tauri/linuxdeploy-plugin-gtk.sh \
+>   && echo "patch OK" || echo "PATCH MISSING — re-apply before building"
+> ```
+
 ### C. Blank/white window on Wayland
 
 Symptom: the app launches (icon in the taskbar) but the window stays blank/
