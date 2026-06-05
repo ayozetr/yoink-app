@@ -40,6 +40,11 @@ export function startDownload(
   socket.onopen = () => socket.send(JSON.stringify(request));
 
   socket.onmessage = (message) => {
+    // After a client-initiated cancel() the socket is closing but the browser
+    // may still dispatch already-buffered frames. Dropping them here stops a
+    // stale progress/terminal event from resurrecting a cancelled (or replaced)
+    // download job in the caller's queue.
+    if (cancelled) return;
     try {
       handlers.onEvent(JSON.parse(message.data as string) as DownloadEvent);
     } catch {

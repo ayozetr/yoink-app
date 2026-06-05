@@ -63,7 +63,9 @@ def _format_speed(bytes_per_second: float | None) -> str | None:
 
 def _format_eta(seconds: float | None) -> str | None:
     """Render an ETA in seconds as 'MM:SS' or 'H:MM:SS'."""
-    if seconds is None:
+    if seconds is None or seconds < 0:
+        # yt-dlp occasionally emits eta=-1 ("unknown"); treat it as no ETA
+        # instead of formatting nonsense like "-1:59".
         return None
     total = int(seconds)
     hours, remainder = divmod(total, 3600)
@@ -89,7 +91,7 @@ def _map_progress(raw: dict[str, Any]) -> ProgressEvent | None:
         downloaded = raw.get("downloaded_bytes")
         total = raw.get("total_bytes") or raw.get("total_bytes_estimate")
         percent = (
-            round(downloaded / total * 100, 1)
+            min(round(downloaded / total * 100, 1), 100.0)
             if isinstance(downloaded, (int, float))
             and isinstance(total, (int, float))
             and total
@@ -297,6 +299,12 @@ async def download_events(
                 event = event.model_copy(update={"percent": last_percent})
             else:
                 last_percent = event.percent
+        elif event.status == "processing":
+            # A "finished" hook marks the end of one stream. A merged
+            # video+audio download fetches two streams back-to-back, so the
+            # second stream restarts at ~0%; reset the clamp baseline or the
+            # bar would stay frozen at the first stream's 100%.
+            last_percent = 0.0
         # Hook runs on the worker thread; hand off to the loop thread.
         loop.call_soon_threadsafe(queue.put_nowait, event)
 
