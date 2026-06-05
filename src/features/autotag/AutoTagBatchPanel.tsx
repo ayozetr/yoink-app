@@ -94,6 +94,10 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
       album: c.album ?? "",
       year: c.year ?? "",
       coverUrl: c.cover_url,
+      // Picking a candidate (manual search or clicking a result) means the user
+      // wants it applied — mark it included, like the auto-identify path does,
+      // so a manually-found match isn't silently skipped on "apply to selected".
+      included: true,
     });
 
   // Identify the tracks the first time the card is opened — through a small

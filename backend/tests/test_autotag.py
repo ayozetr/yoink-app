@@ -274,3 +274,28 @@ def test_write_without_cover(tmp_path):
     )
     assert svc._write_tags(path, {"title": "Only Title"}, None) is False
     assert mutagen.File(str(path), easy=True)["title"][0] == "Only Title"
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
+def test_write_wav_tags_text_only(tmp_path):
+    # WAV used to raise an unhandled TypeError (-> HTTP 500) via mutagen's Easy
+    # interface. It must now write text tags through its ID3 chunk and, since WAV
+    # has no reliable cover frame, report no embedded cover instead of crashing.
+    from mutagen.wave import WAVE
+
+    path = tmp_path / "track.wav"
+    subprocess.run(
+        [FFMPEG, "-loglevel", "error", "-f", "lavfi",
+         "-i", "anullsrc=r=44100:cl=mono", "-t", "1", str(path)],
+        check=True,
+    )
+    tags = {"title": "Disociando", "artist": "Artist", "album": "Album",
+            "date": "2024", "tracknumber": 3}
+
+    embedded = svc._write_tags(path, tags, FAKE_COVER)
+    assert embedded is False
+
+    reread = WAVE(str(path))
+    assert str(reread.tags.get("TIT2")) == "Disociando"
+    assert str(reread.tags.get("TPE1")) == "Artist"
+    assert str(reread.tags.get("TALB")) == "Album"

@@ -25,6 +25,7 @@ import mutagen
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError, TALB, TDRC, TIT2, TPE1, TRCK
 from mutagen.mp4 import MP4, MP4Cover
+from mutagen.wave import WAVE
 
 from app.core.config import settings
 from app.models.autotag import (
@@ -256,9 +257,9 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
     }
     try:
         embedded = _write_tags(path, tags, cover)
-    except mutagen.MutagenError as exc:
-        # Corrupt / mistyped / partial audio file: surface as a clean 422 rather
-        # than an unhandled 500 (only _write_mp3 guarded its own open before).
+    except (mutagen.MutagenError, ValueError, KeyError, TypeError) as exc:
+        # Corrupt / mistyped / partial audio file, or a format mutagen can't tag
+        # cleanly: surface as a clean 422 rather than an unhandled 500.
         raise AutotagError(f"Could not write tags to the file: {exc}") from exc
     return ApplyResponse(ok=True, embedded_cover=embedded)
 
@@ -289,7 +290,9 @@ def _write_tags(
         return _write_mp4(path, tags, cover)
     if ext == ".flac":
         return _write_flac(path, tags, cover)
-    return _write_generic(path, tags)  # opus/ogg/wav: text only, no cover frame
+    if ext == ".wav":
+        return _write_wav(path, tags)
+    return _write_generic(path, tags)  # opus/ogg: text only, no cover frame
 
 
 def _write_mp3(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None) -> bool:
@@ -350,8 +353,28 @@ def _write_flac(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | Non
     return embedded
 
 
+def _write_wav(path: Path, tags: dict[str, Any]) -> bool:
+    """Text tags for WAV via its ID3 chunk.
+
+    mutagen's Easy interface rejects plain strings for WAVE (it wants ID3 frame
+    instances, which raised an unhandled TypeError -> 500), and WAV has no
+    reliable cover frame, so write the text frames directly and skip the cover.
+    """
+    audio = WAVE(path)
+    if audio.tags is None:
+        audio.add_tags()
+    frames = {"title": TIT2, "artist": TPE1, "album": TALB, "date": TDRC}
+    for key, frame in frames.items():
+        if tags.get(key):
+            audio.tags.setall(frame.__name__, [frame(encoding=3, text=str(tags[key]))])
+    if tags.get("tracknumber"):
+        audio.tags.setall("TRCK", [TRCK(encoding=3, text=str(tags["tracknumber"]))])
+    audio.save()
+    return False
+
+
 def _write_generic(path: Path, tags: dict[str, Any]) -> bool:
-    """Best-effort text tags for opus/ogg/wav via mutagen's Easy interface."""
+    """Best-effort text tags for opus/ogg via mutagen's Easy interface."""
     audio = mutagen.File(path, easy=True)
     if audio is None:
         raise AutotagError("Unsupported audio format for tagging.")
