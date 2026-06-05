@@ -68,6 +68,10 @@ yt-dlp options:
   `writeautomaticsub` and `FFmpegEmbedSubtitle`.
 - **Chapters:** `embed_chapters` adds `FFmpegMetadata` (`add_chapters`,
   `add_metadata`).
+- **SponsorBlock:** when `settings.sponsorblock_enabled`, prefixes the
+  `SponsorBlock` + `ModifyChapters` postprocessors (categories: sponsor / intro /
+  outro / selfpromo / …) onto audio and video; `sponsorblock_action` either
+  removes the segments or just marks them as chapters.
 
 ## Audio auto-tagging
 

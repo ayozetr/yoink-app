@@ -27,8 +27,8 @@ It is split into two layers that communicate asynchronously:
 
 ## Features
 
-- **Analyze any URL** → preview (title, thumbnail, duration) with the real
-  available formats. ~1800 sites via yt-dlp.
+- **Analyze any URL** (with a **paste-from-clipboard** button) → preview (title,
+  thumbnail, duration) with the real available formats. ~1800 sites via yt-dlp.
 - **Live downloads** over WebSocket (percent / speed / ETA), with **cancel**
   and **retry**.
 - **Output formats, your choice:**
@@ -43,6 +43,8 @@ It is split into two layers that communicate asynchronously:
   Deezer or MusicBrainz** (free, no account; pick one — or Automatic — in
   Settings); you review, edit or search before anything is written. Works per
   song and across whole playlists.
+- **SponsorBlock** (optional, off by default) — strip or just mark sponsor /
+  intro / outro segments on YouTube downloads, chosen in Settings.
 - **History & stats** persisted locally (SQLite), with open-folder and clear.
 - **Settings** — download folder (native folder picker), default format/quality,
   **language**, and cookies (browser or `cookies.txt`) for sign-in-only content.

@@ -14,6 +14,8 @@ src/
 │       ├── GlassPanel.tsx       # frosted-glass card container
 │       ├── Button.tsx           # solid / gradient action button
 │       ├── Select.tsx           # dark, app-styled dropdown (replaces native <select>)
+│       ├── Toggle.tsx           # on/off switch (role=switch): chapters, multi-audio, SponsorBlock
+│       ├── SponsorBlockIcon.tsx # SponsorBlock brand mark (shield + play)
 │       ├── EditMenu.tsx         # custom right-click Cut/Copy/Paste menu for text fields
 │       └── ProgressBar.tsx      # gradient progress bar
 ├── features/
