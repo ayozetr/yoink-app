@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
+import { Toggle } from "../../../components/ui/Toggle";
 import { Thumbnail } from "../../../components/ui/Thumbnail";
 import type {
   AudioFormat,
@@ -205,6 +206,13 @@ export function PreviewCard({
               </p>
             )}
 
+            {!isVideo && effectiveAudioFormat === "wav" && (
+              <p className="flex items-center gap-2 text-xs text-zinc-400">
+                <Info size={14} className="shrink-0" />
+                {t("preview.wavCoverWarning")}
+              </p>
+            )}
+
             {/* Subtitles (MKV only) + chapters + multi-audio: video-only, when available. */}
             {(showSubtitles || (isVideo && info.has_chapters) || showMultiAudio) && (
               <div className="flex flex-wrap items-center gap-3">
@@ -247,26 +255,18 @@ export function PreviewCard({
                   />
                 )}
                 {info.has_chapters && (
-                  <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={embedChapters}
-                      onChange={(e) => setEmbedChapters(e.target.checked)}
-                      className="size-4 accent-violet-500 shrink-0"
-                    />
-                    {t("preview.chapters")}
-                  </label>
+                  <Toggle
+                    checked={embedChapters}
+                    onChange={setEmbedChapters}
+                    label={t("preview.chapters")}
+                  />
                 )}
                 {showMultiAudio && (
-                  <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={audioMultistreams}
-                      onChange={(e) => setAudioMultistreams(e.target.checked)}
-                      className="size-4 accent-violet-500 shrink-0"
-                    />
-                    {t("preview.multiAudio")}
-                  </label>
+                  <Toggle
+                    checked={audioMultistreams}
+                    onChange={setAudioMultistreams}
+                    label={t("preview.multiAudio")}
+                  />
                 )}
               </div>
             )}

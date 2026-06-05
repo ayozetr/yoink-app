@@ -30,6 +30,8 @@ export const en = {
     audioFormat: "Audio format",
     losslessWarning:
       "This content has no lossless audio — FLAC/WAV unavailable.",
+    wavCoverWarning:
+      "WAV can't store cover art — auto-tagging will add the metadata but no album cover.",
     subtitles: "Subtitles",
     subtitlesNone: "No subtitles",
     subtitlesAll: "All subtitles",

@@ -30,6 +30,8 @@ export const es = {
     audioFormat: "Formato de audio",
     losslessWarning:
       "El contenido no tiene audio sin pérdida — FLAC/WAV no disponibles.",
+    wavCoverWarning:
+      "WAV no admite carátula — el auto-etiquetado añadirá los datos pero no la portada.",
     subtitles: "Subtítulos",
     subtitlesNone: "Ningún subtítulo",
     subtitlesAll: "Todos los subtítulos",
