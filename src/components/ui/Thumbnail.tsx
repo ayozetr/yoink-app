@@ -34,6 +34,15 @@ export function Thumbnail({
   referer,
 }: ThumbnailProps) {
   const [stage, setStage] = useState<Stage>("direct");
+  const [prevSrc, setPrevSrc] = useState(src);
+
+  // Restart the fallback chain when the image changes, so a reused instance
+  // (rendered without a fresh key) doesn't keep a previous "failed"/"proxy".
+  // React's "adjust state during render" pattern — no effect, no extra paint.
+  if (src !== prevSrc) {
+    setPrevSrc(src);
+    setStage("direct");
+  }
 
   if (stage === "failed") {
     return <>{fallback}</>;
