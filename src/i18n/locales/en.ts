@@ -122,14 +122,17 @@ export const en = {
       "Deezer doesn't always include the release year — you can add it by hand.",
     autotagHint_musicbrainz:
       "MusicBrainz can be slower for large playlists (~1 request/second).",
-    sponsorblock: "SponsorBlock (skip sponsor segments)",
+    sponsorblock: "SponsorBlock",
     sponsorblockAction: "SponsorBlock action",
     sponsorblockRemove: "Remove segments",
     sponsorblockMark: "Mark as chapters",
     sponsorblockHint_remove:
-      "Cuts sponsor / intro / outro segments out of the file (YouTube only; re-encodes the affected parts).",
+      "Cuts sponsor / intro / outro segments out of the file (re-encodes the affected parts).",
     sponsorblockHint_mark:
-      "Keeps the full video but adds chapter markers so you can skip the segments yourself (YouTube only).",
+      "Keeps the full video but adds chapter markers so you can skip the segments yourself.",
+    sponsorblockHelpTitle: "What is SponsorBlock?",
+    sponsorblockHelp:
+      "A crowd-sourced database of YouTube video segments — sponsors, intros, outros, self-promo… When enabled, Yoink either cuts them out of the download or marks them as chapters. Works on YouTube only.",
     language: "Language",
     langSystem: "System",
     cookiesHint:

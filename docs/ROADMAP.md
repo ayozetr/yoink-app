@@ -356,9 +356,10 @@ non-critical:
 
 **Features** (fit the local / high-fidelity philosophy)
 
-- ✅ **SponsorBlock** — Settings toggle (off by default) with a remove/mark
-  dropdown; wires yt-dlp's `SponsorBlock` + `ModifyChapters` postprocessors into
-  both audio and video downloads (sponsor / intro / outro / selfpromo / … cats).
+- ✅ **SponsorBlock** — Settings switch (off by default; reusable `Toggle` with
+  the brand logo + a "?" info popover) and a remove/mark dropdown; wires yt-dlp's
+  `SponsorBlock` + `ModifyChapters` postprocessors into both audio and video
+  downloads (sponsor / intro / outro / selfpromo / … cats).
 - ⬜ **Trim / clip a section** — download a time range (e.g. `00:30–02:10`) via
   yt-dlp's `download_ranges`, with start/end inputs in the preview.
 - ⬜ **Persist all download defaults** — remember container, audio format,

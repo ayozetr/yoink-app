@@ -14,6 +14,8 @@ import {
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
+import { Toggle } from "../../components/ui/Toggle";
+import { SponsorBlockIcon } from "../../components/ui/SponsorBlockIcon";
 import { updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
@@ -234,15 +236,14 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           </p>
 
           <div className="flex flex-col gap-2">
-            <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
-              <input
-                type="checkbox"
-                checked={form.sponsorblock_enabled}
-                onChange={(e) => set("sponsorblock_enabled", e.target.checked)}
-                className="size-4 accent-violet-500 shrink-0"
-              />
-              {t("settings.sponsorblock")}
-            </label>
+            <Toggle
+              checked={form.sponsorblock_enabled}
+              onChange={(v) => set("sponsorblock_enabled", v)}
+              label={t("settings.sponsorblock")}
+              icon={<SponsorBlockIcon className="size-4 shrink-0" />}
+              help={<SponsorBlockHelp />}
+              className="w-full"
+            />
             {form.sponsorblock_enabled && (
               <>
                 <Select
@@ -491,7 +492,13 @@ const COOKIES_EXT_FIREFOX =
 
 /** A "?" button that reveals `children` in a popover, anchored with `fixed` so
  *  the modal's overflow can't clip it. */
-function HelpPopover({ children }: { children: ReactNode }) {
+function HelpPopover({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label?: string;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -533,8 +540,8 @@ function HelpPopover({ children }: { children: ReactNode }) {
         ref={btnRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label={t("settings.cookiesHelp")}
-        title={t("settings.cookiesHelp")}
+        aria-label={label ?? t("settings.cookiesHelp")}
+        title={label ?? t("settings.cookiesHelp")}
         className="inline-flex text-zinc-500 transition hover:text-zinc-200"
       >
         <HelpCircle size={13} />
@@ -588,6 +595,16 @@ function BrowserCookiesHelp() {
         <li>{t("settings.cookiesBrowserHelpClosed")}</li>
         <li>{t("settings.cookiesBrowserHelpLogin")}</li>
       </ul>
+    </HelpPopover>
+  );
+}
+
+/** "?" help for SponsorBlock — what it is and how it works (brief). */
+function SponsorBlockHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.sponsorblockHelpTitle")}>
+      {t("settings.sponsorblockHelp")}
     </HelpPopover>
   );
 }
