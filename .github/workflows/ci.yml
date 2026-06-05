@@ -1,10 +1,15 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  # Push/PR triggers are disabled while the GitHub account is billing-locked:
+  # Actions can't run, so every push only produced a failed CI run (+ an email),
+  # and `gh workflow disable` does not persist. Re-enable both triggers below
+  # once billing is resolved.
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 # Cancel superseded runs on the same ref.
 concurrency:
