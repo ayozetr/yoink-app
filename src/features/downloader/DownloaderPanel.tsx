@@ -149,6 +149,10 @@ export function DownloaderPanel({
     let settled = false;
     downloadRef.current = startDownload(job.request, {
       onEvent: (event) => {
+        // Ignore anything after a terminal event: a buffered or abnormal-close
+        // error could otherwise double-count this item and double-advance the
+        // queue (onClose already guards on `settled`; keep onEvent symmetric).
+        if (settled) return;
         if (event.type === "progress") {
           setProgress(event);
           return;
