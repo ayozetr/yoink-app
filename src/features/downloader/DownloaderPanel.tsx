@@ -115,6 +115,14 @@ export function DownloaderPanel({
     audioPathsRef.current = [];
   };
 
+  const handleCancel = () => {
+    // A cancelled queue may already have items the backend finished and persisted
+    // to history before the user hit cancel. resetDownload() (also used for other
+    // resets) doesn't refresh, so trigger it here so those downloads show up.
+    resetDownload();
+    onDownloadFinished?.();
+  };
+
   const runJob = (index: number) => {
     const jobs = queueRef.current;
     if (index >= jobs.length) {
@@ -321,7 +329,7 @@ export function DownloaderPanel({
       <DownloadProgressCard
         progress={progress}
         completed={completed}
-        onCancel={resetDownload}
+        onCancel={handleCancel}
       />
 
       {completed?.filepath && lastKind === "audio" && !downloading && !tagDismissedSingle && (
