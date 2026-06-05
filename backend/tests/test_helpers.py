@@ -170,7 +170,9 @@ def test_build_entry_and_playlist():
     assert playlist.entry_count == 3  # total reported (incl. the dropped one)
     assert [e.id for e in playlist.entries] == ["a", "b"]
     assert playlist.entries[0].duration_string == "1:01"
-    assert playlist.truncated is False
+    # 2 listed < 3 reported (entry "c" was dropped for missing a URL), so the
+    # listing is flagged truncated rather than silently short.
+    assert playlist.truncated is True
 
 
 @pytest.mark.parametrize("container", ["mp4", "mov", "mkv"])

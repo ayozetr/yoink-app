@@ -92,7 +92,7 @@ def _format_duration(seconds: float | None) -> str | None:
     than reusing yt-dlp's own ``duration_string`` because the latter collapses to
     bare seconds for clips under a minute (e.g. '5' for a 5-second video).
     """
-    if seconds is None:
+    if seconds is None or seconds < 0:
         return None
 
     total = int(seconds)
@@ -274,7 +274,9 @@ def _build_playlist(
         uploader=info.get("uploader") or info.get("channel"),
         entry_count=total,
         entries=entries,
-        truncated=len(raw_entries) > _ENTRY_CAP,
+        # True if the listing is shorter than the reported total — whether from
+        # the _ENTRY_CAP cap or entries dropped for missing a usable URL.
+        truncated=len(entries) < total,
         source_lossless=source_lossless,
         best_audio_abr=best_audio_abr,
     )
