@@ -14,6 +14,7 @@ from app.services.download_service import (
     _format_speed,
     _map_progress,
     _parse_height,
+    _parse_rate_limit,
 )
 from app.services.ytdlp_service import (
     _audio_langs,
@@ -538,3 +539,25 @@ def test_build_options_no_trim_by_default(temp_dirs):
         hook=lambda raw: None,
     )
     assert "download_ranges" not in options
+
+
+def test_parse_rate_limit():
+    assert _parse_rate_limit("1M") == 1024**2
+    assert _parse_rate_limit("500K") == 500 * 1024
+    assert _parse_rate_limit("1m") == 1024**2  # case-insensitive
+    # Unset / unparseable / non-positive / non-finite all collapse to None.
+    for bad in (None, "", "  ", "M", "1X", "-1M", "0", "inf", "nan"):
+        assert _parse_rate_limit(bad) is None
+
+
+def test_filename_template_cannot_escape_download_dir(temp_dirs):
+    download_root = str(settings.ensure_download_dir())
+    for evil in ("../../etc/evil", "/etc/passwd", "..\\..\\x", "   "):
+        settings.filename_template = evil
+        options = _build_options(
+            DownloadRequest(url="http://x/v", kind="video"),
+            hook=lambda raw: None,
+        )
+        # The resolved output template stays inside the download directory.
+        assert options["outtmpl"].startswith(download_root)
+    settings.filename_template = "%(title)s"

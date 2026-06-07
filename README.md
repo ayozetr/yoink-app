@@ -50,8 +50,11 @@ It is split into two layers that communicate asynchronously:
 - **SponsorBlock** (optional, off by default) — strip or just mark sponsor /
   intro / outro segments on YouTube downloads, chosen in Settings.
 - **History & stats** persisted locally (SQLite), with open-folder and clear.
+- **Filename template** — choose how files are named (presets like
+  `%(uploader)s - %(title)s` or a custom one, with a live preview).
 - **Settings** — download folder (native folder picker), default format/quality,
-  **language**, and cookies (browser or `cookies.txt`) for sign-in-only content.
+  **bandwidth limit**, **language**, and cookies (browser or `cookies.txt`) for
+  sign-in-only content.
 - **English & Spanish UI** (react-i18next), auto-detected from your system
   language and switchable in Settings.
 - **Update check** against the latest GitHub release; Settings also shows the

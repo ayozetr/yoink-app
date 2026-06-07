@@ -165,17 +165,25 @@ def _sponsorblock_postprocessors(action: str) -> list[dict[str, Any]]:
 
 
 def _parse_rate_limit(value: str | None) -> float | None:
-    """Parse a speed cap like '1M' / '500K' / '2G' into bytes/s (None if unset)."""
+    """Parse a speed cap like '1M' / '500K' / '2G' into bytes/s.
+
+    Returns None for unset, unparseable, or non-positive / non-finite values, so a
+    hand-edited settings.json can't feed yt-dlp a bogus ratelimit.
+    """
     if not value:
         return None
     text = value.strip().upper()
     units = {"K": 1024, "M": 1024**2, "G": 1024**3}
     try:
         if text and text[-1] in units:
-            return float(text[:-1]) * units[text[-1]]
-        return float(text)
+            result = float(text[:-1]) * units[text[-1]]
+        else:
+            result = float(text)
     except ValueError:
         return None
+    if not (result > 0) or result == float("inf"):
+        return None
+    return result
 
 
 def _build_options(
@@ -184,8 +192,11 @@ def _build_options(
     """Assemble yt-dlp options for the requested kind/quality."""
     download_dir = settings.ensure_download_dir()
     # Filename template: the user-configured name part + the real extension.
-    # Fall back to the title if it was somehow cleared.
-    name_template = (settings.filename_template or "%(title)s").strip()
+    # Strip first (so a whitespace-only value falls back) and neutralise path
+    # traversal / absolute paths so a template can't write outside download_dir.
+    name_template = (settings.filename_template or "").strip() or "%(title)s"
+    name_template = name_template.replace("\\", "/").replace("..", "").strip("/")
+    name_template = name_template or "%(title)s"
     options: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,

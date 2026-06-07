@@ -347,6 +347,12 @@ non-critical:
 - ✅ **yt-dlp version in Settings** *(v1.7.0)* — shows the bundled yt-dlp version
   and whether a newer one is published (informational; it updates with the next
   Yoink release — no in-app yt-dlp update, by design).
+- ✅ **Filename template** *(in main)* — a button beside the "active downloads"
+  pill opens a popover with safe presets (title / uploader-title / date-title /
+  title-id) + a custom field and a live preview; the backend feeds it to yt-dlp's
+  `outtmpl`, sanitised against path traversal.
+- ✅ **Bandwidth limit** *(in main)* — a Settings dropdown caps the download speed
+  (yt-dlp `ratelimit`).
 - ✅ **SponsorBlock** *(v1.5.0)* — Settings switch (off by default; reusable
   `Toggle` with the brand logo + a "?" info popover) and a remove/mark dropdown;
   wires yt-dlp's `SponsorBlock` + `ModifyChapters` postprocessors into both audio
@@ -365,13 +371,13 @@ assigned yet; roughly in priority order.
 - ⬜ **Persist all download defaults** — remember container, audio format,
   subtitles and chapters (today only kind/quality persist). *(Postponed by the
   user for now.)*
-- ⬜ **Configurable filename template** — a settings field for `outtmpl` with safe
-  presets (`%(uploader)s - %(title)s`); pairs well with the auto-tagger.
-- ⬜ **Concurrent playlist downloads** (configurable N) — currently strictly
-  sequential; needs multi-socket orchestration + aggregate progress. Bigger.
+- ⬜ **Concurrent playlist downloads** (configurable N) — evaluated and deferred:
+  the queue is strictly sequential (one socket / progress bar / history entry at a
+  time), so parallelising means redesigning the whole progress UI — real
+  regression risk for a modest gain.
 - ⬜ **Smaller wins (left):** re-download / re-analyze from history · open the
-  file itself (not just its folder) · bandwidth rate limit · embed thumbnail as
-  cover art on audio · list which playlist items failed.
+  file itself (not just its folder) · embed thumbnail as cover art on audio ·
+  list which playlist items failed.
 
 ## Future — other platforms
 

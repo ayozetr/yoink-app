@@ -14,7 +14,7 @@ const PRESETS = [
   "%(title)s",
   "%(uploader)s - %(title)s",
   "%(upload_date)s - %(title)s",
-  "%(playlist_index)s - %(title)s",
+  "%(title)s [%(id)s]",
 ] as const;
 
 /** Sample field values so the preview shows a real-looking filename. */
@@ -22,7 +22,6 @@ const SAMPLE: Record<string, string> = {
   "%(title)s": "My Awesome Video",
   "%(uploader)s": "Cool Channel",
   "%(upload_date)s": "20260607",
-  "%(playlist_index)s": "01",
   "%(id)s": "dQw4w9WgXcQ",
 };
 
