@@ -27,6 +27,8 @@ interface AutoTagPanelProps {
   filename?: string;
   /** Hide the panel (user dismissed it, or tagging finished). */
   onDismiss: () => void;
+  /** Called after tags are written, so the history (cover art) can refresh. */
+  onApplied?: () => void;
 }
 
 const INPUT =
@@ -42,7 +44,12 @@ type Stage = "loading" | "review" | "applying" | "done" | "error";
  * manually, and writes the tags + cover only when they hit "Apply" — they can
  * also just ignore or dismiss it.
  */
-export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
+export function AutoTagPanel({
+  path,
+  filename,
+  onDismiss,
+  onApplied,
+}: AutoTagPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("loading");
@@ -162,6 +169,7 @@ export function AutoTagPanel({ path, filename, onDismiss }: AutoTagPanelProps) {
         cover_url: coverUrl,
       });
       setStage("done");
+      onApplied?.();
       window.setTimeout(onDismiss, 1500);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : t("autotag.error"));

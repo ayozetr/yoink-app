@@ -22,6 +22,14 @@ def test_add_list_order_and_get(history_db):
     assert history_store.get_entry(99999) is None
 
 
+def test_update_title_by_filepath(history_db):
+    entry = _add(title="Raw Name | VIDEO", kind="audio", filepath="/dl/song.mp3")
+    history_store.update_title("/dl/song.mp3", "Artist - Song")
+    assert history_store.get_entry(entry.id).title == "Artist - Song"
+    # No row matches → silent no-op.
+    history_store.update_title("/dl/missing.mp3", "Nope")
+
+
 def test_stats_counts_only_completed(history_db):
     _add(status="completed", filesize=1000)
     _add(status="completed", filesize=500)

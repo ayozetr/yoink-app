@@ -362,6 +362,7 @@ export function DownloaderPanel({
           path={completed.filepath}
           filename={completed.filename}
           onDismiss={() => setTagDismissedSingle(true)}
+          onApplied={onDownloadFinished}
         />
       )}
 
@@ -369,6 +370,7 @@ export function DownloaderPanel({
         <AutoTagBatchPanel
           items={batchItems}
           onDismiss={() => setTagDismissedBatch(true)}
+          onApplied={onDownloadFinished}
         />
       )}
 

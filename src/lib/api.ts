@@ -176,9 +176,11 @@ export async function openInFileManager(
   }
 }
 
-/** URL of a downloaded file's embedded cover art (the endpoint 404s if none). */
-export function coverUrl(path: string): string {
-  return `${API_BASE_URL}/cover?path=${encodeURIComponent(path)}`;
+/** URL of a downloaded file's embedded cover art (the endpoint 404s if none).
+ * `version` is an optional cache-buster so a freshly-tagged file re-fetches. */
+export function coverUrl(path: string, version?: number): string {
+  const bust = version != null ? `&v=${version}` : "";
+  return `${API_BASE_URL}/cover?path=${encodeURIComponent(path)}${bust}`;
 }
 
 /** Fetch the current settings via `GET /api/settings`. */

@@ -7,6 +7,7 @@ thread. File paths are confined to the download directory (path guard).
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
@@ -19,6 +20,7 @@ from app.models.autotag import (
     IdentifyRequest,
     SearchRequest,
 )
+from app.services import history_store
 from app.services.autotag_service import AutotagError, apply, identify, search
 
 router = APIRouter(prefix="/autotag", tags=["autotag"])
@@ -70,8 +72,18 @@ def search_endpoint(request: SearchRequest) -> CandidateList:
 def apply_endpoint(request: ApplyRequest) -> ApplyResponse:
     path = _validate_audio_path(request.path)
     try:
-        return apply(request, path)
+        response = apply(request, path)
     except AutotagError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
+    # Reflect the chosen "Artist - Title" in the download history list.
+    title = (request.title or "").strip()
+    artist = (request.artist or "").strip()
+    new_title = f"{artist} - {title}" if artist and title else title
+    if new_title:
+        try:
+            history_store.update_title(str(path), new_title)
+        except sqlite3.Error:
+            pass  # best-effort: the tags were written even if history can't update
+    return response

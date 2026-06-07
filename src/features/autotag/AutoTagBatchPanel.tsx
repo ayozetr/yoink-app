@@ -17,6 +17,8 @@ interface AutoTagBatchPanelProps {
   /** Audio files from a finished playlist. */
   items: TagItem[];
   onDismiss: () => void;
+  /** Called after tags are written, so the history (cover art) can refresh. */
+  onApplied?: () => void;
 }
 
 const INPUT =
@@ -61,7 +63,11 @@ function initTrack(item: TagItem): Track {
  * them with their best match + an include checkbox, lets each row be expanded
  * (accordion) to review/edit/search, and writes all the checked ones at once.
  */
-export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) {
+export function AutoTagBatchPanel({
+  items,
+  onDismiss,
+  onApplied,
+}: AutoTagBatchPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [tracks, setTracks] = useState<Track[]>(() => items.map(initTrack));
@@ -200,6 +206,7 @@ export function AutoTagBatchPanel({ items, onDismiss }: AutoTagBatchPanelProps) 
       }
     }
     setApplying(false);
+    onApplied?.(); // refresh history so freshly-tagged covers show up
   };
 
   const markedCount = tracks.filter((tr) => tr.included).length;

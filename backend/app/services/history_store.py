@@ -91,6 +91,19 @@ def add_entry(
     )
 
 
+def update_title(filepath: str, title: str) -> None:
+    """Update the stored title for the row(s) with this file path (no-op if none).
+
+    Used after auto-tagging so the history shows "Artist - Title" instead of the
+    raw download name.
+    """
+    with _connect() as connection:
+        connection.execute(
+            "UPDATE downloads SET title = ? WHERE filepath = ?",
+            (title, filepath),
+        )
+
+
 def list_entries(limit: int = 50) -> list[HistoryEntry]:
     """Return the most recent entries, newest first."""
     with _connect() as connection:
