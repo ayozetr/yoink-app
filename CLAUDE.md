@@ -79,7 +79,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
         ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
         ├── routers/autotag.py         # POST /api/autotag/{identify,search,apply}
-        ├── routers/media.py           # GET /api/thumbnail (host-guarded image proxy)
+        ├── routers/media.py           # GET /api/thumbnail (host-guarded proxy) + /api/cover (embedded art)
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
         ├── services/download_service.py  # yt-dlp download + progress stream
         ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor

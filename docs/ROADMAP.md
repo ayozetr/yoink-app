@@ -337,6 +337,11 @@ non-critical:
 
 **Features shipped** (fit the local / high-fidelity philosophy)
 
+- ✅ **Cover art in history + completed card** *(in main)* — extracts the embedded
+  album art (`GET /api/cover`, mutagen, path-guarded) for tagged audio; falls back
+  to the kind icon.
+- ✅ **Browser icons in the cookies selector** *(in main)* — monochrome logos
+  (self-contained `BrowserIcon`, simple-icons paths, no runtime dep).
 - ✅ **YouTube search from the URL field** *(v1.6.0)* — typing a query (not a URL)
   shows a live, debounced dropdown of results (thumbnail / channel / views /
   duration) with keyboard nav; picking one analyzes it. Backend `GET /api/search`
@@ -428,12 +433,12 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   mount; the core action is "paste a link".
 - ⬜ **Drag-and-drop a link onto the window** (M) — Tauri `onDragDropEvent` + a
   DOM `text/uri-list` fallback → analyze.
-- ⬜ **Global keyboard shortcuts** (M) — Ctrl/Cmd+L focus URL, Ctrl/Cmd+, settings,
-  Esc clear/close.
+- ✅ **Global keyboard shortcuts** *(in main)* — Ctrl/Cmd+L focus URL, Ctrl/Cmd+,
+  toggle Settings, Esc close.
 - ✅ **Action buttons on the completed card** *(in main)* — Open file / Open
   folder + a dismiss, right on the completion card.
-- ⬜ **Progress accessibility** (S) — `role="progressbar"` + `aria-valuenow` and an
-  `aria-live` status line.
+- ✅ **Progress accessibility** *(in main)* — `role="progressbar"` + `aria-valuenow`,
+  an `aria-live` status, and `role="status"` on the completed card.
 - ⬜ **Proper combobox ARIA on the search field** (M) — `role="combobox"`,
   `aria-expanded`, `aria-activedescendant`.
 - ⬜ **First-run empty state** (S) — example URL, "type to search YouTube", link to
@@ -444,8 +449,9 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   (Quality/resolution still needs a persisted column.)
 - ⬜ **Skip-current vs cancel-all** (M) — don't nuke the whole queue to drop one
   stuck item; surface which items failed.
-- ⬜ **Honor `prefers-reduced-motion`** (S) — damp the always-on spinners/fades.
-- ⬜ **Contrast pass** (S) — promote the smallest `zinc-500` hint text (borderline
+- ✅ **Honor `prefers-reduced-motion`** *(in main)* — global CSS damps spinners,
+  fades and transitions.
+- ✅ **Contrast pass** *(in main)* — promote the smallest `zinc-500` hint text (borderline
   WCAG AA).
 - ⬜ **Unify PlaylistCard checkboxes** (S) — reuse the `Toggle` switch (raw
   checkboxes still there).
