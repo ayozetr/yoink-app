@@ -31,7 +31,9 @@ void i18n
 
 // Keep <html lang> in sync with the active language (a11y / screen readers).
 const syncHtmlLang = (lng: string) => {
-  document.documentElement.lang = lng.split("-")[0];
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = lng.split("-")[0];
+  }
 };
 i18n.on("languageChanged", syncHtmlLang);
 syncHtmlLang(i18n.language || "en");
