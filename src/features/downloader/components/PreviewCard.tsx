@@ -293,47 +293,49 @@ export function PreviewCard({
               </div>
             )}
 
-            {/* Trim / clip a section — scissors button reveals start/end inputs. */}
+            {/* Trim / clip — scissors button + (when open) inline start/end inputs. */}
             <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setTrimOpen((v) => !v)}
-                aria-expanded={trimOpen}
-                className={`flex h-11 w-fit items-center gap-2 rounded-xl border px-4 text-sm transition ${
-                  trimOpen
-                    ? "border-violet-500/50 bg-violet-600/10 text-white"
-                    : "border-white/10 bg-surface text-zinc-300 hover:border-white/20"
-                }`}
-              >
-                <Scissors size={16} />
-                {t("preview.trim")}
-              </button>
-              {trimOpen && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    aria-label={t("preview.trimStart")}
-                    placeholder={t("preview.trimStart")}
-                    value={trimStart}
-                    onChange={(e) => setTrimStart(e.target.value)}
-                    className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
-                  />
-                  <span className="text-zinc-500">→</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    aria-label={t("preview.trimEnd")}
-                    placeholder={t("preview.trimEnd")}
-                    value={trimEnd}
-                    onChange={(e) => setTrimEnd(e.target.value)}
-                    className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
-                  />
-                  <span className="text-xs text-zinc-500">
-                    {t("preview.trimHint")}
-                  </span>
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTrimOpen((v) => !v)}
+                  aria-expanded={trimOpen}
+                  className={`flex h-11 w-fit shrink-0 items-center gap-2 rounded-xl border px-4 text-sm transition ${
+                    trimOpen
+                      ? "border-violet-500/50 bg-violet-600/10 text-white"
+                      : "border-white/10 bg-surface text-zinc-300 hover:border-white/20"
+                  }`}
+                >
+                  <Scissors size={16} />
+                  {t("preview.trim")}
+                </button>
+                {trimOpen && (
+                  <>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      aria-label={t("preview.trimStart")}
+                      placeholder={t("preview.trimStart")}
+                      value={trimStart}
+                      onChange={(e) => setTrimStart(e.target.value)}
+                      className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
+                    />
+                    <span className="text-zinc-500">→</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      aria-label={t("preview.trimEnd")}
+                      placeholder={t("preview.trimEnd")}
+                      value={trimEnd}
+                      onChange={(e) => setTrimEnd(e.target.value)}
+                      className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
+                    />
+                    <span className="text-xs text-zinc-500">
+                      {t("preview.trimHint")}
+                    </span>
+                  </>
+                )}
+              </div>
               {trimError && (
                 <p className="flex items-center gap-2 text-xs text-red-300">
                   <Info size={14} className="shrink-0" />
