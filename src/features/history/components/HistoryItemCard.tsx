@@ -125,7 +125,7 @@ export function HistoryItemCard({
                 {fmt}
               </span>
             )}
-            <span className="truncate text-zinc-500">{meta}</span>
+            <span className="truncate text-zinc-400">{meta}</span>
           </div>
         </div>
 

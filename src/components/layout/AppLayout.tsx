@@ -23,7 +23,9 @@ export function AppLayout({ main, sidebar }: AppLayoutProps) {
         <main className="flex-1 min-w-0 flex flex-col gap-4 sm:gap-6 lg:overflow-y-auto">
           {main}
         </main>
-        <div className="w-full lg:w-[360px] lg:shrink-0 lg:h-full">{sidebar}</div>
+        <aside className="w-full lg:w-[360px] lg:shrink-0 lg:h-full">
+          {sidebar}
+        </aside>
       </div>
     </div>
   );

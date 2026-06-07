@@ -30,7 +30,7 @@ export function HistorySidebar({
   return (
     <GlassPanel className="w-full lg:h-full p-5 flex flex-col">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="font-semibold text-lg">{t("history.title")}</h3>
+        <h2 className="font-semibold text-lg">{t("history.title")}</h2>
         <button
           type="button"
           onClick={onClear}
