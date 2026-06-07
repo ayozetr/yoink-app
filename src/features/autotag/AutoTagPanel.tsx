@@ -29,6 +29,8 @@ interface AutoTagPanelProps {
   onDismiss: () => void;
   /** Called after tags are written, so the history (cover art) can refresh. */
   onApplied?: () => void;
+  /** Open + identify immediately on mount (e.g. re-tagging from history). */
+  autoOpen?: boolean;
 }
 
 const INPUT =
@@ -49,9 +51,10 @@ export function AutoTagPanel({
   filename,
   onDismiss,
   onApplied,
+  autoOpen,
 }: AutoTagPanelProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!autoOpen);
   const [stage, setStage] = useState<Stage>("loading");
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
@@ -122,6 +125,14 @@ export function AutoTagPanel({
         setStage("error");
       });
   }, [path, filename, t, showResults]);
+
+  // Opened directly (re-tagging from history) → identify right away.
+  useEffect(() => {
+    if (autoOpen && !startedRef.current) {
+      startedRef.current = true;
+      runIdentify();
+    }
+  }, [autoOpen, runIdentify]);
 
   const toggleOpen = () => {
     if (!open && !startedRef.current) {

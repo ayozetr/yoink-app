@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
+import { AutoTagPanel } from "./features/autotag/AutoTagPanel";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
 import { SettingsModal } from "./features/settings/SettingsModal";
@@ -43,6 +44,7 @@ export default function App() {
   // Bumped on every history refresh so rows can re-check their cover art (a file
   // tagged after download gains a cover the row didn't see on first render).
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [retagItem, setRetagItem] = useState<HistoryEntry | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -146,6 +148,7 @@ export default function App() {
             historyVersion={historyVersion}
             onOpenFolder={handleOpenFolder}
             onOpenFile={handleOpenFile}
+            onRetag={setRetagItem}
             onClear={handleClear}
           />
         }
@@ -157,6 +160,23 @@ export default function App() {
           onClose={() => setSettingsOpen(false)}
           onSaved={setSettings}
         />
+      )}
+
+      {retagItem?.filepath && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:p-8"
+          onClick={() => setRetagItem(null)}
+        >
+          <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            <AutoTagPanel
+              path={retagItem.filepath}
+              filename={retagItem.filename ?? undefined}
+              onDismiss={() => setRetagItem(null)}
+              onApplied={refresh}
+              autoOpen
+            />
+          </div>
+        </div>
       )}
 
       <Splash visible={!ready} />

@@ -4,6 +4,7 @@ import {
   FolderOpen,
   Music4,
   Play,
+  Tag,
   Video,
 } from "lucide-react";
 import { useState } from "react";
@@ -17,6 +18,7 @@ interface HistoryItemCardProps {
   historyVersion?: number;
   onOpenFolder?: (item: HistoryEntry) => void;
   onOpenFile?: (item: HistoryEntry) => void;
+  onRetag?: (item: HistoryEntry) => void;
 }
 
 /** The output format badge, derived from the file extension (e.g. "MP4"). */
@@ -64,6 +66,7 @@ export function HistoryItemCard({
   historyVersion,
   onOpenFolder,
   onOpenFile,
+  onRetag,
 }: HistoryItemCardProps) {
   const { t, i18n } = useTranslation();
   const [coverFailed, setCoverFailed] = useState(false);
@@ -147,6 +150,17 @@ export function HistoryItemCard({
             >
               <Play size={16} />
             </button>
+            {item.kind === "audio" && (
+              <button
+                type="button"
+                onClick={() => onRetag?.(item)}
+                className="text-zinc-400 opacity-60 hover:text-white hover:opacity-100 transition"
+                aria-label={t("history.retag")}
+                title={t("history.retag")}
+              >
+                <Tag size={16} />
+              </button>
+            )}
           </div>
         )}
       </div>

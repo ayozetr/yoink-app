@@ -115,6 +115,7 @@ export const en = {
     error: "Error",
     openFolder: "Open folder",
     openFile: "Open file",
+    retag: "Tag audio",
   },
   stats: {
     title: "Statistics",
