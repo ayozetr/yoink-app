@@ -390,6 +390,11 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
 
 ### 🎬 Download & conversion
 
+- ⬜ **Search beyond YouTube** (S/M) — a platform selector by the search field
+  (YouTube / **SoundCloud** / Bilibili…), switching yt-dlp's search prefix
+  (`ytsearch` → `scsearch`). The infra (`/api/search` + dropdown) already exists;
+  SoundCloud pairs perfectly with the auto-tagger. Note: only the few platforms
+  yt-dlp can *search* — TikTok/Instagram/X/Vimeo only download by URL, no search.
 - ⬜ **Split by chapters** (M) — one file per chapter (podcasts, albums, DJ sets)
   via `--split-chapters`; `has_chapters` is already detected.
 - ⬜ **Playlist sync / download-archive** (M) — keep a `--download-archive` so a
