@@ -7,6 +7,14 @@ export const es = {
     active: "Descargas activas: {{count}}",
     settings: "Ajustes",
   },
+  template: {
+    label: "Plantilla de nombre",
+    title: "Plantilla de nombre",
+    help: "Cómo se nombran los archivos descargados.",
+    custom: "Plantilla personalizada",
+    preview: "Vista previa",
+    save: "Guardar",
+  },
   sites: {
     title: "Webs soportadas",
     intro: "Plataformas verificadas.",
@@ -120,6 +128,8 @@ export const es = {
     video: "Vídeo",
     audio: "Audio",
     defaultQuality: "Calidad por defecto",
+    rateLimit: "Límite de ancho de banda",
+    rateLimitNone: "Sin límite",
     autotagSource: "Fuente de etiquetado",
     autotagAuto: "Automático",
     autotagApple: "Apple Music",

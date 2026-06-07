@@ -41,6 +41,10 @@ def _apply(data: dict[str, Any]) -> None:
     if data.get("sponsorblock_action") in ("remove", "mark"):
         settings.sponsorblock_action = data["sponsorblock_action"]
 
+    if data.get("filename_template"):
+        settings.filename_template = str(data["filename_template"])
+    settings.rate_limit = str(data["rate_limit"]) if data.get("rate_limit") else None
+
 
 def load_overrides() -> None:
     """Load persisted overrides at startup (no-op if none/invalid)."""
@@ -66,6 +70,8 @@ def get_current() -> AppSettings:
         autotag_source=settings.autotag_source,
         sponsorblock_enabled=settings.sponsorblock_enabled,
         sponsorblock_action=settings.sponsorblock_action,
+        filename_template=settings.filename_template,
+        rate_limit=settings.rate_limit,
     )
 
 

@@ -230,6 +230,22 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </Field>
           </div>
 
+          <Field label={t("settings.rateLimit")}>
+            <Select
+              ariaLabel={t("settings.rateLimit")}
+              value={form.rate_limit ?? ""}
+              onChange={(v) => set("rate_limit", v === "" ? null : v)}
+              options={[
+                { value: "", label: t("settings.rateLimitNone") },
+                { value: "1M", label: "1 MB/s" },
+                { value: "2M", label: "2 MB/s" },
+                { value: "5M", label: "5 MB/s" },
+                { value: "10M", label: "10 MB/s" },
+              ]}
+              className={`${INPUT_CLASS} w-full`}
+            />
+          </Field>
+
           <Field label={t("settings.autotagSource")}>
             <Select
               ariaLabel={t("settings.autotagSource")}

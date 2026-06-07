@@ -249,6 +249,14 @@ class AppSettings(BaseModel):
     sponsorblock_action: SponsorblockAction = Field(
         default="remove", description="Remove the segments or just mark them."
     )
+    filename_template: str = Field(
+        default="%(title)s",
+        description="yt-dlp output name template (extension appended).",
+    )
+    rate_limit: str | None = Field(
+        default=None,
+        description="Download speed cap like '1M'/'500K'; None means no cap.",
+    )
 
 
 class VersionInfo(BaseModel):

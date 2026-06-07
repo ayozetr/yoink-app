@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     default_kind: Literal["video", "audio"] = "video"
     default_quality: str = "1080p"
 
+    # Filename template (the name part; ".%(ext)s" is appended at download time).
+    # yt-dlp outtmpl fields, e.g. "%(title)s" or "%(uploader)s - %(title)s".
+    filename_template: str = "%(title)s"
+
+    # Optional download speed cap in yt-dlp format ("1M", "500K"); None = no cap.
+    rate_limit: str | None = Field(default=None)
+
     # Catalogue used by the audio auto-tagger ("auto" = cascade through all).
     autotag_source: Literal["auto", "apple", "deezer", "musicbrainz"] = "auto"
 

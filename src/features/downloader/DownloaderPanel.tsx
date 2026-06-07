@@ -15,6 +15,7 @@ import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
   DownloadRequest,
+  AppSettings,
   InfoResponse,
   MediaKind,
   PlaylistEntry,
@@ -28,6 +29,9 @@ interface DownloaderPanelProps {
   /** Default media kind / quality from settings, used to seed the selectors. */
   defaultKind?: MediaKind;
   defaultQuality?: string;
+  /** Current settings + a setter, for the inline filename-template menu. */
+  settings?: AppSettings | null;
+  onSettingsChange?: (settings: AppSettings) => void;
 }
 
 interface DownloadJob {
@@ -60,6 +64,8 @@ export function DownloaderPanel({
   onOpenSettings,
   defaultKind,
   defaultQuality,
+  settings,
+  onSettingsChange,
 }: DownloaderPanelProps) {
   const { t } = useTranslation();
   const [url, setUrl] = useState("");
@@ -282,6 +288,8 @@ export function DownloaderPanel({
       <DownloaderHeader
         activeDownloads={downloading ? 1 : 0}
         onOpenSettings={onOpenSettings}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
       />
       <UrlInput
         value={url}

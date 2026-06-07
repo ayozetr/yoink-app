@@ -198,6 +198,10 @@ export interface AppSettings {
   autotag_source: AutotagSource;
   sponsorblock_enabled: boolean;
   sponsorblock_action: SponsorblockAction;
+  /** yt-dlp output name template (extension appended by the backend). */
+  filename_template: string;
+  /** Download speed cap like "1M"/"500K"; null means no cap. */
+  rate_limit: string | null;
 }
 
 /** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */

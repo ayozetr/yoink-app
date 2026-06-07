@@ -164,20 +164,42 @@ def _sponsorblock_postprocessors(action: str) -> list[dict[str, Any]]:
     ]
 
 
+def _parse_rate_limit(value: str | None) -> float | None:
+    """Parse a speed cap like '1M' / '500K' / '2G' into bytes/s (None if unset)."""
+    if not value:
+        return None
+    text = value.strip().upper()
+    units = {"K": 1024, "M": 1024**2, "G": 1024**3}
+    try:
+        if text and text[-1] in units:
+            return float(text[:-1]) * units[text[-1]]
+        return float(text)
+    except ValueError:
+        return None
+
+
 def _build_options(
     request: DownloadRequest, hook: Any
 ) -> dict[str, Any]:
     """Assemble yt-dlp options for the requested kind/quality."""
     download_dir = settings.ensure_download_dir()
+    # Filename template: the user-configured name part + the real extension.
+    # Fall back to the title if it was somehow cleared.
+    name_template = (settings.filename_template or "%(title)s").strip()
     options: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
         "noprogress": True,
-        "outtmpl": str(download_dir / "%(title)s.%(ext)s"),
+        "outtmpl": str(download_dir / f"{name_template}.%(ext)s"),
         "progress_hooks": [hook],
         **cookie_options(),
     }
+
+    # Optional download speed cap (yt-dlp expects bytes/s).
+    rate = _parse_rate_limit(settings.rate_limit)
+    if rate:
+        options["ratelimit"] = rate
 
     # Use the bundled ffmpeg/ffprobe when packaged; otherwise yt-dlp uses PATH.
     location = ffmpeg_location()

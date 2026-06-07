@@ -7,6 +7,14 @@ export const en = {
     active: "Active downloads: {{count}}",
     settings: "Settings",
   },
+  template: {
+    label: "Filename template",
+    title: "Filename template",
+    help: "How downloaded files are named.",
+    custom: "Custom template",
+    preview: "Preview",
+    save: "Save",
+  },
   sites: {
     title: "Supported sites",
     intro: "Verified platforms.",
@@ -120,6 +128,8 @@ export const en = {
     video: "Video",
     audio: "Audio",
     defaultQuality: "Default quality",
+    rateLimit: "Bandwidth limit",
+    rateLimitNone: "No limit",
     autotagSource: "Tagging source",
     autotagAuto: "Automatic",
     autotagApple: "Apple Music",

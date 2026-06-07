@@ -100,6 +100,8 @@ export default function App() {
             onOpenSettings={() => setSettingsOpen(true)}
             defaultKind={settings?.default_kind}
             defaultQuality={settings?.default_quality}
+            settings={settings}
+            onSettingsChange={setSettings}
           />
         }
         sidebar={

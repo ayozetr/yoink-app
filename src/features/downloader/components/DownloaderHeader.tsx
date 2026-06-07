@@ -2,16 +2,22 @@ import { useState } from "react";
 import { Download, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SupportedSitesModal } from "./SupportedSitesModal";
+import { FilenameTemplateMenu } from "./FilenameTemplateMenu";
+import type { AppSettings } from "../../../types/download";
 
 interface DownloaderHeaderProps {
   activeDownloads: number;
   onOpenSettings?: () => void;
+  settings?: AppSettings | null;
+  onSettingsChange?: (settings: AppSettings) => void;
 }
 
 /** Page title plus the "active downloads" status pill and settings button. */
 export function DownloaderHeader({
   activeDownloads,
   onOpenSettings,
+  settings,
+  onSettingsChange,
 }: DownloaderHeaderProps) {
   const { t } = useTranslation();
   const [showSites, setShowSites] = useState(false);
@@ -38,6 +44,12 @@ export function DownloaderHeader({
       {showSites && <SupportedSitesModal onClose={() => setShowSites(false)} />}
 
       <div className="flex items-center gap-3">
+        {settings && onSettingsChange && (
+          <FilenameTemplateMenu
+            settings={settings}
+            onSaved={onSettingsChange}
+          />
+        )}
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.06]">
           <Download className="size-4 text-violet-400" />
           <span className="text-sm text-zinc-300">
