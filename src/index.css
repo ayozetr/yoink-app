@@ -47,3 +47,15 @@ textarea,
 * {
   scrollbar-width: none;
 }
+
+/* Keyboard focus: replace the browser's default (mismatched) outline with a
+   violet ring that fits the app. Shown only for keyboard navigation
+   (:focus-visible), never on mouse/touch clicks. */
+:focus-visible {
+  outline: 2px solid #8b5cf6; /* violet-500 */
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
