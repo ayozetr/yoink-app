@@ -347,10 +347,9 @@ non-critical:
 - ✅ **yt-dlp version in Settings** *(v1.7.0)* — shows the bundled yt-dlp version
   and whether a newer one is published (informational; it updates with the next
   Yoink release — no in-app yt-dlp update, by design).
-- ✅ **Filename template** *(in main)* — a button beside the "active downloads"
-  pill opens a popover with safe presets (title / uploader-title / date-title /
-  title-id) + a custom field and a live preview; the backend feeds it to yt-dlp's
-  `outtmpl`, sanitised against path traversal.
+- ✅ **Filename template** *(in main)* — a Settings dropdown of safe presets (title
+  / uploader-title / date-title / title-id) + a custom field; the backend feeds it
+  to yt-dlp's `outtmpl`, sanitised against path traversal.
 - ✅ **Bandwidth limit** *(in main)* — a Settings dropdown caps the download speed
   (yt-dlp `ratelimit`).
 - ✅ **SponsorBlock** *(v1.5.0)* — Settings switch (off by default; reusable
@@ -391,9 +390,10 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   via `--split-chapters`; `has_chapters` is already detected.
 - ⬜ **Playlist sync / download-archive** (M) — keep a `--download-archive` so a
   playlist/channel only fetches what's new ("folders that update").
-- ⬜ **Video codec preference** (M) — prefer H.264 (compatibility/editing) vs
-  VP9/AV1 (smaller), degrading gracefully per resolution.
-- ⬜ **Audio bitrate picker** (S) — 128/192/256/320 kbps for lossy (MP3/M4A).
+- ✅ **Video codec preference** *(in main)* — Settings dropdown (any/H.264/VP9/AV1)
+  biasing yt-dlp's `format_sort`, degrading gracefully per resolution.
+- ✅ **Audio bitrate picker** *(in main)* — Settings dropdown (best/320/256/192/128)
+  for lossy formats via `FFmpegExtractAudio` `preferredquality`.
 - ⬜ **Sidecar exports** (S) — optionally save `.info.json`, description,
   thumbnail `.jpg`, comments, and loose `.srt`/`.vtt` (all native to yt-dlp).
 - ⬜ **Subtitles as separate files + auto-translate** (M) — extend the existing
@@ -422,8 +422,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
 
 ### 🖥️ UX, UI & accessibility
 
-- ⬜ **Desktop notification on finish** (M) — Tauri notification plugin; high
-  value for a background-running app with long queues.
+- ✅ **Desktop notification on finish** *(in main)* — Tauri notification plugin
+  fires on completed / failed / queue-summary.
 - ⬜ **Auto-focus the URL field on launch** (S) — the core action is "paste a
   link"; today the cursor starts dead.
 - ⬜ **Drag-and-drop a link onto the window** (M) — Tauri `onDragDropEvent` + a
@@ -438,8 +438,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   `aria-expanded`, `aria-activedescendant`.
 - ⬜ **First-run empty state** (S) — example URL, "type to search YouTube", link to
   supported sites.
-- ⬜ **Taskbar / window-title progress** (M) — `Yoink — 42%` + Tauri
-  `set_progress_bar` for ambient feedback when minimized.
+- ✅ **Taskbar / window-title progress** *(in main)* — `Yoink — 42%` in the title +
+  Tauri `setProgressBar` on the taskbar during a download.
 - ⬜ **Richer history rows** (M) — relative time + a format/quality badge.
 - ⬜ **Skip-current vs cancel-all** (M) — don't nuke the whole queue to drop one
   stuck item; surface which items failed.
@@ -493,8 +493,9 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   backend boot.
 - ⬜ **PyInstaller `--onedir`** (M) — faster cold start (no per-launch
   re-extraction); measure size/time trade-off.
-- ⬜ **Stronger filename-template sanitising** (S) — confine the resolved path with
-  `Path.resolve()` inside the download dir instead of string-replace.
+- ✅ **Stronger filename-template sanitising** *(in main)* — confines the resolved
+  path inside the download dir with `Path.resolve().relative_to()`, on top of the
+  string scrub.
 
 ## Future — other platforms
 
