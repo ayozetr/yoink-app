@@ -68,6 +68,11 @@ class _FakeResponse:
             "CRUZ CAFUNÉ",
             "922 & HEARTBREAK",
         ),
+        (  # yt-dlp sanitises "|" to the fullwidth "｜" in the on-disk filename
+            "CRUZ CAFUNÉ - 922 & HEARTBREAK ｜ VIDEO.mp3",
+            "CRUZ CAFUNÉ",
+            "922 & HEARTBREAK",
+        ),
         ("Drake - Hotline Bling (Music Video) [4K].mp3", "Drake", "Hotline Bling"),
         ("Artist - Song - Official Audio.mp3", "Artist", "Song"),
         # legit titles ending in those words are left untouched

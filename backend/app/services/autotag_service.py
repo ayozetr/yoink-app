@@ -240,9 +240,11 @@ _EMOJI = re.compile(
 # "Music Video", "Audio", "Visualizer", "MV", "HD/4K"… — muddies the catalogue
 # query. Only matched after a separator (|/-) or a qualifier word, so legit
 # titles ending in "Video"/"Audio" (e.g. "Video Games") are left untouched.
+# Note the "｜" (U+FF5C, fullwidth pipe): yt-dlp sanitises "|" in filenames to it,
+# so a YouTube "Song | VIDEO" lands on disk as "Song ｜ VIDEO".
 _TRAILING_NOISE = re.compile(
     r"\s*(?:"
-    r"[|\-–—]\s*(?:official\s+|full\s+|music\s+|lyrics?\s+)*"
+    r"[|｜\-–—]\s*(?:official\s+|full\s+|music\s+|lyrics?\s+)*"
     r"|(?:official\s+|full\s+|music\s+|lyrics?\s+)+"
     r")"
     r"(?:video|audio|visualizer|visualiser|mv|hd|4k|hq)\b\s*$",
