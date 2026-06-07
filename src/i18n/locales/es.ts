@@ -71,6 +71,9 @@ export const es = {
     merging: "Uniendo pistas",
     completed: "Descarga completada:",
     cancel: "Cancelar descarga",
+    openFile: "Abrir archivo",
+    openFolder: "Abrir carpeta",
+    dismiss: "Descartar",
   },
   panel: {
     analyzeError: "Ocurrió un error inesperado al analizar la URL.",
@@ -129,6 +132,9 @@ export const es = {
     qualityBest: "Mejor disponible",
     rateLimit: "Límite de ancho de banda",
     rateLimitNone: "Sin límite",
+    proxy: "Proxy",
+    proxyHelp:
+      "Enruta los metadatos y las descargas por un proxy HTTP/HTTPS/SOCKS (p. ej. socks5://127.0.0.1:1080). Déjalo vacío para conexión directa.",
     videoCodec: "Códec de vídeo",
     videoCodecAny: "Mejor disponible",
     audioBitrate: "Bitrate de audio",

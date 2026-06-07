@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     cookies_from_browser: str | None = Field(default=None)
     cookies_file: Path | None = Field(default=None)
 
+    # Optional proxy for metadata + downloads (e.g. "socks5://127.0.0.1:1080"
+    # or "http://host:port"). Applied to every yt-dlp request when set.
+    proxy: str | None = Field(default=None)
+
     # User-editable defaults (persisted via the settings store / settings UI).
     default_kind: Literal["video", "audio"] = "video"
     default_quality: str = "best"

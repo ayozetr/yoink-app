@@ -244,6 +244,10 @@ class AppSettings(BaseModel):
     cookies_file: str | None = Field(
         default=None, description="Path to a Netscape cookies.txt file."
     )
+    proxy: str | None = Field(
+        default=None,
+        description="Proxy URL (http/https/socks) for metadata + downloads.",
+    )
     autotag_source: AutotagSource = Field(
         default="auto", description="Catalogue for audio auto-tagging."
     )
@@ -285,4 +289,8 @@ class OpenRequest(BaseModel):
     path: str | None = Field(
         default=None,
         description="File or folder to reveal. Defaults to the download dir.",
+    )
+    open_file: bool = Field(
+        default=False,
+        description="Open the file itself (default app) instead of its folder.",
     )

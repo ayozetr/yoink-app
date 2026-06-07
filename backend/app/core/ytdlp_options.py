@@ -20,14 +20,18 @@ def normalize_url(url: str) -> str:
     return _TIKTOK_PHOTO.sub(r"\1/video/", url)
 
 
-def cookie_options() -> dict[str, Any]:
-    """yt-dlp cookie options derived from settings (empty if unconfigured).
+def network_options() -> dict[str, Any]:
+    """yt-dlp network options from settings: cookies + an optional proxy.
 
+    Shared by the metadata and download services so both behave identically.
     `cookies_from_browser` wins over `cookies_file` when both are set.
     """
+    options: dict[str, Any] = {}
     if settings.cookies_from_browser:
         # Tuple form: (browser, profile, keyring, container) — only browser here.
-        return {"cookiesfrombrowser": (settings.cookies_from_browser,)}
-    if settings.cookies_file:
-        return {"cookiefile": str(settings.cookies_file)}
-    return {}
+        options["cookiesfrombrowser"] = (settings.cookies_from_browser,)
+    elif settings.cookies_file:
+        options["cookiefile"] = str(settings.cookies_file)
+    if settings.proxy:
+        options["proxy"] = settings.proxy
+    return options

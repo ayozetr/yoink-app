@@ -32,6 +32,7 @@ def _apply(data: dict[str, Any]) -> None:
     settings.cookies_from_browser = data.get("cookies_from_browser") or None
     cookies_file = data.get("cookies_file")
     settings.cookies_file = Path(cookies_file) if cookies_file else None
+    settings.proxy = str(data["proxy"]) if data.get("proxy") else None
 
     if data.get("autotag_source") in ("auto", "apple", "deezer", "musicbrainz"):
         settings.autotag_source = data["autotag_source"]
@@ -71,6 +72,7 @@ def get_current() -> AppSettings:
         default_quality=settings.default_quality,
         cookies_from_browser=settings.cookies_from_browser,
         cookies_file=str(settings.cookies_file) if settings.cookies_file else None,
+        proxy=settings.proxy,
         autotag_source=settings.autotag_source,
         sponsorblock_enabled=settings.sponsorblock_enabled,
         sponsorblock_action=settings.sponsorblock_action,

@@ -6,7 +6,7 @@ import pytest
 
 from app.core.config import settings
 from app.core.humanize import humanize_bytes
-from app.core.ytdlp_options import cookie_options, normalize_url
+from app.core.ytdlp_options import network_options, normalize_url
 from app.models.media import DownloadRequest
 from app.services.download_service import (
     _build_options,
@@ -73,22 +73,30 @@ def test_normalize_url_tiktok_photo():
     assert normalize_url(url) == url
 
 
-def test_cookie_options(monkeypatch):
+def test_network_options(monkeypatch):
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "cookies_from_browser", None)
     monkeypatch.setattr(settings, "cookies_file", None)
-    assert cookie_options() == {}
+    monkeypatch.setattr(settings, "proxy", None)
+    assert network_options() == {}
 
     monkeypatch.setattr(settings, "cookies_from_browser", "firefox")
-    assert cookie_options() == {"cookiesfrombrowser": ("firefox",)}
+    assert network_options() == {"cookiesfrombrowser": ("firefox",)}
 
     # browser wins over file
     monkeypatch.setattr(settings, "cookies_file", "/tmp/c.txt")
-    assert cookie_options() == {"cookiesfrombrowser": ("firefox",)}
+    assert network_options() == {"cookiesfrombrowser": ("firefox",)}
 
     monkeypatch.setattr(settings, "cookies_from_browser", None)
-    assert cookie_options() == {"cookiefile": "/tmp/c.txt"}
+    assert network_options() == {"cookiefile": "/tmp/c.txt"}
+
+    # proxy is added alongside cookies
+    monkeypatch.setattr(settings, "proxy", "socks5://127.0.0.1:1080")
+    assert network_options() == {
+        "cookiefile": "/tmp/c.txt",
+        "proxy": "socks5://127.0.0.1:1080",
+    }
 
 
 def test_update_version_compare():

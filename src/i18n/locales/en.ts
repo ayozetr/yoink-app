@@ -71,6 +71,9 @@ export const en = {
     merging: "Merging tracks",
     completed: "Download complete:",
     cancel: "Cancel download",
+    openFile: "Open file",
+    openFolder: "Open folder",
+    dismiss: "Dismiss",
   },
   panel: {
     analyzeError: "An unexpected error occurred while analyzing the URL.",
@@ -129,6 +132,9 @@ export const en = {
     qualityBest: "Best available",
     rateLimit: "Bandwidth limit",
     rateLimitNone: "No limit",
+    proxy: "Proxy",
+    proxyHelp:
+      "Route metadata and downloads through an HTTP/HTTPS/SOCKS proxy (e.g. socks5://127.0.0.1:1080). Leave empty for a direct connection.",
     videoCodec: "Video codec",
     videoCodecAny: "Best available",
     audioBitrate: "Audio bitrate",

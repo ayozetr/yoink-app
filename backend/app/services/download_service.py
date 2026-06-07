@@ -21,7 +21,7 @@ from yt_dlp.utils import DownloadError, download_range_func
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
-from app.core.ytdlp_options import cookie_options, normalize_url
+from app.core.ytdlp_options import network_options, normalize_url
 from app.services.threads_extractor import register as register_threads_ie
 from app.models.media import (
     AudioFormat,
@@ -220,9 +220,13 @@ def _build_options(
         "no_warnings": True,
         "noplaylist": True,
         "noprogress": True,
+        # Retry transient failures (yt-dlp's CLI defaults) — sites flake often.
+        "retries": 10,
+        "fragment_retries": 10,
+        "extractor_retries": 3,
         "outtmpl": str(download_dir / f"{name_template}.%(ext)s"),
         "progress_hooks": [hook],
-        **cookie_options(),
+        **network_options(),
     }
 
     # Optional download speed cap (yt-dlp expects bytes/s).

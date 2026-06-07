@@ -1,7 +1,14 @@
-import { CheckCircle2, Loader2, X } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  FolderOpen,
+  Loader2,
+  X,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
+import { openInFileManager } from "../../../lib/api";
 import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
@@ -11,6 +18,7 @@ interface DownloadProgressCardProps {
   progress: DownloadProgressEvent | null;
   completed: DownloadCompletedEvent | null;
   onCancel?: () => void;
+  onDismiss?: () => void;
 }
 
 /** Live download indicator fed by yt-dlp progress_hooks (over WS). */
@@ -18,20 +26,51 @@ export function DownloadProgressCard({
   progress,
   completed,
   onCancel,
+  onDismiss,
 }: DownloadProgressCardProps) {
   const { t } = useTranslation();
 
   if (completed) {
     return (
       <GlassPanel className="p-5">
-        <div className="flex items-center gap-3 text-emerald-300">
-          <CheckCircle2 size={18} className="shrink-0" />
-          <span className="text-sm">
-            {t("progress.completed")}{" "}
-            <span className="font-medium text-emerald-200">
-              {completed.filename}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3 text-emerald-300">
+            <CheckCircle2 size={18} className="shrink-0" />
+            <span className="min-w-0 text-sm">
+              {t("progress.completed")}{" "}
+              <span className="break-all font-medium text-emerald-200">
+                {completed.filename}
+              </span>
             </span>
-          </span>
+          </div>
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="shrink-0 text-zinc-400 transition hover:text-white"
+              aria-label={t("progress.dismiss")}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void openInFileManager(completed.filepath, true)}
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface px-3 py-1.5 text-sm text-zinc-200 transition hover:border-white/20 hover:text-white"
+          >
+            <ExternalLink size={15} />
+            {t("progress.openFile")}
+          </button>
+          <button
+            type="button"
+            onClick={() => void openInFileManager(completed.filepath)}
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface px-3 py-1.5 text-sm text-zinc-200 transition hover:border-white/20 hover:text-white"
+          >
+            <FolderOpen size={15} />
+            {t("progress.openFolder")}
+          </button>
         </div>
       </GlassPanel>
     );

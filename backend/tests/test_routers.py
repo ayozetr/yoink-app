@@ -83,6 +83,7 @@ def test_settings_get_and_put(temp_dirs):
         "rate_limit": "1M",
         "video_codec": "h264",
         "audio_bitrate": "320",
+        "proxy": "socks5://127.0.0.1:1080",
     }
     saved = client.put("/api/settings", json=payload)
     assert saved.status_code == 200
@@ -92,6 +93,7 @@ def test_settings_get_and_put(temp_dirs):
     assert saved.json()["rate_limit"] == "1M"
     assert saved.json()["video_codec"] == "h264"
     assert saved.json()["audio_bitrate"] == "320"
+    assert saved.json()["proxy"] == "socks5://127.0.0.1:1080"
     # Persisted to disk.
     assert (temp_dirs / "data" / "settings.json").exists()
 

@@ -197,6 +197,8 @@ export interface AppSettings {
   default_quality: string;
   cookies_from_browser: string | null;
   cookies_file: string | null;
+  /** Proxy URL (http/https/socks) for metadata + downloads; null = none. */
+  proxy: string | null;
   autotag_source: AutotagSource;
   sponsorblock_enabled: boolean;
   sponsorblock_action: SponsorblockAction;

@@ -354,6 +354,7 @@ export function DownloaderPanel({
         progress={progress}
         completed={completed}
         onCancel={handleCancel}
+        onDismiss={() => setCompleted(null)}
       />
 
       {completed?.filepath && lastKind === "audio" && !downloading && !tagDismissedSingle && (

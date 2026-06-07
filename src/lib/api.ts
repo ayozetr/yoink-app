@@ -160,12 +160,16 @@ export async function clearHistory(): Promise<void> {
   }
 }
 
-/** Reveal a file/folder in the OS file manager via `POST /api/open`. */
-export async function openInFileManager(path?: string | null): Promise<void> {
+/** Reveal a file/folder in the OS file manager via `POST /api/open`. With
+ * `openFile`, the file itself is opened with its default app. */
+export async function openInFileManager(
+  path?: string | null,
+  openFile = false,
+): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/open`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path: path ?? null }),
+    body: JSON.stringify({ path: path ?? null, open_file: openFile }),
   });
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);

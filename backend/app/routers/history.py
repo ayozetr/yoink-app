@@ -72,12 +72,14 @@ def open_in_file_manager(request: OpenRequest) -> dict[str, str]:
             status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found."
         )
 
+    # Open the file itself (with its default app) when asked; else reveal folder.
+    to_open = target if (request.open_file and target.is_file()) else folder
     try:
-        _open_folder(folder)
+        _open_folder(to_open)
     except OSError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not open the file manager: {exc}",
         ) from exc
 
-    return {"status": "ok", "opened": str(folder)}
+    return {"status": "ok", "opened": str(to_open)}

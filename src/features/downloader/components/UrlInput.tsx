@@ -90,6 +90,11 @@ export function UrlInput({
   const disabled = loading || query.length === 0;
   const showDropdown = open && isSearch;
 
+  // Focus the URL field on mount — the primary action is "paste a link".
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   // Debounced live search. setState happens only inside the timer/promise (never
   // synchronously in the effect body), so it can't trip cascading renders. A
   // cached query is already shown by handleChange, so the effect skips the fetch.

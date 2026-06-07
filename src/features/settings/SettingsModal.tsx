@@ -429,6 +429,17 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               </button>
             </div>
           </Field>
+
+          <Field label={t("settings.proxy")} hint={<ProxyHelp />}>
+            <input
+              type="text"
+              aria-label={t("settings.proxy")}
+              value={form.proxy ?? ""}
+              placeholder="socks5://127.0.0.1:1080"
+              onChange={(e) => set("proxy", e.target.value || null)}
+              className={`${INPUT_CLASS} w-full`}
+            />
+          </Field>
         </div>
 
         {error && <p className="text-sm text-red-400 mt-4">{error}</p>}
@@ -728,4 +739,10 @@ function SponsorBlockHelp() {
       {t("settings.sponsorblockHelp")}
     </HelpPopover>
   );
+}
+
+/** "?" help for the proxy field. */
+function ProxyHelp() {
+  const { t } = useTranslation();
+  return <HelpPopover>{t("settings.proxyHelp")}</HelpPopover>;
 }

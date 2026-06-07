@@ -11,7 +11,7 @@ from typing import Any, cast
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
-from app.core.ytdlp_options import cookie_options, normalize_url
+from app.core.ytdlp_options import network_options, normalize_url
 from app.services.threads_extractor import register as register_threads_ie
 from app.models.media import (
     InfoResponse,
@@ -308,7 +308,7 @@ def _probe_first_entry_audio(info: dict[str, Any]) -> tuple[bool, float | None]:
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
-        **cookie_options(),
+        **network_options(),
     }
     try:
         with YoutubeDL(options) as ydl:
@@ -335,7 +335,7 @@ def extract_info(url: str) -> InfoResponse:
         "skip_download": True,
         # Flatten items *inside* a playlist, but fully resolve a single video.
         "extract_flat": "in_playlist",
-        **cookie_options(),
+        **network_options(),
     }
 
     try:
@@ -386,7 +386,7 @@ def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
         "skip_download": True,
         "extract_flat": True,
         "socket_timeout": 8,  # fail fast — this feeds a typeahead
-        **cookie_options(),
+        **network_options(),
     }
     try:
         with YoutubeDL(options) as ydl:
