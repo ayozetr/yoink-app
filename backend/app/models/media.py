@@ -263,7 +263,7 @@ class AppSettings(BaseModel):
         default="any", description="Preferred video codec ('any' = no preference)."
     )
     audio_bitrate: AudioBitrate = Field(
-        default="192", description="Lossy audio bitrate in kbps, or 'best'."
+        default="best", description="Lossy audio bitrate in kbps, or 'best'."
     )
 
 

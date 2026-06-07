@@ -79,8 +79,8 @@ class Settings(BaseSettings):
     # Preferred video codec: "any" = no preference, else bias the format sort.
     video_codec: Literal["any", "h264", "vp9", "av1"] = "any"
 
-    # Audio bitrate for lossy formats (kbps), or "best" for no target.
-    audio_bitrate: Literal["best", "320", "256", "192", "128"] = "192"
+    # Audio bitrate for lossy formats (kbps), or "best" for no target (default).
+    audio_bitrate: Literal["best", "320", "256", "192", "128"] = "best"
 
     # Catalogue used by the audio auto-tagger ("auto" = cascade through all).
     autotag_source: Literal["auto", "apple", "deezer", "musicbrainz"] = "auto"
