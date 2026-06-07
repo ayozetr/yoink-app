@@ -100,26 +100,11 @@ Legend: ✅ done · 🚧 in progress · ⬜ planned
 > The update check needs the GitHub repo to be **public** (the unauthenticated
 > API returns 404 for private repos).
 
-## Phase 7 — Android (experimental) ⬜
+## Phase 7 — Other platforms → moved to "Future" (end of this file)
 
-The frontend ports to Android easily (Tauri v2 mobile loads the React UI in a
-WebView). The hard part is the engine: the PyInstaller backend sidecar does
-**not** work on Android (no spawnable binaries, no `externalBin`), so the
-local HTTP/WebSocket server must be replaced. Three routes:
-
-- ⬜ **Embed Python (Chaquopy) + ffmpeg-kit**: run yt-dlp in-process and drive
-  it via native Tauri commands instead of REST/WS to `localhost`. Keeps Python.
-- ⬜ **Native yt-dlp lib (`youtubedl-android`) + ffmpeg-kit**: the approach the
-  Seal app uses; leaves Python behind for a Kotlin/Java layer.
-- ⬜ **Thin client**: APK is just the UI talking to a remote backend (the
-  desktop FastAPI on a PC/NAS). Minimal work, but no longer fully "local".
-- ⬜ Android toolchain + plumbing: Android SDK/NDK/JDK, `tauri android`,
-  scoped-storage save paths, runtime permissions.
-
-> Notes: functionally proven on Android (cf. the Seal app = yt-dlp + ffmpeg in
-> an APK). Distribute via direct APK / F-Droid — Google Play typically rejects
-> YouTube downloaders. This is a separate mini-project, not an extension of the
-> desktop packaging.
+Desktop (Linux/Windows) is the current focus; **macOS** and **Android** are
+parked as separate, future mini-projects in [Future](#future--other-platforms)
+at the end.
 
 ## Phase 8 — Branding, i18n & polish ✅ (→ v0.9.0)
 
@@ -330,10 +315,6 @@ Mostly shipped across v1.1.0–v1.2.0; a couple of ideas remain planned (⬜).
     by default).
   - **Format note:** cover embedding works for mp3 / m4a / flac / opus but **not
     wav** (no picture frame in the container). Candidate for **v1.3.0**.
-- ⬜ **macOS build**. Package the Tauri app for macOS (the FastAPI sidecar +
-  ffmpeg bundle should port; needs a Mac to build / sign / notarize). Once it
-  ships, add **Safari** back to the cookies "browser" selector — yt-dlp can only
-  read Safari cookies on macOS.
 
 ### From the codebase audit (post-v1.3.0)
 
@@ -354,16 +335,27 @@ non-critical:
   BtbN's `checksums.sha256`.
 - ✅ **Type-aware ESLint** (`recommendedTypeChecked`).
 
-**Features** (fit the local / high-fidelity philosophy)
+**Features shipped** (fit the local / high-fidelity philosophy)
 
-- ✅ **YouTube search from the URL field** — typing a query (not a URL) shows a
-  live, debounced dropdown of results (thumbnail / channel / views / duration)
-  with keyboard nav; picking one analyzes it. Backend `GET /api/search` runs a
-  flat `ytsearch`; the frontend caches recent queries.
-- ✅ **SponsorBlock** — Settings switch (off by default; reusable `Toggle` with
-  the brand logo + a "?" info popover) and a remove/mark dropdown; wires yt-dlp's
-  `SponsorBlock` + `ModifyChapters` postprocessors into both audio and video
-  downloads (sponsor / intro / outro / selfpromo / … cats).
+- ✅ **YouTube search from the URL field** *(v1.6.0)* — typing a query (not a URL)
+  shows a live, debounced dropdown of results (thumbnail / channel / views /
+  duration) with keyboard nav; picking one analyzes it. Backend `GET /api/search`
+  runs a flat `ytsearch`; the frontend caches recent queries.
+- ✅ **SponsorBlock** *(v1.5.0)* — Settings switch (off by default; reusable
+  `Toggle` with the brand logo + a "?" info popover) and a remove/mark dropdown;
+  wires yt-dlp's `SponsorBlock` + `ModifyChapters` postprocessors into both audio
+  and video downloads (sponsor / intro / outro / selfpromo / … cats).
+- ✅ **Smaller wins (done):** paste URL from clipboard · WAV-can't-hold-cover-art
+  hint when auto-tagging · unified the preview checkboxes (subs / chapters /
+  multi-audio) onto the `Toggle` switch.
+
+---
+
+## Phase 10 — Next (planned)
+
+The remaining features that fit the local / high-fidelity philosophy. No version
+assigned yet; roughly in priority order.
+
 - ⬜ **Trim / clip a section** — download a time range (e.g. `00:30–02:10`) via
   yt-dlp's `download_ranges`, with start/end inputs in the preview.
 - ⬜ **Persist all download defaults** — remember container, audio format,
@@ -371,12 +363,41 @@ non-critical:
   user for now.)*
 - ⬜ **Configurable filename template** — a settings field for `outtmpl` with safe
   presets (`%(uploader)s - %(title)s`); pairs well with the auto-tagger.
-- 🚧 **Smaller wins** — ✅ paste URL from clipboard · ⬜ re-download / re-analyze
-  from history · ⬜ open the file (not just its folder) · ⬜ bandwidth rate limit ·
-  ⬜ embed thumbnail as cover art on audio · ⬜ list which playlist items failed ·
-  ✅ hint that WAV can't hold cover art when chosen with auto-tagging · ✅ unify the
-  preview checkboxes (subs / chapters / multi-audio) onto the new `Toggle` switch.
 - ⬜ **Concurrent playlist downloads** (configurable N) — currently strictly
   sequential; needs multi-socket orchestration + aggregate progress. Bigger.
 - ⬜ **Surface / update yt-dlp version** — it breaks as sites change; show its
   version in Settings, maybe allow updating the bundled binary.
+- ⬜ **Smaller wins (left):** re-download / re-analyze from history · open the
+  file itself (not just its folder) · bandwidth rate limit · embed thumbnail as
+  cover art on audio · list which playlist items failed.
+
+## Future — other platforms
+
+Bigger, separate efforts — intentionally last. Desktop (Linux/Windows) stays the
+focus; these are their own mini-projects.
+
+### 🍎 macOS build ⬜
+
+Package the Tauri app for macOS (the FastAPI sidecar + ffmpeg bundle should port;
+needs a Mac to build / sign / notarize). Once it ships, add **Safari** back to
+the cookies "browser" selector — yt-dlp can only read Safari cookies on macOS.
+
+### 🤖 Android (experimental) ⬜
+
+The frontend ports easily (Tauri v2 mobile loads the React UI in a WebView). The
+hard part is the engine: the PyInstaller backend sidecar does **not** work on
+Android (no spawnable binaries, no `externalBin`), so the local HTTP/WebSocket
+server must be replaced. Three routes:
+
+- ⬜ **Embed Python (Chaquopy) + ffmpeg-kit** — run yt-dlp in-process, driven via
+  native Tauri commands instead of REST/WS to `localhost`. Keeps Python.
+- ⬜ **Native yt-dlp lib (`youtubedl-android`) + ffmpeg-kit** — the Seal approach;
+  leaves Python for a Kotlin/Java layer.
+- ⬜ **Thin client** — APK is just the UI talking to a remote backend (the desktop
+  FastAPI on a PC/NAS). Minimal work, but no longer fully "local".
+- ⬜ Android toolchain + plumbing — SDK/NDK/JDK, `tauri android`, scoped-storage
+  save paths, runtime permissions.
+
+> Functionally proven on Android (cf. Seal = yt-dlp + ffmpeg in an APK).
+> Distribute via direct APK / F-Droid — Google Play typically rejects YouTube
+> downloaders. A separate mini-project, not an extension of desktop packaging.
