@@ -24,9 +24,14 @@ const EMPTY_STATS: DownloadStats = {
   transferred: "0 B",
 };
 
-/** Reveal a finished download in the OS file manager. */
+/** Reveal a finished download's folder in the OS file manager. */
 function handleOpenFolder(entry: HistoryEntry) {
   void openInFileManager(entry.filepath);
+}
+
+/** Open a finished download's file with its default app. */
+function handleOpenFile(entry: HistoryEntry) {
+  void openInFileManager(entry.filepath, true);
 }
 
 export default function App() {
@@ -107,6 +112,7 @@ export default function App() {
             items={history}
             stats={stats}
             onOpenFolder={handleOpenFolder}
+            onOpenFile={handleOpenFile}
             onClear={handleClear}
           />
         }

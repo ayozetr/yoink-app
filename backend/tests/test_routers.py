@@ -154,6 +154,13 @@ def test_thumbnail_rejects_internal_and_non_http_hosts():
         assert resp.status_code == 400, target
 
 
+def test_cover_path_guards(temp_dirs):
+    # Outside the download dir → 403; inside but nonexistent → 404.
+    assert client.get("/api/cover", params={"path": "/etc/passwd"}).status_code == 403
+    inside = str(temp_dirs / "downloads" / "nope.mp3")
+    assert client.get("/api/cover", params={"path": inside}).status_code == 404
+
+
 def test_search_returns_results(monkeypatch):
     from app.models.media import PlaylistEntry
 

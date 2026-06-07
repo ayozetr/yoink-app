@@ -9,6 +9,7 @@ interface HistorySidebarProps {
   items: HistoryEntry[];
   stats: DownloadStats;
   onOpenFolder?: (entry: HistoryEntry) => void;
+  onOpenFile?: (entry: HistoryEntry) => void;
   onClear?: () => void;
 }
 
@@ -17,6 +18,7 @@ export function HistorySidebar({
   items,
   stats,
   onOpenFolder,
+  onOpenFile,
   onClear,
 }: HistorySidebarProps) {
   const { t } = useTranslation();
@@ -47,6 +49,7 @@ export function HistorySidebar({
               key={item.id}
               item={item}
               onOpenFolder={onOpenFolder}
+              onOpenFile={onOpenFile}
             />
           ))
         )}

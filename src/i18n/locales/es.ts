@@ -114,6 +114,7 @@ export const es = {
     completed: "Completado",
     error: "Error",
     openFolder: "Abrir carpeta",
+    openFile: "Abrir archivo",
   },
   stats: {
     title: "Estadísticas",

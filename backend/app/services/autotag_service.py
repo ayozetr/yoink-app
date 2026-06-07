@@ -264,6 +264,31 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
     return ApplyResponse(ok=True, embedded_cover=embedded)
 
 
+def extract_cover(path: Path) -> tuple[bytes, str] | None:
+    """Read embedded cover art (bytes, mime) from an audio file, or None."""
+    ext = path.suffix.lower()
+    try:
+        if ext in (".mp3", ".wav"):
+            for frame in ID3(path).getall("APIC"):
+                return frame.data, frame.mime or "image/jpeg"
+        elif ext in (".m4a", ".mp4", ".m4b"):
+            covers = (MP4(path).tags or {}).get("covr")
+            if covers:
+                is_png = covers[0].imageformat == MP4Cover.FORMAT_PNG
+                return bytes(covers[0]), "image/png" if is_png else "image/jpeg"
+        elif ext == ".flac":
+            for pic in FLAC(path).pictures:
+                return pic.data, pic.mime or "image/jpeg"
+        else:
+            audio = mutagen.File(path)
+            pics = getattr(audio, "pictures", None) if audio else None
+            if pics:
+                return pics[0].data, pics[0].mime or "image/jpeg"
+    except (mutagen.MutagenError, ID3NoHeaderError, OSError, ValueError):
+        return None
+    return None
+
+
 def _fetch_cover(url: str) -> tuple[bytes, str] | None:
     """Download cover art bytes + content-type (None on any failure)."""
     # Only http(s): urlopen also honors file:// / ftp://, so an attacker-supplied

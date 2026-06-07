@@ -11,10 +11,14 @@ import ipaddress
 import socket
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
+
+from app.core.config import settings
+from app.services.autotag_service import extract_cover
 
 router = APIRouter(tags=["media"])
 
@@ -151,4 +155,37 @@ def proxy_thumbnail(
         content=data,
         media_type=content_type,
         headers={"Cache-Control": _CACHE_CONTROL},
+    )
+
+
+@router.get("/cover", summary="Embedded cover art of a downloaded audio file")
+def get_cover(
+    path: str = Query(..., description="Path to a file inside the download dir."),
+) -> Response:
+    """Serve the cover art embedded in a downloaded file (404 if none).
+
+    The path is constrained to the download directory so the endpoint can't read
+    arbitrary files on disk.
+    """
+    download_dir = settings.ensure_download_dir().resolve()
+    target = Path(path).resolve()
+    if target != download_dir and download_dir not in target.parents:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Path is outside the download directory.",
+        )
+    if not target.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="File not found."
+        )
+    cover = extract_cover(target)
+    if cover is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No cover art."
+        )
+    data, mime = cover
+    return Response(
+        content=data,
+        media_type=mime,
+        headers={"Cache-Control": "private, max-age=3600"},
     )

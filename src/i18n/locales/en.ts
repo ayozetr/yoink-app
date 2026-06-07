@@ -114,6 +114,7 @@ export const en = {
     completed: "Completed",
     error: "Error",
     openFolder: "Open folder",
+    openFile: "Open file",
   },
   stats: {
     title: "Statistics",

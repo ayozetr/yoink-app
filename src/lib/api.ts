@@ -176,6 +176,11 @@ export async function openInFileManager(
   }
 }
 
+/** URL of a downloaded file's embedded cover art (the endpoint 404s if none). */
+export function coverUrl(path: string): string {
+  return `${API_BASE_URL}/cover?path=${encodeURIComponent(path)}`;
+}
+
 /** Fetch the current settings via `GET /api/settings`. */
 export async function fetchSettings(signal?: AbortSignal): Promise<AppSettings> {
   const response = await fetch(`${API_BASE_URL}/settings`, { signal });
