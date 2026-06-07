@@ -14,8 +14,10 @@ export const en = {
     close: "Close",
   },
   url: {
-    placeholder: "Paste the video URL here...",
+    placeholder: "Paste the content URL here, or search YouTube directly",
     paste: "Paste from clipboard",
+    searching: "Searching YouTube…",
+    noResults: "No results.",
     analyze: "Analyze",
     analyzing: "Analyzing...",
   },

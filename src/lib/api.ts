@@ -11,6 +11,8 @@ import type {
   DownloadStats,
   HistoryEntry,
   InfoResponse,
+  PlaylistEntry,
+  SearchResponse,
 } from "../types/download";
 import type {
   ApplyRequest,
@@ -100,6 +102,21 @@ export async function fetchInfo(
   }
 
   return (await response.json()) as InfoResponse;
+}
+
+/** Flat YouTube search for the URL-field typeahead via `GET /api/search`. */
+export async function searchYoutube(
+  query: string,
+  signal?: AbortSignal,
+): Promise<PlaylistEntry[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/search?q=${encodeURIComponent(query)}`,
+    { signal },
+  );
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return ((await response.json()) as SearchResponse).results;
 }
 
 /** Fetch recent download records via `GET /api/history`. */

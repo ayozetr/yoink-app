@@ -197,8 +197,8 @@ export function DownloaderPanel({
     runJob(0);
   };
 
-  const handleAnalyze = async () => {
-    const trimmed = url.trim();
+  const handleAnalyze = async (overrideUrl?: string) => {
+    const trimmed = (overrideUrl ?? url).trim();
     if (!trimmed) return;
 
     requestRef.current?.abort();
@@ -285,6 +285,10 @@ export function DownloaderPanel({
         value={url}
         onChange={setUrl}
         onAnalyze={handleAnalyze}
+        onSelectResult={(entry) => {
+          setUrl(entry.url);
+          void handleAnalyze(entry.url);
+        }}
         loading={loading}
       />
 

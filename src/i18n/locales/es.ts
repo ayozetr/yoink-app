@@ -14,8 +14,10 @@ export const es = {
     close: "Cerrar",
   },
   url: {
-    placeholder: "Pega aquí la URL del vídeo...",
+    placeholder: "Pega aquí la URL del contenido o busca directamente en YouTube",
     paste: "Pegar del portapapeles",
+    searching: "Buscando en YouTube…",
+    noResults: "Sin resultados.",
     analyze: "Analizar",
     analyzing: "Analizando...",
   },

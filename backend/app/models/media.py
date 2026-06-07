@@ -127,6 +127,14 @@ class InfoResponse(BaseModel):
     playlist: PlaylistInfo | None = Field(default=None)
 
 
+class SearchResponse(BaseModel):
+    """Flat YouTube search hits for the URL-field typeahead (reuses PlaylistEntry)."""
+
+    results: list[PlaylistEntry] = Field(
+        default_factory=list, description="Matching videos, best-first."
+    )
+
+
 class DownloadRequest(BaseModel):
     """What the frontend asks to download, sent over the WebSocket."""
 

@@ -94,6 +94,11 @@ export interface PlaylistEntry {
   uploader: string | null;
 }
 
+/** Flat YouTube search results for the URL-field typeahead (mirrors backend). */
+export interface SearchResponse {
+  results: PlaylistEntry[];
+}
+
 /** Flat playlist metadata (mirrors backend `PlaylistInfo`). */
 export interface PlaylistInfo {
   id: string;

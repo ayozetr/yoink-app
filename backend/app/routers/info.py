@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.models.media import InfoRequest, InfoResponse
-from app.services.ytdlp_service import MediaExtractionError, extract_info
+from app.models.media import InfoRequest, InfoResponse, SearchResponse
+from app.services.ytdlp_service import (
+    MediaExtractionError,
+    extract_info,
+    search_youtube,
+)
 
 router = APIRouter(tags=["info"])
 
@@ -27,4 +31,22 @@ def get_media_info(request: InfoRequest) -> InfoResponse:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Could not extract media info: {exc}",
+        ) from exc
+
+
+@router.get(
+    "/search",
+    response_model=SearchResponse,
+    summary="Flat YouTube search for the URL-field typeahead",
+)
+def search_media(
+    q: str = Query(..., min_length=1, description="Search query."),
+) -> SearchResponse:
+    """Search YouTube (flat) and return matching videos, best-first."""
+    try:
+        return SearchResponse(results=search_youtube(q))
+    except MediaExtractionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Search failed: {exc}",
         ) from exc

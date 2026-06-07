@@ -357,3 +357,49 @@ def extract_info(url: str) -> InfoResponse:
             ),
         )
     return InfoResponse(type="video", video=_build_video(info))
+
+
+# Number of search hits to surface in the URL-field typeahead.
+_SEARCH_CAP = 8
+
+
+def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
+    """Flat YouTube search for the URL-field typeahead.
+
+    Uses yt-dlp's ``ytsearch`` with ``extract_flat`` so results come back fast
+    (no per-video resolution, ~1s). Reuses :func:`_build_entry` — a search hit
+    has the same shape as a flat playlist entry — and falls back to the canonical
+    YouTube thumbnail when the flat entry doesn't carry one.
+
+    Raises:
+        MediaExtractionError: if yt-dlp fails.
+    """
+    query = query.strip()
+    if not query:
+        return []
+
+    options: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "extract_flat": True,
+        **cookie_options(),
+    }
+    try:
+        with YoutubeDL(options) as ydl:
+            raw_info = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
+            info = cast(dict[str, Any], ydl.sanitize_info(raw_info))
+    except DownloadError as exc:
+        raise MediaExtractionError(str(exc)) from exc
+
+    results: list[PlaylistEntry] = []
+    for raw in info.get("entries") or []:
+        if not isinstance(raw, dict):
+            continue
+        entry = _build_entry(raw)
+        if entry is None:
+            continue
+        if not entry.thumbnail_url and entry.id:
+            entry.thumbnail_url = f"https://i.ytimg.com/vi/{entry.id}/mqdefault.jpg"
+        results.append(entry)
+    return results

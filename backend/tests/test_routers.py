@@ -142,3 +142,29 @@ def test_thumbnail_rejects_internal_and_non_http_hosts():
     ):
         resp = client.get("/api/thumbnail", params={"url": target})
         assert resp.status_code == 400, target
+
+
+def test_search_returns_results(monkeypatch):
+    from app.models.media import PlaylistEntry
+
+    fake = [
+        PlaylistEntry(
+            id="abc",
+            title="A Song",
+            url="https://youtu.be/abc",
+            duration_string="3:21",
+            thumbnail_url="https://i.ytimg.com/vi/abc/mqdefault.jpg",
+            uploader="A Channel",
+        )
+    ]
+    monkeypatch.setattr("app.routers.info.search_youtube", lambda q: fake)
+    resp = client.get("/api/search", params={"q": "a song"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["results"][0]["title"] == "A Song"
+    assert body["results"][0]["url"] == "https://youtu.be/abc"
+
+
+def test_search_requires_a_query():
+    # q is required with min_length=1 → empty query is a 422.
+    assert client.get("/api/search", params={"q": ""}).status_code == 422
