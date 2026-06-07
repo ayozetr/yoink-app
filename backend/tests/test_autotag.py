@@ -73,6 +73,8 @@ class _FakeResponse:
             "CRUZ CAFUNÉ",
             "922 & HEARTBREAK",
         ),
+        # other fullwidth sanitised chars (":" → "：") are normalised back too
+        ("Artist - Title： Part 2.mp3", "Artist", "Title: Part 2"),
         ("Drake - Hotline Bling (Music Video) [4K].mp3", "Drake", "Hotline Bling"),
         ("Artist - Song - Official Audio.mp3", "Artist", "Song"),
         # legit titles ending in those words are left untouched
@@ -213,6 +215,17 @@ def test_search_dispatches_on_source(monkeypatch):
     assert svc._search("a", "b") == mb
     monkeypatch.setattr(svc.settings, "autotag_source", "auto")
     assert svc._search("a", "b") == apple + deezer  # auto merges Apple + Deezer
+
+
+def test_rank_puts_cleanest_match_first():
+    cands = [
+        TagCandidate(title="922 & Heartbreak (feat. X) [Remix]", artist="Finesse"),
+        TagCandidate(title="922 & Heartbreak", artist="Cruz Cafuné"),
+        TagCandidate(title="922 & Heartbreak (Remix)", artist="Finesse"),
+    ]
+    ranked = svc._rank(cands, "Cruz Cafuné", "922 & Heartbreak")
+    # The clean original (exact title + matching artist) outranks the remixes.
+    assert (ranked[0].artist, ranked[0].title) == ("Cruz Cafuné", "922 & Heartbreak")
 
 
 # --- automatic cascade -----------------------------------------------------

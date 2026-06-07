@@ -61,15 +61,51 @@ def search(artist: str, title: str) -> CandidateList:
 
 
 def _search(artist: str, title: str) -> list[TagCandidate]:
-    """Search the selected catalogue (auto / Apple Music / Deezer / MusicBrainz)."""
+    """Search the selected catalogue (auto / Apple Music / Deezer / MusicBrainz),
+    ranked so the cleanest match for the query comes first."""
     source = settings.autotag_source
     if source == "auto":
-        return _auto_search(artist, title)
-    if source == "deezer":
-        return _deezer_search(artist, title)
-    if source == "musicbrainz":
-        return _musicbrainz_search(artist, title)
-    return _itunes_search(artist, title)
+        results = _auto_search(artist, title)
+    elif source == "deezer":
+        results = _deezer_search(artist, title)
+    elif source == "musicbrainz":
+        results = _musicbrainz_search(artist, title)
+    else:
+        results = _itunes_search(artist, title)
+    return _rank(results, artist, title)
+
+
+_VERSION_EXTRAS = (
+    "remix", "version", "live", "edit", "acoustic", "instrumental",
+    "sped up", "slowed", "cover", "karaoke",
+)
+
+
+def _rank(
+    results: list[TagCandidate], artist: str, title: str
+) -> list[TagCandidate]:
+    """Order matches so the cleanest version (closest to the query, without an
+    added remix / feat / qualifier) comes first. Stable for equal scores, so a
+    catalogue's own ordering is preserved within a tie."""
+    qt = title.strip().lower()
+    qa = artist.strip().lower()
+
+    def score(cand: TagCandidate) -> int:
+        ct = cand.title.strip().lower()
+        s = 0
+        if ct == qt:
+            s += 100  # exact title match
+        elif qt and qt in ct:
+            s += 40  # query is a substring (extra stuff appended)
+        for extra in _VERSION_EXTRAS:
+            if extra in ct and extra not in qt:
+                s -= 25  # a remix/live/… the query didn't ask for
+        s -= abs(len(ct) - len(qt)) // 8  # closer length = fewer "(feat …)"/"[…]"
+        if qa and qa in cand.artist.strip().lower():
+            s += 15  # artist also matches
+        return s
+
+    return sorted(results, key=score, reverse=True)
 
 
 def _auto_search(artist: str, title: str) -> list[TagCandidate]:
@@ -217,6 +253,17 @@ def _clean_album(name: str | None) -> str | None:
     return re.sub(r"\s*-\s*(Single|EP)$", "", name).strip() or None
 
 
+# yt-dlp sanitises filesystem-illegal chars in filenames to fullwidth look-alikes
+# ("|" → "｜", ":" → "：", "?" → "？", "*" → "＊", "/" → "⧸"…). Map them back so the
+# catalogue query matches the real title.
+_FULLWIDTH = str.maketrans(
+    {
+        "＂": '"', "：": ":", "＜": "<", "＞": ">", "？": "?",
+        "｜": "|", "＊": "*", "／": "/", "＼": "\\", "⧸": "/", "⧹": "\\",
+    }
+)
+
+
 _FILENAME_TAGS = re.compile(
     r"\s*[([][^)\]]*?"
     r"\b(?:official|video|audio|lyrics?|visualizer|visualiser|hd|4k|mv|prod)\b"
@@ -271,6 +318,7 @@ def guess_from_filename(name: str) -> tuple[str, str]:
     ("", base) when there's no dash.
     """
     base = re.sub(r"\.[^.]+$", "", name)
+    base = base.translate(_FULLWIDTH)  # ｜／：？… (yt-dlp sanitised) → ASCII
     base = _FILENAME_TAGS.sub("", base).strip()
     match = re.match(r"^(.+?)\s[-–—]\s(.+)$", base)
     if match:
