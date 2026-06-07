@@ -14,7 +14,7 @@ import subprocess
 import mutagen
 import pytest
 
-from app.models.autotag import ApplyRequest
+from app.models.autotag import ApplyRequest, TagCandidate
 from app.services import autotag_service as svc
 
 FFMPEG = shutil.which("ffmpeg")
@@ -194,17 +194,20 @@ def test_musicbrainz_search_empty_term_skips_network():
 # --- source dispatch -------------------------------------------------------
 
 def test_search_dispatches_on_source(monkeypatch):
-    monkeypatch.setattr(svc, "_itunes_search", lambda *a: ["apple"])
-    monkeypatch.setattr(svc, "_deezer_search", lambda *a: ["deezer"])
-    monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a: ["mb"])
+    apple = [TagCandidate(title="A", artist="apple")]
+    deezer = [TagCandidate(title="D", artist="deezer")]
+    mb = [TagCandidate(title="M", artist="mb")]
+    monkeypatch.setattr(svc, "_itunes_search", lambda *a, **k: apple)
+    monkeypatch.setattr(svc, "_deezer_search", lambda *a, **k: deezer)
+    monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a, **k: mb)
     monkeypatch.setattr(svc.settings, "autotag_source", "apple")
-    assert svc._search("a", "b") == ["apple"]
+    assert svc._search("a", "b") == apple
     monkeypatch.setattr(svc.settings, "autotag_source", "deezer")
-    assert svc._search("a", "b") == ["deezer"]
+    assert svc._search("a", "b") == deezer
     monkeypatch.setattr(svc.settings, "autotag_source", "musicbrainz")
-    assert svc._search("a", "b") == ["mb"]
+    assert svc._search("a", "b") == mb
     monkeypatch.setattr(svc.settings, "autotag_source", "auto")
-    assert svc._search("a", "b") == ["apple"]  # auto → first non-empty source
+    assert svc._search("a", "b") == apple + deezer  # auto merges Apple + Deezer
 
 
 # --- automatic cascade -----------------------------------------------------
@@ -223,17 +226,34 @@ def test_auto_search_falls_through_to_first_match(monkeypatch):
     monkeypatch.setattr(svc, "_deezer_search", stub("deezer", []))
     monkeypatch.setattr(svc, "_musicbrainz_search", stub("mb", ["hit"]))
     assert svc._auto_search("a", "b") == ["hit"]
-    assert order == ["apple", "deezer", "mb"]  # tried in order until a match
+    # Fast sources (Apple + Deezer) both empty → falls back to MusicBrainz.
+    assert order == ["apple", "deezer", "mb"]
 
 
 def test_auto_search_skips_a_failing_source(monkeypatch):
-    def boom(*a):
+    deezer = [TagCandidate(title="D", artist="deezer")]
+
+    def boom(*a, **k):
         raise svc.AutotagError("source down")
 
     monkeypatch.setattr(svc, "_itunes_search", boom)
-    monkeypatch.setattr(svc, "_deezer_search", lambda *a: ["deezer"])
-    monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a: [])
-    assert svc._auto_search("a", "b") == ["deezer"]  # apple errored → next source
+    monkeypatch.setattr(svc, "_deezer_search", lambda *a, **k: deezer)
+    monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a, **k: [])
+    assert svc._auto_search("a", "b") == deezer  # apple errored → deezer still used
+
+
+def test_auto_search_merges_and_dedupes(monkeypatch):
+    # Apple has only a remix; Deezer has the original (the real 922 & Heartbreak
+    # case). Merging surfaces both; the shared duplicate is dropped once.
+    apple = [TagCandidate(title="Song", artist="A")]
+    deezer = [
+        TagCandidate(title="song", artist="a"),  # dup of apple's (case-insensitive)
+        TagCandidate(title="Original", artist="C"),
+    ]
+    monkeypatch.setattr(svc, "_itunes_search", lambda *a, **k: apple)
+    monkeypatch.setattr(svc, "_deezer_search", lambda *a, **k: deezer)
+    result = [(c.artist, c.title) for c in svc._auto_search("x", "y")]
+    assert result == [("A", "Song"), ("C", "Original")]
 
 
 # --- apply error handling --------------------------------------------------

@@ -73,20 +73,32 @@ def _search(artist: str, title: str) -> list[TagCandidate]:
 
 
 def _auto_search(artist: str, title: str) -> list[TagCandidate]:
-    """Try each catalogue in turn, returning the first non-empty match.
+    """Combine the fast catalogues (Apple Music + Deezer), deduped.
 
-    Apple Music and Deezer go first (fast, hi-res covers); MusicBrainz last
-    (broad coverage but rate-limited). A source that errors (network / rate
-    limit) is treated as "no match" so the next source is still tried.
+    Merging matters: a song one catalogue lists but the other doesn't (e.g. an
+    original only on Deezer vs a remix only on Apple Music) would be missed if we
+    stopped at the first non-empty source. MusicBrainz is a fallback only when
+    both fast sources come up empty (broad coverage, but rate-limited). A source
+    that errors (network / rate limit) is skipped.
     """
-    for source in (_itunes_search, _deezer_search, _musicbrainz_search):
+    combined: list[TagCandidate] = []
+    seen: set[tuple[str, str]] = set()
+    for source in (_itunes_search, _deezer_search):
         try:
             results = source(artist, title)
         except AutotagError:
             continue
-        if results:
-            return results
-    return []
+        for cand in results:
+            key = (cand.artist.strip().lower(), cand.title.strip().lower())
+            if key not in seen:
+                seen.add(key)
+                combined.append(cand)
+    if combined:
+        return combined
+    try:
+        return _musicbrainz_search(artist, title)
+    except AutotagError:
+        return []
 
 
 def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
