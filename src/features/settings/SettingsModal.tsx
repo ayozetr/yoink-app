@@ -16,6 +16,7 @@ import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
 import { Toggle } from "../../components/ui/Toggle";
 import { SponsorBlockIcon } from "../../components/ui/SponsorBlockIcon";
+import { BrowserIcon } from "../../components/ui/BrowserIcon";
 import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
@@ -397,6 +398,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
                 ...COOKIE_BROWSERS.map((b) => ({
                   value: b,
                   label: b.charAt(0).toUpperCase() + b.slice(1),
+                  icon: <BrowserIcon browser={b} className="size-4" />,
                 })),
               ]}
               className={`${INPUT_CLASS} w-full`}

@@ -1,5 +1,6 @@
 import {
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -10,6 +11,8 @@ import { Check, ChevronDown } from "lucide-react";
 export interface SelectOption {
   value: string;
   label: string;
+  /** Optional leading icon (e.g. a browser logo). */
+  icon?: ReactNode;
   /** When true, the option is shown but cannot be selected. */
   disabled?: boolean;
   /** Render as a non-selectable section header instead of an option. */
@@ -156,7 +159,14 @@ export function Select({
         onKeyDown={onKeyDown}
         className={`flex cursor-pointer items-center justify-between gap-2 ${className}`}
       >
-        <span className="truncate">{selected?.label ?? ""}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          {selected?.icon && (
+            <span className="flex shrink-0 items-center text-zinc-300">
+              {selected.icon}
+            </span>
+          )}
+          <span className="truncate">{selected?.label ?? ""}</span>
+        </span>
         <ChevronDown
           size={16}
           className={`shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
@@ -210,7 +220,14 @@ export function Select({
                         : "text-zinc-200 hover:bg-white/10"
                 }`}
               >
-                <span className="truncate">{option.label}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {option.icon && (
+                    <span className="flex shrink-0 items-center">
+                      {option.icon}
+                    </span>
+                  )}
+                  <span className="truncate">{option.label}</span>
+                </span>
                 {active && (
                   <Check size={15} className="shrink-0 text-violet-300" />
                 )}
