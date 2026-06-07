@@ -42,14 +42,18 @@ function relativeTime(iso: string, lang: string): string | null {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return null;
   const diffSec = Math.round((then - Date.now()) / 1000); // negative = past
-  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
-  const abs = Math.abs(diffSec);
-  if (abs < 60) return rtf.format(diffSec, "second");
-  if (abs < 3600) return rtf.format(Math.round(diffSec / 60), "minute");
-  if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), "hour");
-  if (abs < 2592000) return rtf.format(Math.round(diffSec / 86400), "day");
-  if (abs < 31536000) return rtf.format(Math.round(diffSec / 2592000), "month");
-  return rtf.format(Math.round(diffSec / 31536000), "year");
+  try {
+    const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+    const abs = Math.abs(diffSec);
+    if (abs < 60) return rtf.format(diffSec, "second");
+    if (abs < 3600) return rtf.format(Math.round(diffSec / 60), "minute");
+    if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), "hour");
+    if (abs < 2592000) return rtf.format(Math.round(diffSec / 86400), "day");
+    if (abs < 31536000) return rtf.format(Math.round(diffSec / 2592000), "month");
+    return rtf.format(Math.round(diffSec / 31536000), "year");
+  } catch {
+    return null; // malformed locale tag → just omit the relative time
+  }
 }
 
 /** One row in the download history list. */

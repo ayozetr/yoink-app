@@ -681,6 +681,7 @@ function HelpPopover({
       {open && pos && (
         <div
           ref={popRef}
+          data-popover="true"
           style={{ position: "fixed", top: pos.top, left: pos.left, width: WIDTH }}
           className="z-[200] rounded-lg border border-white/10 bg-[#1a1d27] p-3 text-xs leading-relaxed text-zinc-300 shadow-xl"
         >

@@ -103,6 +103,11 @@ export default function App() {
         e.preventDefault();
         setSettingsOpen((open) => !open);
       } else if (e.key === "Escape") {
+        // Let an open inner dropdown/popover consume Escape first; only close
+        // Settings when none is open (so one Esc closes the dropdown, not both).
+        if (document.querySelector('[role="listbox"], [data-popover="true"]')) {
+          return;
+        }
         setSettingsOpen(false);
       }
     };

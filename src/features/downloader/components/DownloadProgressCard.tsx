@@ -30,7 +30,16 @@ export function DownloadProgressCard({
   onDismiss,
 }: DownloadProgressCardProps) {
   const { t } = useTranslation();
+  const [coverFor, setCoverFor] = useState<string | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
+
+  // The card persists across downloads (no remount), so reset the cover-failed
+  // flag whenever a new file completes — otherwise one cover-less download would
+  // stick the icon fallback for the rest of the session.
+  if (completed && completed.filepath !== coverFor) {
+    setCoverFor(completed.filepath);
+    setCoverFailed(false);
+  }
 
   if (completed) {
     return (
