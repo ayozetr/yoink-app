@@ -164,10 +164,13 @@ export default function App() {
 
       {retagItem?.filepath && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setRetagItem(null)}
         >
-          <div className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <AutoTagPanel
               path={retagItem.filepath}
               filename={retagItem.filename ?? undefined}
