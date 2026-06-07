@@ -252,10 +252,12 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               onChange={(v) => set("rate_limit", v === "" ? null : v)}
               options={[
                 { value: "", label: t("settings.rateLimitNone") },
-                { value: "1M", label: "1 MB/s" },
-                { value: "2M", label: "2 MB/s" },
+                { value: "3M", label: "3 MB/s" },
                 { value: "5M", label: "5 MB/s" },
                 { value: "10M", label: "10 MB/s" },
+                { value: "20M", label: "20 MB/s" },
+                { value: "35M", label: "35 MB/s" },
+                { value: "50M", label: "50 MB/s" },
               ]}
               className={`${INPUT_CLASS} w-full`}
             />
