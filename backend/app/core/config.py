@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Yoink Backend"
-    app_version: str = "1.5.1"
+    app_version: str = "1.6.0"
     api_prefix: str = "/api"
 
     # GitHub repo used to check for newer releases (owner/name).
