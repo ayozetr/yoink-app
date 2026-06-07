@@ -29,6 +29,8 @@ It is split into two layers that communicate asynchronously:
 
 - **Analyze any URL** (with a **paste-from-clipboard** button) → preview (title,
   thumbnail, duration) with the real available formats. ~1800 sites via yt-dlp.
+- **Search YouTube from the URL field** — type a query instead of a URL and pick
+  a result from the live dropdown (thumbnail, channel, views) to download it.
 - **Live downloads** over WebSocket (percent / speed / ETA), with **cancel**
   and **retry**.
 - **Output formats, your choice:**

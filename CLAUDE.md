@@ -26,6 +26,9 @@ Two layers communicating asynchronously:
   that is **either** a single video (title, thumbnail, formats, plus
   `source_lossless`/`best_audio_abr`/`subtitle_langs`/`has_chapters`) **or** a
   flat playlist listing (entries with title/duration/url). Endpoint: `POST /api/info`.
+- **Search (REST):** typing a query (not a URL) in the field hits
+  `GET /api/search?q=`, which runs a flat `ytsearch` and returns matching videos
+  for the live dropdown; picking one analyzes it via `POST /api/info`.
 - **Download & progress (WebSockets):** on "Download", the frontend opens a
   socket to `WS /api/ws/download` and sends the request (`DownloadRequest`:
   `kind`/`quality`, output `container`, `audio_format`, and `embed_subs`/
@@ -70,7 +73,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── models/autotag.py  # auto-tagging models (TagCandidate, CandidateList, …)
         ├── core/humanize.py   # shared byte/size formatting
         ├── core/ytdlp_options.py      # shared URL normalize + cookie options
-        ├── routers/info.py    # POST /api/info (video or playlist)
+        ├── routers/info.py    # POST /api/info (video or playlist), GET /api/search (YouTube)
         ├── routers/download.py        # WS /api/ws/download (live progress)
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
         ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version

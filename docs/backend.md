@@ -17,7 +17,7 @@ backend/
 │   │   │                       #   PlaylistInfo, DownloadRequest, progress/terminal events, …
 │   │   └── autotag.py          # auto-tag models: TagCandidate, CandidateList, request/response
 │   ├── routers/
-│   │   ├── info.py             # POST /api/info (video or playlist)
+│   │   ├── info.py             # POST /api/info (video or playlist), GET /api/search (YouTube)
 │   │   ├── download.py         # WS /api/ws/download (live progress)
 │   │   ├── history.py          # GET/DELETE /api/history(/stats), POST /api/open
 │   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version

@@ -38,6 +38,10 @@ When the user pastes a URL and clicks **Analyze**:
    and `has_chapters`.
 4. Frontend populates the preview card and the format/quality selectors.
 
+Typing a query instead of a URL hits `GET /api/search?q=` (a flat yt-dlp
+`ytsearch`); the field shows a live dropdown of matching videos and picking one
+analyzes it through the same `POST /api/info` flow.
+
 For a playlist, the backend additionally resolves the **first entry** to set
 `source_lossless` / `best_audio_abr` on the listing, so the playlist UI gates
 FLAC/WAV like a single video (assuming a homogeneous playlist).

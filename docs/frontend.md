@@ -24,7 +24,7 @@ src/
 │   │   ├── formatOptions.ts     # derive kind/quality/container/audio-format options from formats
 │   │   └── components/
 │   │       ├── DownloaderHeader.tsx
-│   │       ├── UrlInput.tsx
+│   │       ├── UrlInput.tsx        # URL field + paste + live YouTube search dropdown
 │   │       ├── PreviewCard.tsx
 │   │       ├── PlaylistCard.tsx
 │   │       └── DownloadProgressCard.tsx

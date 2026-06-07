@@ -356,6 +356,10 @@ non-critical:
 
 **Features** (fit the local / high-fidelity philosophy)
 
+- ✅ **YouTube search from the URL field** — typing a query (not a URL) shows a
+  live, debounced dropdown of results (thumbnail / channel / views / duration)
+  with keyboard nav; picking one analyzes it. Backend `GET /api/search` runs a
+  flat `ytsearch`; the frontend caches recent queries.
 - ✅ **SponsorBlock** — Settings switch (off by default; reusable `Toggle` with
   the brand logo + a "?" info popover) and a remove/mark dropdown; wires yt-dlp's
   `SponsorBlock` + `ModifyChapters` postprocessors into both audio and video
