@@ -93,6 +93,7 @@ class PlaylistEntry(BaseModel):
     duration_string: str | None = Field(default=None)
     thumbnail_url: str | None = Field(default=None)
     uploader: str | None = Field(default=None)
+    view_count: int | None = Field(default=None, description="View count, if known.")
 
 
 class PlaylistInfo(BaseModel):

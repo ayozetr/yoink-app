@@ -241,6 +241,7 @@ def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
     duration = raw.get("duration")
     duration_value = float(duration) if isinstance(duration, (int, float)) else None
 
+    views = raw.get("view_count")
     return PlaylistEntry(
         id=str(raw.get("id", "")),
         title=str(raw.get("title") or raw.get("id") or "Untitled"),
@@ -248,6 +249,7 @@ def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
         duration_string=_format_duration(duration_value),
         thumbnail_url=_best_thumbnail(raw),
         uploader=raw.get("uploader") or raw.get("channel"),
+        view_count=views if isinstance(views, int) else None,
     )
 
 
@@ -383,6 +385,7 @@ def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
         "no_warnings": True,
         "skip_download": True,
         "extract_flat": True,
+        "socket_timeout": 8,  # fail fast — this feeds a typeahead
         **cookie_options(),
     }
     try:
@@ -391,6 +394,9 @@ def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
             info = cast(dict[str, Any], ydl.sanitize_info(raw_info))
     except DownloadError as exc:
         raise MediaExtractionError(str(exc)) from exc
+
+    if not info:
+        return []
 
     results: list[PlaylistEntry] = []
     for raw in info.get("entries") or []:

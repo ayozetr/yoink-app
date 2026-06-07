@@ -40,7 +40,7 @@ def get_media_info(request: InfoRequest) -> InfoResponse:
     summary="Flat YouTube search for the URL-field typeahead",
 )
 def search_media(
-    q: str = Query(..., min_length=1, description="Search query."),
+    q: str = Query(..., min_length=1, max_length=200, description="Search query."),
 ) -> SearchResponse:
     """Search YouTube (flat) and return matching videos, best-first."""
     try:
