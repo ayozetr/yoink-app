@@ -81,6 +81,8 @@ def test_settings_get_and_put(temp_dirs):
         "download_dir": str(temp_dirs / "dl"),
         "filename_template": "%(uploader)s - %(title)s",
         "rate_limit": "1M",
+        "video_codec": "h264",
+        "audio_bitrate": "320",
     }
     saved = client.put("/api/settings", json=payload)
     assert saved.status_code == 200
@@ -88,6 +90,8 @@ def test_settings_get_and_put(temp_dirs):
     assert saved.json()["cookies_from_browser"] == "firefox"
     assert saved.json()["filename_template"] == "%(uploader)s - %(title)s"
     assert saved.json()["rate_limit"] == "1M"
+    assert saved.json()["video_codec"] == "h264"
+    assert saved.json()["audio_bitrate"] == "320"
     # Persisted to disk.
     assert (temp_dirs / "data" / "settings.json").exists()
 

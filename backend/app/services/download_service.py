@@ -45,9 +45,21 @@ _AUDIO_POSTPROCESSORS: dict[AudioFormat, dict[str, str]] = {
 }
 
 
+# Map a video-codec preference to a yt-dlp format-sort key (best-effort bias).
+_VCODEC_SORT = {"h264": "h264", "vp9": "vp9", "av1": "av01"}
+
+
 def _audio_postprocessor(audio_format: AudioFormat) -> dict[str, str]:
     """Build the FFmpegExtractAudio postprocessor for an output audio format."""
-    return {"key": "FFmpegExtractAudio", **_AUDIO_POSTPROCESSORS[audio_format]}
+    pp = {"key": "FFmpegExtractAudio", **_AUDIO_POSTPROCESSORS[audio_format]}
+    # Apply the user's bitrate to lossy formats only ("best" = no target;
+    # lossless formats carry no preferredquality to override).
+    if "preferredquality" in pp:
+        if settings.audio_bitrate == "best":
+            pp.pop("preferredquality")
+        else:
+            pp["preferredquality"] = settings.audio_bitrate
+    return pp
 
 
 class _DownloadCancelled(Exception):
@@ -197,6 +209,12 @@ def _build_options(
     name_template = (settings.filename_template or "").strip() or "%(title)s"
     name_template = name_template.replace("\\", "/").replace("..", "").strip("/")
     name_template = name_template or "%(title)s"
+    # Defense in depth: confirm the resolved template path stays inside the
+    # download dir (the %(...)s fields are treated as literal segments here).
+    try:
+        (download_dir / name_template).resolve().relative_to(download_dir.resolve())
+    except ValueError:
+        name_template = "%(title)s"
     options: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
@@ -268,6 +286,11 @@ def _build_options(
         # ffmpeg (mp4 by default; multi-audio is offered only for mkv, which can
         # hold multiple audio tracks).
         options["merge_output_format"] = request.container
+
+        # Prefer a specific video codec when set (best-effort: yt-dlp falls back
+        # to the next codec if a quality has no stream in the preferred one).
+        if settings.video_codec != "any":
+            options["format_sort"] = [f"vcodec:{_VCODEC_SORT[settings.video_codec]}"]
 
         # Subtitles and chapters are video-only concerns; collect any FFmpeg
         # postprocessors needed to embed them into the merged output.

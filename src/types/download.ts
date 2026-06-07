@@ -187,6 +187,8 @@ export interface VersionInfo {
 /** Catalogue used by the audio auto-tagger. */
 export type AutotagSource = "auto" | "apple" | "deezer" | "musicbrainz";
 export type SponsorblockAction = "remove" | "mark";
+export type VideoCodec = "any" | "h264" | "vp9" | "av1";
+export type AudioBitrate = "best" | "320" | "256" | "192" | "128";
 
 /** User-editable settings (mirrors backend `AppSettings`). */
 export interface AppSettings {
@@ -202,6 +204,10 @@ export interface AppSettings {
   filename_template: string;
   /** Download speed cap like "1M"/"500K"; null means no cap. */
   rate_limit: string | null;
+  /** Preferred video codec ("any" = no preference). */
+  video_codec: VideoCodec;
+  /** Lossy audio bitrate in kbps, or "best". */
+  audio_bitrate: AudioBitrate;
 }
 
 /** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */

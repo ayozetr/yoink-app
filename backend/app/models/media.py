@@ -20,6 +20,8 @@ VideoContainer = Literal["mp4", "mov", "mkv"]
 AudioFormat = Literal["mp3", "m4a", "flac", "wav"]
 AutotagSource = Literal["auto", "apple", "deezer", "musicbrainz"]
 SponsorblockAction = Literal["remove", "mark"]
+VideoCodec = Literal["any", "h264", "vp9", "av1"]
+AudioBitrate = Literal["best", "320", "256", "192", "128"]
 
 
 class InfoRequest(BaseModel):
@@ -256,6 +258,12 @@ class AppSettings(BaseModel):
     rate_limit: str | None = Field(
         default=None,
         description="Download speed cap like '1M'/'500K'; None means no cap.",
+    )
+    video_codec: VideoCodec = Field(
+        default="any", description="Preferred video codec ('any' = no preference)."
+    )
+    audio_bitrate: AudioBitrate = Field(
+        default="192", description="Lossy audio bitrate in kbps, or 'best'."
     )
 
 

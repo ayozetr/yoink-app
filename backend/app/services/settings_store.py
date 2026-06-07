@@ -44,6 +44,10 @@ def _apply(data: dict[str, Any]) -> None:
     if data.get("filename_template"):
         settings.filename_template = str(data["filename_template"])
     settings.rate_limit = str(data["rate_limit"]) if data.get("rate_limit") else None
+    if data.get("video_codec") in ("any", "h264", "vp9", "av1"):
+        settings.video_codec = data["video_codec"]
+    if data.get("audio_bitrate") in ("best", "320", "256", "192", "128"):
+        settings.audio_bitrate = data["audio_bitrate"]
 
 
 def load_overrides() -> None:
@@ -72,6 +76,8 @@ def get_current() -> AppSettings:
         sponsorblock_action=settings.sponsorblock_action,
         filename_template=settings.filename_template,
         rate_limit=settings.rate_limit,
+        video_codec=settings.video_codec,
+        audio_bitrate=settings.audio_bitrate,
     )
 
 

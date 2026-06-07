@@ -29,10 +29,12 @@ import {
 import i18n from "../../i18n";
 import type {
   AppSettings,
+  AudioBitrate,
   AutotagSource,
   MediaKind,
   SponsorblockAction,
   VersionInfo,
+  VideoCodec,
 } from "../../types/download";
 
 const LANG_STORAGE_KEY = "yoink-lang";
@@ -44,6 +46,12 @@ interface SettingsModalProps {
 }
 
 const QUALITY_OPTIONS = ["1080p", "720p", "480p", "360p"];
+const TEMPLATE_PRESETS = [
+  "%(title)s",
+  "%(uploader)s - %(title)s",
+  "%(upload_date)s - %(title)s",
+  "%(title)s [%(id)s]",
+];
 const INPUT_CLASS =
   "h-11 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500";
 
@@ -76,6 +84,10 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   // "system" = follow the OS/browser language; otherwise a forced choice.
   const [lang, setLang] = useState<string>(
     () => localStorage.getItem(LANG_STORAGE_KEY) ?? "system",
+  );
+  // Filename template: "custom" mode when the saved value isn't a known preset.
+  const [templateCustom, setTemplateCustom] = useState(
+    () => !TEMPLATE_PRESETS.includes(settings.filename_template),
   );
 
   // Load the bundled yt-dlp version (+ whether a newer one exists) on open.
@@ -245,6 +257,68 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("settings.videoCodec")}>
+              <Select
+                ariaLabel={t("settings.videoCodec")}
+                value={form.video_codec}
+                onChange={(v) => set("video_codec", v as VideoCodec)}
+                options={[
+                  { value: "any", label: t("settings.videoCodecAny") },
+                  { value: "h264", label: "H.264" },
+                  { value: "vp9", label: "VP9" },
+                  { value: "av1", label: "AV1" },
+                ]}
+                className={`${INPUT_CLASS} w-full`}
+              />
+            </Field>
+            <Field label={t("settings.audioBitrate")}>
+              <Select
+                ariaLabel={t("settings.audioBitrate")}
+                value={form.audio_bitrate}
+                onChange={(v) => set("audio_bitrate", v as AudioBitrate)}
+                options={[
+                  { value: "best", label: t("settings.audioBitrateBest") },
+                  { value: "320", label: "320 kbps" },
+                  { value: "256", label: "256 kbps" },
+                  { value: "192", label: "192 kbps" },
+                  { value: "128", label: "128 kbps" },
+                ]}
+                className={`${INPUT_CLASS} w-full`}
+              />
+            </Field>
+          </div>
+
+          <Field label={t("settings.filenameTemplate")}>
+            <Select
+              ariaLabel={t("settings.filenameTemplate")}
+              value={templateCustom ? "__custom__" : form.filename_template}
+              onChange={(v) => {
+                if (v === "__custom__") {
+                  setTemplateCustom(true);
+                } else {
+                  setTemplateCustom(false);
+                  set("filename_template", v);
+                }
+              }}
+              options={[
+                ...TEMPLATE_PRESETS.map((p) => ({ value: p, label: p })),
+                { value: "__custom__", label: t("settings.filenameCustom") },
+              ]}
+              className={`${INPUT_CLASS} w-full`}
+            />
+          </Field>
+          {templateCustom && (
+            <input
+              type="text"
+              aria-label={t("settings.filenameCustom")}
+              value={form.filename_template}
+              onChange={(e) => set("filename_template", e.target.value)}
+              placeholder="%(title)s"
+              className={`${INPUT_CLASS} w-full font-mono text-xs`}
+            />
+          )}
 
           <Field label={t("settings.autotagSource")}>
             <Select
