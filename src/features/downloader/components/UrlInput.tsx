@@ -276,6 +276,7 @@ export function UrlInput({
                     role="option"
                     aria-selected={i === activeIndex}
                     type="button"
+                    tabIndex={-1}
                     onClick={() => choose(entry)}
                     onMouseMove={() => setActiveIndex(i)}
                     className={`flex w-full items-center gap-3 px-3 py-2 text-left transition ${
