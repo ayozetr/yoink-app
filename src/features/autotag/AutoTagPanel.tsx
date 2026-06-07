@@ -103,9 +103,13 @@ export function AutoTagPanel({
   // Look up the catalogue the first time the card is opened (not on mount, so
   // we don't hit Apple Music unless the user actually wants to tag).
   const runIdentify = useCallback(() => {
-    identifyAudio(path, abortRef.current?.signal)
+    // Capture the signal of the controller in use: under StrictMode the panel
+    // mounts twice and the first controller is aborted, so we must check *this*
+    // request's signal (not abortRef.current, which now points at the new one).
+    const signal = abortRef.current?.signal;
+    identifyAudio(path, signal)
       .then((data) => {
-        if (abortRef.current?.signal.aborted) return;
+        if (signal?.aborted) return;
         if (data.results.length > 0) {
           showResults(data.results);
         } else {
@@ -120,16 +124,19 @@ export function AutoTagPanel({
         setStage("review");
       })
       .catch((cause) => {
-        if (abortRef.current?.signal.aborted) return;
+        if (signal?.aborted) return;
         setError(cause instanceof ApiError ? cause.message : t("autotag.error"));
         setStage("error");
       });
   }, [path, filename, t, showResults]);
 
-  // Opened directly (re-tagging from history) → identify right away.
+  // Opened directly (re-tagging from history) → identify right away. No
+  // startedRef gate here: under StrictMode the first mount's request is aborted,
+  // so the second mount must be allowed to re-run it. (signal-capture in
+  // runIdentify keeps the aborted first request from showing an error.)
   useEffect(() => {
-    if (autoOpen && !startedRef.current) {
-      startedRef.current = true;
+    if (autoOpen) {
+      startedRef.current = true; // a later manual toggle won't re-identify
       runIdentify();
     }
   }, [autoOpen, runIdentify]);
