@@ -1,6 +1,5 @@
 import { ClipboardPaste, Link2, Loader2, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -75,9 +74,16 @@ export function UrlInput({
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // The result buttons, in order — for moving real focus with the arrow keys.
+  const optionEls = () =>
+    Array.from(
+      listRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ??
+        [],
+    );
 
   const query = value.trim();
   const isSearch = isSearchQuery(value);
@@ -111,11 +117,6 @@ export function UrlInput({
     };
   }, [query, isSearch]);
 
-  // Keep the keyboard-highlighted option scrolled into view.
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex]);
-
   // Close the dropdown when clicking outside the field.
   useEffect(() => {
     if (!open) return;
@@ -126,12 +127,11 @@ export function UrlInput({
     return () => window.removeEventListener("mousedown", onPointer);
   }, [open]);
 
-  // Drive the dropdown from the edit event (not an effect): reset selection,
-  // show cached results instantly or the spinner, and clear stale results when
-  // the query changes so a result from a previous search can't be clicked.
+  // Drive the dropdown from the edit event (not an effect): show cached results
+  // instantly or the spinner, and clear stale results when the query changes so
+  // a result from a previous search can't be clicked.
   const handleChange = (next: string) => {
     onChange(next);
-    setActiveIndex(-1);
     setError(false);
     if (!isSearchQuery(next)) {
       setOpen(false);
@@ -163,39 +163,16 @@ export function UrlInput({
 
   const choose = (entry: PlaylistEntry) => {
     setOpen(false);
-    setActiveIndex(-1);
     onSelectResult(entry);
   };
 
-  // Enter / the button: analyze a URL, or pick the highlighted (or top) hit.
+  // Enter / the button on a URL analyzes it; on a search it takes the first hit.
   const submit = () => {
     if (isSearch) {
-      const pick = activeIndex >= 0 ? results[activeIndex] : results[0];
-      if (pick && open) choose(pick);
+      if (results[0]) choose(results[0]);
     } else if (!disabled) {
       onAnalyze();
     }
-  };
-
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape") {
-      setOpen(false);
-      setActiveIndex(-1);
-      return;
-    }
-    if (showDropdown && results.length > 0) {
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setActiveIndex((i) => Math.min(i + 1, results.length - 1));
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setActiveIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
-        return;
-      }
-    }
-    if (event.key === "Enter") submit();
   };
 
   const meta = (entry: PlaylistEntry): string =>
@@ -218,16 +195,8 @@ export function UrlInput({
             <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-zinc-500" />
           )}
           <input
+            ref={inputRef}
             type="text"
-            role="combobox"
-            aria-expanded={showDropdown}
-            aria-controls="yt-search-listbox"
-            aria-autocomplete="list"
-            aria-activedescendant={
-              showDropdown && activeIndex >= 0
-                ? `yt-search-opt-${activeIndex}`
-                : undefined
-            }
             aria-label={t("url.placeholder")}
             placeholder={t("url.placeholder")}
             value={value}
@@ -235,7 +204,18 @@ export function UrlInput({
             onFocusCapture={() => {
               if (isSearch) setOpen(true);
             }}
-            onKeyDown={onKeyDown}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setOpen(false);
+                return;
+              }
+              if (event.key === "ArrowDown" && showDropdown && results.length) {
+                event.preventDefault();
+                optionEls()[0]?.focus();
+                return;
+              }
+              if (event.key === "Enter") submit();
+            }}
             className="w-full h-14 pl-12 pr-12 rounded-2xl bg-surface border border-white/10 outline-none focus:border-violet-500 text-sm"
           />
           <button
@@ -250,38 +230,46 @@ export function UrlInput({
 
           {showDropdown && (
             <div
-              id="yt-search-listbox"
+              ref={listRef}
               role="listbox"
-              className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-96 overflow-y-auto rounded-2xl border border-white/10 bg-[#1a1d27] shadow-xl"
+              className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-96 overflow-y-auto rounded-2xl border border-white/10 bg-[#1a1d27] p-1 shadow-xl"
             >
               {searching && results.length === 0 ? (
-                <div className="flex items-center gap-2 px-4 py-3 text-sm text-zinc-400">
+                <div className="flex items-center gap-2 px-3 py-3 text-sm text-zinc-400">
                   <Loader2 size={16} className="animate-spin" />
                   {t("url.searching")}
                 </div>
               ) : error && results.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-red-300">
+                <div className="px-3 py-3 text-sm text-red-300">
                   {t("url.searchError")}
                 </div>
               ) : results.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-zinc-400">
+                <div className="px-3 py-3 text-sm text-zinc-400">
                   {t("url.noResults")}
                 </div>
               ) : (
                 results.map((entry, i) => (
                   <button
                     key={entry.id || entry.url}
-                    ref={i === activeIndex ? activeRef : undefined}
-                    id={`yt-search-opt-${i}`}
                     role="option"
-                    aria-selected={i === activeIndex}
+                    aria-selected={false}
                     type="button"
-                    tabIndex={-1}
                     onClick={() => choose(entry)}
-                    onMouseMove={() => setActiveIndex(i)}
-                    className={`flex w-full items-center gap-3 px-3 py-2 text-left transition ${
-                      i === activeIndex ? "bg-white/10" : "hover:bg-white/5"
-                    }`}
+                    onKeyDown={(event) => {
+                      const els = optionEls();
+                      if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        (els[i + 1] ?? els[i])?.focus();
+                      } else if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        if (i === 0) inputRef.current?.focus();
+                        else els[i - 1]?.focus();
+                      } else if (event.key === "Escape") {
+                        setOpen(false);
+                        inputRef.current?.focus();
+                      }
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/5 focus:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500"
                   >
                     <div className="relative h-10 w-[72px] shrink-0 overflow-hidden rounded-md bg-black/40">
                       {entry.thumbnail_url && (
