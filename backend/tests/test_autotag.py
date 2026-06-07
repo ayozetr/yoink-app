@@ -62,6 +62,18 @@ class _FakeResponse:
             "Tití Me Preguntó",
         ),
         ("Soft Cell - Tainted Love.mp3", "Soft Cell", "Tainted Love"),  # 'ft' kept
+        # Un-bracketed trailing noise ("| VIDEO", "Official Audio", "(Music Video)")
+        (
+            "CRUZ CAFUNÉ - 922 & HEARTBREAK | VIDEO.mp3",
+            "CRUZ CAFUNÉ",
+            "922 & HEARTBREAK",
+        ),
+        ("Drake - Hotline Bling (Music Video) [4K].mp3", "Drake", "Hotline Bling"),
+        ("Artist - Song - Official Audio.mp3", "Artist", "Song"),
+        # legit titles ending in those words are left untouched
+        ("Artist - Video Games.mp3", "Artist", "Video Games"),
+        ("Artist - Kill the Video.mp3", "Artist", "Kill the Video"),
+        ("Artist - Live at Wembley.mp3", "Artist", "Live at Wembley"),
     ],
 )
 def test_guess_from_filename(name, artist, title):

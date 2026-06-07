@@ -206,7 +206,9 @@ def _clean_album(name: str | None) -> str | None:
 
 
 _FILENAME_TAGS = re.compile(
-    r"\s*[([](?:official|video|audio|lyrics?|visualizer|hd|4k|mv|prod\b)[^)\]]*[)\]]",
+    r"\s*[([][^)\]]*?"
+    r"\b(?:official|video|audio|lyrics?|visualizer|visualiser|hd|4k|mv|prod)\b"
+    r"[^)\]]*[)\]]",
     re.IGNORECASE,
 )
 
@@ -222,9 +224,28 @@ _EMOJI = re.compile(
 )
 
 
+# Trailing un-bracketed YouTube noise — "| VIDEO", "- Official Video",
+# "Music Video", "Audio", "Visualizer", "MV", "HD/4K"… — muddies the catalogue
+# query. Only matched after a separator (|/-) or a qualifier word, so legit
+# titles ending in "Video"/"Audio" (e.g. "Video Games") are left untouched.
+_TRAILING_NOISE = re.compile(
+    r"\s*(?:"
+    r"[|\-–—]\s*(?:official\s+|full\s+|music\s+|lyrics?\s+)*"
+    r"|(?:official\s+|full\s+|music\s+|lyrics?\s+)+"
+    r")"
+    r"(?:video|audio|visualizer|visualiser|mv|hd|4k|hq)\b\s*$",
+    re.IGNORECASE,
+)
+
+
 def _strip_noise(text: str) -> str:
     text = _EMOJI.sub("", text)
     text = _FEAT.sub("", text)
+    # Peel off stacked trailing noise ("… | Official Video | HD").
+    prev = None
+    while prev != text:
+        prev = text
+        text = _TRAILING_NOISE.sub("", text).strip()
     return re.sub(r"\s{2,}", " ", text).strip()
 
 
