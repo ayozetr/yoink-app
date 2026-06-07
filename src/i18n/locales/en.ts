@@ -7,6 +7,12 @@ export const en = {
     active: "Active downloads: {{count}}",
     settings: "Settings",
   },
+  notify: {
+    completed: "Download complete",
+    failed: "Download failed",
+    queueDone: "Queue finished",
+    queueSummary: "{{completed}} done, {{failed}} failed",
+  },
   sites: {
     title: "Supported sites",
     intro: "Verified platforms.",

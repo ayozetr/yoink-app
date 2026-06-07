@@ -7,6 +7,12 @@ export const es = {
     active: "Descargas activas: {{count}}",
     settings: "Ajustes",
   },
+  notify: {
+    completed: "Descarga completada",
+    failed: "Descarga fallida",
+    queueDone: "Cola finalizada",
+    queueSummary: "{{completed}} hechas, {{failed}} fallidas",
+  },
   sites: {
     title: "Webs soportadas",
     intro: "Plataformas verificadas.",

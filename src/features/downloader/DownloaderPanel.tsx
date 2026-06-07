@@ -11,6 +11,8 @@ import { AutoTagBatchPanel } from "../autotag/AutoTagBatchPanel";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { fetchInfo, ApiError } from "../../lib/api";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
+import { setWindowProgress } from "../../lib/windowProgress";
+import { notify } from "../../lib/notify";
 import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
@@ -103,6 +105,7 @@ export function DownloaderPanel({
     queueRef.current = [];
     resultsRef.current = [];
     setProgress(null);
+    setWindowProgress(null);
     setCompleted(null);
     setDownloadError(null);
     setDownloading(false);
@@ -128,12 +131,22 @@ export function DownloaderPanel({
     if (index >= jobs.length) {
       setDownloading(false);
       setProgress(null);
+      setWindowProgress(null);
+      const failed = resultsRef.current.filter((ok) => !ok).length;
+      const ok = resultsRef.current.length - failed;
       if (jobs.length > 1) {
-        const failed = resultsRef.current.filter((ok) => !ok).length;
-        setSummary({ completed: resultsRef.current.length - failed, failed });
+        setSummary({ completed: ok, failed });
         if (audioPathsRef.current.length > 0) {
           setBatchItems([...audioPathsRef.current]);
         }
+        void notify(
+          t("notify.queueDone"),
+          t("notify.queueSummary", { completed: ok, failed }),
+        );
+      } else if (failed === 0) {
+        void notify(t("notify.completed"), jobs[0].title);
+      } else {
+        void notify(t("notify.failed"), jobs[0].title);
       }
       // Refresh history/stats once, when the whole queue is done — not per item.
       onDownloadFinished?.();
@@ -155,6 +168,7 @@ export function DownloaderPanel({
         if (settled) return;
         if (event.type === "progress") {
           setProgress(event);
+          setWindowProgress(event.percent);
           return;
         }
         settled = true;
