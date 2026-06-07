@@ -126,6 +126,7 @@ export const en = {
     video: "Video",
     audio: "Audio",
     defaultQuality: "Default quality",
+    qualityBest: "Best available",
     rateLimit: "Bandwidth limit",
     rateLimitNone: "No limit",
     videoCodec: "Video codec",

@@ -67,7 +67,7 @@ class Settings(BaseSettings):
 
     # User-editable defaults (persisted via the settings store / settings UI).
     default_kind: Literal["video", "audio"] = "video"
-    default_quality: str = "1080p"
+    default_quality: str = "best"
 
     # Filename template (the name part; ".%(ext)s" is appended at download time).
     # yt-dlp outtmpl fields, e.g. "%(title)s" or "%(uploader)s - %(title)s".

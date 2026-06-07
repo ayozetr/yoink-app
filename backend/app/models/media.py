@@ -235,7 +235,9 @@ class AppSettings(BaseModel):
 
     download_dir: str = Field(..., description="Where downloads are saved.")
     default_kind: MediaKind = Field(default="video", description="Default media kind.")
-    default_quality: str = Field(default="1080p", description="Default video quality.")
+    default_quality: str = Field(
+        default="best", description="Default video quality ('best' = no cap)."
+    )
     cookies_from_browser: str | None = Field(
         default=None, description="Browser to read cookies from (e.g. 'firefox')."
     )

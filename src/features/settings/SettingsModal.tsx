@@ -45,7 +45,7 @@ interface SettingsModalProps {
   onSaved: (next: AppSettings) => void;
 }
 
-const QUALITY_OPTIONS = ["1080p", "720p", "480p", "360p"];
+const QUALITY_OPTIONS = ["1440p", "1080p", "720p", "480p", "360p"];
 const TEMPLATE_PRESETS = [
   "%(title)s",
   "%(uploader)s - %(title)s",
@@ -236,7 +236,10 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
                 ariaLabel={t("settings.defaultQuality")}
                 value={form.default_quality}
                 onChange={(v) => set("default_quality", v)}
-                options={QUALITY_OPTIONS.map((q) => ({ value: q, label: q }))}
+                options={[
+                  { value: "best", label: t("settings.qualityBest") },
+                  ...QUALITY_OPTIONS.map((q) => ({ value: q, label: q })),
+                ]}
                 className={`${INPUT_CLASS} w-full`}
               />
             </Field>

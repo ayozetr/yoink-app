@@ -126,6 +126,7 @@ export const es = {
     video: "Vídeo",
     audio: "Audio",
     defaultQuality: "Calidad por defecto",
+    qualityBest: "Mejor disponible",
     rateLimit: "Límite de ancho de banda",
     rateLimitNone: "Sin límite",
     videoCodec: "Códec de vídeo",
