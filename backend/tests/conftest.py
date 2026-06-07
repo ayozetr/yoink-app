@@ -25,6 +25,12 @@ def temp_dirs(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "default_quality", settings.default_quality)
     monkeypatch.setattr(settings, "cookies_from_browser", settings.cookies_from_browser)
     monkeypatch.setattr(settings, "cookies_file", settings.cookies_file)
+    monkeypatch.setattr(settings, "filename_template", settings.filename_template)
+    monkeypatch.setattr(settings, "rate_limit", settings.rate_limit)
+    monkeypatch.setattr(settings, "video_codec", settings.video_codec)
+    monkeypatch.setattr(settings, "audio_bitrate", settings.audio_bitrate)
+    monkeypatch.setattr(settings, "sponsorblock_enabled", settings.sponsorblock_enabled)
+    monkeypatch.setattr(settings, "sponsorblock_action", settings.sponsorblock_action)
     return tmp_path
 
 

@@ -210,6 +210,7 @@ def test_build_options_video_quality_selector(temp_dirs):
 def test_build_options_audio_format(
     temp_dirs, audio_format, expected_codec, has_quality
 ):
+    settings.audio_bitrate = "192"  # exercise a concrete lossy bitrate
     options = _build_options(
         DownloadRequest(url="http://x/a", kind="audio", audio_format=audio_format),
         hook=lambda raw: None,
@@ -226,6 +227,31 @@ def test_build_options_audio_format(
     assert ("preferredquality" in pp) is has_quality
     if has_quality:
         assert pp["preferredquality"] == "192"
+
+
+def test_audio_bitrate_best_drops_target(temp_dirs):
+    settings.audio_bitrate = "best"
+    options = _build_options(
+        DownloadRequest(url="http://x/a", kind="audio", audio_format="mp3"),
+        hook=lambda raw: None,
+    )
+    (pp,) = options["postprocessors"]
+    assert "preferredquality" not in pp
+
+
+def test_video_codec_sets_format_sort(temp_dirs):
+    settings.video_codec = "av1"
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", quality="1080p"),
+        hook=lambda raw: None,
+    )
+    assert options["format_sort"] == ["vcodec:av01"]
+    settings.video_codec = "any"
+    plain = _build_options(
+        DownloadRequest(url="http://x/v", kind="video"),
+        hook=lambda raw: None,
+    )
+    assert "format_sort" not in plain
 
 
 @pytest.mark.parametrize(
