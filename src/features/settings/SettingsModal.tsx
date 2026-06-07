@@ -335,7 +335,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
-          <p className="text-[11px] italic text-zinc-500 -mt-1">
+          <p className="text-[11px] italic text-zinc-400 -mt-1">
             {t(`settings.autotagHint_${form.autotag_source}`)}
           </p>
 
@@ -362,7 +362,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
                   ]}
                   className={`${INPUT_CLASS} w-full`}
                 />
-                <p className="text-[11px] italic text-zinc-500">
+                <p className="text-[11px] italic text-zinc-400">
                   {t(`settings.sponsorblockHint_${form.sponsorblock_action}`)}
                 </p>
               </>
@@ -404,7 +404,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
-          <p className="text-[11px] italic text-zinc-500 -mt-1">
+          <p className="text-[11px] italic text-zinc-400 -mt-1">
             {t("settings.cookiesBrowserNote")}
           </p>
 

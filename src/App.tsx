@@ -87,6 +87,29 @@ export default function App() {
     };
   }, [refresh]);
 
+  // Global shortcuts: Ctrl/Cmd+L focus the URL field, Ctrl/Cmd+, toggle Settings,
+  // Esc close Settings.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        const input = document.getElementById(
+          "yoink-url-input",
+        ) as HTMLInputElement | null;
+        input?.focus();
+        input?.select();
+      } else if (mod && e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen((open) => !open);
+      } else if (e.key === "Escape") {
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const handleClear = async () => {
     try {
       await clearHistory();

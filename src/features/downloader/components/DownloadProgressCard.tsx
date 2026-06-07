@@ -5,10 +5,11 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
-import { openInFileManager } from "../../../lib/api";
+import { coverUrl, openInFileManager } from "../../../lib/api";
 import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
@@ -29,13 +30,23 @@ export function DownloadProgressCard({
   onDismiss,
 }: DownloadProgressCardProps) {
   const { t } = useTranslation();
+  const [coverFailed, setCoverFailed] = useState(false);
 
   if (completed) {
     return (
       <GlassPanel className="p-5">
-        <div className="flex items-start justify-between gap-3">
+        <div role="status" className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3 text-emerald-300">
-            <CheckCircle2 size={18} className="shrink-0" />
+            {!coverFailed && completed.filepath ? (
+              <img
+                src={coverUrl(completed.filepath)}
+                alt=""
+                className="h-11 w-11 shrink-0 rounded-lg object-cover"
+                onError={() => setCoverFailed(true)}
+              />
+            ) : (
+              <CheckCircle2 size={18} className="shrink-0" />
+            )}
             <span className="min-w-0 text-sm">
               {t("progress.completed")}{" "}
               <span className="break-all font-medium text-emerald-200">
@@ -89,7 +100,10 @@ export function DownloadProgressCard({
   return (
     <GlassPanel className="p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="flex items-center gap-2 text-sm text-zinc-300">
+        <span
+          aria-live="polite"
+          className="flex items-center gap-2 text-sm text-zinc-300"
+        >
           <Loader2 size={14} className="animate-spin text-violet-400" />
           {label}
         </span>

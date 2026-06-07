@@ -201,6 +201,7 @@ export function UrlInput({
           )}
           <input
             ref={inputRef}
+            id="yoink-url-input"
             type="text"
             aria-label={t("url.placeholder")}
             placeholder={t("url.placeholder")}

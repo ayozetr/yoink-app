@@ -142,7 +142,7 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
           ))}
         </div>
 
-        <p className="mt-5 text-center text-[11px] text-zinc-500">
+        <p className="mt-5 text-center text-[11px] text-zinc-400">
           {t("sites.footer")}
         </p>
       </GlassPanel>
