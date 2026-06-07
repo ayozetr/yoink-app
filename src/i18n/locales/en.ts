@@ -18,6 +18,8 @@ export const en = {
     paste: "Paste from clipboard",
     searching: "Searching YouTube…",
     noResults: "No results.",
+    searchError: "Search failed — check your connection and try again.",
+    views: "{{n}} views",
     analyze: "Analyze",
     analyzing: "Analyzing...",
   },

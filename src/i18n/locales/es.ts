@@ -18,6 +18,8 @@ export const es = {
     paste: "Pegar del portapapeles",
     searching: "Buscando en YouTube…",
     noResults: "Sin resultados.",
+    searchError: "La búsqueda falló — revisa tu conexión e inténtalo de nuevo.",
+    views: "{{n}} visualizaciones",
     analyze: "Analizar",
     analyzing: "Analizando...",
   },

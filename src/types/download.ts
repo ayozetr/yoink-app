@@ -92,6 +92,7 @@ export interface PlaylistEntry {
   duration_string: string | null;
   thumbnail_url: string | null;
   uploader: string | null;
+  view_count: number | null;
 }
 
 /** Flat YouTube search results for the URL-field typeahead (mirrors backend). */
