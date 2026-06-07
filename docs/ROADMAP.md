@@ -379,6 +379,123 @@ assigned yet; roughly in priority order.
   file itself (not just its folder) · embed thumbnail as cover art on audio ·
   list which playlist items failed.
 
+## Ideas backlog (unscheduled)
+
+A vetted pool of ideas from a project-wide review, grouped by theme. Not
+committed and not release-ordered — picked from as capacity allows. Effort tags:
+**S** small · **M** medium · **L** large.
+
+### 🎬 Download & conversion
+
+- ⬜ **Split by chapters** (M) — one file per chapter (podcasts, albums, DJ sets)
+  via `--split-chapters`; `has_chapters` is already detected.
+- ⬜ **Playlist sync / download-archive** (M) — keep a `--download-archive` so a
+  playlist/channel only fetches what's new ("folders that update").
+- ⬜ **Video codec preference** (M) — prefer H.264 (compatibility/editing) vs
+  VP9/AV1 (smaller), degrading gracefully per resolution.
+- ⬜ **Audio bitrate picker** (S) — 128/192/256/320 kbps for lossy (MP3/M4A).
+- ⬜ **Sidecar exports** (S) — optionally save `.info.json`, description,
+  thumbnail `.jpg`, comments, and loose `.srt`/`.vtt` (all native to yt-dlp).
+- ⬜ **Subtitles as separate files + auto-translate** (M) — extend the existing
+  subtitle infra to write `.srt`/`.vtt` and pull YouTube's auto-translations.
+- ⬜ **Convert/transcode local files** (M) — drop an existing file and remux /
+  re-encode it with the bundled ffmpeg (no URL). Pairs with trim + split.
+- ⬜ **Clip → GIF/WebP** (M) — export a trimmed range as an animated GIF/WebP
+  (ffmpeg palette), on top of the trim UI.
+- ⬜ **Loudness normalization** (M) — ffmpeg `loudnorm` (EBU R128) for a
+  consistent-volume library.
+- ⬜ **Capture frame / embed poster** (S) — save a frame at a timestamp; embed
+  the thumbnail as the video poster (MKV/MP4).
+- ⬜ **Proxy / SOCKS** (S) — a Settings field for `--proxy`, like cookies.
+- ⬜ **Download presets/profiles** (M) — named option bundles ("FLAC + tags",
+  "1080p MP4 + ES subs") applied in one click.
+- ⬜ **Library subfolders** (M) — path templates (`%(uploader)s/%(title)s`) on top
+  of the filename template, carefully sanitised.
+
+### 🎵 Audio library
+
+- ⬜ **Lyrics in auto-tagging** (L) — fetch + embed lyrics from LRCLIB (free, no
+  key), alongside cover art and tags.
+- ⬜ **Media-server naming presets** (S) — Jellyfin/Plex/Navidrome layouts
+  (`Artist/Album/## - Title`), reusing the auto-tagger's metadata.
+- ⬜ **NFO sidecars** (M) — generate `.nfo` for Plex/Jellyfin/Kodi recognition.
+
+### 🖥️ UX, UI & accessibility
+
+- ⬜ **Desktop notification on finish** (M) — Tauri notification plugin; high
+  value for a background-running app with long queues.
+- ⬜ **Auto-focus the URL field on launch** (S) — the core action is "paste a
+  link"; today the cursor starts dead.
+- ⬜ **Drag-and-drop a link onto the window** (M) — Tauri `onDragDropEvent` + a
+  DOM `text/uri-list` fallback → analyze.
+- ⬜ **Global keyboard shortcuts** (M) — Ctrl/Cmd+L focus URL, Ctrl/Cmd+, settings,
+  Esc clear/close.
+- ⬜ **Action buttons on the completed card** (S) — open folder/file + dismiss,
+  instead of hunting in the sidebar.
+- ⬜ **Progress accessibility** (S) — `role="progressbar"` + `aria-valuenow` and an
+  `aria-live` status line.
+- ⬜ **Proper combobox ARIA on the search field** (M) — `role="combobox"`,
+  `aria-expanded`, `aria-activedescendant`.
+- ⬜ **First-run empty state** (S) — example URL, "type to search YouTube", link to
+  supported sites.
+- ⬜ **Taskbar / window-title progress** (M) — `Yoink — 42%` + Tauri
+  `set_progress_bar` for ambient feedback when minimized.
+- ⬜ **Richer history rows** (M) — relative time + a format/quality badge.
+- ⬜ **Skip-current vs cancel-all** (M) — don't nuke the whole queue to drop one
+  stuck item; surface which items failed.
+- ⬜ **Honor `prefers-reduced-motion`** (S) — damp the always-on spinners/fades.
+- ⬜ **Contrast pass** (S) — promote the smallest `zinc-500` hint text (borderline
+  WCAG AA).
+- ⬜ **Unify PlaylistCard checkboxes** (S) — reuse the `Toggle` switch (raw
+  checkboxes still there).
+- ⬜ **Responsive PreviewCard** (M) — stack the fixed thumbnail + controls on
+  narrow windows.
+
+### 🔌 OS & integrations
+
+- ⬜ **`yoink://` deep link** (M) — the enabler for "send to Yoink" from anywhere,
+  sidestepping the local-CORS lock; `single-instance` already focuses the window.
+- ⬜ **System tray + close-to-tray + autostart** (S/M) — a real always-available
+  download manager.
+- ⬜ **Thin CLI over the local API** (S/M) — `yoink <url>` driving the same
+  REST+WS backend for scripts.
+- ⬜ **Browser extension "Download with Yoink"** (M) — context-menu → `yoink://`
+  (avoids relaxing CORS).
+- ⬜ **Persistent queue across sessions** (M) — store pending items in SQLite and
+  resume on launch (no parallelism needed).
+- ⬜ **Subscriptions + scheduled downloads** (L) — follow a channel/playlist and
+  auto-grab new items (PVR-style), with OPML import/export. Needs tray/autostart.
+- ⬜ **More distribution channels** — AUR `yoink-bin` (S), Flatpak/Flathub (M),
+  winget + Chocolatey (M). (License is non-commercial: AUR/Flathub/winget OK.)
+
+### 🛠️ Engineering & robustness
+
+- ⬜ **Backend logging/observability** (M) — *biggest gap*: no logging today.
+  Structured logs to `~/.yoink/logs/`, capture yt-dlp output on failure, store the
+  error in history. Unblocks debugging everything else.
+- ⬜ **yt-dlp retries** (S) — `retries`/`fragment_retries`/`extractor_retries` for
+  transient 403/timeout failures.
+- ⬜ **Resume partial downloads** (M) — `continuedl` + resume the `.part` on retry.
+- ⬜ **Sidecar readiness gate + dynamic port** (M) — poll `/health` before showing
+  content; fall back if 8756 is taken (currently hardcoded).
+- ⬜ **ruff + mypy in CI** (S) — the project claims strict typing but neither runs;
+  add them when billing restores CI.
+- ⬜ **Generate TS types from OpenAPI** (M) — kill the manual `download.ts` ↔
+  `media.py` contract drift.
+- ⬜ **Pin yt-dlp exactly per release** (S) — reproducible builds + a record of
+  which version shipped.
+- ⬜ **SQLite schema versioning** (S) — `PRAGMA user_version` + idempotent
+  migrations before the history schema ever changes.
+- ⬜ **Harden the thumbnail proxy** (M) — pin the resolved IP to close a
+  DNS-rebinding/TOCTOU window (re-resolve between check and connect).
+- ⬜ **More unit tests** (M) — the `_build_options` matrix and `_host_is_blocked`.
+- ⬜ **WebSocket open timeout** (S) — fail fast if the handshake hangs on a slow
+  backend boot.
+- ⬜ **PyInstaller `--onedir`** (M) — faster cold start (no per-launch
+  re-extraction); measure size/time trade-off.
+- ⬜ **Stronger filename-template sanitising** (S) — confine the resolved path with
+  `Path.resolve()` inside the download dir instead of string-replace.
+
 ## Future — other platforms
 
 Bigger, separate efforts — intentionally last. Desktop (Linux/Windows) stays the
