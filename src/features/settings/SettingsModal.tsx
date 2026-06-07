@@ -90,17 +90,6 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
     () => !TEMPLATE_PRESETS.includes(settings.filename_template),
   );
 
-  // Load the bundled yt-dlp version (+ whether a newer one exists) on open.
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetchYtdlpVersion(controller.signal)
-      .then(setYtdlp)
-      .catch(() => {
-        /* offline / backend down — just don't show the yt-dlp line */
-      });
-    return () => controller.abort();
-  }, []);
-
   const pickFolder = async () => {
     const dir = await pickDirectory(form.download_dir);
     if (dir) set("download_dir", dir);
@@ -127,8 +116,15 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   const handleCheck = async () => {
     setChecking(true);
     setResult(null);
+    setYtdlp(null);
     try {
-      setResult(await checkForUpdate());
+      // Check the app and the bundled yt-dlp together (neither blocks the other).
+      const [appResult, ytdlpResult] = await Promise.allSettled([
+        checkForUpdate(),
+        fetchYtdlpVersion(),
+      ]);
+      if (appResult.status === "fulfilled") setResult(appResult.value);
+      if (ytdlpResult.status === "fulfilled") setYtdlp(ytdlpResult.value);
     } finally {
       setChecking(false);
     }
@@ -473,27 +469,43 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <div className="text-sm">
-            <span className="text-zinc-400">{t("settings.version")}</span>
-            <span className="font-medium ml-1.5">v{__APP_VERSION__}</span>
-            {result?.status === "available" && (
-              <span className="ml-2 text-violet-300">
-                · {t("settings.updateAvailable", { version: result.version })}
-              </span>
-            )}
-            {result?.status === "up-to-date" && (
-              <span className="ml-2 inline-flex items-center gap-1 text-emerald-400">
-                <CheckCircle2 size={13} /> {t("settings.upToDate")}
-              </span>
-            )}
-            {result?.status === "error" && (
-              <span className="ml-2 text-zinc-500">
-                · {t("settings.checkError")}
-              </span>
-            )}
-            {result?.status === "tauri-unavailable" && (
-              <span className="ml-2 text-zinc-500">
-                · {t("settings.checkDesktopOnly")}
-              </span>
+            <div>
+              <span className="text-zinc-400">{t("settings.version")}</span>
+              <span className="font-medium ml-1.5">v{__APP_VERSION__}</span>
+              {result?.status === "available" && (
+                <span className="ml-2 text-violet-300">
+                  · {t("settings.updateAvailable", { version: result.version })}
+                </span>
+              )}
+              {result?.status === "up-to-date" && (
+                <span className="ml-2 inline-flex items-center gap-1 text-emerald-400">
+                  <CheckCircle2 size={13} /> {t("settings.upToDate")}
+                </span>
+              )}
+              {result?.status === "error" && (
+                <span className="ml-2 text-zinc-500">
+                  · {t("settings.checkError")}
+                </span>
+              )}
+              {result?.status === "tauri-unavailable" && (
+                <span className="ml-2 text-zinc-500">
+                  · {t("settings.checkDesktopOnly")}
+                </span>
+              )}
+            </div>
+            {ytdlp && !ytdlp.error && ytdlp.current !== "unknown" && (
+              <div className="mt-1 text-xs text-zinc-500">
+                <span>yt-dlp {ytdlp.current}</span>
+                {ytdlp.update_available && ytdlp.latest ? (
+                  <span className="ml-1.5 text-violet-300">
+                    · {t("settings.updateAvailable", { version: ytdlp.latest })}
+                  </span>
+                ) : (
+                  <span className="ml-1.5 inline-flex items-center gap-1 text-emerald-400/80">
+                    <CheckCircle2 size={12} /> {t("settings.upToDate")}
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
@@ -539,21 +551,6 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </button>
           )}
         </div>
-
-        {ytdlp && !ytdlp.error && ytdlp.current !== "unknown" && (
-          <div className="mt-1 text-xs text-zinc-500">
-            <span>yt-dlp {ytdlp.current}</span>
-            {ytdlp.update_available && ytdlp.latest ? (
-              <span className="ml-1.5 text-violet-300">
-                · {t("settings.updateAvailable", { version: ytdlp.latest })}
-              </span>
-            ) : (
-              <span className="ml-1.5 inline-flex items-center gap-1 text-emerald-400/80">
-                <CheckCircle2 size={12} /> {t("settings.upToDate")}
-              </span>
-            )}
-          </div>
-        )}
 
         <a
           href="https://ko-fi.com/ayozetr"
