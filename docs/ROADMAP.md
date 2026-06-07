@@ -374,9 +374,8 @@ assigned yet; roughly in priority order.
   the queue is strictly sequential (one socket / progress bar / history entry at a
   time), so parallelising means redesigning the whole progress UI — real
   regression risk for a modest gain.
-- ⬜ **Smaller wins (left):** re-download / re-analyze from history · open the
-  file itself (not just its folder) · embed thumbnail as cover art on audio ·
-  list which playlist items failed.
+- ⬜ **Smaller wins (left):** re-download / re-analyze from history · embed
+  thumbnail as cover art on audio · list which playlist items failed.
 
 ## Ideas backlog (unscheduled)
 
@@ -406,7 +405,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   consistent-volume library.
 - ⬜ **Capture frame / embed poster** (S) — save a frame at a timestamp; embed
   the thumbnail as the video poster (MKV/MP4).
-- ⬜ **Proxy / SOCKS** (S) — a Settings field for `--proxy`, like cookies.
+- ✅ **Proxy / SOCKS** *(in main)* — a Settings field for `--proxy`
+  (http/https/socks), applied to metadata + downloads.
 - ⬜ **Download presets/profiles** (M) — named option bundles ("FLAC + tags",
   "1080p MP4 + ES subs") applied in one click.
 - ⬜ **Library subfolders** (M) — path templates (`%(uploader)s/%(title)s`) on top
@@ -424,14 +424,14 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
 
 - ✅ **Desktop notification on finish** *(in main)* — Tauri notification plugin
   fires on completed / failed / queue-summary.
-- ⬜ **Auto-focus the URL field on launch** (S) — the core action is "paste a
-  link"; today the cursor starts dead.
+- ✅ **Auto-focus the URL field on launch** *(in main)* — the field focuses on
+  mount; the core action is "paste a link".
 - ⬜ **Drag-and-drop a link onto the window** (M) — Tauri `onDragDropEvent` + a
   DOM `text/uri-list` fallback → analyze.
 - ⬜ **Global keyboard shortcuts** (M) — Ctrl/Cmd+L focus URL, Ctrl/Cmd+, settings,
   Esc clear/close.
-- ⬜ **Action buttons on the completed card** (S) — open folder/file + dismiss,
-  instead of hunting in the sidebar.
+- ✅ **Action buttons on the completed card** *(in main)* — Open file / Open
+  folder + a dismiss, right on the completion card.
 - ⬜ **Progress accessibility** (S) — `role="progressbar"` + `aria-valuenow` and an
   `aria-live` status line.
 - ⬜ **Proper combobox ARIA on the search field** (M) — `role="combobox"`,
@@ -440,7 +440,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   supported sites.
 - ✅ **Taskbar / window-title progress** *(in main)* — `Yoink — 42%` in the title +
   Tauri `setProgressBar` on the taskbar during a download.
-- ⬜ **Richer history rows** (M) — relative time + a format/quality badge.
+- ✅ **Richer history rows** *(in main)* — relative time + a format badge + size.
+  (Quality/resolution still needs a persisted column.)
 - ⬜ **Skip-current vs cancel-all** (M) — don't nuke the whole queue to drop one
   stuck item; surface which items failed.
 - ⬜ **Honor `prefers-reduced-motion`** (S) — damp the always-on spinners/fades.
@@ -473,8 +474,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
 - ⬜ **Backend logging/observability** (M) — *biggest gap*: no logging today.
   Structured logs to `~/.yoink/logs/`, capture yt-dlp output on failure, store the
   error in history. Unblocks debugging everything else.
-- ⬜ **yt-dlp retries** (S) — `retries`/`fragment_retries`/`extractor_retries` for
-  transient 403/timeout failures.
+- ✅ **yt-dlp retries** *(in main)* — `retries`/`fragment_retries`/`extractor_retries`
+  on downloads, for transient 403/timeout failures.
 - ⬜ **Resume partial downloads** (M) — `continuedl` + resume the `.part` on retry.
 - ⬜ **Sidecar readiness gate + dynamic port** (M) — poll `/health` before showing
   content; fall back if 8756 is taken (currently hardcoded).
