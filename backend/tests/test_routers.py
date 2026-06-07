@@ -168,3 +168,19 @@ def test_search_returns_results(monkeypatch):
 def test_search_requires_a_query():
     # q is required with min_length=1 → empty query is a 422.
     assert client.get("/api/search", params={"q": ""}).status_code == 422
+
+
+def test_ytdlp_version_endpoint(monkeypatch):
+    from app.models.media import VersionInfo
+
+    monkeypatch.setattr(
+        "app.routers.settings.updates.check_ytdlp_update",
+        lambda: VersionInfo(
+            current="2024.01.01", latest="2024.02.02", update_available=True
+        ),
+    )
+    resp = client.get("/api/ytdlp-version")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["current"] == "2024.01.01"
+    assert body["update_available"] is True

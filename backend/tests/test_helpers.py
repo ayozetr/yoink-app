@@ -521,3 +521,20 @@ def test_build_options_sponsorblock_remove_no_chapters_pp(temp_dirs, monkeypatch
         "SponsorBlock",
         "ModifyChapters",
     ]
+
+
+def test_build_options_trim_range(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", trim_start=30, trim_end=130),
+        hook=lambda raw: None,
+    )
+    assert "download_ranges" in options
+    assert options["force_keyframes_at_cuts"] is True
+
+
+def test_build_options_no_trim_by_default(temp_dirs):
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video"),
+        hook=lambda raw: None,
+    )
+    assert "download_ranges" not in options

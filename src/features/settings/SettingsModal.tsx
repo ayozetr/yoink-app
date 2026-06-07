@@ -16,7 +16,7 @@ import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
 import { Toggle } from "../../components/ui/Toggle";
 import { SponsorBlockIcon } from "../../components/ui/SponsorBlockIcon";
-import { updateSettings } from "../../lib/api";
+import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
 import { useFocusTrap } from "../../lib/useFocusTrap";
@@ -32,6 +32,7 @@ import type {
   AutotagSource,
   MediaKind,
   SponsorblockAction,
+  VersionInfo,
 } from "../../types/download";
 
 const LANG_STORAGE_KEY = "yoink-lang";
@@ -71,10 +72,22 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<UpdateCheck | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [ytdlp, setYtdlp] = useState<VersionInfo | null>(null);
   // "system" = follow the OS/browser language; otherwise a forced choice.
   const [lang, setLang] = useState<string>(
     () => localStorage.getItem(LANG_STORAGE_KEY) ?? "system",
   );
+
+  // Load the bundled yt-dlp version (+ whether a newer one exists) on open.
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchYtdlpVersion(controller.signal)
+      .then(setYtdlp)
+      .catch(() => {
+        /* offline / backend down — just don't show the yt-dlp line */
+      });
+    return () => controller.abort();
+  }, []);
 
   const pickFolder = async () => {
     const dir = await pickDirectory(form.download_dir);
@@ -432,6 +445,21 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </button>
           )}
         </div>
+
+        {ytdlp && !ytdlp.error && (
+          <div className="mt-1 text-xs text-zinc-500">
+            <span>yt-dlp {ytdlp.current}</span>
+            {ytdlp.update_available && ytdlp.latest ? (
+              <span className="ml-1.5 text-violet-300">
+                · {t("settings.updateAvailable", { version: ytdlp.latest })}
+              </span>
+            ) : (
+              <span className="ml-1.5 inline-flex items-center gap-1 text-emerald-400/80">
+                <CheckCircle2 size={12} /> {t("settings.upToDate")}
+              </span>
+            )}
+          </div>
+        )}
 
         <a
           href="https://ko-fi.com/ayozetr"

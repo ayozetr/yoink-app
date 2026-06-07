@@ -13,6 +13,7 @@ import type {
   InfoResponse,
   PlaylistEntry,
   SearchResponse,
+  VersionInfo,
 } from "../types/download";
 import type {
   ApplyRequest,
@@ -117,6 +118,18 @@ export async function searchYoutube(
     throw new ApiError(await readErrorDetail(response), response.status);
   }
   return ((await response.json()) as SearchResponse).results;
+}
+
+/** The bundled yt-dlp version + whether a newer one is published, via
+ * `GET /api/ytdlp-version`. */
+export async function fetchYtdlpVersion(
+  signal?: AbortSignal,
+): Promise<VersionInfo> {
+  const response = await fetch(`${API_BASE_URL}/ytdlp-version`, { signal });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as VersionInfo;
 }
 
 /** Fetch recent download records via `GET /api/history`. */

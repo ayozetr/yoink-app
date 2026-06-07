@@ -71,3 +71,58 @@ def check_for_updates(timeout: float = 8.0) -> VersionInfo:
         update_available=_is_newer(latest, current),
         release_url=release_url if isinstance(release_url, str) else None,
     )
+
+
+def ytdlp_version() -> str:
+    """The bundled yt-dlp version (date-based, e.g. '2024.12.23'), or 'unknown'."""
+    try:
+        from yt_dlp.version import __version__
+
+        return __version__
+    except Exception:  # noqa: BLE001 — never let a version read break the app
+        return "unknown"
+
+
+def check_ytdlp_update(timeout: float = 8.0) -> VersionInfo:
+    """Compare the bundled yt-dlp against the latest yt-dlp GitHub release.
+
+    Reuses VersionInfo: ``current`` is the bundled yt-dlp version, ``latest`` the
+    newest published. This is informational only — Yoink ships yt-dlp inside the
+    sidecar, so an update lands with the next Yoink release, not in-app.
+    """
+    current = ytdlp_version()
+    url = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": f"Yoink/{settings.app_version}",
+            "Accept": "application/vnd.github+json",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            data = json.load(response)
+    except urllib.error.HTTPError as exc:
+        message = (
+            "GitHub API rate limit reached; try again later."
+            if exc.code == 403
+            else f"GitHub returned an error ({exc.code})."
+        )
+        return VersionInfo(current=current, error=message)
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return VersionInfo(current=current, error="Couldn't check (offline?).")
+    except (ValueError, json.JSONDecodeError):
+        return VersionInfo(current=current, error="Unexpected response from GitHub.")
+
+    latest = data.get("tag_name")
+    if not isinstance(latest, str):
+        return VersionInfo(current=current, error="No releases found.")
+
+    release_url = data.get("html_url")
+    return VersionInfo(
+        current=current,
+        latest=latest,
+        update_available=current != "unknown" and _is_newer(latest, current),
+        release_url=release_url if isinstance(release_url, str) else None,
+    )

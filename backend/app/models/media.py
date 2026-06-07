@@ -169,6 +169,12 @@ class DownloadRequest(BaseModel):
         default=False,
         description="Include all audio tracks (multi-language) in the video output.",
     )
+    trim_start: float | None = Field(
+        default=None, ge=0, description="Clip start in seconds (download from here)."
+    )
+    trim_end: float | None = Field(
+        default=None, ge=0, description="Clip end in seconds (download up to here)."
+    )
 
 
 class ProgressEvent(BaseModel):

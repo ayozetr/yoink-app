@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clock3, Download, Info, User, Video } from "lucide-react";
+import { Clock3, Download, Info, Scissors, User, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -37,10 +37,24 @@ export interface DownloadSelection {
   embed_chapters?: boolean;
   /** Include all audio tracks in the video output. Only set for video downloads. */
   audio_multistreams?: boolean;
+  /** Clip start/end in seconds — download only that range. */
+  trim_start?: number;
+  trim_end?: number;
 }
 
 /** Sentinel value for the "no subtitles" entry in the language picker. */
 const SUBS_NONE = "__none__";
+
+/** Parse "ss", "mm:ss" or "hh:mm:ss" into seconds (undefined if blank/invalid). */
+function parseTime(value: string): number | undefined {
+  const t = value.trim();
+  if (!t) return undefined;
+  const parts = t.split(":").map((p) => Number(p));
+  if (parts.length > 3 || parts.some((n) => !Number.isFinite(n) || n < 0)) {
+    return undefined;
+  }
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
 
 interface PreviewCardProps {
   info: VideoInfo;
@@ -77,6 +91,9 @@ export function PreviewCard({
   const [subtitle, setSubtitle] = useState<string>(SUBS_NONE);
   const [embedChapters, setEmbedChapters] = useState(false);
   const [audioMultistreams, setAudioMultistreams] = useState(false);
+  const [trimOpen, setTrimOpen] = useState(false);
+  const [trimStart, setTrimStart] = useState("");
+  const [trimEnd, setTrimEnd] = useState("");
 
   const isVideo = kind === "video";
   const hasSubtitles =
@@ -99,6 +116,14 @@ export function PreviewCard({
       ? DEFAULT_AUDIO_FORMAT
       : audioFormat;
   const showLosslessWarning = !isVideo && !losslessAllowed;
+
+  const trimStartSec = parseTime(trimStart);
+  const trimEndSec = parseTime(trimEnd);
+  const trimError =
+    trimOpen &&
+    trimStartSec != null &&
+    trimEndSec != null &&
+    trimEndSec <= trimStartSec;
 
   return (
     <GlassPanel className="p-5">
@@ -271,8 +296,58 @@ export function PreviewCard({
               </div>
             )}
 
+            {/* Trim / clip a section — scissors button reveals start/end inputs. */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setTrimOpen((v) => !v)}
+                aria-expanded={trimOpen}
+                className={`flex h-11 w-fit items-center gap-2 rounded-xl border px-4 text-sm transition ${
+                  trimOpen
+                    ? "border-violet-500/50 bg-violet-600/10 text-white"
+                    : "border-white/10 bg-surface text-zinc-300 hover:border-white/20"
+                }`}
+              >
+                <Scissors size={16} />
+                {t("preview.trim")}
+              </button>
+              {trimOpen && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={t("preview.trimStart")}
+                    placeholder={t("preview.trimStart")}
+                    value={trimStart}
+                    onChange={(e) => setTrimStart(e.target.value)}
+                    className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
+                  />
+                  <span className="text-zinc-500">→</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={t("preview.trimEnd")}
+                    placeholder={t("preview.trimEnd")}
+                    value={trimEnd}
+                    onChange={(e) => setTrimEnd(e.target.value)}
+                    className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
+                  />
+                  <span className="text-xs text-zinc-500">
+                    {t("preview.trimHint")}
+                  </span>
+                </div>
+              )}
+              {trimError && (
+                <p className="flex items-center gap-2 text-xs text-red-300">
+                  <Info size={14} className="shrink-0" />
+                  {t("preview.trimError")}
+                </p>
+              )}
+            </div>
+
             <Button
               variant="gradient"
+              disabled={trimError}
               onClick={() =>
                 onDownload({
                   kind,
@@ -286,9 +361,11 @@ export function PreviewCard({
                   audio_multistreams: showMultiAudio
                     ? audioMultistreams
                     : undefined,
+                  trim_start: trimOpen && !trimError ? trimStartSec : undefined,
+                  trim_end: trimOpen && !trimError ? trimEndSec : undefined,
                 })
               }
-              className="h-12 w-full"
+              className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download size={18} />
               {t("preview.download")}

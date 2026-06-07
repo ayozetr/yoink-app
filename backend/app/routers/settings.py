@@ -18,6 +18,20 @@ def get_version() -> VersionInfo:
     return updates.check_for_updates()
 
 
+@router.get(
+    "/ytdlp-version",
+    response_model=VersionInfo,
+    summary="Bundled yt-dlp version + update check",
+)
+def get_ytdlp_version() -> VersionInfo:
+    """Return the bundled yt-dlp version and whether a newer one is published.
+
+    Informational only: yt-dlp ships inside the sidecar, so an update arrives
+    with the next Yoink release (no in-app yt-dlp update).
+    """
+    return updates.check_ytdlp_update()
+
+
 @router.get("/settings", response_model=AppSettings, summary="Current settings")
 def get_settings() -> AppSettings:
     """Return the effective settings (env defaults + persisted overrides)."""

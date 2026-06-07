@@ -138,6 +138,9 @@ export interface DownloadRequest {
   embed_chapters?: boolean;
   /** Include all audio tracks (multi-language) in the video output. */
   audio_multistreams?: boolean;
+  /** Clip start/end in seconds — download only that range. */
+  trim_start?: number;
+  trim_end?: number;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */

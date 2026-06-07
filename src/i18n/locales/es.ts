@@ -43,6 +43,11 @@ export const es = {
     subtitlesAuto: "Subtítulos auto-generados",
     chapters: "Incrustar capítulos",
     multiAudio: "Incluir todas las pistas de audio",
+    trim: "Recortar",
+    trimStart: "Inicio (m:ss)",
+    trimEnd: "Fin (m:ss)",
+    trimHint: "p. ej. 0:30 → 2:10. Deja el fin vacío para el resto.",
+    trimError: "El fin debe ser posterior al inicio.",
     download: "Descargar",
   },
   playlist: {

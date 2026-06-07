@@ -243,6 +243,8 @@ export function DownloaderPanel({
           subtitle_lang: selection.subtitle_lang,
           embed_chapters: selection.embed_chapters,
           audio_multistreams: selection.audio_multistreams,
+          trim_start: selection.trim_start,
+          trim_end: selection.trim_end,
         },
         title: info?.video?.title ?? target,
       },

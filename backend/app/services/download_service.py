@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 from yt_dlp import YoutubeDL
-from yt_dlp.utils import DownloadError
+from yt_dlp.utils import DownloadError, download_range_func
 
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_location
@@ -259,6 +259,15 @@ def _build_options(
 
         if postprocessors:
             options["postprocessors"] = postprocessors
+
+    # Trim / clip: download only the requested time range (audio and video). An
+    # open end (no trim_end) runs to the end; force_keyframes_at_cuts re-encodes
+    # cleanly at the marks instead of snapping to the nearest keyframe.
+    if request.trim_start is not None or request.trim_end is not None:
+        start = request.trim_start or 0.0
+        end = request.trim_end if request.trim_end is not None else float("inf")
+        options["download_ranges"] = download_range_func(None, [(start, end)])
+        options["force_keyframes_at_cuts"] = True
 
     return options
 
