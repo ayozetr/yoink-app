@@ -48,3 +48,32 @@ def test_clear(history_db):
     assert removed == 2
     assert history_store.list_entries() == []
     assert history_store.get_stats().total_downloads == 0
+
+
+def test_quality_is_stored(history_db):
+    entry = _add(title="vid", kind="video", quality="1080p")
+    assert history_store.get_entry(entry.id).quality == "1080p"
+
+
+def test_migration_adds_quality_column_to_old_db(temp_dirs):
+    import sqlite3
+
+    from app.core.config import settings
+
+    settings.ensure_data_dir()
+    conn = sqlite3.connect(settings.db_path)
+    conn.execute(
+        "CREATE TABLE downloads (id INTEGER PRIMARY KEY, title TEXT, url TEXT, "
+        "kind TEXT, status TEXT, filename TEXT, filepath TEXT, filesize INTEGER, "
+        "created_at TEXT)"
+    )
+    conn.execute(
+        "INSERT INTO downloads (title, url, kind, status, created_at) "
+        "VALUES ('old', 'u', 'video', 'completed', '2026')"
+    )
+    conn.commit()
+    conn.close()
+
+    history_store.init_db()  # idempotent migration adds the new column
+    entry = history_store.list_entries()[0]
+    assert entry.title == "old" and entry.quality is None

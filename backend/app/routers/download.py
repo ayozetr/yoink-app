@@ -43,6 +43,19 @@ def _title_from_url(url: str) -> str:
     return tail or url
 
 
+def _quality_label(request: DownloadRequest) -> str | None:
+    """A short quality badge for the history: resolution for video, bitrate (or
+    the format, for lossless / 'best') for audio."""
+    if request.kind == "audio":
+        if request.audio_format in ("flac", "wav"):
+            return request.audio_format.upper()
+        if settings.audio_bitrate != "best":
+            return f"{settings.audio_bitrate} kbps"
+        return request.audio_format.upper()
+    quality = request.quality
+    return quality if quality and quality != "best" else None
+
+
 @router.websocket("/ws/download")
 async def download_ws(websocket: WebSocket) -> None:
     """Drive a single download job for the lifetime of the connection."""
@@ -87,6 +100,7 @@ async def download_ws(websocket: WebSocket) -> None:
                     filename=event.filename,
                     filepath=event.filepath,
                     filesize=event.total_bytes,
+                    quality=_quality_label(request),
                 )
             elif event.type == "error":
                 await asyncio.to_thread(

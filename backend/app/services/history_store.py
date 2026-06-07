@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS downloads (
     filename  TEXT,
     filepath  TEXT,
     filesize  INTEGER,
+    quality   TEXT,
     created_at TEXT   NOT NULL
 );
 """
@@ -36,10 +37,20 @@ def _connect() -> sqlite3.Connection:
     return connection
 
 
+def _add_column_if_missing(
+    connection: sqlite3.Connection, table: str, column: str, coltype: str
+) -> None:
+    """Add a column to an existing table only if it isn't there yet (migration)."""
+    cols = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+    if column not in cols:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
+
+
 def init_db() -> None:
-    """Create the history table if it does not exist yet."""
+    """Create the history table if needed; add newer columns to pre-existing DBs."""
     with _connect() as connection:
         connection.execute(_SCHEMA)
+        _add_column_if_missing(connection, "downloads", "quality", "TEXT")
 
 
 def _row_to_entry(row: sqlite3.Row) -> HistoryEntry:
@@ -52,6 +63,7 @@ def _row_to_entry(row: sqlite3.Row) -> HistoryEntry:
         filename=row["filename"],
         filepath=row["filepath"],
         filesize=row["filesize"],
+        quality=row["quality"],
         created_at=row["created_at"],
     )
 
@@ -65,6 +77,7 @@ def add_entry(
     filename: str | None = None,
     filepath: str | None = None,
     filesize: int | None = None,
+    quality: str | None = None,
 ) -> HistoryEntry:
     """Insert a download record and return it (with its generated id)."""
     created_at = datetime.now(timezone.utc).isoformat()
@@ -72,10 +85,12 @@ def add_entry(
         cursor = connection.execute(
             """
             INSERT INTO downloads
-                (title, url, kind, status, filename, filepath, filesize, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (title, url, kind, status, filename, filepath, filesize, quality,
+                 created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (title, url, kind, status, filename, filepath, filesize, created_at),
+            (title, url, kind, status, filename, filepath, filesize, quality,
+             created_at),
         )
         new_id = cursor.lastrowid
     return HistoryEntry(
@@ -87,6 +102,7 @@ def add_entry(
         filename=filename,
         filepath=filepath,
         filesize=filesize,
+        quality=quality,
         created_at=created_at,
     )
 

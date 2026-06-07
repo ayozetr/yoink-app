@@ -219,6 +219,9 @@ class HistoryEntry(BaseModel):
     filename: str | None = Field(default=None, description="Output file name.")
     filepath: str | None = Field(default=None, description="Absolute path on disk.")
     filesize: int | None = Field(default=None, description="Final size in bytes.")
+    quality: str | None = Field(
+        default=None, description="Resolution (video) or bitrate/format (audio)."
+    )
     created_at: str = Field(..., description="ISO-8601 UTC creation timestamp.")
 
 

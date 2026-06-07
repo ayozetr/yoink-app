@@ -32,6 +32,8 @@ export interface HistoryEntry {
   filename: string | null;
   filepath: string | null;
   filesize: number | null;
+  /** Resolution (video, e.g. "1080p") or bitrate/format (audio, e.g. "320 kbps"). */
+  quality: string | null;
   created_at: string;
 }
 

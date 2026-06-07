@@ -83,9 +83,9 @@ export function HistoryItemCard({
   const showCover =
     isCompleted && item.kind === "audio" && !!item.filepath && !coverFailed;
 
-  // Completed: "MP4 · 45 MB · 5 min ago". Failed: "Failed · 5 min ago".
+  // Completed: "1080p · 45 MB · 5 min ago". Failed: "Failed · 5 min ago".
   const meta = isCompleted
-    ? [size, when].filter(Boolean).join(" · ")
+    ? [item.quality, size, when].filter(Boolean).join(" · ")
     : [t("history.error"), when].filter(Boolean).join(" · ");
 
   return (
