@@ -48,12 +48,10 @@ const SUBS_NONE = "__none__";
 /** Parse "ss", "mm:ss" or "hh:mm:ss" into seconds (undefined if blank/invalid). */
 function parseTime(value: string): number | undefined {
   const t = value.trim();
-  if (!t) return undefined;
-  const parts = t.split(":").map((p) => Number(p));
-  if (parts.length > 3 || parts.some((n) => !Number.isFinite(n) || n < 0)) {
-    return undefined;
-  }
-  return parts.reduce((acc, n) => acc * 60 + n, 0);
+  // Strictly digits in 1–3 colon-separated groups: "ss", "mm:ss", "hh:mm:ss".
+  // A regex avoids Number() coercion accepting "1:", "::", "0x10", "1e3", etc.
+  if (!/^\d+(:\d+){0,2}$/.test(t)) return undefined;
+  return t.split(":").reduce((acc, p) => acc * 60 + Number(p), 0);
 }
 
 interface PreviewCardProps {
@@ -119,11 +117,10 @@ export function PreviewCard({
 
   const trimStartSec = parseTime(trimStart);
   const trimEndSec = parseTime(trimEnd);
+  // Invalid when a given end isn't past the (effective) start — also catches a
+  // lone end of 0, which would otherwise be an empty (0,0) range.
   const trimError =
-    trimOpen &&
-    trimStartSec != null &&
-    trimEndSec != null &&
-    trimEndSec <= trimStartSec;
+    trimOpen && trimEndSec != null && trimEndSec <= (trimStartSec ?? 0);
 
   return (
     <GlassPanel className="p-5">

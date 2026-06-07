@@ -446,7 +446,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           )}
         </div>
 
-        {ytdlp && !ytdlp.error && (
+        {ytdlp && !ytdlp.error && ytdlp.current !== "unknown" && (
           <div className="mt-1 text-xs text-zinc-500">
             <span>yt-dlp {ytdlp.current}</span>
             {ytdlp.update_available && ytdlp.latest ? (

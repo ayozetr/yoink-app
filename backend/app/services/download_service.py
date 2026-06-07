@@ -263,7 +263,7 @@ def _build_options(
     # Trim / clip: download only the requested time range (audio and video). An
     # open end (no trim_end) runs to the end; force_keyframes_at_cuts re-encodes
     # cleanly at the marks instead of snapping to the nearest keyframe.
-    if request.trim_start is not None or request.trim_end is not None:
+    if request.trim_start or request.trim_end is not None:
         start = request.trim_start or 0.0
         end = request.trim_end if request.trim_end is not None else float("inf")
         options["download_ranges"] = download_range_func(None, [(start, end)])
