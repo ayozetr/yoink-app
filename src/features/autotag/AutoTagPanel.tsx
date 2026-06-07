@@ -199,21 +199,31 @@ export function AutoTagPanel({
 
   return (
     <GlassPanel className="p-5">
-      <button
-        type="button"
-        onClick={toggleOpen}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between text-sm font-semibold text-zinc-200 hover:text-white transition"
-      >
-        <span className="flex items-center gap-2">
-          <Music4 size={16} className="text-violet-400" />
-          {t("autotag.title")}
-        </span>
-        <ChevronDown
-          size={18}
-          className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
+      {autoOpen ? (
+        // Re-tagging from history: the panel is fixed open (no collapse toggle).
+        <div className="flex w-full items-center text-sm font-semibold text-zinc-200">
+          <span className="flex items-center gap-2">
+            <Music4 size={16} className="text-violet-400" />
+            {t("autotag.title")}
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={open}
+          className="flex w-full items-center justify-between text-sm font-semibold text-zinc-200 hover:text-white transition"
+        >
+          <span className="flex items-center gap-2">
+            <Music4 size={16} className="text-violet-400" />
+            {t("autotag.title")}
+          </span>
+          <ChevronDown
+            size={18}
+            className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      )}
 
       {open && (
         <div className="mt-3">
