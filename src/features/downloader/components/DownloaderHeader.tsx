@@ -31,6 +31,7 @@ export function DownloaderHeader({
           >
             {t("header.subtitleSitesLink")}
           </button>
+          {"."}
         </p>
       </div>
 
