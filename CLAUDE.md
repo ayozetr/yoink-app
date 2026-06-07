@@ -31,8 +31,9 @@ Two layers communicating asynchronously:
   for the live dropdown; picking one analyzes it via `POST /api/info`.
 - **Download & progress (WebSockets):** on "Download", the frontend opens a
   socket to `WS /api/ws/download` and sends the request (`DownloadRequest`:
-  `kind`/`quality`, output `container`, `audio_format`, and `embed_subs`/
-  `subtitle_lang`/`embed_chapters`). The backend runs the yt-dlp job off-thread
+  `kind`/`quality`, output `container`, `audio_format`, `embed_subs`/
+  `subtitle_lang`/`embed_chapters`, and `trim_start`/`trim_end` to clip a
+  range). The backend runs the yt-dlp job off-thread
   (`asyncio.to_thread`) and streams typed events — `progress` (percent, speed,
   ETA) → terminal `completed`/`error` — back over the same socket to animate the
   progress bar.
@@ -76,7 +77,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── routers/info.py    # POST /api/info (video or playlist), GET /api/search (YouTube)
         ├── routers/download.py        # WS /api/ws/download (live progress)
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
-        ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version
+        ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
         ├── routers/autotag.py         # POST /api/autotag/{identify,search,apply}
         ├── routers/media.py           # GET /api/thumbnail (host-guarded image proxy)
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper

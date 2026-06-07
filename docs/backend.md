@@ -20,7 +20,7 @@ backend/
 │   │   ├── info.py             # POST /api/info (video or playlist), GET /api/search (YouTube)
 │   │   ├── download.py         # WS /api/ws/download (live progress)
 │   │   ├── history.py          # GET/DELETE /api/history(/stats), POST /api/open
-│   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version
+│   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
 │   │   ├── autotag.py          # POST /api/autotag/{identify,search,apply}
 │   │   └── media.py            # GET /api/thumbnail (host-guarded image proxy)
 │   └── services/
@@ -73,6 +73,8 @@ yt-dlp options:
   `SponsorBlock` + `ModifyChapters` postprocessors (categories: sponsor / intro /
   outro / selfpromo / …) onto audio and video; `sponsorblock_action` either
   removes the segments or just marks them as chapters.
+- **Trim/clip:** when `trim_start`/`trim_end` are set, `download_ranges`
+  (+ `force_keyframes_at_cuts`) fetches only that time range (audio + video).
 
 ## Audio auto-tagging
 

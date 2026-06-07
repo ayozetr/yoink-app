@@ -25,7 +25,7 @@ src/
 │   │   └── components/
 │   │       ├── DownloaderHeader.tsx
 │   │       ├── UrlInput.tsx        # URL field + paste + live YouTube search dropdown
-│   │       ├── PreviewCard.tsx
+│   │       ├── PreviewCard.tsx     # format/quality/subs + scissors trim controls
 │   │       ├── PlaylistCard.tsx
 │   │       └── DownloadProgressCard.tsx
 │   ├── autotag/                 # audio auto-tagging (Apple Music / Deezer / MusicBrainz), wired into DownloaderPanel

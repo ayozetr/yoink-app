@@ -38,6 +38,8 @@ It is split into two layers that communicate asynchronously:
     **embedded subtitles** (language picker) and **chapters/metadata**.
   - Audio — **MP3**, **M4A**, plus **FLAC**/**WAV** that are only offered when
     the source is genuinely lossless (no fake upscaling).
+- **Trim / clip** — a scissors button to download only a time range (e.g.
+  `0:30 → 2:10`) of a video or audio.
 - **Playlists** — pick which items to download with checkboxes; they download
   sequentially with "X of N" progress.
 - **Audio auto-tagging** — after an audio download, an inline card tags the file
@@ -52,7 +54,8 @@ It is split into two layers that communicate asynchronously:
   **language**, and cookies (browser or `cookies.txt`) for sign-in-only content.
 - **English & Spanish UI** (react-i18next), auto-detected from your system
   language and switchable in Settings.
-- **Update check** against the latest GitHub release.
+- **Update check** against the latest GitHub release; Settings also shows the
+  bundled **yt-dlp version** and whether a newer one is out.
 - **Self-contained desktop app** (Tauri, Linux & Windows): bundles the backend
   **and ffmpeg** as a sidecar — no Python or ffmpeg install needed.
 

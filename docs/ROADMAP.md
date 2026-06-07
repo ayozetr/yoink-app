@@ -341,6 +341,12 @@ non-critical:
   shows a live, debounced dropdown of results (thumbnail / channel / views /
   duration) with keyboard nav; picking one analyzes it. Backend `GET /api/search`
   runs a flat `ytsearch`; the frontend caches recent queries.
+- ✅ **Trim / clip a section** *(v1.7.0)* — a scissors button in the preview
+  reveals start/end inputs (`m:ss`); the backend clips via yt-dlp's
+  `download_ranges` (+ `force_keyframes_at_cuts`). Works for audio and video.
+- ✅ **yt-dlp version in Settings** *(v1.7.0)* — shows the bundled yt-dlp version
+  and whether a newer one is published (informational; it updates with the next
+  Yoink release — no in-app yt-dlp update, by design).
 - ✅ **SponsorBlock** *(v1.5.0)* — Settings switch (off by default; reusable
   `Toggle` with the brand logo + a "?" info popover) and a remove/mark dropdown;
   wires yt-dlp's `SponsorBlock` + `ModifyChapters` postprocessors into both audio
@@ -356,8 +362,6 @@ non-critical:
 The remaining features that fit the local / high-fidelity philosophy. No version
 assigned yet; roughly in priority order.
 
-- ⬜ **Trim / clip a section** — download a time range (e.g. `00:30–02:10`) via
-  yt-dlp's `download_ranges`, with start/end inputs in the preview.
 - ⬜ **Persist all download defaults** — remember container, audio format,
   subtitles and chapters (today only kind/quality persist). *(Postponed by the
   user for now.)*
@@ -365,8 +369,6 @@ assigned yet; roughly in priority order.
   presets (`%(uploader)s - %(title)s`); pairs well with the auto-tagger.
 - ⬜ **Concurrent playlist downloads** (configurable N) — currently strictly
   sequential; needs multi-socket orchestration + aggregate progress. Bigger.
-- ⬜ **Surface / update yt-dlp version** — it breaks as sites change; show its
-  version in Settings, maybe allow updating the bundled binary.
 - ⬜ **Smaller wins (left):** re-download / re-analyze from history · open the
   file itself (not just its folder) · bandwidth rate limit · embed thumbnail as
   cover art on audio · list which playlist items failed.
