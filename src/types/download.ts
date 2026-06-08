@@ -19,6 +19,20 @@ export type VideoContainer = "mp4" | "mov" | "mkv";
  */
 export type AudioFormat = "mp3" | "m4a" | "flac" | "wav";
 
+/** Stereo/projection layout for immersive (VR) video (mirrors backend `VRLayout`). */
+export type VRLayout =
+  | "180_sbs"
+  | "180_tb"
+  | "180_mono"
+  | "360_sbs"
+  | "360_tb"
+  | "360_mono"
+  | "fisheye190"
+  | "fisheye200"
+  | "mkx200"
+  | "mkx220"
+  | "rf52";
+
 /** Final outcome persisted in the history (mirrors backend `HistoryStatus`). */
 export type HistoryStatus = "completed" | "error";
 
@@ -84,6 +98,10 @@ export interface VideoInfo {
   has_chapters: boolean;
   /** Languages of the available audio tracks (>1 means multi-audio). */
   audio_langs: string[];
+  /** Heuristically detected as immersive (VR) video. */
+  is_vr: boolean;
+  /** Suggested stereo/projection layout (seeds the VR toggle). */
+  vr_layout: VRLayout;
 }
 
 /** One flat item inside a playlist (mirrors backend `PlaylistEntry`). */
@@ -113,6 +131,10 @@ export interface PlaylistInfo {
   /** Probed from the first entry (assumes a homogeneous playlist). */
   source_lossless: boolean;
   best_audio_abr: number | null;
+  /** Heuristically detected as a VR playlist (title/channel). */
+  is_vr: boolean;
+  /** Suggested layout to tag the whole batch with. */
+  vr_layout: VRLayout;
 }
 
 /** Unified `/api/info` result: a single video or a playlist. */
@@ -143,6 +165,10 @@ export interface DownloadRequest {
   /** Clip start/end in seconds — download only that range. */
   trim_start?: number;
   trim_end?: number;
+  /** Tag the output as immersive VR (name suffix + spherical metadata). */
+  is_vr?: boolean;
+  /** Stereo/projection layout to tag with when is_vr is set. */
+  vr_layout?: VRLayout;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */

@@ -22,6 +22,20 @@ AutotagSource = Literal["auto", "apple", "deezer", "musicbrainz"]
 SponsorblockAction = Literal["remove", "mark"]
 VideoCodec = Literal["any", "h264", "vp9", "av1"]
 AudioBitrate = Literal["best", "320", "256", "192", "128"]
+# Stereo + projection layout for immersive (VR) video.
+VRLayout = Literal[
+    "180_sbs",
+    "180_tb",
+    "180_mono",
+    "360_sbs",
+    "360_tb",
+    "360_mono",
+    "fisheye190",
+    "fisheye200",
+    "mkx200",
+    "mkx220",
+    "rf52",
+]
 
 
 class InfoRequest(BaseModel):
@@ -84,6 +98,14 @@ class VideoInfo(BaseModel):
         default_factory=list,
         description="Languages of the available audio tracks (>1 means multi-audio).",
     )
+    is_vr: bool = Field(
+        default=False,
+        description="Heuristically detected as immersive (VR) video.",
+    )
+    vr_layout: VRLayout = Field(
+        default="180_sbs",
+        description="Suggested stereo/projection layout (seeds the VR toggle).",
+    )
 
 
 class PlaylistEntry(BaseModel):
@@ -119,6 +141,14 @@ class PlaylistInfo(BaseModel):
     )
     best_audio_abr: float | None = Field(
         default=None, description="Best audio bitrate (kbps) of the first entry."
+    )
+    is_vr: bool = Field(
+        default=False,
+        description="Heuristically detected as a VR playlist (title/channel).",
+    )
+    vr_layout: VRLayout = Field(
+        default="180_sbs",
+        description="Suggested layout to tag the whole batch with.",
     )
 
 
@@ -176,6 +206,14 @@ class DownloadRequest(BaseModel):
     )
     trim_end: float | None = Field(
         default=None, ge=0, description="Clip end in seconds (download up to here)."
+    )
+    is_vr: bool = Field(
+        default=False,
+        description="Tag the output as immersive VR (name suffix + spherical metadata).",
+    )
+    vr_layout: VRLayout = Field(
+        default="180_sbs",
+        description="Stereo/projection layout to tag with when is_vr is set.",
     )
 
 
