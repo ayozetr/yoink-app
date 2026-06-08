@@ -49,7 +49,8 @@ It is split into two layers that communicate asynchronously:
   song and across whole playlists.
 - **SponsorBlock** (optional, off by default) — strip or just mark sponsor /
   intro / outro segments on YouTube downloads, chosen in Settings.
-- **History & stats** persisted locally (SQLite), with **cover art** for tagged
+- **History & stats** persisted locally (SQLite), with quality (resolution /
+  bitrate), re-tagging, and **cover art** for tagged
   audio, open file / folder, and clear.
 - **Settings** — download folder, default format/quality (up to **4K / best**),
   **filename template**, **video codec** & **audio bitrate**, **bandwidth limit**,

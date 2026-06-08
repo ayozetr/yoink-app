@@ -339,7 +339,14 @@ non-critical:
 
 - ✅ **Cover art in history + completed card** *(in main)* — extracts the embedded
   album art (`GET /api/cover`, mutagen, path-guarded) for tagged audio; falls back
-  to the kind icon.
+  to the kind icon. After tagging, the row refreshes and its title becomes
+  "Artist - Title".
+- ✅ **Re-tag from history** *(in main)* — a tag button on audio rows opens the
+  auto-tagger (fixed-open modal) for any past download, not just the latest one.
+- ✅ **Better auto-tag matching** *(in main)* — merge Apple Music + Deezer (so an
+  original on one and a remix on the other both show), rank the cleanest match
+  first (preselected), and strip YouTube-ism noise incl. yt-dlp's fullwidth
+  sanitised chars (｜：？…) from the filename query.
 - ✅ **Browser icons in the cookies selector** *(in main)* — monochrome logos
   (self-contained `BrowserIcon`, simple-icons paths, no runtime dep).
 - ✅ **YouTube search from the URL field** *(v1.6.0)* — typing a query (not a URL)
@@ -450,8 +457,9 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   supported sites.
 - ✅ **Taskbar / window-title progress** *(in main)* — `Yoink — 42%` in the title +
   Tauri `setProgressBar` on the taskbar during a download.
-- ✅ **Richer history rows** *(in main)* — relative time + a format badge + size.
-  (Quality/resolution still needs a persisted column.)
+- ✅ **Richer history rows** *(in main)* — relative time, format badge, size, and
+  quality (video resolution / audio bitrate, via a persisted column + SQLite
+  migration).
 - ⬜ **Skip-current vs cancel-all** (M) — don't nuke the whole queue to drop one
   stuck item; surface which items failed.
 - ✅ **Honor `prefers-reduced-motion`** *(in main)* — global CSS damps spinners,
