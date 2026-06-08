@@ -4,7 +4,6 @@ export const en = {
     subtitle: "Download video and audio quickly",
     subtitlePrefix: "Download video and audio quickly from ",
     subtitleSitesLink: "many sites",
-    active: "Active downloads: {{count}}",
     settings: "Settings",
   },
   notify: {
@@ -54,6 +53,12 @@ export const en = {
     trimEnd: "End (m:ss)",
     trimHint: "e.g. 0:30 → 2:10. Leave the end empty for the rest.",
     trimError: "The end must be after the start.",
+    vrBadge: "VR",
+    vr: "VR (immersive)",
+    vrLayout: "VR layout",
+    vrDetected: "detected",
+    vrHint:
+      "Tags the file as immersive: adds a projection suffix to the name and embeds spherical metadata so VR players show it in 3D.",
     download: "Download",
   },
   playlist: {
@@ -84,6 +89,17 @@ export const en = {
     summaryFailed: " · {{count}} failed",
     closeSummary: "Close summary",
     retry: "Retry",
+  },
+  queue: {
+    open: "Download queue",
+    close: "Close queue",
+    title: "Queue",
+    placeholder: "Paste one or more links (one per line) to queue…",
+    add: "Add",
+    start: "Start",
+    stop: "Stop",
+    clearDone: "Clear finished",
+    remove: "Remove from queue",
   },
   autotag: {
     title: "Tag audio",

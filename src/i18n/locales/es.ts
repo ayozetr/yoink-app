@@ -4,7 +4,6 @@ export const es = {
     subtitle: "Descarga vídeos y audios rápidamente",
     subtitlePrefix: "Descarga vídeos y audios rápidamente de ",
     subtitleSitesLink: "múltiples webs",
-    active: "Descargas activas: {{count}}",
     settings: "Ajustes",
   },
   notify: {
@@ -54,6 +53,12 @@ export const es = {
     trimEnd: "Fin (m:ss)",
     trimHint: "p. ej. 0:30 → 2:10. Deja el fin vacío para el resto.",
     trimError: "El fin debe ser posterior al inicio.",
+    vrBadge: "VR",
+    vr: "VR (inmersivo)",
+    vrLayout: "Formato VR",
+    vrDetected: "detectado",
+    vrHint:
+      "Etiqueta el archivo como inmersivo: añade un sufijo de proyección al nombre e incrusta metadatos esféricos para que los visores VR lo muestren en 3D.",
     download: "Descargar",
   },
   playlist: {
@@ -84,6 +89,17 @@ export const es = {
     summaryFailed: " · {{count}} con error",
     closeSummary: "Cerrar resumen",
     retry: "Reintentar",
+  },
+  queue: {
+    open: "Cola de descargas",
+    close: "Cerrar cola",
+    title: "Cola",
+    placeholder: "Pega uno o varios enlaces (uno por línea) para encolar…",
+    add: "Añadir",
+    start: "Iniciar",
+    stop: "Detener",
+    clearDone: "Limpiar completadas",
+    remove: "Quitar de la cola",
   },
   autotag: {
     title: "Etiquetar audio",
