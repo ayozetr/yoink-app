@@ -27,6 +27,9 @@ interface DownloaderPanelProps {
   onDownloadFinished?: () => void;
   /** Open the settings modal. */
   onOpenSettings?: () => void;
+  /** Toggle the download queue panel + how many items it has unfinished. */
+  onToggleQueue?: () => void;
+  queueCount?: number;
   /** Default media kind / quality from settings, used to seed the selectors. */
   defaultKind?: MediaKind;
   defaultQuality?: string;
@@ -60,6 +63,8 @@ function initialProgress(): DownloadProgressEvent {
 export function DownloaderPanel({
   onDownloadFinished,
   onOpenSettings,
+  onToggleQueue,
+  queueCount = 0,
   defaultKind,
   defaultQuality,
 }: DownloaderPanelProps) {
@@ -259,6 +264,8 @@ export function DownloaderPanel({
           audio_multistreams: selection.audio_multistreams,
           trim_start: selection.trim_start,
           trim_end: selection.trim_end,
+          is_vr: selection.is_vr,
+          vr_layout: selection.vr_layout,
         },
         title: info?.video?.title ?? target,
       },
@@ -281,6 +288,8 @@ export function DownloaderPanel({
           subtitle_lang: selection.subtitle_lang,
           embed_chapters: selection.embed_chapters,
           audio_multistreams: selection.audio_multistreams,
+          is_vr: selection.is_vr,
+          vr_layout: selection.vr_layout,
         },
         title: entry.title,
       })),
@@ -294,7 +303,8 @@ export function DownloaderPanel({
   return (
     <>
       <DownloaderHeader
-        activeDownloads={downloading ? 1 : 0}
+        queueCount={queueCount}
+        onToggleQueue={onToggleQueue}
         onOpenSettings={onOpenSettings}
       />
       <UrlInput

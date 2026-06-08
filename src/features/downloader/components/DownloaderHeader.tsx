@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { Download, Settings } from "lucide-react";
+import { ListPlus, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SupportedSitesModal } from "./SupportedSitesModal";
 
 interface DownloaderHeaderProps {
-  activeDownloads: number;
+  /** Number of unfinished queue items, badged on the queue button. */
+  queueCount: number;
+  onToggleQueue?: () => void;
   onOpenSettings?: () => void;
 }
 
-/** Page title plus the "active downloads" status pill and settings button. */
+/** Page title plus the download-queue button and settings button. */
 export function DownloaderHeader({
-  activeDownloads,
+  queueCount,
+  onToggleQueue,
   onOpenSettings,
 }: DownloaderHeaderProps) {
   const { t } = useTranslation();
@@ -38,12 +41,19 @@ export function DownloaderHeader({
       {showSites && <SupportedSitesModal onClose={() => setShowSites(false)} />}
 
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.06]">
-          <Download className="size-4 text-violet-400" />
-          <span className="text-sm text-zinc-300">
-            {t("header.active", { count: activeDownloads })}
-          </span>
-        </div>
+        <button
+          type="button"
+          onClick={onToggleQueue}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.06] text-zinc-300 hover:text-white hover:bg-white/10 transition"
+        >
+          <ListPlus className="size-4 text-violet-400" />
+          <span className="text-sm">{t("queue.open")}</span>
+          {queueCount > 0 && (
+            <span className="ml-0.5 rounded-full bg-violet-500/30 px-2 py-0.5 text-xs font-semibold text-violet-200">
+              {queueCount}
+            </span>
+          )}
+        </button>
         <button
           type="button"
           onClick={onOpenSettings}

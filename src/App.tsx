@@ -4,6 +4,7 @@ import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
 import { AutoTagPanel } from "./features/autotag/AutoTagPanel";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
+import { QueuePanel } from "./features/queue/QueuePanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
 import { SettingsModal } from "./features/settings/SettingsModal";
 import {
@@ -45,6 +46,9 @@ export default function App() {
   // tagged after download gains a cover the row didn't see on first render).
   const [historyVersion, setHistoryVersion] = useState(0);
   const [retagItem, setRetagItem] = useState<HistoryEntry | null>(null);
+  // Download queue: opened from the header button; keeps running while hidden.
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [queuePending, setQueuePending] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -134,12 +138,24 @@ export default function App() {
     <>
       <AppLayout
         main={
-          <DownloaderPanel
-            onDownloadFinished={refresh}
-            onOpenSettings={() => setSettingsOpen(true)}
-            defaultKind={settings?.default_kind}
-            defaultQuality={settings?.default_quality}
-          />
+          <>
+            <DownloaderPanel
+              onDownloadFinished={refresh}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onToggleQueue={() => setQueueOpen((o) => !o)}
+              queueCount={queuePending}
+              defaultKind={settings?.default_kind}
+              defaultQuality={settings?.default_quality}
+            />
+            <QueuePanel
+              open={queueOpen}
+              onClose={() => setQueueOpen(false)}
+              defaultKind={settings?.default_kind}
+              defaultQuality={settings?.default_quality}
+              onDownloadFinished={refresh}
+              onPendingChange={setQueuePending}
+            />
+          </>
         }
         sidebar={
           <HistorySidebar
