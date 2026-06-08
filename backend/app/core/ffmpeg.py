@@ -20,3 +20,12 @@ def ffmpeg_location() -> str | None:
         return None
     exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
     return base if (Path(base) / exe).exists() else None
+
+
+def ffprobe_path() -> str:
+    """Path to ffprobe: the bundled one when packaged, else "ffprobe" on PATH."""
+    exe = "ffprobe.exe" if os.name == "nt" else "ffprobe"
+    base = getattr(sys, "_MEIPASS", None)
+    if base and (Path(base) / exe).exists():
+        return str(Path(base) / exe)
+    return exe

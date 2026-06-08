@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import subprocess
 import threading
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from app.core.config import settings
+from app.core.ffmpeg import ffprobe_path
 from app.models.media import DownloadRequest, ErrorEvent
 from app.services import history_store
 from app.services.download_service import download_events
@@ -43,15 +45,46 @@ def _title_from_url(url: str) -> str:
     return tail or url
 
 
-def _quality_label(request: DownloadRequest) -> str | None:
-    """A short quality badge for the history: resolution for video, bitrate (or
-    the format, for lossless / 'best') for audio."""
+def _audio_bitrate_kbps(filepath: str | None) -> int | None:
+    """Real audio bitrate (kbps) of a file via ffprobe, or None if unknown."""
+    if not filepath:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_path(),
+                "-v", "quiet",
+                "-select_streams", "a:0",
+                "-show_entries", "stream=bit_rate:format=bit_rate",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                filepath,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in result.stdout.splitlines():
+        value = line.strip()
+        if value.isdigit() and int(value) > 0:
+            return round(int(value) / 1000)
+    return None
+
+
+def _quality_label(request: DownloadRequest, filepath: str | None) -> str | None:
+    """A short quality badge for the history: resolution for video, and the
+    audio bitrate for audio (the format already shows as its own badge, so we
+    never repeat it). Lossy with a fixed target uses that; otherwise (lossless
+    or "best") the real bitrate is probed from the file."""
     if request.kind == "audio":
-        if request.audio_format in ("flac", "wav"):
-            return request.audio_format.upper()
-        if settings.audio_bitrate != "best":
+        if (
+            request.audio_format not in ("flac", "wav")
+            and settings.audio_bitrate != "best"
+        ):
             return f"{settings.audio_bitrate} kbps"
-        return request.audio_format.upper()
+        kbps = _audio_bitrate_kbps(filepath)
+        return f"{kbps} kbps" if kbps else None
     quality = request.quality
     return quality if quality and quality != "best" else None
 
@@ -91,6 +124,10 @@ async def download_ws(websocket: WebSocket) -> None:
             await websocket.send_json(event.model_dump())
 
             if event.type == "completed":
+                # ffprobe (for audio bitrate) runs off the event loop.
+                quality = await asyncio.to_thread(
+                    _quality_label, request, event.filepath
+                )
                 await asyncio.to_thread(
                     history_store.add_entry,
                     title=Path(event.filename).stem,
@@ -100,7 +137,7 @@ async def download_ws(websocket: WebSocket) -> None:
                     filename=event.filename,
                     filepath=event.filepath,
                     filesize=event.total_bytes,
-                    quality=_quality_label(request),
+                    quality=quality,
                 )
             elif event.type == "error":
                 await asyncio.to_thread(

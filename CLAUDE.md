@@ -24,16 +24,19 @@ Two layers communicating asynchronously:
 - **Metadata (REST):** when the user pastes a URL, the frontend calls FastAPI.
   The backend runs yt-dlp with `download=False` and returns an `InfoResponse`
   that is **either** a single video (title, thumbnail, formats, plus
-  `source_lossless`/`best_audio_abr`/`subtitle_langs`/`has_chapters`) **or** a
-  flat playlist listing (entries with title/duration/url). Endpoint: `POST /api/info`.
+  `source_lossless`/`best_audio_abr`/`subtitle_langs`/`has_chapters`, and an
+  `is_vr`/`vr_layout` immersive-video heuristic) **or** a flat playlist listing
+  (entries with title/duration/url). Endpoint: `POST /api/info`.
 - **Search (REST):** typing a query (not a URL) in the field hits
   `GET /api/search?q=`, which runs a flat `ytsearch` and returns matching videos
   for the live dropdown; picking one analyzes it via `POST /api/info`.
 - **Download & progress (WebSockets):** on "Download", the frontend opens a
   socket to `WS /api/ws/download` and sends the request (`DownloadRequest`:
   `kind`/`quality`, output `container`, `audio_format`, `embed_subs`/
-  `subtitle_lang`/`embed_chapters`, and `trim_start`/`trim_end` to clip a
-  range). The backend runs the yt-dlp job off-thread
+  `subtitle_lang`/`embed_chapters`, `trim_start`/`trim_end` to clip a range, and
+  `is_vr`/`vr_layout` to tag the output as immersive — a projection name suffix
+  plus injected Spherical Video V2 metadata). The backend runs the yt-dlp job
+  off-thread
   (`asyncio.to_thread`) and streams typed events — `progress` (percent, speed,
   ETA) → terminal `completed`/`error` — back over the same socket to animate the
   progress bar.
@@ -84,6 +87,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── services/download_service.py  # yt-dlp download + progress stream
         ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor
         ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing
+        ├── services/vr.py              # VR detection + Spherical Video V2 (st3d/sv3d) tagging
         ├── services/history_store.py  # SQLite persistence (history + stats)
         ├── services/settings_store.py # persisted user settings overrides
         └── services/updates.py        # GitHub release update check

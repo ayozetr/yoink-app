@@ -98,6 +98,43 @@ def test_settings_get_and_put(temp_dirs):
     assert (temp_dirs / "data" / "settings.json").exists()
 
 
+def test_settings_put_rejects_bad_values(temp_dirs):
+    base = client.get("/api/settings").json()
+
+    # Unsupported browser for cookies.
+    bad_browser = {**base, "cookies_from_browser": "netscape", "cookies_file": None}
+    assert client.put("/api/settings", json=bad_browser).status_code == 400
+
+    # Proxy with an unsupported scheme.
+    bad_proxy = {**base, "cookies_from_browser": None, "proxy": "ftp://x:1"}
+    assert client.put("/api/settings", json=bad_proxy).status_code == 400
+
+    # A known browser with a profile suffix (e.g. "firefox:work") is accepted.
+    ok = {**base, "cookies_from_browser": "firefox:work", "cookies_file": None, "proxy": None}
+    assert client.put("/api/settings", json=ok).status_code == 200
+
+
+def test_quality_label(monkeypatch):
+    from app.core.config import settings
+    from app.models.media import DownloadRequest
+    from app.routers.download import _quality_label
+
+    video = DownloadRequest(url="https://x.com/v", kind="video", quality="1080p")
+    assert _quality_label(video, None) == "1080p"
+    best_video = DownloadRequest(url="https://x.com/v", kind="video", quality="best")
+    assert _quality_label(best_video, None) is None
+
+    # Audio with a fixed bitrate target uses it directly (no ffprobe needed) and
+    # never repeats the format (which already shows as its own badge).
+    monkeypatch.setattr(settings, "audio_bitrate", "192")
+    audio = DownloadRequest(url="https://x.com/a", kind="audio", audio_format="mp3")
+    assert _quality_label(audio, None) == "192 kbps"
+
+    # "best" with no probeable file falls back to no label (not the format).
+    monkeypatch.setattr(settings, "audio_bitrate", "best")
+    assert _quality_label(audio, None) is None
+
+
 def test_version_endpoint(monkeypatch):
     from app.models.media import VersionInfo
 
