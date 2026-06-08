@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clock3, Download, Info, Scissors, User, Video } from "lucide-react";
+import { Clock3, Download, Glasses, Info, Scissors, User, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -11,15 +11,20 @@ import type {
   MediaKind,
   VideoContainer,
   VideoInfo,
+  VRLayout,
 } from "../../../types/download";
 import {
   AUDIO_FORMATS,
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_CONTAINER,
   VIDEO_CONTAINERS,
+  VR_LAYOUTS,
   availableKinds,
+  estimatedSizeBytes,
   videoQualities,
 } from "../formatOptions";
+import { formatBytes } from "../../../lib/format";
+import { rememberLayout, rememberedLayout } from "../../../lib/vrPrefs";
 
 export interface DownloadSelection {
   kind: MediaKind;
@@ -40,6 +45,10 @@ export interface DownloadSelection {
   /** Clip start/end in seconds — download only that range. */
   trim_start?: number;
   trim_end?: number;
+  /** Tag the output as immersive VR. Only set for video downloads. */
+  is_vr?: boolean;
+  /** Stereo/projection layout to tag with when is_vr is set. */
+  vr_layout?: VRLayout;
 }
 
 /** Sentinel value for the "no subtitles" entry in the language picker. */
@@ -92,6 +101,13 @@ export function PreviewCard({
   const [trimOpen, setTrimOpen] = useState(false);
   const [trimStart, setTrimStart] = useState("");
   const [trimEnd, setTrimEnd] = useState("");
+  // VR tagging: seed from the backend's heuristic detection; the user can
+  // toggle it and pick the stereo/projection layout. A previously remembered
+  // choice for this uploader wins over the heuristic's guess.
+  const [isVr, setIsVr] = useState(info.is_vr);
+  const [vrLayout, setVrLayout] = useState<VRLayout>(
+    () => rememberedLayout(info.uploader) ?? info.vr_layout,
+  );
 
   const isVideo = kind === "video";
   const hasSubtitles =
@@ -114,6 +130,20 @@ export function PreviewCard({
       ? DEFAULT_AUDIO_FORMAT
       : audioFormat;
   const showLosslessWarning = !isVideo && !losslessAllowed;
+
+  // Rough download-size estimate for the current selection (null if unknown).
+  const estimatedSize = useMemo(
+    () =>
+      formatBytes(
+        estimatedSizeBytes(
+          info,
+          kind,
+          isVideo ? quality : undefined,
+          isVideo ? undefined : effectiveAudioFormat,
+        ),
+      ),
+    [info, kind, isVideo, quality, effectiveAudioFormat],
+  );
 
   const trimStartSec = parseTime(trimStart);
   const trimEndSec = parseTime(trimEnd);
@@ -159,6 +189,12 @@ export function PreviewCard({
                 <span className="flex items-center gap-2 text-sm">
                   <User size={16} />
                   {info.uploader}
+                </span>
+              )}
+              {info.is_vr && (
+                <span className="flex items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
+                  <Glasses size={14} />
+                  {t("preview.vrBadge")}
                 </span>
               )}
             </div>
@@ -293,6 +329,45 @@ export function PreviewCard({
               </div>
             )}
 
+            {/* VR — shown only when detected as immersive. Lets the user confirm
+                (or turn off a false positive) and pick the stereo/projection
+                layout. Hidden for plain video so it can't be tagged by mistake. */}
+            {isVideo && info.is_vr && (
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Toggle
+                    checked={isVr}
+                    onChange={setIsVr}
+                    label={t("preview.vr")}
+                  />
+                  {isVr && (
+                    <Select
+                      ariaLabel={t("preview.vrLayout")}
+                      value={vrLayout}
+                      onChange={(v) => setVrLayout(v as VRLayout)}
+                      // All layouts stay selectable (we can't reliably tell the
+                      // exact one from metadata); the heuristic's guess is just
+                      // flagged as "(detected)" and preselected.
+                      options={VR_LAYOUTS.map((o) => ({
+                        value: o.value,
+                        label:
+                          o.value === info.vr_layout
+                            ? `${o.label} (${t("preview.vrDetected")})`
+                            : o.label,
+                      }))}
+                      className="h-11 min-w-[170px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
+                    />
+                  )}
+                </div>
+                {isVr && (
+                  <p className="flex items-center gap-2 text-xs text-zinc-400">
+                    <Info size={14} className="shrink-0" />
+                    {t("preview.vrHint")}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Trim / clip — scissors button + (when open) inline start/end inputs. */}
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -347,7 +422,10 @@ export function PreviewCard({
             <Button
               variant="gradient"
               disabled={trimError}
-              onClick={() =>
+              onClick={() => {
+                // Remember the layout choice for this studio so the next
+                // download from the same uploader defaults to it.
+                if (isVideo && isVr) rememberLayout(info.uploader, vrLayout);
                 onDownload({
                   kind,
                   quality: isVideo ? quality : undefined,
@@ -362,12 +440,17 @@ export function PreviewCard({
                     : undefined,
                   trim_start: trimOpen && !trimError ? trimStartSec : undefined,
                   trim_end: trimOpen && !trimError ? trimEndSec : undefined,
-                })
-              }
+                  is_vr: isVideo ? isVr : undefined,
+                  vr_layout: isVideo && isVr ? vrLayout : undefined,
+                });
+              }}
               className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download size={18} />
               {t("preview.download")}
+              {estimatedSize && (
+                <span className="text-white/70">· ≈ {estimatedSize}</span>
+              )}
             </Button>
           </div>
         </div>

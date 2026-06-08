@@ -9,7 +9,23 @@ import type {
   MediaKind,
   VideoContainer,
   VideoInfo,
+  VRLayout,
 } from "../../types/download";
+
+/** Stereo/projection layouts offered for VR tagging (technical, untranslated). */
+export const VR_LAYOUTS: { value: VRLayout; label: string }[] = [
+  { value: "180_sbs", label: "180° · SBS" },
+  { value: "180_tb", label: "180° · TB" },
+  { value: "180_mono", label: "180° · Mono" },
+  { value: "360_sbs", label: "360° · SBS" },
+  { value: "360_tb", label: "360° · TB" },
+  { value: "360_mono", label: "360° · Mono" },
+  { value: "fisheye190", label: "Fisheye 190°" },
+  { value: "fisheye200", label: "Fisheye 200°" },
+  { value: "mkx200", label: "MKX200" },
+  { value: "mkx220", label: "MKX220" },
+  { value: "rf52", label: "Canon RF5.2" },
+];
 
 export interface KindOption {
   kind: MediaKind;
@@ -81,4 +97,54 @@ export function videoQualities(info: VideoInfo): string[] {
     if (height) heights.add(height);
   }
   return [...heights].sort((a, b) => b - a).map((height) => `${height}p`);
+}
+
+/** Largest known size among audio-only formats, in bytes (or null). */
+function bestAudioOnlyBytes(info: VideoInfo): number | null {
+  let best: number | null = null;
+  for (const format of info.formats) {
+    if (format.has_audio && !format.has_video && format.filesize != null) {
+      if (best == null || format.filesize > best) best = format.filesize;
+    }
+  }
+  return best;
+}
+
+/**
+ * Rough estimated download size in bytes for the chosen kind/quality, or null
+ * when sizes aren't known. For video it pairs the best matching video stream
+ * with the best audio-only stream (unless the match is already progressive).
+ * Approximate by nature — yt-dlp's final selection can differ.
+ *
+ * For audio it returns the source stream size, which only resembles the output
+ * for lossy formats (mp3/m4a). Lossless output (flac/wav) is far larger than
+ * the compressed source, so we return null there rather than show a wrong size.
+ */
+export function estimatedSizeBytes(
+  info: VideoInfo,
+  kind: MediaKind,
+  quality: string | undefined,
+  audioFormat?: AudioFormat,
+): number | null {
+  if (kind === "audio") {
+    if (audioFormat === "flac" || audioFormat === "wav") return null;
+    return bestAudioOnlyBytes(info);
+  }
+
+  const target = quality ? Number.parseInt(quality, 10) : NaN;
+  let videoBytes: number | null = null;
+  let progressive = false;
+  for (const format of info.formats) {
+    if (!format.has_video || format.filesize == null) continue;
+    const height = formatHeight(format);
+    if (Number.isFinite(target) && height !== target) continue;
+    if (videoBytes == null || format.filesize > videoBytes) {
+      videoBytes = format.filesize;
+      progressive = format.has_audio;
+    }
+  }
+  if (videoBytes == null) return null;
+  if (progressive) return videoBytes;
+  const audio = bestAudioOnlyBytes(info);
+  return audio != null ? videoBytes + audio : videoBytes;
 }

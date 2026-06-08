@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Clock3, Download, Info, ListVideo, Music4, Video } from "lucide-react";
+import { Clock3, Download, Glasses, Info, ListVideo, Music4, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
+import { Toggle } from "../../../components/ui/Toggle";
 import { Thumbnail } from "../../../components/ui/Thumbnail";
 import type {
   AudioFormat,
@@ -11,13 +12,16 @@ import type {
   PlaylistEntry,
   PlaylistInfo,
   VideoContainer,
+  VRLayout,
 } from "../../../types/download";
 import {
   AUDIO_FORMATS,
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_CONTAINER,
   VIDEO_CONTAINERS,
+  VR_LAYOUTS,
 } from "../formatOptions";
+import { rememberLayout, rememberedLayout } from "../../../lib/vrPrefs";
 import type { DownloadSelection } from "./PreviewCard";
 
 interface PlaylistCardProps {
@@ -64,6 +68,12 @@ export function PlaylistCard({
   const [subtitle, setSubtitle] = useState<string>(SUBS_NONE);
   const [embedChapters, setEmbedChapters] = useState(false);
   const [audioMultistreams, setAudioMultistreams] = useState(false);
+  // VR: tag the whole batch. Seeded from the playlist-level heuristic; a
+  // remembered choice for this channel wins.
+  const [isVr, setIsVr] = useState(playlist.is_vr);
+  const [vrLayout, setVrLayout] = useState<VRLayout>(
+    () => rememberedLayout(playlist.uploader) ?? playlist.vr_layout,
+  );
 
   const isVideo = kind === "video";
   const embedSubs = subtitle !== SUBS_NONE;
@@ -100,6 +110,8 @@ export function PlaylistCard({
   const handleDownload = () => {
     const chosen = playlist.entries.filter((entry) => selected.has(entry.id));
     if (chosen.length === 0) return;
+    const tagVr = isVideo && playlist.is_vr && isVr;
+    if (tagVr) rememberLayout(playlist.uploader, vrLayout);
     onDownload(chosen, {
       kind,
       quality: isVideo ? quality : undefined,
@@ -109,6 +121,8 @@ export function PlaylistCard({
       subtitle_lang: showSubtitles && embedSubs ? subtitle : undefined,
       embed_chapters: isVideo ? embedChapters : undefined,
       audio_multistreams: showMultiAudio ? audioMultistreams : undefined,
+      is_vr: tagVr ? true : undefined,
+      vr_layout: tagVr ? vrLayout : undefined,
     });
   };
 
@@ -128,7 +142,15 @@ export function PlaylistCard({
         </button>
       </div>
 
-      <h2 className="text-xl font-semibold truncate">{playlist.title}</h2>
+      <div className="flex items-center gap-2">
+        <h2 className="text-xl font-semibold truncate">{playlist.title}</h2>
+        {playlist.is_vr && (
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
+            <Glasses size={14} />
+            {t("preview.vrBadge")}
+          </span>
+        )}
+      </div>
       <p className="text-sm text-zinc-400 mt-1">
         {playlist.uploader ? `${playlist.uploader} • ` : ""}
         {t("playlist.videos", { count: playlist.entry_count })}
@@ -231,6 +253,36 @@ export function PlaylistCard({
                 />
                 {t("preview.multiAudio")}
               </label>
+            )}
+          </div>
+        )}
+
+        {/* VR — tag the whole batch (shown only when detected as immersive). */}
+        {isVideo && playlist.is_vr && (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <Toggle checked={isVr} onChange={setIsVr} label={t("preview.vr")} />
+              {isVr && (
+                <Select
+                  ariaLabel={t("preview.vrLayout")}
+                  value={vrLayout}
+                  onChange={(v) => setVrLayout(v as VRLayout)}
+                  options={VR_LAYOUTS.map((o) => ({
+                    value: o.value,
+                    label:
+                      o.value === playlist.vr_layout
+                        ? `${o.label} (${t("preview.vrDetected")})`
+                        : o.label,
+                  }))}
+                  className="h-11 min-w-[170px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
+                />
+              )}
+            </div>
+            {isVr && (
+              <p className="flex items-center gap-2 text-xs text-zinc-400">
+                <Info size={14} className="shrink-0" />
+                {t("preview.vrHint")}
+              </p>
             )}
           </div>
         )}
