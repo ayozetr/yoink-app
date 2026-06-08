@@ -63,11 +63,12 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 │   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, EditMenu, …)
 │   ├── features/
 │   │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
-│   │   ├── downloader/       # URL input, preview, playlist, progress (main column)
+│   │   ├── downloader/       # URL input, preview (incl. VR controls), playlist, progress (main column)
+│   │   ├── queue/            # persistent sequential download queue (opened from the header)
 │   │   ├── history/          # download history + stats (sidebar)
 │   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version)
 │   ├── i18n/                 # react-i18next setup + en/es locale strings
-│   ├── lib/                  # API client + download WebSocket + native dialogs
+│   ├── lib/                  # API client + download WebSocket + queue store + VR-layout memory + native dialogs
 │   └── types/                # shared domain types (backend JSON contract)
 └── backend/                  # FastAPI + yt-dlp engine
     └── app/

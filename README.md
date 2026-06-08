@@ -40,8 +40,15 @@ It is split into two layers that communicate asynchronously:
     the source is genuinely lossless (no fake upscaling).
 - **Trim / clip** — a scissors button to download only a time range (e.g.
   `0:30 → 2:10`) of a video or audio.
+- **Immersive / VR video** — detects 180°/360° clips (SBS · TB · mono ·
+  fisheye / MKX / RF5.2) and tags the file so VR players (Quest / DeoVR /
+  Heresphere) show it in 3D: a projection name suffix **plus injected Spherical
+  Video V2 metadata** (`st3d`/`sv3d`). Shown only when detected; you confirm or
+  fix the layout, and it's remembered per channel.
 - **Playlists** — pick which items to download with checkboxes; they download
-  sequentially with "X of N" progress.
+  sequentially with "X of N" progress (VR tagging applies to the whole batch).
+- **Download queue** — paste many links to download one after another; the
+  queue **persists across restarts** and **resumes** interrupted items.
 - **Audio auto-tagging** — after an audio download, an inline card tags the file
   with real artist / album / title / year + **cover art** from **Apple Music,
   Deezer or MusicBrainz** (free, no account; pick one — or Automatic — in

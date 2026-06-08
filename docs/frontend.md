@@ -25,9 +25,11 @@ src/
 │   │   └── components/
 │   │       ├── DownloaderHeader.tsx
 │   │       ├── UrlInput.tsx        # URL field + paste + live YouTube search dropdown
-│   │       ├── PreviewCard.tsx     # format/quality/subs + scissors trim controls
+│   │       ├── PreviewCard.tsx     # format/quality/subs + scissors trim + VR controls + size estimate
 │   │       ├── PlaylistCard.tsx
 │   │       └── DownloadProgressCard.tsx
+│   ├── queue/                   # persistent sequential download queue (opened from the header)
+│   │   └── QueuePanel.tsx
 │   ├── autotag/                 # audio auto-tagging (Apple Music / Deezer / MusicBrainz), wired into DownloaderPanel
 │   │   ├── AutoTagPanel.tsx     # inline "Tag audio" card after a single audio download
 │   │   ├── AutoTagBatchPanel.tsx # per-track tagging list after an audio playlist

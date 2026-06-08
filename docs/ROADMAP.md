@@ -374,6 +374,44 @@ non-critical:
 
 ---
 
+## Phase 11 — Immersive (VR) video + download queue ✅ (v1.9.0)
+
+### Immersive / VR video
+- ✅ **Detection** — heuristic over the metadata (known immersive studios,
+  textual markers like `180`/`360`/`SBS`/`MKX`, refined by aspect ratio). Shown
+  as a badge + an opt-in toggle **only when detected**, so plain video can't be
+  tagged by mistake. Works for single videos and whole playlists (batch).
+- ✅ **Tagging** — a projection **name suffix** (`…_180x180_3dh`, `…_360`,
+  `…_MKX200`…) that DeoVR/Heresphere/Quest read, **plus injected Spherical Video
+  V2 metadata** (`st3d` + `sv3d`/`equi`) so box-reading players show it in 3D.
+  Validated end-to-end with ffprobe (Stereo 3D + Spherical Mapping).
+- ✅ **11 layouts** — 180/360 SBS·TB·mono, fisheye 190/200, MKX200/220, RF5.2;
+  tagged in `.mp4`/`.mov`. The MP4 injector streams the file (moov-only in RAM),
+  repairs `stco`/`co64`, is atomic (temp + fsync + `os.replace`), and bails
+  safely on fragmented / multi-sample-entry files it can't grow.
+- ✅ **Remembered per channel** — your layout correction is saved per uploader
+  and seeds future downloads from the same studio.
+
+### Download queue
+- ✅ **Persistent queue across sessions** *(was backlog)* — paste many links,
+  download them sequentially with per-item progress, **persist in localStorage**
+  (survives restarts), and **resume** interrupted items (yt-dlp continues the
+  `.part`). Opened from a header button (badged with the unfinished count),
+  replacing the old always-0/1 "active downloads" pill.
+
+### Robustness & fixes (from the codebase audit)
+- ✅ **Impersonate Chrome by default** — applied to every yt-dlp request so
+  anti-bot TLS fingerprinting stops blocking metadata + downloads (transparent
+  where unneeded), plus a tolerant extraction fallback and concurrent HLS/DASH
+  fragments.
+- ✅ **Proper combobox ARIA on the search field** *(was backlog)*.
+- ✅ **Hardened the thumbnail proxy** *(was backlog)* — pins the resolved IP to
+  close the DNS-rebinding/TOCTOU window.
+- ✅ **Settings input validation** (cookies-from-browser allowlist, proxy scheme).
+- ✅ **Real audio bitrate in history** — shows the probed bitrate (e.g.
+  `128 kbps`) instead of repeating the format.
+- ✅ **Download-size estimate** in the preview, when known.
+
 ## Phase 10 — Next (planned)
 
 The remaining features that fit the local / high-fidelity philosophy. No version
@@ -451,8 +489,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   folder + a dismiss, right on the completion card.
 - ✅ **Progress accessibility** *(in main)* — `role="progressbar"` + `aria-valuenow`,
   an `aria-live` status, and `role="status"` on the completed card.
-- ⬜ **Proper combobox ARIA on the search field** (M) — `role="combobox"`,
-  `aria-expanded`, `aria-activedescendant`.
+- ✅ **Proper combobox ARIA on the search field** *(v1.9.0)* — `role="combobox"`,
+  `aria-expanded`, `aria-controls`, per-option `aria-selected`.
 - ⬜ **First-run empty state** (S) — example URL, "type to search YouTube", link to
   supported sites.
 - ✅ **Taskbar / window-title progress** *(in main)* — `Yoink — 42%` in the title +
@@ -481,8 +519,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   REST+WS backend for scripts.
 - ⬜ **Browser extension "Download with Yoink"** (M) — context-menu → `yoink://`
   (avoids relaxing CORS).
-- ⬜ **Persistent queue across sessions** (M) — store pending items in SQLite and
-  resume on launch (no parallelism needed).
+- ✅ **Persistent queue across sessions** *(v1.9.0)* — paste many links; the
+  queue persists (localStorage) and resumes interrupted items on launch.
 - ⬜ **Subscriptions + scheduled downloads** (L) — follow a channel/playlist and
   auto-grab new items (PVR-style), with OPML import/export. Needs tray/autostart.
 - ⬜ **More distribution channels** — AUR `yoink-bin` (S), Flatpak/Flathub (M),
@@ -506,8 +544,8 @@ committed and not release-ordered — picked from as capacity allows. Effort tag
   which version shipped.
 - ⬜ **SQLite schema versioning** (S) — `PRAGMA user_version` + idempotent
   migrations before the history schema ever changes.
-- ⬜ **Harden the thumbnail proxy** (M) — pin the resolved IP to close a
-  DNS-rebinding/TOCTOU window (re-resolve between check and connect).
+- ✅ **Harden the thumbnail proxy** *(v1.9.0)* — pins the resolved IP (atomic
+  resolve-validate-connect) to close the DNS-rebinding/TOCTOU window.
 - ⬜ **More unit tests** (M) — the `_build_options` matrix and `_host_is_blocked`.
 - ⬜ **WebSocket open timeout** (S) — fail fast if the handshake hangs on a slow
   backend boot.

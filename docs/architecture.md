@@ -55,8 +55,10 @@ When the user clicks **Download**:
 
 1. Frontend opens `WS /api/ws/download` and sends a `DownloadRequest`: `kind`
    and `quality`, the output `container` (mp4/mov/mkv) or `audio_format`
-   (mp3/m4a/flac/wav), and the `embed_subs` / `subtitle_lang` / `embed_chapters`
-   options.
+   (mp3/m4a/flac/wav), the `embed_subs` / `subtitle_lang` / `embed_chapters`
+   options, an optional `trim_start`/`trim_end` range, and `is_vr`/`vr_layout`
+   to tag the output as immersive (projection name suffix + Spherical Video V2
+   metadata, via `services/vr.py`).
 2. Backend runs the yt-dlp job off-thread (`asyncio.to_thread`).
 3. yt-dlp `progress_hooks` emit percent / speed / ETA.
 4. Those events stream back over the same socket as typed events.

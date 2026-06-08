@@ -27,6 +27,7 @@ backend/
 │       ├── ytdlp_service.py    # typed yt-dlp metadata wrapper (extract_info, download=False)
 │       ├── download_service.py # yt-dlp download + typed progress stream
 │       ├── autotag_service.py  # Apple Music (iTunes) / Deezer / MusicBrainz lookup + mutagen tag/cover writing
+│       ├── vr.py               # VR detection + Spherical Video V2 (st3d/sv3d) tagging
 │       ├── history_store.py    # SQLite persistence (history + stats)
 │       ├── settings_store.py   # persisted user settings overrides
 │       └── updates.py          # GitHub release update check
