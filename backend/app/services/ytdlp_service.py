@@ -13,6 +13,7 @@ from yt_dlp.utils import DownloadError
 
 from app.core.ytdlp_options import network_options, normalize_url
 from app.services.threads_extractor import register as register_threads_ie
+from app.services.vr import detect_vr
 from app.models.media import (
     InfoResponse,
     MediaFormat,
@@ -212,6 +213,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
 
     source_lossless, best_audio_abr = _audio_summary(raw_formats)
     manual_subs = _subtitle_langs(info)
+    is_vr, vr_layout = detect_vr(info)
 
     return VideoInfo(
         id=str(info.get("id", "")),
@@ -229,6 +231,8 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         auto_caption_langs=_auto_caption_langs(info, manual_subs),
         has_chapters=bool(info.get("chapters")),
         audio_langs=_audio_langs(info),
+        is_vr=is_vr,
+        vr_layout=vr_layout,
     )
 
 
@@ -270,6 +274,11 @@ def _build_playlist(
         if entry is not None
     ]
 
+    # VR detection for a flat playlist relies on the playlist title/uploader (no
+    # per-item formats), so it's weaker than a single video's — the batch toggle
+    # lets the user confirm or correct it.
+    is_vr, vr_layout = detect_vr(info)
+
     return PlaylistInfo(
         id=str(info.get("id", "")),
         title=str(info.get("title") or "Playlist"),
@@ -281,6 +290,8 @@ def _build_playlist(
         truncated=len(entries) < total,
         source_lossless=source_lossless,
         best_audio_abr=best_audio_abr,
+        is_vr=is_vr,
+        vr_layout=vr_layout,
     )
 
 
@@ -338,14 +349,32 @@ def extract_info(url: str) -> InfoResponse:
         **network_options(),
     }
 
-    try:
-        with YoutubeDL(options) as ydl:
+    def _extract(opts: dict[str, Any]) -> dict[str, Any]:
+        with YoutubeDL(opts) as ydl:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             raw_info = ydl.extract_info(normalize_url(url), download=False)
             # sanitize_info makes the dict JSON-serializable and stable.
-            info = cast(dict[str, Any], ydl.sanitize_info(raw_info))
+            return cast(dict[str, Any], ydl.sanitize_info(raw_info))
+
+    try:
+        info = _extract(options)
     except DownloadError as exc:
-        raise MediaExtractionError(str(exc)) from exc
+        # Some sites (e.g. behind anti-bot HLS) expose formats the default
+        # selector rejects, raising "Requested format is not available" before
+        # we even see the metadata. Retry once tolerating that so the preview
+        # (and the VR badge) can still render; only the first try's failure
+        # surfaces if this one fails too.
+        try:
+            info = _extract({**options, "ignore_no_formats_error": True})
+        except DownloadError:
+            raise MediaExtractionError(str(exc)) from exc
+        # The tolerant retry can succeed but yield a single video with no usable
+        # formats — a preview that looks downloadable yet fails at download time.
+        # Surface the original error instead of that misleading state. Playlists
+        # (which carry entries, not top-level formats) are exempt.
+        is_single_video = info.get("_type") != "playlist" and info.get("entries") is None
+        if is_single_video and not info.get("formats"):
+            raise MediaExtractionError(str(exc)) from exc
 
     if not info:
         raise MediaExtractionError("yt-dlp returned no metadata for this URL.")

@@ -23,6 +23,7 @@ from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import network_options, normalize_url
 from app.services.threads_extractor import register as register_threads_ie
+from app.services.vr import apply_vr
 from app.models.media import (
     AudioFormat,
     CompletedEvent,
@@ -224,6 +225,9 @@ def _build_options(
         "retries": 10,
         "fragment_retries": 10,
         "extractor_retries": 3,
+        # Fetch HLS/DASH fragments in parallel — a big speed-up for segmented
+        # streams (common for VR and most platforms), with a modest cap.
+        "concurrent_fragment_downloads": 4,
         "outtmpl": str(download_dir / f"{name_template}.%(ext)s"),
         "progress_hooks": [hook],
         **network_options(),
@@ -389,7 +393,16 @@ async def download_events(
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
             info = ydl.sanitize_info(info)
-            return _final_path(info) or ydl.prepare_filename(info)
+            path = _final_path(info) or ydl.prepare_filename(info)
+            # Immersive (VR) tagging: add the projection name suffix + inject
+            # spherical metadata. Runs here on the worker thread (it rewrites the
+            # file) and updates the path so the completed event/history point at
+            # the renamed output. Video-only; best-effort.
+            if path and request.kind == "video" and request.is_vr:
+                file = Path(path)
+                if file.exists():
+                    path = str(apply_vr(file, request.vr_layout))
+            return path
 
     worker = asyncio.create_task(asyncio.to_thread(blocking))
 
