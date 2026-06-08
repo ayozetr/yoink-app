@@ -74,7 +74,13 @@ def test_normalize_url_tiktok_photo():
 
 
 def test_network_options(monkeypatch):
+    from app.core import ytdlp_options
     from app.core.config import settings
+
+    # Neutralize impersonation so the cookie/proxy logic can be asserted exactly
+    # (it's covered separately below); the cache means patching settings won't
+    # affect it, so patch the resolver itself.
+    monkeypatch.setattr(ytdlp_options, "_impersonate_target", lambda: None)
 
     monkeypatch.setattr(settings, "cookies_from_browser", None)
     monkeypatch.setattr(settings, "cookies_file", None)
@@ -97,6 +103,23 @@ def test_network_options(monkeypatch):
         "cookiefile": "/tmp/c.txt",
         "proxy": "socks5://127.0.0.1:1080",
     }
+
+
+def test_network_options_includes_impersonate(monkeypatch):
+    from app.core import ytdlp_options
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "cookies_from_browser", None)
+    monkeypatch.setattr(settings, "cookies_file", None)
+    monkeypatch.setattr(settings, "proxy", None)
+
+    # When a target is available it's passed through under "impersonate".
+    monkeypatch.setattr(ytdlp_options, "_impersonate_target", lambda: "CHROME")
+    assert network_options() == {"impersonate": "CHROME"}
+
+    # When unavailable (no curl_cffi) it's simply omitted.
+    monkeypatch.setattr(ytdlp_options, "_impersonate_target", lambda: None)
+    assert network_options() == {}
 
 
 def test_update_version_compare():
