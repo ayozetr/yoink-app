@@ -19,6 +19,10 @@ interface UrlInputProps {
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 400;
 
+// Stable ids wiring the combobox input to its listbox + options (ARIA).
+const LISTBOX_ID = "yoink-url-listbox";
+const optionId = (i: number) => `yoink-url-option-${i}`;
+
 // Small LRU cache of query -> results so re-typing or re-visiting a query
 // doesn't relaunch yt-dlp (~1s each).
 const cache = new Map<string, PlaylistEntry[]>();
@@ -74,6 +78,8 @@ export function UrlInput({
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
+  // Index of the option with real focus, for aria-selected (managed-focus combobox).
+  const [activeIdx, setActiveIdx] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -203,11 +209,16 @@ export function UrlInput({
             ref={inputRef}
             id="yoink-url-input"
             type="text"
+            role="combobox"
             aria-label={t("url.placeholder")}
+            aria-autocomplete="list"
+            aria-expanded={showDropdown}
+            aria-controls={showDropdown ? LISTBOX_ID : undefined}
             placeholder={t("url.placeholder")}
             value={value}
             onChange={(event) => handleChange(event.target.value)}
             onFocusCapture={() => {
+              setActiveIdx(-1);
               if (isSearch) setOpen(true);
             }}
             onKeyDown={(event) => {
@@ -237,7 +248,9 @@ export function UrlInput({
           {showDropdown && (
             <div
               ref={listRef}
+              id={LISTBOX_ID}
               role="listbox"
+              aria-label={t("url.placeholder")}
               className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-96 overflow-y-auto rounded-2xl border border-white/10 bg-[#1a1d27] p-1 shadow-xl"
             >
               {searching && results.length === 0 ? (
@@ -257,10 +270,12 @@ export function UrlInput({
                 results.map((entry, i) => (
                   <button
                     key={entry.id || entry.url}
+                    id={optionId(i)}
                     role="option"
-                    aria-selected={false}
+                    aria-selected={activeIdx === i}
                     type="button"
                     onClick={() => choose(entry)}
+                    onFocus={() => setActiveIdx(i)}
                     onKeyDown={(event) => {
                       const els = optionEls();
                       if (event.key === "ArrowDown") {

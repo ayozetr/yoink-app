@@ -7,6 +7,7 @@ Fetching the image server-side and re-serving it from localhost sidesteps that.
 
 from __future__ import annotations
 
+import http.client
 import ipaddress
 import socket
 import urllib.error
@@ -34,6 +35,22 @@ _CACHE_CONTROL = "public, max-age=86400"
 _MAX_BYTES = 16 * 1024 * 1024  # 16 MB — generous for any real thumbnail
 
 
+def _ip_is_public(ip_str: str) -> bool:
+    """True if a textual IP is a routable public address (not internal)."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False
+    return not (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
+        or ip.is_unspecified
+    )
+
+
 def _host_is_blocked(hostname: str | None) -> bool:
     """True if the host resolves to (or is) a non-public address.
 
@@ -41,6 +58,7 @@ def _host_is_blocked(hostname: str | None) -> bool:
     reserved targets. This stops the proxy from being abused for SSRF — e.g. a
     web page open in the user's browser hitting `localhost:8756/api/thumbnail`
     to probe `127.0.0.1`, the cloud metadata endpoint, or other internal hosts.
+    Blocks the host if *any* resolved address is non-public.
     """
     if not hostname:
         return True
@@ -48,25 +66,63 @@ def _host_is_blocked(hostname: str | None) -> bool:
         infos = socket.getaddrinfo(hostname, None)
     except (socket.gaierror, UnicodeError, OSError):
         return True
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-            or ip.is_unspecified
-        ):
-            return True
-    return False
+    return not all(_ip_is_public(info[4][0]) for info in infos)
+
+
+def _resolve_pinned(host: str, port: int | None) -> list[Any]:
+    """Resolve to validated public addrinfos, or [] if any is non-public/none."""
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (socket.gaierror, UnicodeError, OSError):
+        return []
+    if not infos or not all(_ip_is_public(info[4][0]) for info in infos):
+        return []
+    return infos
+
+
+# Connections that resolve, re-validate, and connect to the validated IP in one
+# step — closing the TOCTOU/DNS-rebinding window between the up-front host check
+# and the actual socket connect (a host whose DNS flips to 127.0.0.1 mid-request
+# can't slip through, because the address used to connect is the one validated).
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    def connect(self) -> None:
+        infos = _resolve_pinned(self.host, self.port)
+        if not infos:
+            raise OSError("host resolves to a disallowed address")
+        self.sock = socket.create_connection(
+            infos[0][4][:2], self.timeout, self.source_address
+        )
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self) -> None:
+        infos = _resolve_pinned(self.host, self.port)
+        if not infos:
+            raise OSError("host resolves to a disallowed address")
+        sock = socket.create_connection(
+            infos[0][4][:2], self.timeout, self.source_address
+        )
+        # Keep SNI/cert validation against the real hostname, not the IP.
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+
+class _PinnedHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req: urllib.request.Request) -> Any:
+        return self.do_open(_PinnedHTTPConnection, req)
+
+
+class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req: urllib.request.Request) -> Any:
+        return self.do_open(_PinnedHTTPSConnection, req)
 
 
 class _SafeRedirects(urllib.request.HTTPRedirectHandler):
     """Re-validate scheme + host on every redirect hop.
 
     urllib only checks the initial URL, so a public URL that 302-redirects to an
-    internal address would otherwise defeat the up-front guard.
+    internal address would otherwise defeat the up-front guard. (The pinned
+    connections re-validate at connect time too; this rejects early with a clear
+    error and blocks non-http schemes.)
     """
 
     def redirect_request(
@@ -86,7 +142,9 @@ class _SafeRedirects(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-_opener = urllib.request.build_opener(_SafeRedirects())
+_opener = urllib.request.build_opener(
+    _PinnedHTTPHandler, _PinnedHTTPSHandler, _SafeRedirects
+)
 
 
 @router.get(
