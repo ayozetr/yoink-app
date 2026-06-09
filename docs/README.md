@@ -8,7 +8,8 @@ This folder holds the project's design docs and explanations.
 | [frontend.md](frontend.md) | Frontend structure, components, conventions |
 | [backend.md](backend.md) | Backend structure, the yt-dlp wrapper, the API |
 | [yt-dlp.md](yt-dlp.md) | yt-dlp reference: how it works, dependencies, the Python embedding API |
-| [ROADMAP.md](ROADMAP.md) | What's done and what's next |
+| [ROADMAP.md](ROADMAP.md) | Forward-looking plan: status, what's shipped (by area), what's next, and the vetted backlog |
+| [PLAN.md](PLAN.md) | Tactical improvement plan from the whole-app audit: verified bugs, UX/field redistribution, accessibility, performance and polish, phased by value/effort |
 | [releasing.md](releasing.md) | Cutting a versioned release (Linux + Windows), bundling ffmpeg, and packaged-app troubleshooting |
 | [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) | Attribution for bundled software (ffmpeg LGPL, yt-dlp) |
 
