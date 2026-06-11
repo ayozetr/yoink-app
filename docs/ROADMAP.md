@@ -11,7 +11,9 @@
 
 ## 📍 Status
 
-- **Current release:** **v1.9.0** — immersive VR tagging + a persistent download queue.
+- **Current release:** **v1.9.1** — hardening + polish: SSRF fix, sharper audio
+  auto-tagging, resilient `/api/info`, queue parity (VR auto-detect + format
+  defaults), and accessibility/i18n fixes. (v1.9.0: immersive VR + the queue.)
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
 - **Health:** backend (pytest) + frontend (vitest) green · `npm audit` 0 · strict TS.
