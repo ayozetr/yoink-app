@@ -103,6 +103,12 @@ export const es = {
     clearDone: "Limpiar completadas",
     remove: "Quitar de la cola",
   },
+  spotify: {
+    label: "Importar de Spotify",
+    truncated: "(solo los temas que expone el embed)",
+    hint: "El audio de Spotify no se puede bajar directamente — cada tema se busca en YouTube, se descarga y se etiqueta con los metadatos de Spotify.",
+    import: "Importar {{count}} como audio",
+  },
   autotag: {
     title: "Etiquetar audio",
     close: "Cerrar",

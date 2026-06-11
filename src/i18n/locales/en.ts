@@ -103,6 +103,12 @@ export const en = {
     clearDone: "Clear finished",
     remove: "Remove from queue",
   },
+  spotify: {
+    label: "Spotify import",
+    truncated: "(only the tracks the embed exposes)",
+    hint: "Spotify audio can't be downloaded directly — each track is matched on YouTube, downloaded, and tagged with the Spotify metadata.",
+    import: "Import {{count}} as audio",
+  },
   autotag: {
     title: "Tag audio",
     close: "Close",

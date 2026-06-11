@@ -9,7 +9,9 @@ import { DownloadProgressCard } from "./components/DownloadProgressCard";
 import { AutoTagPanel } from "../autotag/AutoTagPanel";
 import { AutoTagBatchPanel } from "../autotag/AutoTagBatchPanel";
 import { GlassPanel } from "../../components/ui/GlassPanel";
-import { fetchInfo, ApiError } from "../../lib/api";
+import { fetchInfo, isSpotifyUrl, resolveSpotify, ApiError } from "../../lib/api";
+import { SpotifyImportCard } from "../spotify/SpotifyImportCard";
+import type { SpotifyImportInfo } from "../../types/spotify";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
 import { setWindowProgress } from "../../lib/windowProgress";
 import { notify } from "../../lib/notify";
@@ -17,6 +19,7 @@ import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
   DownloadRequest,
+  AudioFormat,
   InfoResponse,
   MediaKind,
   PlaylistEntry,
@@ -34,6 +37,7 @@ interface DownloaderPanelProps {
   /** Default media kind / quality from settings, used to seed the selectors. */
   defaultKind?: MediaKind;
   defaultQuality?: string;
+  defaultAudioFormat?: AudioFormat;
 }
 
 interface DownloadJob {
@@ -69,10 +73,12 @@ export function DownloaderPanel({
   queueOpen,
   defaultKind,
   defaultQuality,
+  defaultAudioFormat,
 }: DownloaderPanelProps) {
   const { t } = useTranslation();
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<InfoResponse | null>(null);
+  const [spotifyInfo, setSpotifyInfo] = useState<SpotifyImportInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -232,11 +238,17 @@ export function DownloaderPanel({
     resetDownload();
 
     try {
-      const result = await fetchInfo(trimmed, controller.signal);
-      setInfo(result);
+      if (isSpotifyUrl(trimmed)) {
+        setInfo(null);
+        setSpotifyInfo(await resolveSpotify(trimmed, controller.signal));
+      } else {
+        setSpotifyInfo(null);
+        setInfo(await fetchInfo(trimmed, controller.signal));
+      }
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
       setInfo(null);
+      setSpotifyInfo(null);
       setError(
         cause instanceof ApiError
           ? cause.status === 503
@@ -356,6 +368,15 @@ export function DownloaderPanel({
           busy={downloading}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
+        />
+      )}
+
+      {spotifyInfo && (
+        <SpotifyImportCard
+          key={spotifyInfo.name}
+          info={spotifyInfo}
+          defaultAudioFormat={defaultAudioFormat}
+          onDownloadFinished={onDownloadFinished}
         />
       )}
 

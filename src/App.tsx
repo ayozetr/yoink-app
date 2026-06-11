@@ -147,6 +147,7 @@ export default function App() {
               queueOpen={queueOpen}
               defaultKind={settings?.default_kind}
               defaultQuality={settings?.default_quality}
+              defaultAudioFormat={settings?.default_audio_format}
             />
             <QueuePanel
               open={queueOpen}
