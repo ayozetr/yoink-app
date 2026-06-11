@@ -90,6 +90,15 @@ The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
 Not committed and not release-ordered — picked from as capacity allows.
 
 ### 🎬 Download & conversion
+- ⬜ **Import from Spotify** (M) — paste a Spotify track/album/playlist URL →
+  scrape its metadata from the **public embed page** (title/artist/album/cover —
+  **no API key**, same pattern as the Threads extractor), then download each
+  track from YouTube (yt-dlp) and auto-tag it. Keyless by design (the official
+  Spotify API needs embeddable credentials we won't ship); more fragile than the
+  API (a Spotify page change needs an extractor update), with an optional
+  "bring-your-own-credentials" Settings fallback for robustness. Pairs perfectly
+  with the existing auto-tagger. *(The `spotify/save-to-spotify` repo does the
+  opposite — uploads audio to Spotify — so it doesn't apply.)*
 - ⬜ **Search beyond YouTube** (S/M) — platform selector (SoundCloud/Bilibili…),
   switching the search prefix (`ytsearch`→`scsearch`); infra already exists.
 - ⬜ **Split by chapters** (M) — one file per chapter (`--split-chapters`).
@@ -103,7 +112,39 @@ Not committed and not release-ordered — picked from as capacity allows.
 - ⬜ **Download presets/profiles** (M) — named option bundles, one click.
 - ⬜ **Library subfolders** (M) — path templates (`%(uploader)s/%(title)s`).
 
+### 📋 Playlists
+*Surfaced testing real YouTube Music "Hits" mixes (`RD…`) and curated `PL` lists —
+extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
+`truncated` flag); these are curation/scale/persistence gaps.*
+- ⬜ **Persistent playlist downloads** (M · **high**) — a playlist batch runs through
+  the in-panel flow (`DownloaderPanel` `startQueue`/`runJob`), **not** the
+  persistent queue, so a 144-track download has **no resume**: closing /
+  refreshing / a crash loses all progress. Route playlist batches through the
+  persistent queue (or persist the batch + offer resume). The standout gap for
+  big lists; overlaps with *Resume partial downloads* and the engine-unify big bet.
+- ⬜ **Filter/search within the entry list** (S) — up to 200 items scroll in a fixed
+  `max-h` box with no filter; add a "filter tracks…" input to narrow the list.
+- ⬜ **Range + smarter selection** (S) — only select-all/none today; add shift-click
+  range selection (and maybe "select first N").
+- ⬜ **Batch totals** (S) — show the selection's total duration + a rough size
+  estimate (reuse `estimatedSizeBytes`): e.g. "23 tracks · 1h 18m · ~280 MB".
+- ⬜ **Audio-first for music playlists** (S) — YT Music mixes (`RD…`/`OLAK…` list ids
+  or `music.youtube.com`) are music-intent; default `kind` to **audio** for them
+  instead of video.
+- ⬜ **Lazy-load / virtualize the entry thumbnails** (S/M) — up to 200 `<Thumbnail>`
+  fire ~200 proxy requests at once on render; `loading="lazy"` or virtualize.
+- ⬜ **Per-item retry in the batch summary** (S) — when some tracks fail, retry just
+  those (the single-job retry exists; extend it per failed playlist item).
+
 ### 🎵 Audio library
+- ⬜ **Auto-tag title parsing for non-Western formats** (M) — the filename noise
+  stripper now cleans **~93%** of real popular-playlist titles (English/Spanish/
+  French "(Official Video)/(Vídeo Oficial)/(Clip officiel)", a "| album/label"
+  suffix, "M/V", wrapping quotes, "(Explicit)"). The ~7% tail that still leaks has
+  **no "Artist - Title" structure** — K-pop (`ARTIST 'TITLE' MV`), Bollywood
+  (`Song | Movie | Cast`), quoted-title headers — so artist/title can't be split
+  reliably. Needs format-aware heuristics (or fingerprint-based identify);
+  meanwhile the manual edit/search in the tag card covers it.
 - ⬜ **Embed source thumbnail as cover** on audio (S).
 - ⬜ **Lyrics in auto-tagging** (L) — LRCLIB (free, no key).
 - ⬜ **Media-server naming presets** (S) — Jellyfin/Plex/Navidrome layouts.
