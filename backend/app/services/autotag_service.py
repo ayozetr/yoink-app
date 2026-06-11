@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import mutagen
@@ -28,6 +28,7 @@ from mutagen.mp4 import MP4, MP4Cover
 from mutagen.wave import WAVE
 
 from app.core.config import settings
+from app.core.safe_http import SafeHTTPError, fetch_public
 from app.models.autotag import (
     ApplyRequest,
     ApplyResponse,
@@ -373,18 +374,20 @@ def extract_cover(path: Path) -> tuple[bytes, str] | None:
 
 
 def _fetch_cover(url: str) -> tuple[bytes, str] | None:
-    """Download cover art bytes + content-type (None on any failure)."""
-    # Only http(s): urlopen also honors file:// / ftp://, so an attacker-supplied
-    # cover_url could otherwise read a local file or hit an internal host (SSRF).
-    if urlparse(url).scheme not in ("https", "http"):
-        return None
+    """Download cover art bytes + content-type (None on any failure).
+
+    The ``cover_url`` is client-supplied, so this goes through the SSRF-safe
+    fetcher: only public http(s) hosts, the connection pinned to the validated
+    IP, redirects re-validated, and the read capped — the same guard as the
+    thumbnail proxy. A plain urlopen here was an internal-host read/probe
+    primitive (the bytes get embedded and are re-servable via /api/cover).
+    """
     try:
-        request = Request(url, headers={"User-Agent": _USER_AGENT})  # noqa: S310 — http(s) art url
-        with urlopen(request, timeout=15) as resp:  # noqa: S310
-            data = resp.read()
-            return data, (resp.headers.get_content_type() or "image/jpeg")
-    except (URLError, OSError):
+        data, content_type = fetch_public(url, headers={"User-Agent": _USER_AGENT})
+    except SafeHTTPError:
         return None
+    # Tag writers want an image mime; fall back to jpeg if the server was vague.
+    return data, content_type if content_type.startswith("image/") else "image/jpeg"
 
 
 def _write_tags(
