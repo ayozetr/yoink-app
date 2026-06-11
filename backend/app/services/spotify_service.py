@@ -55,8 +55,32 @@ def _parse_url(url: str) -> tuple[SpotifyKind, str]:
     return cast(SpotifyKind, match.group(1).lower()), match.group(2)
 
 
-def _fetch_entity(kind: SpotifyKind, spotify_id: str) -> dict[str, Any]:
-    """Scrape the public embed page and return its `entity` JSON object."""
+def _find_key(obj: Any, key: str, depth: int = 0) -> str | None:
+    """First string value for `key` anywhere in a nested dict/list (bounded)."""
+    if depth > 7:
+        return None
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == key and isinstance(v, str) and v:
+                return v
+            found = _find_key(v, key, depth + 1)
+            if found:
+                return found
+    elif isinstance(obj, list):
+        for v in obj[:5]:
+            found = _find_key(v, key, depth + 1)
+            if found:
+                return found
+    return None
+
+
+def _fetch_embed(kind: SpotifyKind, spotify_id: str) -> tuple[dict[str, Any], str | None]:
+    """Scrape the public embed page → its `entity` object + the anon access token.
+
+    The embed's `__NEXT_DATA__` carries an anonymous web-player access token,
+    which lets us page the *full* tracklist (the embed itself caps it). Returns
+    ``(entity, token)``; token is None if absent.
+    """
     embed = f"https://open.spotify.com/embed/{kind}/{spotify_id}"
     try:
         request = Request(embed, headers={"User-Agent": _USER_AGENT})  # noqa: S310
@@ -75,7 +99,73 @@ def _fetch_entity(kind: SpotifyKind, spotify_id: str) -> dict[str, Any]:
         raise SpotifyError("Could not parse the Spotify embed metadata.") from exc
     if not isinstance(entity, dict):
         raise SpotifyError("Unexpected Spotify embed metadata.")
-    return entity
+    return entity, _find_key(data, "accessToken")
+
+
+def _fetch_all_tracks(
+    kind: SpotifyKind, spotify_id: str, token: str
+) -> list[dict[str, Any]] | None:
+    """Page the *full* album/playlist tracklist via the anonymous token.
+
+    Returns the raw Spotify API track items, or None on any failure (rate limit,
+    network, shape change) — the caller falls back to the embed's capped list.
+    """
+    base = "playlists" if kind == "playlist" else "albums"
+    items: list[dict[str, Any]] = []
+    offset = 0
+    try:
+        while offset < 2000:  # safety cap
+            url = (
+                f"https://api.spotify.com/v1/{base}/{spotify_id}/tracks"
+                f"?limit=50&offset={offset}"
+            )
+            req = Request(  # noqa: S310 — fixed api host
+                url,
+                headers={
+                    "User-Agent": _USER_AGENT,
+                    "Authorization": f"Bearer {token}",
+                },
+            )
+            with urlopen(req, timeout=15) as resp:  # noqa: S310
+                page = json.loads(resp.read())
+            page_items = page.get("items") or []
+            items.extend(page_items)
+            if not page.get("next") or not page_items:
+                break
+            offset += len(page_items)
+        return items or None
+    except (URLError, OSError, ValueError):
+        return None
+
+
+def _track_from_api(
+    item: dict[str, Any], kind: SpotifyKind, album_entity: dict[str, Any]
+) -> SpotifyTrack | None:
+    """Build a SpotifyTrack from a full Spotify API track item."""
+    track = item.get("track") if kind == "playlist" else item
+    if not isinstance(track, dict) or not track.get("name"):
+        return None
+    album = track.get("album") or {}
+    images = album.get("images") or []
+    if kind == "playlist":
+        album_name = album.get("name")
+        year = (album.get("release_date") or "")[:4] or None
+        cover = images[0].get("url") if images else None
+    else:  # album: every track shares the album's name/year/cover
+        album_name = album_entity.get("name")
+        year = _year_of(album_entity)
+        cover = _cover_of(album_entity)
+    track_id = track.get("id") or ""
+    return SpotifyTrack(
+        title=track["name"],
+        artists=", ".join(a.get("name", "") for a in track.get("artists", []) if a.get("name")),
+        duration_ms=track.get("duration_ms"),
+        is_explicit=bool(track.get("explicit")),
+        album=album_name,
+        year=year,
+        cover_url=cover,
+        spotify_url=f"https://open.spotify.com/track/{track_id}" if track_id else "",
+    )
 
 
 def _cover_of(entity: dict[str, Any]) -> str | None:
@@ -112,7 +202,7 @@ def resolve_spotify(url: str) -> SpotifyImportInfo:
         SpotifyError: on a bad URL or an unreadable/changed embed page.
     """
     kind, spotify_id = _parse_url(url)
-    entity = _fetch_entity(kind, spotify_id)
+    entity, token = _fetch_embed(kind, spotify_id)
     cover = _cover_of(entity)
 
     if kind == "track":
@@ -131,24 +221,40 @@ def resolve_spotify(url: str) -> SpotifyImportInfo:
             type="track", name=track.title, cover_url=cover, tracks=[track]
         )
 
-    raw_tracks = entity.get("trackList") or []
-    tracks: list[SpotifyTrack] = []
-    for item in raw_tracks:
-        if not isinstance(item, dict) or not item.get("title"):
-            continue
-        tracks.append(
-            SpotifyTrack(
-                title=item.get("title", ""),
-                artists=item.get("subtitle", "") or "",
-                duration_ms=item.get("duration"),
-                is_explicit=bool(item.get("isExplicit")),
-                cover_url=cover,  # per-track art isn't in the embed; use the set's
-                spotify_url=_uri_to_url(item.get("uri", "")),
+    # Albums/playlists: try the FULL tracklist via the anonymous token (the embed
+    # only exposes its first page), falling back to that page if unavailable.
+    api_items = _fetch_all_tracks(kind, spotify_id, token) if token else None
+    if api_items:
+        tracks = [
+            built
+            for built in (_track_from_api(it, kind, entity) for it in api_items)
+            if built is not None
+        ]
+        truncated = False
+    else:
+        # An album shares one name + release year across its tracks (the embed's
+        # per-track entries don't carry them); a playlist is heterogeneous.
+        album_name = entity.get("name") if kind == "album" else None
+        album_year = _year_of(entity) if kind == "album" else None
+        tracks = []
+        for item in entity.get("trackList") or []:
+            if not isinstance(item, dict) or not item.get("title"):
+                continue
+            tracks.append(
+                SpotifyTrack(
+                    title=item.get("title", ""),
+                    artists=item.get("subtitle", "") or "",
+                    duration_ms=item.get("duration"),
+                    is_explicit=bool(item.get("isExplicit")),
+                    album=album_name,
+                    year=album_year,
+                    cover_url=cover,
+                    spotify_url=_uri_to_url(item.get("uri", "")),
+                )
             )
-        )
-    # The embed exposes only the first page of a large playlist.
-    total = entity.get("trackCount") or entity.get("totalCount")
-    truncated = bool(isinstance(total, int) and total > len(tracks))
+        # We only have the embed's first page; flag a likely cap on big lists.
+        truncated = len(tracks) >= 100
+
     return SpotifyImportInfo(
         type=kind,
         name=entity.get("name") or entity.get("title") or "",

@@ -44,7 +44,7 @@ def test_parse_non_spotify_raises():
 
 
 def test_resolve_track(monkeypatch):
-    monkeypatch.setattr(svc, "_fetch_entity", lambda kind, sid: _TRACK_ENTITY)
+    monkeypatch.setattr(svc, "_fetch_embed", lambda kind, sid: (_TRACK_ENTITY, None))
     info = svc.resolve_spotify("https://open.spotify.com/track/abc?si=x")
     assert info.type == "track" and len(info.tracks) == 1
     t = info.tracks[0]
@@ -57,7 +57,7 @@ def test_resolve_track(monkeypatch):
 
 
 def test_resolve_playlist(monkeypatch):
-    monkeypatch.setattr(svc, "_fetch_entity", lambda kind, sid: _PLAYLIST_ENTITY)
+    monkeypatch.setattr(svc, "_fetch_embed", lambda kind, sid: (_PLAYLIST_ENTITY, None))
     info = svc.resolve_spotify("https://open.spotify.com/playlist/xyz")
     assert info.type == "playlist" and info.name == "Today's Top Hits"
     assert info.cover_url == "http://cover"
@@ -83,12 +83,35 @@ _ALBUM_ENTITY = {
 
 
 def test_resolve_album_sets_album_name_and_year(monkeypatch):
-    monkeypatch.setattr(svc, "_fetch_entity", lambda kind, sid: _ALBUM_ENTITY)
+    monkeypatch.setattr(svc, "_fetch_embed", lambda kind, sid: (_ALBUM_ENTITY, None))
     info = svc.resolve_spotify("https://open.spotify.com/album/abc")
     assert info.type == "album"
     # Every track inherits the album's name + release year.
     assert all(t.album == "Me Muevo Con Dios" for t in info.tracks)
     assert all(t.year == "2022" for t in info.tracks)
+
+
+def test_resolve_playlist_via_api_token(monkeypatch):
+    # When the anonymous token works, the FULL tracklist comes from the API with
+    # richer per-track metadata (album/year/cover), and truncated is False.
+    monkeypatch.setattr(
+        svc, "_fetch_embed", lambda kind, sid: ({"type": "playlist", "name": "Big PL"}, "tok")
+    )
+    api_items = [
+        {"track": {"name": "T1", "duration_ms": 200000, "explicit": False,
+                   "artists": [{"name": "A1"}], "id": "id1",
+                   "album": {"name": "Alb1", "release_date": "2020-01-01",
+                             "images": [{"url": "http://c1"}]}}},
+        {"track": {"name": "T2", "duration_ms": 180000, "artists": [{"name": "A2"}],
+                   "id": "id2", "album": {"name": "Alb2", "release_date": "2019"}}},
+        {"track": None},  # skipped
+    ]
+    monkeypatch.setattr(svc, "_fetch_all_tracks", lambda kind, sid, tok: api_items)
+    info = svc.resolve_spotify("https://open.spotify.com/playlist/big")
+    assert info.truncated is False
+    assert [t.title for t in info.tracks] == ["T1", "T2"]
+    assert info.tracks[0].album == "Alb1" and info.tracks[0].year == "2020"
+    assert info.tracks[0].cover_url == "http://c1"
 
 
 def test_find_youtube_match_wires_search_to_ranker(monkeypatch):
