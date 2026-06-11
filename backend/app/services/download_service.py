@@ -23,7 +23,7 @@ from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import network_options, normalize_url
 from app.services.threads_extractor import register as register_threads_ie
-from app.services.vr import apply_vr
+from app.services.vr import apply_vr, detect_vr
 from app.models.media import (
     AudioFormat,
     CompletedEvent,
@@ -324,12 +324,17 @@ def _build_options(
         if postprocessors:
             options["postprocessors"] = postprocessors
 
-    # Trim / clip: download only the requested time range (audio and video). An
-    # open end (no trim_end) runs to the end; force_keyframes_at_cuts re-encodes
-    # cleanly at the marks instead of snapping to the nearest keyframe.
-    if request.trim_start or request.trim_end is not None:
-        start = request.trim_start or 0.0
-        end = request.trim_end if request.trim_end is not None else float("inf")
+    # Trim / clip: download only the requested time range (audio and video).
+    # Treat a non-positive or inverted trim_end as "no end" so a stray 0 (or a UI
+    # reset to 0) can't request a zero-length range that yields an empty file;
+    # force_keyframes_at_cuts re-encodes cleanly at the marks.
+    start = request.trim_start or 0.0
+    end = (
+        request.trim_end
+        if (request.trim_end is not None and request.trim_end > start)
+        else float("inf")
+    )
+    if start > 0 or end != float("inf"):
         options["download_ranges"] = download_range_func(None, [(start, end)])
         options["force_keyframes_at_cuts"] = True
 
@@ -397,11 +402,21 @@ async def download_events(
             # Immersive (VR) tagging: add the projection name suffix + inject
             # spherical metadata. Runs here on the worker thread (it rewrites the
             # file) and updates the path so the completed event/history point at
-            # the renamed output. Video-only; best-effort.
-            if path and request.kind == "video" and request.is_vr:
-                file = Path(path)
-                if file.exists():
-                    path = str(apply_vr(file, request.vr_layout))
+            # the renamed output. Video-only; best-effort. The main panel sets
+            # is_vr + vr_layout explicitly; the queue sets auto_vr (it has no
+            # preview), so detect from the downloaded info and tag only if found.
+            if path and request.kind == "video":
+                layout: str | None = None
+                if request.is_vr:
+                    layout = request.vr_layout
+                elif request.auto_vr:
+                    detected, detected_layout = detect_vr(info)
+                    if detected:
+                        layout = detected_layout
+                if layout is not None:
+                    file = Path(path)
+                    if file.exists():
+                        path = str(apply_vr(file, layout))
             return path
 
     worker = asyncio.create_task(asyncio.to_thread(blocking))

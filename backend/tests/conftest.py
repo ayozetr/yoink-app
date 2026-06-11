@@ -23,6 +23,8 @@ def temp_dirs(tmp_path, monkeypatch):
     # is reverted at teardown and never leaks into other tests.
     monkeypatch.setattr(settings, "default_kind", settings.default_kind)
     monkeypatch.setattr(settings, "default_quality", settings.default_quality)
+    monkeypatch.setattr(settings, "default_container", settings.default_container)
+    monkeypatch.setattr(settings, "default_audio_format", settings.default_audio_format)
     monkeypatch.setattr(settings, "cookies_from_browser", settings.cookies_from_browser)
     monkeypatch.setattr(settings, "cookies_file", settings.cookies_file)
     monkeypatch.setattr(settings, "proxy", settings.proxy)

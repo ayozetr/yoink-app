@@ -28,6 +28,10 @@ def _apply(data: dict[str, Any]) -> None:
         settings.default_kind = data["default_kind"]
     if data.get("default_quality"):
         settings.default_quality = str(data["default_quality"])
+    if data.get("default_container") in ("mp4", "mov", "mkv"):
+        settings.default_container = data["default_container"]
+    if data.get("default_audio_format") in ("mp3", "m4a", "flac", "wav"):
+        settings.default_audio_format = data["default_audio_format"]
 
     settings.cookies_from_browser = data.get("cookies_from_browser") or None
     cookies_file = data.get("cookies_file")
@@ -70,6 +74,8 @@ def get_current() -> AppSettings:
         download_dir=str(settings.download_dir),
         default_kind=settings.default_kind,
         default_quality=settings.default_quality,
+        default_container=settings.default_container,
+        default_audio_format=settings.default_audio_format,
         cookies_from_browser=settings.cookies_from_browser,
         cookies_file=str(settings.cookies_file) if settings.cookies_file else None,
         proxy=settings.proxy,

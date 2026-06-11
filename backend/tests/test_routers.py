@@ -51,6 +51,19 @@ def test_info_extraction_error(monkeypatch):
     assert "nope" in response.json()["detail"]
 
 
+def test_info_transient_error_maps_to_503(monkeypatch):
+    from app.services.ytdlp_service import MediaExtractionError
+
+    def boom(url):
+        raise MediaExtractionError("HTTP Error 403: Forbidden", transient=True)
+
+    monkeypatch.setattr("app.routers.info.extract_info", boom)
+    response = client.post("/api/info", json={"url": "https://youtu.be/x"})
+    assert response.status_code == 503
+    # Friendly, retryable message — not the raw yt-dlp error.
+    assert "temporarily unavailable" in response.json()["detail"].lower()
+
+
 def test_history_list_and_clear(history_db):
     history_store.add_entry(
         title="One", url="http://x", kind="audio", status="completed", filesize=100
@@ -76,6 +89,8 @@ def test_settings_get_and_put(temp_dirs):
         **body,
         "default_kind": "audio",
         "default_quality": "480p",
+        "default_container": "mkv",
+        "default_audio_format": "flac",
         "cookies_from_browser": "firefox",
         "cookies_file": None,
         "download_dir": str(temp_dirs / "dl"),
@@ -88,6 +103,8 @@ def test_settings_get_and_put(temp_dirs):
     saved = client.put("/api/settings", json=payload)
     assert saved.status_code == 200
     assert saved.json()["default_kind"] == "audio"
+    assert saved.json()["default_container"] == "mkv"
+    assert saved.json()["default_audio_format"] == "flac"
     assert saved.json()["cookies_from_browser"] == "firefox"
     assert saved.json()["filename_template"] == "%(uploader)s - %(title)s"
     assert saved.json()["rate_limit"] == "1M"

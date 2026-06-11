@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     # User-editable defaults (persisted via the settings store / settings UI).
     default_kind: Literal["video", "audio"] = "video"
     default_quality: str = "best"
+    # Default output container/audio format — used to seed the cards and as the
+    # queue's per-item format (the queue has no per-item picker).
+    default_container: Literal["mp4", "mov", "mkv"] = "mp4"
+    default_audio_format: Literal["mp3", "m4a", "flac", "wav"] = "mp3"
 
     # Filename template (the name part; ".%(ext)s" is appended at download time).
     # yt-dlp outtmpl fields, e.g. "%(title)s" or "%(uploader)s - %(title)s".

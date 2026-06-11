@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, model_validator
 
 MediaKind = Literal["video", "audio"]
 HistoryStatus = Literal["completed", "error"]
@@ -215,6 +215,31 @@ class DownloadRequest(BaseModel):
         default="180_sbs",
         description="Stereo/projection layout to tag with when is_vr is set.",
     )
+    auto_vr: bool = Field(
+        default=False,
+        description=(
+            "Auto-detect VR during the download and tag it if found. Used by the "
+            "queue, which has no preview/analysis step (the main panel sets is_vr "
+            "explicitly instead). Ignored when is_vr is already set."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_trim_range(self) -> "DownloadRequest":
+        """Reject an inverted clip range up front (deterministic 422).
+
+        ``trim_start``/``trim_end`` are each ``ge=0`` but nothing else stops
+        ``trim_start=100, trim_end=10``, which would feed yt-dlp a degenerate
+        range and surface as a generic download error. A bare ``trim_end=0`` (no
+        start) is left to the download layer, which treats it as "no end".
+        """
+        if (
+            self.trim_start is not None
+            and self.trim_end is not None
+            and self.trim_end <= self.trim_start
+        ):
+            raise ValueError("trim_end must be greater than trim_start")
+        return self
 
 
 class ProgressEvent(BaseModel):
@@ -278,6 +303,12 @@ class AppSettings(BaseModel):
     default_kind: MediaKind = Field(default="video", description="Default media kind.")
     default_quality: str = Field(
         default="best", description="Default video quality ('best' = no cap)."
+    )
+    default_container: VideoContainer = Field(
+        default="mp4", description="Default video container (also the queue's)."
+    )
+    default_audio_format: AudioFormat = Field(
+        default="mp3", description="Default audio format (also the queue's)."
     )
     cookies_from_browser: str | None = Field(
         default=None, description="Browser to read cookies from (e.g. 'firefox')."
