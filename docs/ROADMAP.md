@@ -48,7 +48,15 @@ Video V2** (`st3d`/`sv3d`) into MP4/MOV, **per-channel** layout memory, batch on
 - **History + stats** (SQLite): rich rows (time/format/size/quality), cover art,
   open file/folder, clear.
 
-**📋 Queue** *(v1.9.0)* — persistent, sequential, **resumes** interrupted items.
+**📋 Queue** *(v1.9.0)* — persistent, sequential, **resumes** interrupted items;
+honors your **default container / audio format** and **auto-detects + tags VR**
+per item *(v1.9.1)*.
+
+**🛡️ Hardening** *(v1.9.1)* — SSRF-safe auto-tag cover fetch (shared guard),
+resilient `/api/info` (transient-aware retry → 503 vs 422 vs a permanent error),
+**WAL** history under the concurrent queue, trim-range guards, and much sharper
+auto-tag title parsing (ES/FR/JP + CJK/K-pop noise, validated on ~600 real
+playlist titles).
 
 **Settings** — download dir, defaults, filename template, bandwidth limit, proxy
 (http/socks), cookies (browser + icons / `cookies.txt`), SponsorBlock, language,
@@ -65,25 +73,21 @@ validation), strict TS + tests.
 ## 🎯 Next up — toward v1.10
 
 The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
+*(Queue ↔ feature parity — VR + format defaults — shipped in v1.9.1.)*
 
-1. **Queue ↔ feature parity** (M · **high**) — the new queue ignores VR and the
-   advanced options: it hardcodes `mp4`/`mp3` and never sends
-   `is_vr`/`vr_layout`/subs/chapters/trim, so a queued immersive URL downloads as
-   **flat video**. Give each queued item the same controls (or a shared per-queue
-   config). *The most concrete functional gap right now.*
-2. **Backend logging & observability** (M · **high**) — there is **zero** logging
+1. **Backend logging & observability** (M · **high**) — there is **zero** logging
    today; yt-dlp's error text is never captured. Structured logs to
    `~/.yoink/logs/`, persist the error string in history, surface it in the UI.
    Unblocks debugging everything else.
-3. **Sidecar readiness gate + dynamic port** (M · **high**) — poll `/health`
+2. **Sidecar readiness gate + dynamic port** (M · **high**) — poll `/health`
    before revealing the UI (the splash already exists) and fall back if **8756**
    is taken (it's hardcoded). Affects every cold start of the desktop app.
-4. **First-run empty state** (S · medium) — example URL, "type to search", link to
+3. **First-run empty state** (S · medium) — example URL, "type to search", link to
    supported sites. Big first-impression win for new users.
-5. **Resume partial downloads** (M · medium) — enable yt-dlp `continuedl` so an
+4. **Resume partial downloads** (M · medium) — enable yt-dlp `continuedl` so an
    interrupted `.part` resumes on retry instead of restarting from zero.
-6. **Persist all download defaults** (M · medium) — remember container, audio
-   format, subtitles, chapters (today only kind/quality persist).
+5. **Persist the remaining download defaults** (S · medium) — container + audio
+   format now persist *(v1.9.1)*; subtitles + chapters still don't.
 
 ---
 

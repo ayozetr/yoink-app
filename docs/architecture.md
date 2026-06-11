@@ -58,7 +58,8 @@ When the user clicks **Download**:
    (mp3/m4a/flac/wav), the `embed_subs` / `subtitle_lang` / `embed_chapters`
    options, an optional `trim_start`/`trim_end` range, and `is_vr`/`vr_layout`
    to tag the output as immersive (projection name suffix + Spherical Video V2
-   metadata, via `services/vr.py`).
+   metadata, via `services/vr.py`) — or `auto_vr` to detect + tag VR with no
+   preview step (used by the queue).
 2. Backend runs the yt-dlp job off-thread (`asyncio.to_thread`).
 3. yt-dlp `progress_hooks` emit percent / speed / ETA.
 4. Those events stream back over the same socket as typed events.

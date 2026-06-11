@@ -7,6 +7,12 @@
 >
 > Este documento es la **lista táctica** de bugs + UX + calidad a ejecutar.
 > El backlog estratégico de *features* vive en [ROADMAP.md](ROADMAP.md).
+>
+> **✅ Resuelto en v1.9.1:** el SSRF del auto-tag (guard `safe_http` compartido),
+> el WAL + busy-timeout del historial, `update_title` por id, las guardas de trim,
+> la notificación de fin de cola, los defaults de contenedor/audio en la cola
+> (`auto_vr` incluido), la resiliencia de `/api/info` (reintento transitorio →
+> 503/422), y el contraste WCAG AA. Lo que sigue listado abajo es lo que **queda**.
 
 
 Este documento recoge todos los hallazgos verificados y curados, ordenados por impacto, para llevar Yoink a ser la mejor app de su categoría. Cada punto incluye el qué, el dónde (fichero) y el arreglo concreto.

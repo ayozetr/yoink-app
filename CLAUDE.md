@@ -26,7 +26,9 @@ Two layers communicating asynchronously:
   that is **either** a single video (title, thumbnail, formats, plus
   `source_lossless`/`best_audio_abr`/`subtitle_langs`/`has_chapters`, and an
   `is_vr`/`vr_layout` immersive-video heuristic) **or** a flat playlist listing
-  (entries with title/duration/url). Endpoint: `POST /api/info`.
+  (entries with title/duration/url). Endpoint: `POST /api/info` — a transient
+  extraction failure (anti-bot 403 / network blip) is retried before surfacing as
+  503 (retryable) vs 422 (a genuinely unsupported URL).
 - **Search (REST):** typing a query (not a URL) in the field hits
   `GET /api/search?q=`, which runs a flat `ytsearch` and returns matching videos
   for the live dropdown; picking one analyzes it via `POST /api/info`.
@@ -35,7 +37,8 @@ Two layers communicating asynchronously:
   `kind`/`quality`, output `container`, `audio_format`, `embed_subs`/
   `subtitle_lang`/`embed_chapters`, `trim_start`/`trim_end` to clip a range, and
   `is_vr`/`vr_layout` to tag the output as immersive — a projection name suffix
-  plus injected Spherical Video V2 metadata). The backend runs the yt-dlp job
+  plus injected Spherical Video V2 metadata — or `auto_vr` to detect + tag VR
+  with no preview, used by the queue). The backend runs the yt-dlp job
   off-thread
   (`asyncio.to_thread`) and streams typed events — `progress` (percent, speed,
   ETA) → terminal `completed`/`error` — back over the same socket to animate the
@@ -78,6 +81,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
         ├── models/autotag.py  # auto-tagging models (TagCandidate, CandidateList, …)
         ├── core/humanize.py   # shared byte/size formatting
         ├── core/ytdlp_options.py      # shared URL normalize + cookie options
+        ├── core/safe_http.py  # SSRF-safe fetch (public-host pinning) for client URLs
         ├── routers/info.py    # POST /api/info (video or playlist), GET /api/search (YouTube)
         ├── routers/download.py        # WS /api/ws/download (live progress)
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open

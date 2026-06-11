@@ -11,7 +11,8 @@ backend/
 │   ├── core/
 │   │   ├── config.py           # typed Settings (CORS origins, download dir) via pydantic-settings
 │   │   ├── humanize.py         # shared byte/size formatting
-│   │   └── ytdlp_options.py    # shared URL normalize + cookie options
+│   │   ├── ytdlp_options.py    # shared URL normalize + cookie options
+│   │   └── safe_http.py        # SSRF-safe fetch (public-host pinning) for client-supplied URLs
 │   ├── models/
 │   │   ├── media.py            # Pydantic models (JSON contract): InfoResponse, VideoInfo,
 │   │   │                       #   PlaylistInfo, DownloadRequest, progress/terminal events, …
@@ -110,6 +111,12 @@ Request body (`InfoRequest`):
 ```json
 { "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }
 ```
+
+A **transient** extraction failure (anti-bot 403, rate limit, network blip) is
+retried a few times with a short backoff, then mapped to **503** (retryable); a
+**permanent** failure (unsupported / private / deleted URL) returns **422** with
+the reason. The classifier keys on specific HTTP codes + network signals so a 404
+isn't mistaken for transient.
 
 Response (`VideoInfo`, abridged):
 
