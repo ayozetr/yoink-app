@@ -20,6 +20,7 @@ import type {
   ApplyResponse,
   CandidateList,
 } from "../types/autotag";
+import type { SpotifyImportInfo, SpotifyTrack } from "../types/spotify";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8756/api";
@@ -103,6 +104,54 @@ export async function fetchInfo(
   }
 
   return (await response.json()) as InfoResponse;
+}
+
+/** A Spotify track/album/playlist URL (open.spotify.com or a spotify: URI). */
+export function isSpotifyUrl(value: string): boolean {
+  return /(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?|spotify:)(track|album|playlist)[/:]/i.test(
+    value,
+  );
+}
+
+/** Resolve a Spotify URL into its tracklist (keyless embed scrape). */
+export async function resolveSpotify(
+  url: string,
+  signal?: AbortSignal,
+): Promise<SpotifyImportInfo> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/spotify/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+      signal,
+    });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
+    throw new ApiError(i18n.t("errors.backendUnreachable"), 0);
+  }
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as SpotifyImportInfo;
+}
+
+/** Find the best-ranked YouTube video URL for a Spotify track (null if none). */
+export async function matchSpotify(
+  track: SpotifyTrack,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const response = await fetch(`${API_BASE_URL}/spotify/match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(track),
+    signal,
+  });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  const data = (await response.json()) as { youtube_url: string | null };
+  return data.youtube_url;
 }
 
 /** Flat YouTube search for the URL-field typeahead via `GET /api/search`. */
