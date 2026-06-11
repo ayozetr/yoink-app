@@ -68,6 +68,29 @@ def test_resolve_playlist(monkeypatch):
     assert info.tracks[0].spotify_url == "https://open.spotify.com/track/AAA"
 
 
+_ALBUM_ENTITY = {
+    "type": "album",
+    "name": "Me Muevo Con Dios",
+    "releaseDate": {"isoString": "2022-05-20"},
+    "visualIdentity": {"image": [{"url": "http://albumcover"}]},
+    "trackList": [
+        {"title": "TURBO", "subtitle": "Cruz Cafuné", "duration": 164374,
+         "uri": "spotify:track:T1"},
+        {"title": "BABI BOI", "subtitle": "Cruz Cafuné, Chita", "duration": 213525,
+         "uri": "spotify:track:T2"},
+    ],
+}
+
+
+def test_resolve_album_sets_album_name_and_year(monkeypatch):
+    monkeypatch.setattr(svc, "_fetch_entity", lambda kind, sid: _ALBUM_ENTITY)
+    info = svc.resolve_spotify("https://open.spotify.com/album/abc")
+    assert info.type == "album"
+    # Every track inherits the album's name + release year.
+    assert all(t.album == "Me Muevo Con Dios" for t in info.tracks)
+    assert all(t.year == "2022" for t in info.tracks)
+
+
 def test_find_youtube_match_wires_search_to_ranker(monkeypatch):
     from app.models.spotify import SpotifyTrack
 
