@@ -77,6 +77,37 @@ class _FakeResponse:
         ("Artist - Title： Part 2.mp3", "Artist", "Title: Part 2"),
         ("Drake - Hotline Bling (Music Video) [4K].mp3", "Drake", "Hotline Bling"),
         ("Artist - Song - Official Audio.mp3", "Artist", "Song"),
+        # Spanish-language YouTube noise ("(Videoclip/Vídeo/Audio Oficial)", "Letra")
+        (
+            "Daniela Garsal, Cruz Cafuné - QUÉ CRUEL (Videoclip Oficial).mp3",
+            "Daniela Garsal, Cruz Cafuné",
+            "QUÉ CRUEL",
+        ),
+        ("Quevedo - Columbia (Vídeo Oficial).m4a", "Quevedo", "Columbia"),
+        ("Aitana - Mariposas (Audio Oficial).mp3", "Aitana", "Mariposas"),
+        ("Quevedo - Columbia Vídeo Oficial.mp3", "Quevedo", "Columbia"),  # no brackets
+        ("Morad - Pelele (Letra).mp3", "Morad", "Pelele"),
+        # Real-world leaks from popular-playlist testing: a "| album/label" suffix
+        # after the title (safe to drop once artist/title split on " - "), French
+        # "(Clip officiel)", and an "(Explicit)" tag.
+        (
+            "BAD BUNNY - DtMF (Visualizer) | DeBÍ TiRAR MáS FOToS.mp3",
+            "BAD BUNNY",
+            "DtMF",
+        ),
+        ("SAIKO, Omar Montes - YO LO SOÑÉ (Official Video) | SAKURA.mp3",
+         "SAIKO, Omar Montes", "YO LO SOÑÉ"),
+        ("Aya Nakamura - Copines (Clip officiel).mp3", "Aya Nakamura", "Copines"),
+        # Full-width CJK parentheses around the noise tag (YouTube Music JP).
+        (
+            "MISIA - Everything （Official HD Music Video）.mp3",
+            "MISIA",
+            "Everything",
+        ),
+        ("Nicki Minaj - Beez In The Trap (Explicit).mp3", "Nicki Minaj", "Beez In The Trap"),
+        # …but a "| Title" with NO artist dash must NOT be pipe-trimmed (the pipe
+        # may be the separator), and a legit parenthetical stays.
+        ("Olivia Dean - So Easy (To Fall In Love).mp3", "Olivia Dean", "So Easy (To Fall In Love)"),
         # legit titles ending in those words are left untouched
         ("Artist - Video Games.mp3", "Artist", "Video Games"),
         ("Artist - Kill the Video.mp3", "Artist", "Kill the Video"),

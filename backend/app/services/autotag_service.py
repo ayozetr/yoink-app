@@ -261,13 +261,17 @@ _FULLWIDTH = str.maketrans(
     {
         "＂": '"', "：": ":", "＜": "<", "＞": ">", "？": "?",
         "｜": "|", "＊": "*", "／": "/", "＼": "\\", "⧸": "/", "⧹": "\\",
+        # Full-width / CJK brackets used for noise tags ("（Official MV）",
+        # "【MV full】") — fold to ASCII so the tag stripper catches them.
+        "（": "(", "）": ")", "【": "[", "】": "]",
     }
 )
 
 
 _FILENAME_TAGS = re.compile(
     r"\s*[([][^)\]]*?"
-    r"\b(?:official|video|audio|lyrics?|visualizer|visualiser|hd|4k|mv|prod)\b"
+    r"\b(?:official|oficial|officiel|video|v[ií]deo|videoclip|clip|audio"
+    r"|lyrics?|letras?|visualizer|visualiser|hd|4k|mv|prod|explicit)\b"
     r"[^)\]]*[)\]]",
     re.IGNORECASE,
 )
@@ -292,11 +296,20 @@ _EMOJI = re.compile(
 # so a YouTube "Song | VIDEO" lands on disk as "Song ｜ VIDEO".
 _TRAILING_NOISE = re.compile(
     r"\s*(?:"
-    r"[|｜\-–—]\s*(?:official\s+|full\s+|music\s+|lyrics?\s+)*"
-    r"|(?:official\s+|full\s+|music\s+|lyrics?\s+)+"
+    r"[|｜\-–—]\s*(?:official\s+|oficial\s+|full\s+|music\s+|lyrics?\s+)*"
+    r"|(?:official\s+|oficial\s+|full\s+|music\s+|lyrics?\s+)+"
     r")"
-    r"(?:video|audio|visualizer|visualiser|mv|hd|4k|hq)\b\s*$",
+    r"(?:video|v[ií]deo|videoclip|audio|visualizer|visualiser|mv|hd|4k|hq)"
+    r"(?:\s+oficial)?\b\s*$",  # Spanish puts the qualifier last: "Vídeo Oficial"
     re.IGNORECASE,
+)
+
+
+# Spanish-order "… Vídeo/Videoclip/Audio Oficial" with no separator in front —
+# unambiguous noise (no real title ends this way), so strip it even without a
+# leading "-"/"|". Kept narrow (requires the trailing "oficial") to stay safe.
+_TRAILING_NOISE_ES = re.compile(
+    r"\s+(?:v[ií]deo|videoclip|audio)\s+oficial\s*$", re.IGNORECASE
 )
 
 
@@ -308,7 +321,12 @@ def _strip_noise(text: str) -> str:
     while prev != text:
         prev = text
         text = _TRAILING_NOISE.sub("", text).strip()
-    return re.sub(r"\s{2,}", " ", text).strip()
+        text = _TRAILING_NOISE_ES.sub("", text).strip()
+        # Bare trailing "M/V" (K-pop), with or without the slash.
+        text = re.sub(r"\s*\bm\s*/\s*v\b\s*$", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"\s{2,}", " ", text).strip()
+    # Quotes wrapping the whole title (K-pop 'TITLE' / "TITLE") aren't part of it.
+    return text.strip("\"'`‘’“”").strip()
 
 
 def guess_from_filename(name: str) -> tuple[str, str]:
@@ -323,7 +341,11 @@ def guess_from_filename(name: str) -> tuple[str, str]:
     base = _FILENAME_TAGS.sub("", base).strip()
     match = re.match(r"^(.+?)\s[-–—]\s(.+)$", base)
     if match:
-        return _strip_noise(match.group(1)), _strip_noise(match.group(2))
+        # The dash already split artist/title, so a trailing " | …" on the title
+        # is a YouTube suffix (album/label/movie), not an "Artist | Title"
+        # separator — drop it. Only safe here, with the artist already known.
+        title = re.sub(r"\s*[|｜].*$", "", _strip_noise(match.group(2))).strip()
+        return _strip_noise(match.group(1)), title or _strip_noise(match.group(2))
     return "", _strip_noise(base)
 
 
