@@ -125,7 +125,7 @@ test("opens the settings modal", async ({ page }) => {
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Carpeta de descargas")).toBeVisible();
+  await expect(dialog.getByText("Carpeta para descargas")).toBeVisible();
   // The download-dir input is seeded from the mocked settings.
   await expect(dialog.locator("input").first()).toHaveValue(
     "/home/u/Downloads/Yoink",
