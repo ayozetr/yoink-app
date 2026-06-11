@@ -144,6 +144,7 @@ export default function App() {
               onOpenSettings={() => setSettingsOpen(true)}
               onToggleQueue={() => setQueueOpen((o) => !o)}
               queueCount={queuePending}
+              queueOpen={queueOpen}
               defaultKind={settings?.default_kind}
               defaultQuality={settings?.default_quality}
             />
@@ -152,6 +153,8 @@ export default function App() {
               onClose={() => setQueueOpen(false)}
               defaultKind={settings?.default_kind}
               defaultQuality={settings?.default_quality}
+              defaultContainer={settings?.default_container}
+              defaultAudioFormat={settings?.default_audio_format}
               onDownloadFinished={refresh}
               onPendingChange={setQueuePending}
             />

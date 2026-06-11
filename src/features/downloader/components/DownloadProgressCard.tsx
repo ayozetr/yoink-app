@@ -102,7 +102,7 @@ export function DownloadProgressCard({
   const label = isProcessing ? t("progress.processing") : t("progress.downloading");
   const detail = isProcessing
     ? t("progress.merging")
-    : [progress.speed, progress.eta && `ETA ${progress.eta}`]
+    : [progress.speed, progress.eta && `${t("progress.eta")} ${progress.eta}`]
         .filter(Boolean)
         .join(" • ");
 

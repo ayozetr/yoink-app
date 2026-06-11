@@ -54,10 +54,21 @@ export function saveQueue(items: QueueItem[]): void {
   }
 }
 
-/** Extract the http(s) URLs from a free-text blob (whitespace/newline separated). */
+/** Extract the unique http(s) URLs from a free-text blob (whitespace-separated). */
 export function parseUrls(text: string): string[] {
-  return text
+  const urls = text
     .split(/\s+/)
     .map((s) => s.trim())
     .filter((s) => /^https?:\/\//i.test(s));
+  return [...new Set(urls)];
+}
+
+/** A unique id for a queue item, with a fallback for non-secure contexts.
+ *
+ * `crypto.randomUUID` only exists in secure contexts (https or localhost), so a
+ * plain-http LAN deployment would otherwise throw and break the Add button.
+ */
+export function newQueueId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid ?? `q-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }

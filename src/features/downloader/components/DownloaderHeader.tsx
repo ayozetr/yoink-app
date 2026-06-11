@@ -6,6 +6,8 @@ import { SupportedSitesModal } from "./SupportedSitesModal";
 interface DownloaderHeaderProps {
   /** Number of unfinished queue items, badged on the queue button. */
   queueCount: number;
+  /** Whether the queue panel is open (toggles the button's label). */
+  queueOpen?: boolean;
   onToggleQueue?: () => void;
   onOpenSettings?: () => void;
 }
@@ -13,6 +15,7 @@ interface DownloaderHeaderProps {
 /** Page title plus the download-queue button and settings button. */
 export function DownloaderHeader({
   queueCount,
+  queueOpen,
   onToggleQueue,
   onOpenSettings,
 }: DownloaderHeaderProps) {
@@ -47,7 +50,9 @@ export function DownloaderHeader({
           className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.06] text-zinc-300 hover:text-white hover:bg-white/10 transition"
         >
           <ListPlus className="size-4 text-violet-400" />
-          <span className="text-sm">{t("queue.open")}</span>
+          <span className="text-sm">
+            {t(queueOpen ? "queue.close" : "queue.open")}
+          </span>
           {queueCount > 0 && (
             <span className="ml-0.5 rounded-full bg-violet-500/30 px-2 py-0.5 text-xs font-semibold text-violet-200">
               {queueCount}

@@ -30,6 +30,7 @@ interface DownloaderPanelProps {
   /** Toggle the download queue panel + how many items it has unfinished. */
   onToggleQueue?: () => void;
   queueCount?: number;
+  queueOpen?: boolean;
   /** Default media kind / quality from settings, used to seed the selectors. */
   defaultKind?: MediaKind;
   defaultQuality?: string;
@@ -65,6 +66,7 @@ export function DownloaderPanel({
   onOpenSettings,
   onToggleQueue,
   queueCount = 0,
+  queueOpen,
   defaultKind,
   defaultQuality,
 }: DownloaderPanelProps) {
@@ -117,6 +119,7 @@ export function DownloaderPanel({
     setSummary(null);
     setQueueTotal(0);
     setQueueIndex(0);
+    setCurrentTitle("");
     setTagDismissedSingle(false);
     setTagDismissedBatch(false);
     setBatchItems([]);
@@ -236,7 +239,9 @@ export function DownloaderPanel({
       setInfo(null);
       setError(
         cause instanceof ApiError
-          ? cause.message
+          ? cause.status === 503
+            ? t("panel.analyzeTransient")
+            : cause.message
           : t("panel.analyzeError"),
       );
     } finally {
@@ -304,6 +309,7 @@ export function DownloaderPanel({
     <>
       <DownloaderHeader
         queueCount={queueCount}
+        queueOpen={queueOpen}
         onToggleQueue={onToggleQueue}
         onOpenSettings={onOpenSettings}
       />

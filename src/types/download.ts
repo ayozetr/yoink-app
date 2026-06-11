@@ -169,6 +169,8 @@ export interface DownloadRequest {
   is_vr?: boolean;
   /** Stereo/projection layout to tag with when is_vr is set. */
   vr_layout?: VRLayout;
+  /** Auto-detect + tag VR during the download (used by the queue, no preview). */
+  auto_vr?: boolean;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */
@@ -223,6 +225,8 @@ export interface AppSettings {
   download_dir: string;
   default_kind: MediaKind;
   default_quality: string;
+  default_container: VideoContainer;
+  default_audio_format: AudioFormat;
   cookies_from_browser: string | null;
   cookies_file: string | null;
   /** Proxy URL (http/https/socks) for metadata + downloads; null = none. */

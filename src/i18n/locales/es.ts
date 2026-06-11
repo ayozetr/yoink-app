@@ -1,7 +1,6 @@
 export const es = {
   header: {
     title: "Yoink Media Downloader",
-    subtitle: "Descarga vídeos y audios rápidamente",
     subtitlePrefix: "Descarga vídeos y audios rápidamente de ",
     subtitleSitesLink: "múltiples webs",
     settings: "Ajustes",
@@ -26,7 +25,7 @@ export const es = {
     searchError: "La búsqueda falló — revisa tu conexión e inténtalo de nuevo.",
     views: "{{n}} visualizaciones",
     analyze: "Analizar",
-    analyzing: "Analizando...",
+    analyzing: "Analizando…",
   },
   preview: {
     label: "Vista previa",
@@ -71,8 +70,9 @@ export const es = {
     download: "Descargar ({{count}})",
   },
   progress: {
-    downloading: "Descargando...",
-    processing: "Procesando...",
+    downloading: "Descargando…",
+    processing: "Procesando…",
+    eta: "ETA",
     merging: "Uniendo pistas",
     completed: "Descarga completada:",
     cancel: "Cancelar descarga",
@@ -82,6 +82,8 @@ export const es = {
   },
   panel: {
     analyzeError: "Ocurrió un error inesperado al analizar la URL.",
+    analyzeTransient:
+      "La fuente no está disponible ahora mismo. Inténtalo de nuevo en un momento.",
     blockedHint:
       "Si el sitio bloquea la descarga, prueba a indicar tu navegador en Ajustes → cookies.",
     downloadingOf: "Descargando {{current}} de {{total}}:",
@@ -124,7 +126,7 @@ export const es = {
     includeTrack: "Incluir este tema",
   },
   history: {
-    title: "Historial de Descargas",
+    title: "Historial de descargas",
     clear: "Limpiar",
     empty: "Aún no hay descargas. Analiza una URL para empezar.",
     completed: "Completado",
@@ -148,6 +150,8 @@ export const es = {
     audio: "Audio",
     defaultQuality: "Calidad por defecto",
     qualityBest: "Mejor disponible",
+    defaultContainer: "Contenedor por defecto",
+    defaultAudioFormat: "Formato de audio por defecto",
     rateLimit: "Límite de ancho de banda",
     rateLimitNone: "Sin límite",
     proxy: "Proxy",
@@ -208,16 +212,14 @@ export const es = {
     cancel: "Cancelar",
     save: "Guardar",
     version: "Versión:",
-    available: "{{version}} disponible",
     upToDate: "al día",
-    update: "Actualizar",
     checkUpdates: "Comprobar actualizaciones",
     checkError: "No se pudieron comprobar las actualizaciones.",
     checkDesktopOnly: "Solo disponible en la app de escritorio.",
     updateAvailable: "{{version}} disponible",
     downloadInstall: "Descargar e instalar",
     installing: "Instalando…",
-    viewRelease: "Ver release",
+    viewRelease: "Ver versión",
     developedBy: "Desarrollado por",
     donate: "Si lo consideras, puedes hacer una donación",
   },

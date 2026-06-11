@@ -1,7 +1,6 @@
 export const en = {
   header: {
     title: "Yoink Media Downloader",
-    subtitle: "Download video and audio quickly",
     subtitlePrefix: "Download video and audio quickly from ",
     subtitleSitesLink: "many sites",
     settings: "Settings",
@@ -26,7 +25,7 @@ export const en = {
     searchError: "Search failed — check your connection and try again.",
     views: "{{n}} views",
     analyze: "Analyze",
-    analyzing: "Analyzing...",
+    analyzing: "Analyzing…",
   },
   preview: {
     label: "Preview",
@@ -71,8 +70,9 @@ export const en = {
     download: "Download ({{count}})",
   },
   progress: {
-    downloading: "Downloading...",
-    processing: "Processing...",
+    downloading: "Downloading…",
+    processing: "Processing…",
+    eta: "ETA",
     merging: "Merging tracks",
     completed: "Download complete:",
     cancel: "Cancel download",
@@ -82,6 +82,8 @@ export const en = {
   },
   panel: {
     analyzeError: "An unexpected error occurred while analyzing the URL.",
+    analyzeTransient:
+      "The source is temporarily unavailable. Try again in a moment.",
     blockedHint:
       "If the site blocks the download, try setting your browser under Settings → cookies.",
     downloadingOf: "Downloading {{current}} of {{total}}:",
@@ -124,7 +126,7 @@ export const en = {
     includeTrack: "Include this track",
   },
   history: {
-    title: "Download History",
+    title: "Download history",
     clear: "Clear",
     empty: "No downloads yet. Analyze a URL to get started.",
     completed: "Completed",
@@ -148,6 +150,8 @@ export const en = {
     audio: "Audio",
     defaultQuality: "Default quality",
     qualityBest: "Best available",
+    defaultContainer: "Default container",
+    defaultAudioFormat: "Default audio format",
     rateLimit: "Bandwidth limit",
     rateLimitNone: "No limit",
     proxy: "Proxy",
@@ -208,9 +212,7 @@ export const en = {
     cancel: "Cancel",
     save: "Save",
     version: "Version:",
-    available: "{{version}} available",
     upToDate: "up to date",
-    update: "Update",
     checkUpdates: "Check for updates",
     checkError: "Couldn't check for updates.",
     checkDesktopOnly: "Only available in the desktop app.",

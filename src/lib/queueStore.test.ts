@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { loadQueue, parseUrls, saveQueue, type QueueItem } from "./queueStore";
+import {
+  loadQueue,
+  newQueueId,
+  parseUrls,
+  saveQueue,
+  type QueueItem,
+} from "./queueStore";
 
 afterEach(() => localStorage.clear());
 
@@ -10,8 +16,22 @@ describe("parseUrls", () => {
     expect(parseUrls(text)).toEqual(["https://a.com/1", "http://b.com/2"]);
   });
 
+  it("de-duplicates so re-pasting the same block is idempotent", () => {
+    const text = "https://a.com/1\nhttps://a.com/1\nhttps://b.com/2";
+    expect(parseUrls(text)).toEqual(["https://a.com/1", "https://b.com/2"]);
+  });
+
   it("returns [] for blank input", () => {
     expect(parseUrls("   \n  ")).toEqual([]);
+  });
+});
+
+describe("newQueueId", () => {
+  it("returns unique non-empty ids", () => {
+    const a = newQueueId();
+    const b = newQueueId();
+    expect(a).toBeTruthy();
+    expect(a).not.toBe(b);
   });
 });
 

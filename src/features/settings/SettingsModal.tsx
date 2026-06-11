@@ -31,12 +31,15 @@ import i18n from "../../i18n";
 import type {
   AppSettings,
   AudioBitrate,
+  AudioFormat,
   AutotagSource,
   MediaKind,
   SponsorblockAction,
   VersionInfo,
   VideoCodec,
+  VideoContainer,
 } from "../../types/download";
+import { AUDIO_FORMATS, VIDEO_CONTAINERS } from "../downloader/formatOptions";
 
 const LANG_STORAGE_KEY = "yoink-lang";
 
@@ -240,6 +243,27 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
                 className={`${INPUT_CLASS} w-full`}
               />
             </Field>
+            <Field label={t("settings.defaultContainer")}>
+              <Select
+                ariaLabel={t("settings.defaultContainer")}
+                value={form.default_container}
+                onChange={(v) => set("default_container", v as VideoContainer)}
+                options={VIDEO_CONTAINERS}
+                className={`${INPUT_CLASS} w-full`}
+              />
+            </Field>
+            <Field label={t("settings.defaultAudioFormat")}>
+              <Select
+                ariaLabel={t("settings.defaultAudioFormat")}
+                value={form.default_audio_format}
+                onChange={(v) => set("default_audio_format", v as AudioFormat)}
+                options={AUDIO_FORMATS.map((o) => ({
+                  value: o.value,
+                  label: o.label,
+                }))}
+                className={`${INPUT_CLASS} w-full`}
+              />
+            </Field>
           </div>
 
           <Field label={t("settings.rateLimit")}>
@@ -384,7 +408,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           </Field>
 
           <div className="pt-1 border-t border-white/10" />
-          <p className="text-xs text-zinc-500 -mb-1">
+          <p className="text-xs text-zinc-400 -mb-1">
             {t("settings.cookiesHint")}
           </p>
 
@@ -471,7 +495,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             e.preventDefault();
             void openExternal("https://github.com/ayozetr");
           }}
-          className="mt-6 flex items-center justify-center gap-1.5 border-y border-white/10 px-2 py-2.5 text-[11px] text-zinc-500 transition-colors hover:text-zinc-300"
+          className="mt-6 flex items-center justify-center gap-1.5 border-y border-white/10 px-2 py-2.5 text-[11px] text-zinc-400 transition-colors hover:text-zinc-300"
         >
           <GithubIcon className="size-3" />
           <span>
@@ -496,18 +520,18 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
                 </span>
               )}
               {result?.status === "error" && (
-                <span className="ml-2 text-zinc-500">
+                <span className="ml-2 text-zinc-400">
                   · {t("settings.checkError")}
                 </span>
               )}
               {result?.status === "tauri-unavailable" && (
-                <span className="ml-2 text-zinc-500">
+                <span className="ml-2 text-zinc-400">
                   · {t("settings.checkDesktopOnly")}
                 </span>
               )}
             </div>
             {ytdlp && !ytdlp.error && ytdlp.current !== "unknown" && (
-              <div className="mt-1 text-xs text-zinc-500">
+              <div className="mt-1 text-xs text-zinc-400">
                 <span>yt-dlp {ytdlp.current}</span>
                 {ytdlp.update_available && ytdlp.latest ? (
                   <span className="ml-1.5 text-violet-300">
@@ -573,7 +597,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             e.preventDefault();
             void openExternal("https://ko-fi.com/ayozetr");
           }}
-          className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 transition-colors hover:text-violet-300"
+          className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 transition-colors hover:text-violet-300"
         >
           <Coffee size={12} />
           {t("settings.donate")}

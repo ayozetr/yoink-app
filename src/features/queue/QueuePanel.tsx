@@ -13,22 +13,26 @@ import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
+import { notify } from "../../lib/notify";
 import {
   loadQueue,
+  newQueueId,
   parseUrls,
   saveQueue,
   type QueueItem,
 } from "../../lib/queueStore";
-import type { MediaKind } from "../../types/download";
+import type { AudioFormat, MediaKind, VideoContainer } from "../../types/download";
 
 interface QueuePanelProps {
   /** Whether the panel is visible (the queue keeps running while hidden). */
   open: boolean;
   /** Close the panel. */
   onClose: () => void;
-  /** Default media kind / quality from settings, used for every queued item. */
+  /** Default format settings, used for every queued item (no per-item picker). */
   defaultKind?: MediaKind;
   defaultQuality?: string;
+  defaultContainer?: VideoContainer;
+  defaultAudioFormat?: AudioFormat;
   /** Refresh history/stats after each item finishes. */
   onDownloadFinished?: () => void;
   /** Report the number of unfinished items so the header can badge it. */
@@ -41,6 +45,8 @@ export function QueuePanel({
   onClose,
   defaultKind,
   defaultQuality,
+  defaultContainer,
+  defaultAudioFormat,
   onDownloadFinished,
   onPendingChange,
 }: QueuePanelProps) {
@@ -54,6 +60,24 @@ export function QueuePanel({
   const handleRef = useRef<DownloadHandle | null>(null);
   const runningRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Live snapshot of the format settings, so a queue already running picks up
+  // changes made in Settings (processNext recurses from a closure and would
+  // otherwise keep using the values from the render that started it).
+  const optsRef = useRef({
+    defaultKind,
+    defaultQuality,
+    defaultContainer,
+    defaultAudioFormat,
+  });
+  useEffect(() => {
+    optsRef.current = {
+      defaultKind,
+      defaultQuality,
+      defaultContainer,
+      defaultAudioFormat,
+    };
+  });
 
   // Auto-grow the input to fit its content (up to a cap) instead of using the
   // browser's native resize handle, which clashes with the dark theme.
@@ -86,10 +110,21 @@ export function QueuePanel({
   const processNext = () => {
     const next = itemsRef.current.find((i) => i.status === "pending");
     if (!next) {
+      const wasRunning = runningRef.current;
       runningRef.current = false;
       setRunning(false);
       setPercent(0);
       onDownloadFinished?.();
+      // A "launch it and walk away" queue shouldn't finish in silence: notify
+      // once the run drains (not when Start is pressed on an empty queue).
+      if (wasRunning) {
+        const done = itemsRef.current.filter((i) => i.status === "done").length;
+        const failed = itemsRef.current.filter((i) => i.status === "error").length;
+        void notify(
+          t("notify.queueDone"),
+          t("notify.queueSummary", { completed: done, failed }),
+        );
+      }
       return;
     }
     runningRef.current = true;
@@ -98,13 +133,16 @@ export function QueuePanel({
     update(next.id, { status: "active", error: undefined });
 
     let settled = false;
+    const opts = optsRef.current;
     handleRef.current = startDownload(
       {
         url: next.url,
-        kind: defaultKind ?? "video",
-        quality: defaultQuality,
-        container: "mp4",
-        audio_format: "mp3",
+        kind: opts.defaultKind ?? "video",
+        quality: opts.defaultQuality,
+        container: opts.defaultContainer ?? "mp4",
+        audio_format: opts.defaultAudioFormat ?? "mp3",
+        // The queue has no preview, so auto-detect + tag VR during the download.
+        auto_vr: true,
       },
       {
         onEvent: (event) => {
@@ -140,14 +178,24 @@ export function QueuePanel({
   const addUrls = () => {
     const urls = parseUrls(input);
     if (urls.length === 0) return;
-    setItems((prev) => [
-      ...prev,
-      ...urls.map((url) => ({
-        id: crypto.randomUUID(),
-        url,
-        status: "pending" as const,
-      })),
-    ]);
+    setItems((prev) => {
+      // Skip URLs already queued (pending/active/done) so re-pasting the same
+      // block — a very common "did it add?" action — is idempotent, not a
+      // silent double download. Failed items can be re-added to retry.
+      const existing = new Set(
+        prev.filter((i) => i.status !== "error").map((i) => i.url),
+      );
+      const fresh = urls.filter((url) => !existing.has(url));
+      if (fresh.length === 0) return prev;
+      return [
+        ...prev,
+        ...fresh.map((url) => ({
+          id: newQueueId(),
+          url,
+          status: "pending" as const,
+        })),
+      ];
+    });
     setInput("");
   };
 
