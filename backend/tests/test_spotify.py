@@ -1,0 +1,95 @@
+"""Tests for the keyless Spotify resolver (embed parsing mocked, offline)."""
+
+from __future__ import annotations
+
+import pytest
+
+from app.services import spotify_service as svc
+
+_TRACK_ENTITY = {
+    "type": "track",
+    "name": "Never Gonna Give You Up",
+    "artists": [{"name": "Rick Astley"}],
+    "duration": 213573,
+    "isExplicit": False,
+    "releaseDate": {"isoString": "1987-07-27"},
+    "visualIdentity": {"image": [{"url": "http://img/lo"}, {"url": "http://img/hi"}]},
+}
+
+_PLAYLIST_ENTITY = {
+    "type": "playlist",
+    "name": "Today's Top Hits",
+    "visualIdentity": {"image": [{"url": "http://cover"}]},
+    "trackList": [
+        {"title": "Song A", "subtitle": "Artist A", "duration": 200000,
+         "isExplicit": True, "uri": "spotify:track:AAA"},
+        {"title": "Song B", "subtitle": "Artist B, Artist C", "duration": 180000,
+         "uri": "spotify:track:BBB"},
+        {"subtitle": "no title -> skipped", "uri": "spotify:track:CCC"},
+    ],
+}
+
+
+def test_is_spotify_url_and_parse():
+    assert svc.is_spotify_url("https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8?si=x")
+    assert svc.is_spotify_url("https://open.spotify.com/intl-es/playlist/37i9abc")
+    assert svc.is_spotify_url("spotify:album:1234ABCdef")
+    assert not svc.is_spotify_url("https://youtube.com/watch?v=x")
+    assert svc._parse_url("https://open.spotify.com/intl-es/album/XYZ123?si=q") == ("album", "XYZ123")
+
+
+def test_parse_non_spotify_raises():
+    with pytest.raises(svc.SpotifyError):
+        svc._parse_url("https://example.com/not-spotify")
+
+
+def test_resolve_track(monkeypatch):
+    monkeypatch.setattr(svc, "_fetch_entity", lambda kind, sid: _TRACK_ENTITY)
+    info = svc.resolve_spotify("https://open.spotify.com/track/abc?si=x")
+    assert info.type == "track" and len(info.tracks) == 1
+    t = info.tracks[0]
+    assert t.title == "Never Gonna Give You Up"
+    assert t.artists == "Rick Astley"
+    assert t.duration_ms == 213573
+    assert t.year == "1987"
+    assert t.cover_url == "http://img/hi"  # last (highest-res) image
+    assert t.spotify_url.endswith("/track/abc")
+
+
+def test_resolve_playlist(monkeypatch):
+    monkeypatch.setattr(svc, "_fetch_entity", lambda kind, sid: _PLAYLIST_ENTITY)
+    info = svc.resolve_spotify("https://open.spotify.com/playlist/xyz")
+    assert info.type == "playlist" and info.name == "Today's Top Hits"
+    assert info.cover_url == "http://cover"
+    # The item with no title is dropped.
+    assert [t.title for t in info.tracks] == ["Song A", "Song B"]
+    assert info.tracks[0].is_explicit is True
+    assert info.tracks[1].artists == "Artist B, Artist C"
+    assert info.tracks[0].spotify_url == "https://open.spotify.com/track/AAA"
+
+
+def test_find_youtube_match_wires_search_to_ranker(monkeypatch):
+    from app.models.spotify import SpotifyTrack
+
+    class FakeYDL:
+        def __init__(self, opts):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, query, download=False):
+            return {"entries": [
+                {"title": "Rick Astley - Never Gonna Give You Up (Official Music Video)",
+                 "channel": "Rick Astley", "duration": 213, "id": "OFFICIAL"},
+                {"title": "Never Gonna Give You Up (Live)",
+                 "channel": "Rick Astley", "duration": 400, "id": "LIVE"},
+            ]}
+
+    monkeypatch.setattr(svc, "YoutubeDL", FakeYDL)
+    track = SpotifyTrack(title="Never Gonna Give You Up", artists="Rick Astley",
+                         duration_ms=213573, spotify_url="https://open.spotify.com/track/x")
+    assert svc.find_youtube_match(track) == "https://www.youtube.com/watch?v=OFFICIAL"
