@@ -28,6 +28,14 @@ def get_media_info(request: InfoRequest) -> InfoResponse:
     try:
         return extract_info(str(request.url))
     except MediaExtractionError as exc:
+        # Transient (anti-bot 403 / network blip, already retried) → 503 so the
+        # client can offer a clean "try again"; permanent (unsupported/private
+        # URL) → 422 with the reason.
+        if exc.transient:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The source is temporarily unavailable. Please try again.",
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Could not extract media info: {exc}",

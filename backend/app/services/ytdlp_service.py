@@ -6,6 +6,7 @@ actual download + progress-streaming logic will live alongside it later.
 
 from __future__ import annotations
 
+import time
 from typing import Any, cast
 
 from yt_dlp import YoutubeDL
@@ -83,7 +84,53 @@ def _audio_summary(raw_formats: Any) -> tuple[bool, float | None]:
 
 
 class MediaExtractionError(RuntimeError):
-    """Raised when yt-dlp cannot extract metadata for a URL."""
+    """Raised when yt-dlp cannot extract metadata for a URL.
+
+    ``transient`` marks a likely-temporary failure (a network blip, an HTTP
+    5xx/429, or an anti-bot 403) that's worth retrying — as opposed to a
+    permanent one (an unsupported, private, or deleted URL) the caller should
+    surface as a hard error.
+    """
+
+    def __init__(self, message: str, *, transient: bool = False) -> None:
+        super().__init__(message)
+        self.transient = transient
+
+
+# Substrings in a yt-dlp error message that signal a *temporary* failure worth
+# retrying, rather than a permanent one (unsupported/private/deleted URL).
+# Deliberately *specific* HTTP codes + network signals — the generic "unable to
+# download webpage" wrapper is avoided because it also fronts permanent 404s.
+_TRANSIENT_MARKERS = (
+    "http error 500",
+    "http error 502",
+    "http error 503",
+    "http error 504",
+    "http error 429",  # rate limited
+    "http error 403",  # frequently a transient anti-bot challenge
+    "timed out",
+    "timeout",
+    "connection reset",
+    "connection refused",
+    "connection aborted",
+    "remote end closed",
+    "temporary failure",  # e.g. "Temporary failure in name resolution"
+    "sign in to confirm you're not a bot",
+    "failed to extract any player response",
+    "getaddrinfo failed",
+)
+
+
+def _is_transient_error(message: str) -> bool:
+    """Heuristically classify a yt-dlp error message as temporary vs permanent."""
+    low = message.lower()
+    return any(marker in low for marker in _TRANSIENT_MARKERS)
+
+
+# A transient failure is retried up to this many total attempts, with a short
+# linear backoff between them (kept small — /api/info is interactive).
+_INFO_MAX_ATTEMPTS = 3
+_INFO_RETRY_BACKOFF_SECONDS = 0.6
 
 
 def _format_duration(seconds: float | None) -> str | None:
@@ -356,25 +403,49 @@ def extract_info(url: str) -> InfoResponse:
             # sanitize_info makes the dict JSON-serializable and stable.
             return cast(dict[str, Any], ydl.sanitize_info(raw_info))
 
-    try:
-        info = _extract(options)
-    except DownloadError as exc:
-        # Some sites (e.g. behind anti-bot HLS) expose formats the default
-        # selector rejects, raising "Requested format is not available" before
-        # we even see the metadata. Retry once tolerating that so the preview
-        # (and the VR badge) can still render; only the first try's failure
-        # surfaces if this one fails too.
+    def _attempt() -> dict[str, Any]:
+        """One full extraction attempt: primary + tolerant fallback."""
         try:
-            info = _extract({**options, "ignore_no_formats_error": True})
-        except DownloadError:
-            raise MediaExtractionError(str(exc)) from exc
-        # The tolerant retry can succeed but yield a single video with no usable
-        # formats — a preview that looks downloadable yet fails at download time.
-        # Surface the original error instead of that misleading state. Playlists
-        # (which carry entries, not top-level formats) are exempt.
-        is_single_video = info.get("_type") != "playlist" and info.get("entries") is None
-        if is_single_video and not info.get("formats"):
-            raise MediaExtractionError(str(exc)) from exc
+            return _extract(options)
+        except DownloadError as exc:
+            # Some sites (e.g. behind anti-bot HLS) expose formats the default
+            # selector rejects, raising "Requested format is not available"
+            # before we even see the metadata. Retry once tolerating that so the
+            # preview (and the VR badge) can still render; only the first try's
+            # failure surfaces if this one fails too.
+            try:
+                tolerant = _extract({**options, "ignore_no_formats_error": True})
+            except DownloadError:
+                raise MediaExtractionError(
+                    str(exc), transient=_is_transient_error(str(exc))
+                ) from exc
+            # The tolerant retry can succeed but yield a single video with no
+            # usable formats — a preview that looks downloadable yet fails at
+            # download time. Surface the original error instead of that
+            # misleading state. Playlists (entries, not top-level formats) are
+            # exempt.
+            is_single_video = (
+                tolerant.get("_type") != "playlist"
+                and tolerant.get("entries") is None
+            )
+            if is_single_video and not tolerant.get("formats"):
+                raise MediaExtractionError(
+                    str(exc), transient=_is_transient_error(str(exc))
+                ) from exc
+            return tolerant
+
+    # Retry only *transient* failures (a one-off anti-bot 403 / network blip),
+    # with a short backoff, so a momentary glitch self-heals instead of failing
+    # the analyze. Permanent errors (unsupported/private URL) raise immediately.
+    info: dict[str, Any] = {}
+    for attempt in range(_INFO_MAX_ATTEMPTS):
+        try:
+            info = _attempt()
+            break
+        except MediaExtractionError as exc:
+            if not exc.transient or attempt == _INFO_MAX_ATTEMPTS - 1:
+                raise
+            time.sleep(_INFO_RETRY_BACKOFF_SECONDS * (attempt + 1))
 
     if not info:
         raise MediaExtractionError("yt-dlp returned no metadata for this URL.")
