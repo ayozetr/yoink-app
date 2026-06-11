@@ -310,7 +310,7 @@ export function UrlInput({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm">{entry.title}</span>
                       {meta(entry) && (
-                        <span className="block truncate text-xs text-zinc-500">
+                        <span className="block truncate text-xs text-zinc-400">
                           {meta(entry)}
                         </span>
                       )}

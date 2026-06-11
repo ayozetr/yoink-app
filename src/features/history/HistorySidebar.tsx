@@ -44,7 +44,7 @@ export function HistorySidebar({
 
       <div className="flex flex-col gap-3 overflow-auto">
         {items.length === 0 ? (
-          <p className="text-sm text-zinc-500 py-8 text-center">
+          <p className="text-sm text-zinc-400 py-8 text-center">
             {t("history.empty")}
           </p>
         ) : (

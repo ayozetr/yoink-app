@@ -190,7 +190,7 @@ export function Select({
               return (
                 <div
                   key={option.value}
-                  className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500"
+                  className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400"
                 >
                   {option.label}
                 </div>

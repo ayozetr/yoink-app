@@ -405,7 +405,7 @@ export function PreviewCard({
                       onChange={(e) => setTrimEnd(e.target.value)}
                       className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
                     />
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-zinc-400">
                       {t("preview.trimHint")}
                     </span>
                   </>

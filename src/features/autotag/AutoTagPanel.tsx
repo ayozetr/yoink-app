@@ -228,7 +228,7 @@ export function AutoTagPanel({
       {open && (
         <div className="mt-3">
           {filename && (
-            <p className="text-xs text-zinc-500 mb-3 truncate">{filename}</p>
+            <p className="text-xs text-zinc-400 mb-3 truncate">{filename}</p>
           )}
 
       {stage === "loading" && (
@@ -272,7 +272,7 @@ export function AutoTagPanel({
             </div>
             <div className="flex-1 space-y-2 min-w-0">
               <label className="block">
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-zinc-400">
                   {t("autotag.fieldTitle")}
                 </span>
                 <input
@@ -282,7 +282,7 @@ export function AutoTagPanel({
                 />
               </label>
               <label className="block">
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-zinc-400">
                   {t("autotag.fieldArtist")}
                 </span>
                 <input
@@ -296,7 +296,7 @@ export function AutoTagPanel({
 
           <div className="mt-3 grid grid-cols-[1fr_5rem] gap-2">
             <label className="block min-w-0">
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-zinc-400">
                 {t("autotag.fieldAlbum")}
               </span>
               <input
@@ -306,7 +306,7 @@ export function AutoTagPanel({
               />
             </label>
             <label className="block">
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-zinc-400">
                 {t("autotag.fieldYear")}
               </span>
               <input
@@ -319,7 +319,7 @@ export function AutoTagPanel({
 
           {results.length > 1 && (
             <div className="mt-4">
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-zinc-400">
                 {t("autotag.versions")}
               </span>
               <div className="mt-1 space-y-1 max-h-44 overflow-y-auto">
@@ -349,7 +349,7 @@ export function AutoTagPanel({
                       <span className="block truncate text-zinc-200">
                         {r.album ?? r.title}
                       </span>
-                      <span className="block truncate text-zinc-500">
+                      <span className="block truncate text-zinc-400">
                         {r.year ?? ""}
                         {r.track_number ? ` · #${r.track_number}` : ""}
                       </span>

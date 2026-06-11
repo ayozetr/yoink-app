@@ -280,7 +280,7 @@ export function AutoTagBatchPanel({
                         <span className="block truncate text-zinc-200">
                           {tr.artist} — {tr.title}
                         </span>
-                        <span className="block truncate text-zinc-500">
+                        <span className="block truncate text-zinc-400">
                           {tr.album}
                           {tr.year ? ` (${tr.year})` : ""}
                         </span>
@@ -298,7 +298,7 @@ export function AutoTagBatchPanel({
                 <div className="border-t border-white/5 px-3 py-3 space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <label className="block">
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-zinc-400">
                         {t("autotag.fieldTitle")}
                       </span>
                       <input
@@ -308,7 +308,7 @@ export function AutoTagBatchPanel({
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-zinc-400">
                         {t("autotag.fieldArtist")}
                       </span>
                       <input
@@ -318,7 +318,7 @@ export function AutoTagBatchPanel({
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-zinc-400">
                         {t("autotag.fieldAlbum")}
                       </span>
                       <input
@@ -328,7 +328,7 @@ export function AutoTagBatchPanel({
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs text-zinc-400">
                         {t("autotag.fieldYear")}
                       </span>
                       <input
@@ -375,7 +375,7 @@ export function AutoTagBatchPanel({
                             <span className="block truncate text-zinc-200">
                               {r.album ?? r.title}
                             </span>
-                            <span className="block truncate text-zinc-500">
+                            <span className="block truncate text-zinc-400">
                               {r.year ?? ""}
                             </span>
                           </span>
