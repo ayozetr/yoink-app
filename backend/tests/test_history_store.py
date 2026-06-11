@@ -30,6 +30,16 @@ def test_update_title_by_filepath(history_db):
     history_store.update_title("/dl/missing.mp3", "Nope")
 
 
+def test_update_title_only_touches_latest_row(history_db):
+    # Re-downloading the same name makes a new row; tagging one must not relabel
+    # the older, unrelated entry that reused the path.
+    old = _add(title="old entry", kind="audio", filepath="/dl/song.mp3")
+    new = _add(title="raw name", kind="audio", filepath="/dl/song.mp3")
+    history_store.update_title("/dl/song.mp3", "Artist - Title")
+    assert history_store.get_entry(new.id).title == "Artist - Title"
+    assert history_store.get_entry(old.id).title == "old entry"  # untouched
+
+
 def test_stats_counts_only_completed(history_db):
     _add(status="completed", filesize=1000)
     _add(status="completed", filesize=500)

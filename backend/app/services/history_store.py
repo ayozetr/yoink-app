@@ -32,7 +32,10 @@ CREATE TABLE IF NOT EXISTS downloads (
 
 def _connect() -> sqlite3.Connection:
     settings.ensure_data_dir()
-    connection = sqlite3.connect(settings.db_path)
+    # timeout is the busy-timeout: wait for a held lock instead of erroring with
+    # "database is locked". The persistent queue can fire several completions in
+    # quick succession, so a short wait beats a lost history row.
+    connection = sqlite3.connect(settings.db_path, timeout=30)
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -49,6 +52,9 @@ def _add_column_if_missing(
 def init_db() -> None:
     """Create the history table if needed; add newer columns to pre-existing DBs."""
     with _connect() as connection:
+        # WAL lets a reader and a writer coexist (the queue writes bursts of
+        # history rows); it's a persistent DB property, set once here.
+        connection.execute("PRAGMA journal_mode=WAL")
         connection.execute(_SCHEMA)
         _add_column_if_missing(connection, "downloads", "quality", "TEXT")
 
@@ -108,14 +114,17 @@ def add_entry(
 
 
 def update_title(filepath: str, title: str) -> None:
-    """Update the stored title for the row(s) with this file path (no-op if none).
+    """Update the stored title for the most recent row with this file path.
 
-    Used after auto-tagging so the history shows "Artist - Title" instead of the
-    raw download name.
+    Used after auto-tagging so the history shows "Artist - Title". Targets only
+    the latest matching row (by id) — re-downloading the same name produces a new
+    row, and tagging one shouldn't relabel old, unrelated entries that reused the
+    path.
     """
     with _connect() as connection:
         connection.execute(
-            "UPDATE downloads SET title = ? WHERE filepath = ?",
+            "UPDATE downloads SET title = ? "
+            "WHERE id = (SELECT MAX(id) FROM downloads WHERE filepath = ?)",
             (title, filepath),
         )
 
