@@ -108,6 +108,7 @@ export const en = {
     truncated: "(only the tracks the embed exposes)",
     hint: "Spotify audio can't be downloaded directly — each track is matched on YouTube, downloaded, and tagged with the Spotify metadata.",
     import: "Import {{count}} as audio",
+    noMatch: "Couldn't find a YouTube match for this track.",
   },
   autotag: {
     title: "Tag audio",
