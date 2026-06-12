@@ -86,7 +86,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Vimeo", url: "https://vimeo.com", slug: "vimeo" },
   { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
   { name: "Kick", url: "https://kick.com", slug: "kick" },
-  { name: "Medal", url: "https://medal.tv", Icon: MedalIcon },
+  { name: "Medal", url: "https://medal.tv", Icon: MedalIcon, iconClass: "size-[26px]" },
   { name: "YouTube Music", url: "https://music.youtube.com", slug: "youtubemusic" },
   { name: "Spotify", url: "https://spotify.com", slug: "spotify" },
   { name: "Deezer", url: "https://deezer.com", slug: "deezer" },
