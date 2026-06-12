@@ -112,14 +112,15 @@ Not committed and not release-ordered — picked from as capacity allows.
     · ~**100-track cap** on big playlists (anonymous API rate-limits the full
     fetch); a bring-your-own-credentials Settings field would lift it.
   - **Tidal** — embed `<list-item>` scrape + the regular page's og tags.
-  - **Amazon Music** — `music.amazon.*/embed/{asin}` HTML scrape (no duration/cover
-    — the auto-tagger fills those downstream).
+  - **Amazon Music** — `music.amazon.*/embed/{asin}` HTML scrape; the embed carries
+    no cover/durations, so those are **backfilled from Deezer's keyless API**
+    (matched by a loosened title key).
   API-based (Deezer/Apple) are sturdier; the embed scrapes (Spotify/Tidal/Amazon)
   are more fragile — a page change needs an extractor tweak, like Threads.
-- 🟡 **Search beyond YouTube** *(implemented locally — pending release)* — the
-  URL-field typeahead has a **YouTube ↔ SoundCloud** selector (persisted), flipping
-  the yt-dlp search prefix (`ytsearch`→`scsearch`). More platforms drop in by
-  adding a prefix.
+- 🟡 **Search beyond YouTube** *(implemented locally — pending release)* — a
+  **YouTube ↔ SoundCloud** selector in the header (persisted) drives the URL-field
+  typeahead, flipping the yt-dlp search prefix (`ytsearch`→`scsearch`). More
+  platforms drop in by adding a prefix.
 - ⬜ **Split by chapters** (M) — one file per chapter (`--split-chapters`).
 - ⬜ **Playlist sync / `--download-archive`** (M) — only fetch what's new.
 - ⬜ **Sidecar exports** (S) — `.info.json` / thumbnail / loose `.srt`/`.vtt`.
