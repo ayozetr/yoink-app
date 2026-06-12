@@ -49,6 +49,31 @@ function MedalIcon({ className }: { className?: string }) {
   );
 }
 
+/** Amazon Music's logo (not in Simple Icons): equalizer bars + the Amazon smile. */
+function AmazonMusicIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+    >
+      <rect x="5" y="8" width="2.2" height="6" rx="1.1" />
+      <rect x="8.6" y="5" width="2.2" height="9" rx="1.1" />
+      <rect x="12.2" y="7" width="2.2" height="7" rx="1.1" />
+      <rect x="15.8" y="4" width="2.2" height="10" rx="1.1" />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        d="M4 17.5 Q12 21 20 17.5"
+      />
+    </svg>
+  );
+}
+
 /** Manually verified platforms. Typed array so it's easy to extend later. */
 const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "YouTube", url: "https://youtube.com", slug: "youtube" },
@@ -68,7 +93,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Deezer", url: "https://deezer.com", slug: "deezer" },
   { name: "Apple Music", url: "https://music.apple.com", slug: "applemusic" },
   { name: "Tidal", url: "https://tidal.com", slug: "tidal" },
-  { name: "Amazon Music", url: "https://music.amazon.com", slug: "amazonmusic" },
+  { name: "Amazon Music", url: "https://music.amazon.com", Icon: AmazonMusicIcon },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
 ];
