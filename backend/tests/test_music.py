@@ -14,6 +14,8 @@ def test_detect_source():
     assert mi.detect_source("https://youtube.com/watch?v=x") is None
     assert mi.is_music_url("spotify:track:abc")
     assert not mi.is_music_url("https://example.com")
+    # Deezer share/short links are recognised (resolved via redirect at fetch).
+    assert mi.detect_source("https://link.deezer.com/s/33x4zIvNQBwjhW4mk") == "deezer"
 
 
 _DEEZER_ALBUM = {

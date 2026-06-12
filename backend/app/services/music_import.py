@@ -50,6 +50,19 @@ def _get(url: str, headers: dict[str, str] | None = None) -> str:
         raise MusicImportError(f"Could not reach the music service: {exc}") from exc
 
 
+_DEEZER_SHORT_RE = re.compile(r"(?:link\.deezer\.com|deezer\.page\.link|dzr\.page\.link)/", re.IGNORECASE)
+
+
+def _final_url(url: str) -> str:
+    """Follow redirects and return the final URL (for share/short links)."""
+    h = {"User-Agent": _USER_AGENT}
+    try:
+        with urlopen(Request(url, headers=h), timeout=15) as resp:  # noqa: S310
+            return resp.geturl()
+    except (URLError, OSError) as exc:
+        raise MusicImportError(f"Could not reach the music service: {exc}") from exc
+
+
 def _get_json(url: str, headers: dict[str, str] | None = None) -> Any:
     try:
         return json.loads(_get(url, headers))
@@ -97,6 +110,7 @@ _AMAZON_RE = re.compile(
 _DETECTORS: list[tuple[MusicSource, re.Pattern[str]]] = [
     ("spotify", _SPOTIFY_RE),
     ("deezer", _DEEZER_RE),
+    ("deezer", _DEEZER_SHORT_RE),
     ("apple", _APPLE_RE),
     ("tidal", _TIDAL_RE),
     ("amazon", _AMAZON_RE),
@@ -340,6 +354,8 @@ def _deezer_track(item: dict[str, Any], album_name: str | None, year: str | None
 
 
 def _resolve_deezer(url: str) -> MusicImportInfo:
+    if _DEEZER_SHORT_RE.search(url):
+        url = _final_url(url)  # share link → canonical deezer.com/<kind>/<id>
     match = _DEEZER_RE.search(url)
     if not match:
         raise MusicImportError("Not a recognised Deezer URL.")

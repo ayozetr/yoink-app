@@ -111,6 +111,7 @@ export function isMusicUrl(value: string): boolean {
   return (
     /(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?|spotify:)(track|album|playlist)[/:]/i.test(value) ||
     /(?:deezer\.com|deezer\.page\.link)\/(?:[a-z]{2}\/)?(track|album|playlist)\//i.test(value) ||
+    /(?:link\.deezer\.com|dzr\.page\.link)\//i.test(value) ||
     /music\.apple\.com\/(?:[a-z]{2}\/)?(album|song|playlist)\//i.test(value) ||
     /(?:tidal\.com|embed\.tidal\.com|listen\.tidal\.com)\/(?:browse\/)?(track|album|playlist)s?\//i.test(value) ||
     /music\.amazon\.[a-z.]+\/(albums|tracks|playlists|user-playlists)\//i.test(value)
