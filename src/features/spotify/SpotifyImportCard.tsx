@@ -326,7 +326,7 @@ export function SpotifyImportCard({
             return (
               <label
                 key={`${track.spotify_url}-${i}`}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-within:bg-surface-hover focus-within:ring-2 focus-within:ring-emerald-500/60"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-within:bg-surface-hover focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500/70"
               >
                 <input
                   type="checkbox"
