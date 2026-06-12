@@ -106,9 +106,15 @@ def name_match(track_title: str, cand_title: str) -> float:
     return max(0.0, best - penalty)
 
 
+# "feat. X" / "ft. X" / "featuring X" — a *secondary* artist that the source
+# tacks onto the main credit but the YouTube channel/title usually omits, so it
+# only drags the coverage down. Drop it before matching.
+_FEAT_RE = re.compile(r"\s*[\(\[]?\s*(?:feat\.?|ft\.?|featuring)\s.+$", re.IGNORECASE)
+
+
 def artist_match(track_artists: str, cand_title: str, cand_channel: str) -> float:
     """How well the track's artists appear in the candidate's channel + title."""
-    artist_slug = _slug(track_artists)
+    artist_slug = _slug(_FEAT_RE.sub("", track_artists))
     if not artist_slug:
         return 0.0
     cand_text = _slug(f"{cand_channel} {cand_title}")
@@ -146,11 +152,17 @@ def score(
     track_secs = (track_duration_ms / 1000) if track_duration_ms else None
     tm = time_match(track_secs, cand.get("duration"))
 
-    # A near-exact name+artist hit shouldn't be rejected over a moderate length
-    # gap — remixes/edits add a "ft." intro or tag worth 10–20s. Relax the time
-    # floor when both are strong (a grossly wrong length still scores ~0 and is
-    # rejected); keep it strict otherwise to filter ambiguous matches.
-    min_time = 10.0 if (nm >= 85 and am >= 85) else _MIN_TIME
+    # A near-exact name+artist hit shouldn't be rejected over a length gap — an
+    # official video adds a 25–40s intro/outro, an edit a "ft." tag. The stronger
+    # name+artist are, the less duration should gate (it still ranks closer hits
+    # higher via the score, and forbidden words already filter live/remix cuts).
+    # A grossly wrong length still scores ~0, so even the loosest tier rejects it.
+    if nm >= 90 and am >= 90:
+        min_time = 0.5  # ~50s tolerance — same song, different cut
+    elif nm >= 85 and am >= 85:
+        min_time = 10.0
+    else:
+        min_time = _MIN_TIME
     if nm < _MIN_NAME or am < _MIN_ARTIST or tm < min_time:
         return None
 
