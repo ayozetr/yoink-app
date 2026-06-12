@@ -74,3 +74,14 @@ def test_name_match_handles_accents_and_order():
     # de-accented + order-insensitive
     assert name_match("QUÉ CRUEL", "que cruel") > 90
     assert name_match("Tití Me Preguntó", "Preguntó Me Tití") > 60
+
+
+def test_name_match_ignores_surrounding_youtube_noise():
+    # The real failure mode: a bare track title vs a noisy YouTube title that
+    # wraps it in "Artist - … (Official Video)". The token-set ratio must keep
+    # the score high (these were wrongly skipped before).
+    assert name_match("Despechá", "ROSALÍA - DESPECHÁ (Official Video)") >= 90
+    assert name_match("Beggin'", "Måneskin - Beggin' (Lyrics/Testo)") >= 90
+    assert name_match("Calm Down", "Rema, Selena Gomez - Calm Down (Official Music Video)") >= 90
+    # …but an unrelated longer title still doesn't get a free pass.
+    assert name_match("Calm Down", "Imagine Dragons - Thunder (Official Video)") < 60

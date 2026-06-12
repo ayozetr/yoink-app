@@ -1,8 +1,8 @@
 """YouTube match-ranking for Spotify tracks — a port of spotDL's algorithm.
 
 spotDL (MIT) sources Spotify songs from YouTube. We reuse its *scoring* idea —
-no spotDL dependency, no Spotify API: score yt-dlp ``ytmsearch`` candidates
-against a Spotify track on fuzzy name/artist similarity + a duration penalty,
+no spotDL dependency, no Spotify API: score yt-dlp ``ytsearch`` candidates
+against a music track on fuzzy name/artist similarity + a duration penalty,
 and filter the wrong *kind* (live/remix/cover…) with a forbidden-word list.
 
 Pure functions, no network. ``best_match`` returns the highest-scoring candidate
@@ -45,15 +45,36 @@ def _slug(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _token_set_ratio(a: str, b: str) -> float:
+    """fuzzywuzzy-style token-set ratio (0–1): robust to extra words on one side.
+
+    The crucial property: when one string's tokens are a subset of the other's,
+    the score is ~1.0 — so a bare track title ("despechá") still matches a noisy
+    YouTube title ("ROSALÍA - DESPECHÁ (Official Video)") that merely surrounds it
+    with the artist + "(Official Video)" boilerplate.
+    """
+    t1, t2 = set(a.split()), set(b.split())
+    if not t1 or not t2:
+        return 0.0
+    inter = " ".join(sorted(t1 & t2))
+    combined1 = (inter + " " + " ".join(sorted(t1 - t2))).strip()
+    combined2 = (inter + " " + " ".join(sorted(t2 - t1))).strip()
+    return max(
+        SequenceMatcher(None, inter, combined1).ratio(),
+        SequenceMatcher(None, inter, combined2).ratio(),
+        SequenceMatcher(None, combined1, combined2).ratio(),
+    )
+
+
 def _ratio(a: str, b: str) -> float:
-    """Fuzzy similarity 0–100, order-insensitive (token-sorted too)."""
+    """Fuzzy similarity 0–100: max of direct, token-sorted, and token-set ratios."""
     if not a or not b:
         return 0.0
     direct = SequenceMatcher(None, a, b).ratio()
     sorted_a = " ".join(sorted(a.split()))
     sorted_b = " ".join(sorted(b.split()))
     token = SequenceMatcher(None, sorted_a, sorted_b).ratio()
-    return max(direct, token) * 100
+    return max(direct, token, _token_set_ratio(a, b)) * 100
 
 
 def _forbidden_penalty(cand_title_slug: str, track_title_slug: str) -> float:
