@@ -84,6 +84,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "X (Twitter)", url: "https://x.com", slug: "x" },
   { name: "Reddit", url: "https://reddit.com", slug: "reddit" },
   { name: "Bluesky", url: "https://bsky.app", slug: "bluesky" },
+  { name: "Pinterest", url: "https://pinterest.com", slug: "pinterest" },
   { name: "Vimeo", url: "https://vimeo.com", slug: "vimeo" },
   { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
   { name: "Kick", url: "https://kick.com", slug: "kick" },
@@ -101,6 +102,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
+  { name: "Bandcamp", url: "https://bandcamp.com", slug: "bandcamp" },
 ];
 
 /** Modal listing the manually-verified sites (logo + name), each clickable. */
