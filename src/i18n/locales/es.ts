@@ -103,11 +103,11 @@ export const es = {
     clearDone: "Limpiar completadas",
     remove: "Quitar de la cola",
   },
-  spotify: {
-    label: "Importar de Spotify",
+  music: {
+    label: "Importar de {{source}}",
     songs: "{{count}} canciones",
     truncated: "(solo los temas que expone el embed)",
-    hint: "El audio de Spotify no se puede bajar directamente — cada tema se busca en YouTube, se descarga y se etiqueta con los metadatos de Spotify.",
+    hint: "Este audio no se puede bajar directamente — cada tema se busca en YouTube, se descarga y se etiqueta con los metadatos de la fuente.",
     import: "Importar {{count}} como audio",
     download: "Descargar como audio",
     done: "Importado",

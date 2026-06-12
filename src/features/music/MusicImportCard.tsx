@@ -14,31 +14,31 @@ import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
 import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Thumbnail } from "../../components/ui/Thumbnail";
-import { applyAudioTags, matchSpotify } from "../../lib/api";
+import { applyAudioTags, matchMusic } from "../../lib/api";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
 import { AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT } from "../downloader/formatOptions";
 import type { AudioFormat } from "../../types/download";
-import type { SpotifyImportInfo } from "../../types/spotify";
+import { MUSIC_SOURCE_NAMES, type MusicImportInfo } from "../../types/music";
 
 type RowStatus = "pending" | "active" | "done" | "error" | "skipped";
 
-interface SpotifyImportCardProps {
-  info: SpotifyImportInfo;
+interface MusicImportCardProps {
+  info: MusicImportInfo;
   defaultAudioFormat?: AudioFormat;
   /** Refresh history/stats as tracks complete. */
   onDownloadFinished?: () => void;
 }
 
-/** Import a Spotify URL: resolve → match each track on YouTube → download + tag.
+/** Import a music-service URL: resolve → match each track on YouTube → download + tag.
  *
- * The audio is never taken from Spotify — only its metadata. Each track is
+ * The audio is never taken from the source — only its metadata. Each track is
  * matched to a YouTube video (spotDL-ported ranking), downloaded as audio, and
- * tagged with the exact Spotify fields. Runs sequentially like the queue. */
-export function SpotifyImportCard({
+ * tagged with the exact source fields. Runs sequentially like the queue. */
+export function MusicImportCard({
   info,
   defaultAudioFormat,
   onDownloadFinished,
-}: SpotifyImportCardProps) {
+}: MusicImportCardProps) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<Set<number>>(
     () => new Set(info.tracks.map((_, i) => i)),
@@ -105,10 +105,10 @@ export function SpotifyImportCard({
     setPercent(0);
     setRow(idx, "active");
 
-    // 1. Find the best YouTube match for this Spotify track.
+    // 1. Find the best YouTube match for this track.
     let url: string | null;
     try {
-      url = await matchSpotify(track);
+      url = await matchMusic(track);
     } catch {
       url = null;
     }
@@ -119,7 +119,7 @@ export function SpotifyImportCard({
       return;
     }
 
-    // 2. Download it as audio, then 3. tag it with the Spotify metadata.
+    // 2. Download it as audio, then 3. tag it with the source metadata.
     let settled = false;
     handleRef.current = startDownload(
       { url, kind: "audio", audio_format: fmtRef.current },
@@ -187,7 +187,7 @@ export function SpotifyImportCard({
 
   const doneCount = Object.values(rows).filter((s) => s === "done").length;
 
-  // One unified card: a big square cover + Spotify metadata header (like a
+  // One unified card: a big square cover + source metadata header (like a
   // preview) for everything, with the track selection list below for
   // albums/playlists.
   const isSingle = info.type === "track";
@@ -199,15 +199,15 @@ export function SpotifyImportCard({
     ? [first?.album, first?.year, fmtMs(first?.duration_ms ?? null)]
         .filter(Boolean)
         .join(" · ")
-    : `${t("spotify.songs", { count: info.tracks.length })}${
-        info.truncated ? ` ${t("spotify.truncated")}` : ""
+    : `${t("music.songs", { count: info.tracks.length })}${
+        info.truncated ? ` ${t("music.truncated")}` : ""
       }`;
 
   return (
     <GlassPanel className="p-5">
       <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-violet-400">
         <Music4 size={14} />
-        {t("spotify.label")}
+        {t("music.label", { source: MUSIC_SOURCE_NAMES[info.source] })}
       </span>
 
       <div className="mt-3 flex flex-col gap-5 sm:flex-row">
@@ -246,7 +246,7 @@ export function SpotifyImportCard({
             {headerMeta && <p className="mt-1 text-sm text-zinc-400">{headerMeta}</p>}
             <p className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
               <AlertCircle size={14} className="shrink-0" />
-              {t("spotify.hint")}
+              {t("music.hint")}
             </p>
           </div>
 
@@ -274,7 +274,7 @@ export function SpotifyImportCard({
               ) : isSingle && status0 === "done" ? (
                 <span className="flex h-12 items-center gap-2 text-sm text-violet-300">
                   <CheckCircle2 size={18} />
-                  {t("spotify.done")}
+                  {t("music.done")}
                 </span>
               ) : (
                 <Button
@@ -285,8 +285,8 @@ export function SpotifyImportCard({
                 >
                   <Download size={18} />
                   {isSingle
-                    ? t("spotify.download")
-                    : t("spotify.import", { count: selected.size })}
+                    ? t("music.download")
+                    : t("music.import", { count: selected.size })}
                 </Button>
               )}
             </div>
@@ -311,7 +311,7 @@ export function SpotifyImportCard({
             {isSingle && (status0 === "error" || status0 === "skipped") && (
               <p className="flex items-center gap-2 text-xs text-red-400">
                 <AlertCircle size={14} className="shrink-0" />
-                {t("spotify.noMatch")}
+                {t("music.noMatch")}
               </p>
             )}
           </div>
@@ -325,7 +325,7 @@ export function SpotifyImportCard({
             const status = rows[i];
             return (
               <label
-                key={`${track.spotify_url}-${i}`}
+                key={`${track.source_url}-${i}`}
                 role="checkbox"
                 aria-checked={selected.has(i)}
                 tabIndex={running ? -1 : 0}

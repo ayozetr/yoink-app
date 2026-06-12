@@ -9,9 +9,9 @@ import { DownloadProgressCard } from "./components/DownloadProgressCard";
 import { AutoTagPanel } from "../autotag/AutoTagPanel";
 import { AutoTagBatchPanel } from "../autotag/AutoTagBatchPanel";
 import { GlassPanel } from "../../components/ui/GlassPanel";
-import { fetchInfo, isSpotifyUrl, resolveSpotify, ApiError } from "../../lib/api";
-import { SpotifyImportCard } from "../spotify/SpotifyImportCard";
-import type { SpotifyImportInfo } from "../../types/spotify";
+import { fetchInfo, isMusicUrl, resolveMusic, ApiError } from "../../lib/api";
+import { MusicImportCard } from "../music/MusicImportCard";
+import type { MusicImportInfo } from "../../types/music";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
 import { setWindowProgress } from "../../lib/windowProgress";
 import { notify } from "../../lib/notify";
@@ -78,7 +78,7 @@ export function DownloaderPanel({
   const { t } = useTranslation();
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<InfoResponse | null>(null);
-  const [spotifyInfo, setSpotifyInfo] = useState<SpotifyImportInfo | null>(null);
+  const [musicInfo, setMusicInfo] = useState<MusicImportInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,17 +238,17 @@ export function DownloaderPanel({
     resetDownload();
 
     try {
-      if (isSpotifyUrl(trimmed)) {
+      if (isMusicUrl(trimmed)) {
         setInfo(null);
-        setSpotifyInfo(await resolveSpotify(trimmed, controller.signal));
+        setMusicInfo(await resolveMusic(trimmed, controller.signal));
       } else {
-        setSpotifyInfo(null);
+        setMusicInfo(null);
         setInfo(await fetchInfo(trimmed, controller.signal));
       }
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
       setInfo(null);
-      setSpotifyInfo(null);
+      setMusicInfo(null);
       setError(
         cause instanceof ApiError
           ? cause.status === 503
@@ -371,10 +371,10 @@ export function DownloaderPanel({
         />
       )}
 
-      {spotifyInfo && (
-        <SpotifyImportCard
-          key={spotifyInfo.name}
-          info={spotifyInfo}
+      {musicInfo && (
+        <MusicImportCard
+          key={musicInfo.name}
+          info={musicInfo}
           defaultAudioFormat={defaultAudioFormat}
           onDownloadFinished={onDownloadFinished}
         />

@@ -20,7 +20,7 @@ import type {
   ApplyResponse,
   CandidateList,
 } from "../types/autotag";
-import type { SpotifyImportInfo, SpotifyTrack } from "../types/spotify";
+import type { MusicImportInfo, MusicTrack } from "../types/music";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8756/api";
@@ -106,21 +106,25 @@ export async function fetchInfo(
   return (await response.json()) as InfoResponse;
 }
 
-/** A Spotify track/album/playlist URL (open.spotify.com or a spotify: URI). */
-export function isSpotifyUrl(value: string): boolean {
-  return /(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?|spotify:)(track|album|playlist)[/:]/i.test(
-    value,
+/** A supported music-service URL (Spotify/Deezer/Apple/Tidal/Amazon). */
+export function isMusicUrl(value: string): boolean {
+  return (
+    /(?:open\.spotify\.com\/(?:intl-[a-z-]+\/)?|spotify:)(track|album|playlist)[/:]/i.test(value) ||
+    /(?:deezer\.com|deezer\.page\.link)\/(?:[a-z]{2}\/)?(track|album|playlist)\//i.test(value) ||
+    /music\.apple\.com\/(?:[a-z]{2}\/)?(album|song|playlist)\//i.test(value) ||
+    /(?:tidal\.com|embed\.tidal\.com|listen\.tidal\.com)\/(?:browse\/)?(track|album|playlist)s?\//i.test(value) ||
+    /music\.amazon\.[a-z.]+\/(albums|tracks|playlists|user-playlists)\//i.test(value)
   );
 }
 
-/** Resolve a Spotify URL into its tracklist (keyless embed scrape). */
-export async function resolveSpotify(
+/** Resolve a music-service URL into its tracklist (keyless). */
+export async function resolveMusic(
   url: string,
   signal?: AbortSignal,
-): Promise<SpotifyImportInfo> {
+): Promise<MusicImportInfo> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}/spotify/resolve`, {
+    response = await fetch(`${API_BASE_URL}/music/resolve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
@@ -133,15 +137,15 @@ export async function resolveSpotify(
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
-  return (await response.json()) as SpotifyImportInfo;
+  return (await response.json()) as MusicImportInfo;
 }
 
-/** Find the best-ranked YouTube video URL for a Spotify track (null if none). */
-export async function matchSpotify(
-  track: SpotifyTrack,
+/** Find the best-ranked YouTube video URL for a track (null if none). */
+export async function matchMusic(
+  track: MusicTrack,
   signal?: AbortSignal,
 ): Promise<string | null> {
-  const response = await fetch(`${API_BASE_URL}/spotify/match`, {
+  const response = await fetch(`${API_BASE_URL}/music/match`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(track),
