@@ -205,14 +205,14 @@ export function SpotifyImportCard({
 
   return (
     <GlassPanel className="p-5">
-      <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-400">
+      <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-violet-400">
         <Music4 size={14} />
         {t("spotify.label")}
       </span>
 
       <div className="mt-3 flex flex-col gap-5 sm:flex-row">
         {/* Square cover */}
-        <div className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600/40 to-blue-600/40 sm:w-[180px] sm:self-start">
+        <div className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600/40 to-blue-600/40 sm:w-[180px] sm:self-start">
           {info.cover_url ? (
             <Thumbnail
               src={info.cover_url}
@@ -272,7 +272,7 @@ export function SpotifyImportCard({
                   {t("queue.stop")}
                 </button>
               ) : isSingle && status0 === "done" ? (
-                <span className="flex h-12 items-center gap-2 text-sm text-emerald-300">
+                <span className="flex h-12 items-center gap-2 text-sm text-violet-300">
                   <CheckCircle2 size={18} />
                   {t("spotify.done")}
                 </span>
@@ -335,7 +335,7 @@ export function SpotifyImportCard({
                     toggle(i);
                   }
                 }}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/70"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-visible:!outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/70"
               >
                 <input
                   type="checkbox"
@@ -344,7 +344,7 @@ export function SpotifyImportCard({
                   onChange={() => toggle(i)}
                   tabIndex={-1}
                   aria-hidden="true"
-                  className="size-4 accent-emerald-500 shrink-0 outline-none disabled:opacity-40"
+                  className="size-4 accent-violet-500 shrink-0 outline-none disabled:opacity-40"
                 />
                 <span className="flex-1 min-w-0">
                   <span className="block truncate text-sm">{track.title}</span>
@@ -353,10 +353,10 @@ export function SpotifyImportCard({
                   </span>
                 </span>
                 {status === "active" && (
-                  <Loader2 size={15} className="shrink-0 animate-spin text-emerald-400" />
+                  <Loader2 size={15} className="shrink-0 animate-spin text-violet-400" />
                 )}
                 {status === "done" && (
-                  <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+                  <CheckCircle2 size={15} className="shrink-0 text-violet-400" />
                 )}
                 {status === "error" && (
                   <AlertCircle size={15} className="shrink-0 text-red-400" />
