@@ -103,11 +103,13 @@ Not committed and not release-ordered — picked from as capacity allows.
   download + auto-tag with the *exact* source metadata. One source-agnostic
   pipeline (`/api/music/{resolve,match}` + `MusicImportCard`); only the resolver
   differs per service. A single track shows a square-cover preview;
-  albums/playlists a track-picker.
+  albums/playlists a track-picker. The spotDL-ported matcher hits **98%** of
+  tracks on a 403-track real-playlist test across all five sources (token-set
+  title ratio, glyph folding, name+artist-aware duration gate).
   - **Deezer** ⭐ — public API `api.deezer.com` (no key) · full JSON, **no track
     cap** · the standout (we already use its keyless API for auto-tagging).
-  - **Apple Music** — iTunes Lookup API for albums/tracks (no user playlists,
-    keyless) · good JSON.
+  - **Apple Music** — iTunes Lookup API for albums/tracks; **playlists** scrape
+    the web page's `serialized-server-data` blob (title/artist/duration/artwork).
   - **Spotify** — public embed `__NEXT_DATA__` + anonymous web-player token paging
     · ~**100-track cap** on big playlists (anonymous API rate-limits the full
     fetch); a bring-your-own-credentials Settings field would lift it.
