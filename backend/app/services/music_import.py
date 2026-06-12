@@ -30,7 +30,8 @@ _USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
-_SEARCH_N = 5  # YouTube candidates to rank per track
+_SEARCH_N = 5  # YouTube candidates to rank per track (first, tight pass)
+_SEARCH_N_FALLBACK = 10  # widened pass, used only when the tight one finds nothing
 
 
 class MusicImportError(RuntimeError):
@@ -146,11 +147,8 @@ def resolve(url: str) -> MusicImportInfo:
 
 # --- YouTube match (shared) ------------------------------------------------
 
-def find_youtube_match(track: MusicTrack) -> str | None:
-    """Search YouTube for a track and return the best-ranked video URL (or None)."""
-    query = f"{track.artists} {track.title}".strip()
-    if not query:
-        return None
+def _youtube_candidates(query: str, count: int) -> list[dict[str, Any]]:
+    """Flat-search YouTube and shape the hits into ranking candidates."""
     options: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
@@ -160,11 +158,10 @@ def find_youtube_match(track: MusicTrack) -> str | None:
     }
     try:
         with YoutubeDL(options) as ydl:
-            info = ydl.extract_info(f"ytsearch{_SEARCH_N}:{query}", download=False)
+            info = ydl.extract_info(f"ytsearch{count}:{query}", download=False)
     except DownloadError:
-        return None
-    entries = (info or {}).get("entries") or []
-    candidates = [
+        return []
+    return [
         {
             "title": e.get("title"),
             "channel": e.get("channel") or e.get("uploader"),
@@ -172,20 +169,34 @@ def find_youtube_match(track: MusicTrack) -> str | None:
             "id": e.get("id"),
             "url": e.get("url") or e.get("webpage_url"),
         }
-        for e in entries
+        for e in (info or {}).get("entries") or []
         if isinstance(e, dict)
     ]
-    best = best_match(
-        track_title=track.title,
-        track_artists=track.artists,
-        track_duration_ms=track.duration_ms,
-        candidates=candidates,
-    )
-    if not best:
+
+
+def find_youtube_match(track: MusicTrack) -> str | None:
+    """Search YouTube for a track and return the best-ranked video URL (or None).
+
+    Ranks a tight top-5 first; only if nothing clears the thresholds does it widen
+    the net to top-10 and try again. A candidate already accepted at top-5 is
+    returned immediately, so the fallback can never displace a passing match — it
+    only gives the tracks that would otherwise be skipped a second chance.
+    """
+    query = f"{track.artists} {track.title}".strip()
+    if not query:
         return None
-    if best.get("id"):
-        return f"https://www.youtube.com/watch?v={best['id']}"
-    return best.get("url")
+    for count in (_SEARCH_N, _SEARCH_N_FALLBACK):
+        best = best_match(
+            track_title=track.title,
+            track_artists=track.artists,
+            track_duration_ms=track.duration_ms,
+            candidates=_youtube_candidates(query, count),
+        )
+        if best:
+            if best.get("id"):
+                return f"https://www.youtube.com/watch?v={best['id']}"
+            return best.get("url")
+    return None
 
 
 # --- Spotify (public embed + anonymous token) ------------------------------

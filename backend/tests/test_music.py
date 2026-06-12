@@ -217,3 +217,70 @@ def test_find_youtube_match(monkeypatch):
     track = MusicTrack(title="Never Gonna Give You Up", artists="Rick Astley",
                        duration_ms=213000, source_url="http://x")
     assert mi.find_youtube_match(track) == "https://www.youtube.com/watch?v=GOOD"
+
+
+def test_find_youtube_match_widens_on_miss(monkeypatch):
+    """The tight top-5 misses; the fallback top-10 surfaces the real match."""
+    from app.models.music import MusicTrack
+
+    calls: list[int] = []
+
+    class FakeYDL:
+        def __init__(self, opts):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, query, download=False):
+            n = int(query.split("ytsearch", 1)[1].split(":", 1)[0])
+            calls.append(n)
+            # The correct upload only appears once the net widens past 5.
+            if n <= 5:
+                return {"entries": [
+                    {"title": "Some Unrelated Song", "channel": "Nobody",
+                     "duration": 100, "id": "BAD"},
+                ]}
+            return {"entries": [
+                {"title": "salute - Check Check (Official Visualiser)",
+                 "channel": "salute", "duration": 180, "id": "DEEP"},
+            ]}
+
+    monkeypatch.setattr(mi, "YoutubeDL", FakeYDL)
+    track = MusicTrack(title="Check Check", artists="salute",
+                       duration_ms=180000, source_url="http://x")
+    assert mi.find_youtube_match(track) == "https://www.youtube.com/watch?v=DEEP"
+    assert calls == [5, 10]  # tried tight first, then widened
+
+
+def test_find_youtube_match_no_fallback_when_top5_hits(monkeypatch):
+    """A top-5 hit returns immediately — the fallback search never runs."""
+    from app.models.music import MusicTrack
+
+    calls: list[int] = []
+
+    class FakeYDL:
+        def __init__(self, opts):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, query, download=False):
+            calls.append(int(query.split("ytsearch", 1)[1].split(":", 1)[0]))
+            return {"entries": [
+                {"title": "salute - Check Check", "channel": "salute",
+                 "duration": 180, "id": "TOP"},
+            ]}
+
+    monkeypatch.setattr(mi, "YoutubeDL", FakeYDL)
+    track = MusicTrack(title="Check Check", artists="salute",
+                       duration_ms=180000, source_url="http://x")
+    assert mi.find_youtube_match(track) == "https://www.youtube.com/watch?v=TOP"
+    assert calls == [5]  # never widened — no wasted search
