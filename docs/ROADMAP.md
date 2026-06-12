@@ -96,32 +96,30 @@ The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
 Not committed and not release-ordered — picked from as capacity allows.
 
 ### 🎬 Download & conversion
-- 🟡 **Import from Spotify** *(implemented locally — pending release)* — paste a
-  Spotify track/album/playlist URL → scrape the **public embed page** (no API
-  key, like the Threads extractor) → rank a YouTube match with a **spotDL-ported**
-  scorer → download + auto-tag with the *exact* Spotify metadata. A single track
-  shows a square-cover preview; albums/playlists a track-picker. Caveat:
-  ~**100-track cap** on big playlists (Spotify's anonymous API rate-limits the
-  full fetch); an optional bring-your-own-credentials Settings field would lift
-  it. *(The `spotify/save-to-spotify` repo does the opposite — uploads to Spotify
-  — so it doesn't apply.)*
-- ⬜ **Import from other music services** (M each) — the import pipeline (YouTube
-  match + download + tag + card) is **source-agnostic**, so each new service is
-  just a **keyless** resolver (URL → tracklist). All verified feasible; ordered by
-  value/effort:
+- 🟡 **Import from music services** *(implemented locally — pending release)* —
+  paste a track/album/playlist URL from **Spotify, Deezer, Apple Music, Tidal or
+  Amazon Music** → resolve it **keyless** (public APIs / embed scrapes, like the
+  Threads extractor) → rank a YouTube match with a **spotDL-ported** scorer →
+  download + auto-tag with the *exact* source metadata. One source-agnostic
+  pipeline (`/api/music/{resolve,match}` + `MusicImportCard`); only the resolver
+  differs per service. A single track shows a square-cover preview;
+  albums/playlists a track-picker.
   - **Deezer** ⭐ — public API `api.deezer.com` (no key) · full JSON, **no track
-    cap** · *easy*. The standout: robust and, unlike Spotify, no ~100-track cap
-    (and we already use its keyless API for auto-tagging).
-  - **Apple Music** — iTunes Lookup API for albums/tracks, no user playlists (also
-    already used for auto-tagging) · good JSON · *easy*.
-  - **Tidal** — embed `embed.tidal.com/albums/{id}` (HTML scrape) · titles **+
-    duration** · *medium*.
-  - **Amazon Music** — embed `music.amazon.es/embed/{asin}` (HTML scrape) ·
-    titles, **no duration** (weaker match) · *medium*.
-  API-based (Deezer/Apple) are sturdier; the embed scrapes (Tidal/Amazon) are more
-  fragile — a page change needs an extractor tweak, like the Threads extractor.
-- ⬜ **Search beyond YouTube** (S/M) — platform selector (SoundCloud/Bilibili…),
-  switching the search prefix (`ytsearch`→`scsearch`); infra already exists.
+    cap** · the standout (we already use its keyless API for auto-tagging).
+  - **Apple Music** — iTunes Lookup API for albums/tracks (no user playlists,
+    keyless) · good JSON.
+  - **Spotify** — public embed `__NEXT_DATA__` + anonymous web-player token paging
+    · ~**100-track cap** on big playlists (anonymous API rate-limits the full
+    fetch); a bring-your-own-credentials Settings field would lift it.
+  - **Tidal** — embed `<list-item>` scrape + the regular page's og tags.
+  - **Amazon Music** — `music.amazon.*/embed/{asin}` HTML scrape (no duration/cover
+    — the auto-tagger fills those downstream).
+  API-based (Deezer/Apple) are sturdier; the embed scrapes (Spotify/Tidal/Amazon)
+  are more fragile — a page change needs an extractor tweak, like Threads.
+- 🟡 **Search beyond YouTube** *(implemented locally — pending release)* — the
+  URL-field typeahead has a **YouTube ↔ SoundCloud** selector (persisted), flipping
+  the yt-dlp search prefix (`ytsearch`→`scsearch`). More platforms drop in by
+  adding a prefix.
 - ⬜ **Split by chapters** (M) — one file per chapter (`--split-chapters`).
 - ⬜ **Playlist sync / `--download-archive`** (M) — only fetch what's new.
 - ⬜ **Sidecar exports** (S) — `.info.json` / thumbnail / loose `.srt`/`.vtt`.
