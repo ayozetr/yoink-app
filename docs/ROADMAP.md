@@ -145,8 +145,10 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   `max-h` box with no filter; add a "filter tracks…" input to narrow the list.
 - ⬜ **Range + smarter selection** (S) — only select-all/none today; add shift-click
   range selection (and maybe "select first N").
-- ⬜ **Batch totals** (S) — show the selection's total duration + a rough size
-  estimate (reuse `estimatedSizeBytes`): e.g. "23 tracks · 1h 18m · ~280 MB".
+- 🟡 **Batch totals** *(implemented locally — pending release)* — the playlist card
+  shows the current selection's count + **total duration** ("23 selected · 1h 18m").
+  A rough **size** estimate is still pending (flat entries carry no per-item
+  formats, so it needs a probe/heuristic).
 - ⬜ **Audio-first for music playlists** (S) — YT Music mixes (`RD…`/`OLAK…` list ids
   or `music.youtube.com`) are music-intent; default `kind` to **audio** for them
   instead of video.

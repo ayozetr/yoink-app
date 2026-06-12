@@ -43,6 +43,23 @@ const SUBTITLE_LANGS = ["en", "es"];
 /** Sentinel value for the "no subtitles" entry in the language picker. */
 const SUBS_NONE = "__none__";
 
+/** Parse a backend clock string ("M:SS" / "H:MM:SS") into seconds (0 if absent). */
+function clockToSeconds(clock: string | null | undefined): number {
+  if (!clock) return 0;
+  const parts = clock.split(":").map((p) => Number.parseInt(p, 10));
+  if (parts.some(Number.isNaN)) return 0;
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+
+/** Render a seconds total as a compact "1h 18m" / "18m" / "45s". */
+function formatTotal(total: number): string {
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours) return `${hours}h ${minutes}m`;
+  if (minutes) return `${minutes}m`;
+  return `${total}s`;
+}
+
 /** Preview of an analyzed playlist: pick which items to download. */
 export function PlaylistCard({
   playlist,
@@ -91,6 +108,12 @@ export function PlaylistCard({
       : audioFormat;
   const showLosslessWarning = !isVideo && !losslessAllowed;
   const allSelected = selected.size === playlist.entries.length;
+  // Total duration of the current selection (some flat entries may lack one).
+  const selectedDuration = playlist.entries.reduce(
+    (acc, entry) =>
+      selected.has(entry.id) ? acc + clockToSeconds(entry.duration_string) : acc,
+    0,
+  );
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -285,6 +308,18 @@ export function PlaylistCard({
               </p>
             )}
           </div>
+        )}
+
+        {selected.size > 0 && (
+          <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+            <Clock3 size={12} className="shrink-0" />
+            {selectedDuration > 0
+              ? t("playlist.selectionSummary", {
+                  count: selected.size,
+                  duration: formatTotal(selectedDuration),
+                })
+              : t("playlist.selectionCount", { count: selected.size })}
+          </p>
         )}
 
         <Button

@@ -68,6 +68,8 @@ export const es = {
     videos: "{{count}} vídeos",
     showingFirst: "(mostrando los primeros {{count}})",
     losslessNote: "FLAC/WAV serán sin pérdidas solo si la fuente lo permite.",
+    selectionSummary: "{{count}} seleccionados · {{duration}}",
+    selectionCount: "{{count}} seleccionados",
     download: "Descargar ({{count}})",
   },
   progress: {
