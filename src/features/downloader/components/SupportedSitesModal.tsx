@@ -64,6 +64,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Kick", url: "https://kick.com", slug: "kick" },
   { name: "Medal", url: "https://medal.tv", Icon: MedalIcon },
   { name: "YouTube Music", url: "https://music.youtube.com", slug: "youtubemusic" },
+  { name: "Spotify", url: "https://spotify.com", slug: "spotify" },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
 ];
