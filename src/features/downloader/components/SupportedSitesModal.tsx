@@ -65,6 +65,10 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Medal", url: "https://medal.tv", Icon: MedalIcon },
   { name: "YouTube Music", url: "https://music.youtube.com", slug: "youtubemusic" },
   { name: "Spotify", url: "https://spotify.com", slug: "spotify" },
+  { name: "Deezer", url: "https://deezer.com", slug: "deezer" },
+  { name: "Apple Music", url: "https://music.apple.com", slug: "applemusic" },
+  { name: "Tidal", url: "https://tidal.com", slug: "tidal" },
+  { name: "Amazon Music", url: "https://music.amazon.com", slug: "amazonmusic" },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
 ];
