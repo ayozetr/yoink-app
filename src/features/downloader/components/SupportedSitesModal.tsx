@@ -18,6 +18,8 @@ interface SupportedSite {
   slug?: string;
   /** Inline logo for brands missing from Simple Icons (takes precedence over slug). */
   Icon?: ComponentType<{ className?: string }>;
+  /** Optional size override for the inline Icon (e.g. wide wordmarks). */
+  iconClass?: string;
 }
 
 /** Medal's logo (not in Simple Icons); strokes use currentColor. */
@@ -90,7 +92,12 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Deezer", url: "https://deezer.com", slug: "deezer" },
   { name: "Apple Music", url: "https://music.apple.com", slug: "applemusic" },
   { name: "Tidal", url: "https://tidal.com", slug: "tidal" },
-  { name: "Amazon Music", url: "https://music.amazon.com", Icon: AmazonMusicIcon },
+  {
+    name: "Amazon Music",
+    url: "https://music.amazon.com",
+    Icon: AmazonMusicIcon,
+    iconClass: "size-[27px]",
+  },
   { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
   { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
 ];
@@ -160,7 +167,9 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
                   }}
                 />
               ) : site.Icon ? (
-                <site.Icon className="size-[22px] shrink-0 text-white" />
+                <site.Icon
+                  className={`${site.iconClass ?? "size-[22px]"} shrink-0 text-white`}
+                />
               ) : (
                 <Globe size={20} className="size-[22px] shrink-0 text-zinc-500" />
               )}
