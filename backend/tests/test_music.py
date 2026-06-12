@@ -147,6 +147,49 @@ def test_resolve_amazon_enriches_from_deezer(monkeypatch):
     assert info.tracks[0].cover_url == "http://dz/cover_xl"
 
 
+# A single-track embed uses a <div class="trackItem"> + a "trackArtist" link
+# (not the album's <li>/"trackListArtist"); the name comes from the <title>.
+_AMAZON_TRACK_HTML = """
+<title>Amazon Music - Pista La flaca</title>
+<div class="trackItem darkSkin container" data-asin="ASINX">
+  <div class="trackTitle"><a class="refLink" aria-label="canción, La flaca">La flaca</a></div>
+  <div class="trackArtist grey truncate"><a href="#">Jarabe De Palo</a></div>
+</div>
+"""
+
+
+def test_resolve_amazon_single_track(monkeypatch):
+    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_TRACK_HTML)
+    monkeypatch.setattr(mi, "_get_json", lambda url, headers=None:
+                        _DEEZER_ALBUM_LOOKUP if "/album/" in url else _DEEZER_SEARCH)
+    info = mi.resolve("https://music.amazon.es/tracks/B077K5H3WR")
+    assert info.type == "track" and len(info.tracks) == 1
+    assert info.tracks[0].title == "La flaca"
+    assert info.tracks[0].artists == "Jarabe De Palo"
+    assert info.cover_url == "http://dz/cover_xl"  # enriched from Deezer
+
+
+# Tidal single track: the embed has no <list-item>, so it's built from the
+# regular page's og:title ("Artist - Title") + og:image.
+_TIDAL_TRACK_EMBED = '<div class="player">no list items here</div>'
+_TIDAL_TRACK_PAGE = """
+<meta property="og:title" content="Jarabe De Palo - La flaca" />
+<meta property="og:image" content="http://tidal/cover.jpg" />
+"""
+
+
+def test_resolve_tidal_single_track(monkeypatch):
+    def fake_get(url, headers=None):
+        return _TIDAL_TRACK_EMBED if "embed.tidal.com" in url else _TIDAL_TRACK_PAGE
+
+    monkeypatch.setattr(mi, "_get", fake_get)
+    info = mi.resolve("https://tidal.com/track/295364470")
+    assert info.type == "track" and len(info.tracks) == 1
+    assert info.tracks[0].title == "La flaca"
+    assert info.tracks[0].artists == "Jarabe De Palo"
+    assert info.cover_url == "http://tidal/cover.jpg"
+
+
 def test_find_youtube_match(monkeypatch):
     from app.models.music import MusicTrack
 

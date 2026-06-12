@@ -501,7 +501,7 @@ def _resolve_apple(url: str) -> MusicImportInfo:
 
 # --- Tidal (public embed scrape) -------------------------------------------
 
-_TIDAL_ITEM_RE = re.compile(r"<list-item\b[^>]*>(.*?)</list-item>", re.DOTALL)
+_TIDAL_ITEM_RE = re.compile(r"<list-item\b.*?</list-item>", re.DOTALL)
 _TIDAL_SLOT_RE = lambda slot: re.compile(  # noqa: E731
     rf'<(?:span|time) slot="{slot}"[^>]*>(.*?)</(?:span|time)>', re.DOTALL
 )
@@ -567,6 +567,13 @@ def _resolve_tidal(url: str) -> MusicImportInfo:
             album=og_name if kind == "album" else None, cover_url=cover,
             source_url=f"https://tidal.com/track/{pid_m.group(1)}" if pid_m else ""))
 
+    # A single-track URL: the embed has no list-items, so build it from the
+    # regular page's og:title ("Artist - Title") + og:image (no duration there).
+    if kind == "track" and not tracks and og_name:
+        tracks.append(MusicTrack(
+            title=og_name, artists=og_artist or "", duration_ms=None,
+            cover_url=cover, source_url=f"https://tidal.com/track/{tid}"))
+
     if not tracks:
         raise MusicImportError("Could not read the Tidal tracklist.")
     if kind == "track":
@@ -583,6 +590,7 @@ _AMZ_ITEM_RE = re.compile(r'<li class="trackItem.*?</li>', re.DOTALL)
 _AMZ_TITLE_RE = re.compile(r'class="trackListTitle[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)', re.DOTALL)
 _AMZ_ARTIST_RE = re.compile(r'class="trackListArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)', re.DOTALL)
 _AMZ_ASIN_RE = re.compile(r'data-asin="([A-Z0-9]+)"')
+_AMZ_TRACK_ARTIST_RE = re.compile(r'class="trackArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)', re.DOTALL)
 _TITLE_TAG_RE = re.compile(r"<title>(.*?)</title>", re.DOTALL)
 
 
@@ -645,6 +653,27 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
     # Collapse inter-tag whitespace so titles/artists sit flush after their tags.
     html = re.sub(r">\s+<", "><", _get(f"https://music.amazon.{tld}/embed/{asin}"))
 
+    if kind == "track":
+        # The single-track embed uses <div class="trackItem"> + a "trackArtist"
+        # link (not the album's <li>/"trackListArtist"); the <title> is
+        # "Amazon Music - Pista <name>". Cover/duration come from Deezer.
+        title_tag = _TITLE_TAG_RE.search(html)
+        raw_title = unescape(title_tag.group(1)) if title_tag else ""
+        name = re.sub(
+            r"^Amazon Music\s*[-\u2013]\s*(?:Pista|Canci\u00f3n|Cancion|Song|Track)\s*",
+            "", raw_title).strip()
+        name = re.sub(r"\s*\[Explicit\]\s*$", "", name)
+        am = _AMZ_TRACK_ARTIST_RE.search(html)
+        artist = unescape(am.group(1)).strip() if am else ""
+        if not name:
+            raise MusicImportError("Could not read the Amazon Music track.")
+        track = MusicTrack(title=name, artists=artist,
+                           is_explicit="[Explicit]" in raw_title,
+                           source_url=f"https://music.amazon.{tld}/tracks/{asin}")
+        cover = _deezer_enrich(name, artist, [track])
+        return MusicImportInfo(source="amazon", type="track",
+                               name=name, subtitle=artist, cover_url=cover, tracks=[track])
+
     title_tag = _TITLE_TAG_RE.search(html)
     set_name = ""
     if title_tag:
@@ -669,7 +698,7 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
             title=title, artists=artist,
             is_explicit="[Explicit]" in tm.group(1),
             album=set_name if kind == "album" else None, cover_url=cover,
-            source_url=f"https://music.amazon.{tld}/albums/{asin}?trackAsin={asin_m.group(1)}"
+            source_url=f"https://music.amazon.{tld}/tracks/{asin_m.group(1)}"
             if asin_m else ""))
 
     if not tracks:
