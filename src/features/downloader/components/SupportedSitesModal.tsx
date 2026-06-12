@@ -85,6 +85,7 @@ const SUPPORTED_SITES: readonly SupportedSite[] = [
   { name: "Reddit", url: "https://reddit.com", slug: "reddit" },
   { name: "Bluesky", url: "https://bsky.app", slug: "bluesky" },
   { name: "Pinterest", url: "https://pinterest.com", slug: "pinterest" },
+  { name: "VK", url: "https://vk.com", slug: "vk" },
   { name: "Vimeo", url: "https://vimeo.com", slug: "vimeo" },
   { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
   { name: "Kick", url: "https://kick.com", slug: "kick" },
