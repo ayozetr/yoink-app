@@ -128,7 +128,7 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
         aria-modal="true"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
+        className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
       >
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -147,7 +147,7 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
 
         <p className="text-sm text-zinc-400 mb-5">{t("sites.intro")}</p>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {SUPPORTED_SITES.map((site) => (
             <button
               key={site.name}
