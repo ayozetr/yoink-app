@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.services import music_import as mi
 
 
@@ -63,9 +61,35 @@ def test_resolve_apple_album(monkeypatch):
     assert info.tracks[0].is_explicit is True
 
 
-def test_resolve_apple_playlist_unsupported(monkeypatch):
-    with pytest.raises(mi.MusicImportError):
-        mi.resolve("https://music.apple.com/us/playlist/x/pl.abc123")
+# Apple playlists aren't in the iTunes Lookup API, so they're scraped from the
+# web page's serialized-server-data blob (title/artist/duration/artwork per song).
+_APPLE_PLAYLIST_HTML = """
+<meta property="og:title" content="My Playlist en Apple Music" />
+<meta property="og:image" content="http://apple/pl-cover.jpg" />
+<script type="application/json" id="serialized-server-data">
+[{"data":{"sections":[{"items":[
+  {"title":"T1","artistName":"Artist A","duration":200000,"showExplicitBadge":true,
+   "artwork":{"dictionary":{"url":"http://apple/{w}x{h}{c}.{f}"}},
+   "contentDescriptor":{"kind":"song","url":"http://apple/song/1"}},
+  {"title":"T2","artistName":"Artist B","duration":180000,"showExplicitBadge":false,
+   "artwork":{"dictionary":{"url":"http://apple/b/{w}x{h}bb.jpg"}},
+   "contentDescriptor":{"kind":"song","url":"http://apple/song/2"}}
+]}]}}]
+</script>
+"""
+
+
+def test_resolve_apple_playlist_scrapes_serialized_data(monkeypatch):
+    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _APPLE_PLAYLIST_HTML)
+    info = mi.resolve("https://music.apple.com/us/playlist/x/pl.abc123")
+    assert info.source == "apple" and info.type == "playlist"
+    assert info.name == "My Playlist"  # "en Apple Music" suffix stripped
+    assert info.cover_url == "http://apple/pl-cover.jpg"
+    assert [t.title for t in info.tracks] == ["T1", "T2"]
+    assert info.tracks[0].artists == "Artist A"
+    assert info.tracks[0].duration_ms == 200000
+    assert info.tracks[0].is_explicit is True
+    assert info.tracks[0].cover_url == "http://apple/600x600bb.jpg"  # template filled
 
 
 _AMAZON_HTML = """

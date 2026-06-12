@@ -394,6 +394,75 @@ def _apple_track(item: dict[str, Any], album_name: str | None) -> MusicTrack | N
     )
 
 
+def _apple_art_url(artwork: Any, size: int = 600) -> str | None:
+    """Resolve Apple's templated artwork ({w}x{h}{c}.{f}) to a concrete URL."""
+    box = artwork.get("dictionary") if isinstance(artwork, dict) else None
+    box = box if isinstance(box, dict) else artwork
+    url = box.get("url") if isinstance(box, dict) else None
+    if not isinstance(url, str):
+        return None
+    url = url.replace("{w}", str(size)).replace("{h}", str(size))
+    url = url.replace("{c}", "bb").replace("{f}", "jpg")
+    return re.sub(r"\{[^}]*\}", "", url)
+
+
+def _resolve_apple_playlist(url: str) -> MusicImportInfo:
+    """Apple Music playlists aren't in the keyless iTunes Lookup API, but the
+    public web page embeds the full tracklist (title/artist/duration/artwork per
+    song) in its ``serialized-server-data`` blob — scrape that."""
+    html = _get(url)
+    blob = re.search(
+        r'<script[^>]*id="serialized-server-data"[^>]*>(.*?)</script>', html, re.DOTALL
+    )
+    if not blob:
+        raise MusicImportError("Could not read the Apple Music playlist page.")
+    try:
+        data = json.loads(blob.group(1))
+    except json.JSONDecodeError as exc:
+        raise MusicImportError("Could not parse the Apple Music playlist data.") from exc
+
+    songs: list[dict[str, Any]] = []
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if "artistName" in node and "title" in node and isinstance(
+                node.get("duration"), int
+            ):
+                songs.append(node)
+            for value in node.values():
+                _walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                _walk(value)
+
+    _walk(data)
+    if not songs:
+        raise MusicImportError("The Apple Music playlist exposed no tracks.")
+
+    tracks = [
+        MusicTrack(
+            title=str(song.get("title", "")).strip(),
+            artists=str(song.get("artistName", "")).strip(),
+            duration_ms=song.get("duration") or None,
+            is_explicit=bool(song.get("showExplicitBadge")),
+            cover_url=_apple_art_url(song.get("artwork")),
+            source_url=(song.get("contentDescriptor") or {}).get("url", "")
+            if isinstance(song.get("contentDescriptor"), dict) else "",
+        )
+        for song in songs
+    ]
+
+    name_m = _OG_TITLE_RE.search(html)
+    name = (
+        re.sub(r"\s+(?:en|on)\s+Apple Music$", "", unescape(name_m.group(1))).strip()
+        if name_m else "Apple Music"
+    )
+    cover_m = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+    cover = unescape(cover_m.group(1)) if cover_m else (tracks[0].cover_url if tracks else None)
+    return MusicImportInfo(source="apple", type="playlist", name=name,
+                           subtitle=None, cover_url=cover, tracks=tracks)
+
+
 def _resolve_apple(url: str) -> MusicImportInfo:
     match = _APPLE_RE.search(url)
     if not match:
@@ -401,9 +470,7 @@ def _resolve_apple(url: str) -> MusicImportInfo:
     country = (match.group(1) or "us").lower()
     kind, apple_id = match.group(2).lower(), match.group(3)
     if kind == "playlist":
-        raise MusicImportError(
-            "Apple Music playlists need credentials; only albums and tracks work keyless."
-        )
+        return _resolve_apple_playlist(url)
 
     track_m = _APPLE_TRACK_RE.search(url)
     if track_m:  # a single track inside an album URL (?i=trackId)
@@ -444,6 +511,18 @@ _TIDAL_DURATION = _TIDAL_SLOT_RE("duration")
 _OG_TITLE_RE = re.compile(r'<meta property="og:title" content="([^"]*)"')
 
 
+def _join_artists(fragment: str) -> str:
+    """Join the artist names in an HTML fragment with ", ".
+
+    Tidal nests multiple artists as separate child tags inside one artist slot
+    (``<a>Latto</a><a>21 Savage</a>``); naively stripping tags glued them into
+    "Latto21 Savage", which wrecked the artist match. Split on tags instead and
+    re-join the text pieces with a comma."""
+    parts = [unescape(p).strip() for p in re.split(r"<[^>]+>", fragment)]
+    names = [p for p in parts if p and p not in (",", "&", "/")]
+    return ", ".join(dict.fromkeys(names))
+
+
 def _resolve_tidal(url: str) -> MusicImportInfo:
     match = _TIDAL_RE.search(url)
     if not match:
@@ -478,7 +557,7 @@ def _resolve_tidal(url: str) -> MusicImportInfo:
         if not title:
             continue
         am = _TIDAL_ARTIST.search(block)
-        artist = unescape(re.sub(r"<[^>]+>", "", am.group(1))).strip() if am else ""
+        artist = _join_artists(am.group(1)) if am else ""
         dm = _TIDAL_DURATION.search(block)
         dur_ms = _mmss_to_ms(re.sub(r"<[^>]+>", "", dm.group(1))) if dm else None
         pid_m = re.search(r'product-id="(\d+)"', block)
