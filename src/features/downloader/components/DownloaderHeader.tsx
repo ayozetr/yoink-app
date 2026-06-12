@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ListPlus, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SupportedSitesModal } from "./SupportedSitesModal";
+import { SearchSourceToggle } from "./SearchSourceToggle";
+import type { SearchSource } from "../../../lib/api";
 
 interface DownloaderHeaderProps {
   /** Number of unfinished queue items, badged on the queue button. */
@@ -10,14 +12,19 @@ interface DownloaderHeaderProps {
   queueOpen?: boolean;
   onToggleQueue?: () => void;
   onOpenSettings?: () => void;
+  /** Platform the URL-field typeahead searches (YouTube/SoundCloud). */
+  searchSource: SearchSource;
+  onSearchSourceChange: (source: SearchSource) => void;
 }
 
-/** Page title plus the download-queue button and settings button. */
+/** Page title plus the search-source toggle, download-queue and settings buttons. */
 export function DownloaderHeader({
   queueCount,
   queueOpen,
   onToggleQueue,
   onOpenSettings,
+  searchSource,
+  onSearchSourceChange,
 }: DownloaderHeaderProps) {
   const { t } = useTranslation();
   const [showSites, setShowSites] = useState(false);
@@ -44,6 +51,10 @@ export function DownloaderHeader({
       {showSites && <SupportedSitesModal onClose={() => setShowSites(false)} />}
 
       <div className="flex items-center gap-3">
+        <SearchSourceToggle
+          value={searchSource}
+          onChange={onSearchSourceChange}
+        />
         <button
           type="button"
           onClick={onToggleQueue}

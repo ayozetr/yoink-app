@@ -9,7 +9,14 @@ import { DownloadProgressCard } from "./components/DownloadProgressCard";
 import { AutoTagPanel } from "../autotag/AutoTagPanel";
 import { AutoTagBatchPanel } from "../autotag/AutoTagBatchPanel";
 import { GlassPanel } from "../../components/ui/GlassPanel";
-import { fetchInfo, isMusicUrl, resolveMusic, ApiError } from "../../lib/api";
+import {
+  fetchInfo,
+  isMusicUrl,
+  resolveMusic,
+  ApiError,
+  type SearchSource,
+} from "../../lib/api";
+import { loadSearchSource, persistSearchSource } from "../../lib/searchSource";
 import { MusicImportCard } from "../music/MusicImportCard";
 import type { MusicImportInfo } from "../../types/music";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
@@ -79,6 +86,8 @@ export function DownloaderPanel({
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<InfoResponse | null>(null);
   const [musicInfo, setMusicInfo] = useState<MusicImportInfo | null>(null);
+  // Search platform for the URL-field typeahead; the toggle lives in the header.
+  const [searchSource, setSearchSource] = useState<SearchSource>(loadSearchSource);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -324,6 +333,11 @@ export function DownloaderPanel({
         queueOpen={queueOpen}
         onToggleQueue={onToggleQueue}
         onOpenSettings={onOpenSettings}
+        searchSource={searchSource}
+        onSearchSourceChange={(source) => {
+          setSearchSource(source);
+          persistSearchSource(source);
+        }}
       />
       <UrlInput
         value={url}
@@ -333,6 +347,7 @@ export function DownloaderPanel({
           setUrl(entry.url);
           void handleAnalyze(entry.url);
         }}
+        searchSource={searchSource}
         loading={loading}
       />
 
