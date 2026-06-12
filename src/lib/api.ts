@@ -158,13 +158,18 @@ export async function matchMusic(
   return data.youtube_url;
 }
 
-/** Flat YouTube search for the URL-field typeahead via `GET /api/search`. */
+/** Platform the URL-field typeahead searches. */
+export type SearchSource = "youtube" | "soundcloud";
+
+/** Flat search (YouTube or SoundCloud) for the URL-field typeahead via
+ * `GET /api/search`. */
 export async function searchYoutube(
   query: string,
+  source: SearchSource = "youtube",
   signal?: AbortSignal,
 ): Promise<PlaylistEntry[]> {
   const response = await fetch(
-    `${API_BASE_URL}/search?q=${encodeURIComponent(query)}`,
+    `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&source=${source}`,
     { signal },
   );
   if (!response.ok) {

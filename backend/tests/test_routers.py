@@ -228,7 +228,9 @@ def test_search_returns_results(monkeypatch):
             uploader="A Channel",
         )
     ]
-    monkeypatch.setattr("app.routers.info.search_youtube", lambda q: fake)
+    monkeypatch.setattr(
+        "app.routers.info.search_youtube", lambda q, source="youtube": fake
+    )
     resp = client.get("/api/search", params={"q": "a song"})
     assert resp.status_code == 200
     body = resp.json()
@@ -239,6 +241,27 @@ def test_search_returns_results(monkeypatch):
 def test_search_requires_a_query():
     # q is required with min_length=1 → empty query is a 422.
     assert client.get("/api/search", params={"q": ""}).status_code == 422
+
+
+def test_search_source_is_forwarded(monkeypatch):
+    # The `source` param is validated and passed through to the service.
+    seen: dict[str, str] = {}
+
+    def fake(q: str, source: str = "youtube"):
+        seen["source"] = source
+        return []
+
+    monkeypatch.setattr("app.routers.info.search_youtube", fake)
+    assert (
+        client.get("/api/search", params={"q": "x", "source": "soundcloud"}).status_code
+        == 200
+    )
+    assert seen["source"] == "soundcloud"
+    # An unknown source is rejected by the pattern guard.
+    assert (
+        client.get("/api/search", params={"q": "x", "source": "vimeo"}).status_code
+        == 422
+    )
 
 
 def test_ytdlp_version_endpoint(monkeypatch):

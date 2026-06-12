@@ -45,14 +45,19 @@ def get_media_info(request: InfoRequest) -> InfoResponse:
 @router.get(
     "/search",
     response_model=SearchResponse,
-    summary="Flat YouTube search for the URL-field typeahead",
+    summary="Flat search (YouTube or SoundCloud) for the URL-field typeahead",
 )
 def search_media(
     q: str = Query(..., min_length=1, max_length=200, description="Search query."),
+    source: str = Query(
+        "youtube",
+        pattern="^(youtube|soundcloud)$",
+        description="Which platform to search.",
+    ),
 ) -> SearchResponse:
-    """Search YouTube (flat) and return matching videos, best-first."""
+    """Search the chosen platform (flat) and return matching tracks, best-first."""
     try:
-        return SearchResponse(results=search_youtube(q))
+        return SearchResponse(results=search_youtube(q, source=source))
     except MediaExtractionError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

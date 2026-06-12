@@ -465,13 +465,22 @@ def extract_info(url: str) -> InfoResponse:
 _SEARCH_CAP = 8
 
 
-def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
-    """Flat YouTube search for the URL-field typeahead.
+# yt-dlp search-key prefix per source: YouTube vs SoundCloud.
+_SEARCH_PREFIXES: dict[str, str] = {"youtube": "ytsearch", "soundcloud": "scsearch"}
 
-    Uses yt-dlp's ``ytsearch`` with ``extract_flat`` so results come back fast
-    (no per-video resolution, ~1s). Reuses :func:`_build_entry` — a search hit
-    has the same shape as a flat playlist entry — and falls back to the canonical
-    YouTube thumbnail when the flat entry doesn't carry one.
+
+def search_youtube(
+    query: str, limit: int = _SEARCH_CAP, source: str = "youtube"
+) -> list[PlaylistEntry]:
+    """Flat search for the URL-field typeahead (YouTube or SoundCloud).
+
+    Uses yt-dlp's ``ytsearch``/``scsearch`` with ``extract_flat`` so results come
+    back fast (no per-entry resolution, ~1s). Reuses :func:`_build_entry` — a
+    search hit has the same shape as a flat playlist entry — and, on YouTube,
+    falls back to the canonical thumbnail when the flat entry doesn't carry one.
+
+    Args:
+        source: ``"youtube"`` (default) or ``"soundcloud"``.
 
     Raises:
         MediaExtractionError: if yt-dlp fails.
@@ -480,6 +489,7 @@ def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
     if not query:
         return []
 
+    prefix = _SEARCH_PREFIXES.get(source, "ytsearch")
     options: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
@@ -490,7 +500,7 @@ def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
     }
     try:
         with YoutubeDL(options) as ydl:
-            raw_info = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
+            raw_info = ydl.extract_info(f"{prefix}{limit}:{query}", download=False)
             info = cast(dict[str, Any], ydl.sanitize_info(raw_info))
     except DownloadError as exc:
         raise MediaExtractionError(str(exc)) from exc
@@ -505,7 +515,15 @@ def search_youtube(query: str, limit: int = _SEARCH_CAP) -> list[PlaylistEntry]:
         entry = _build_entry(raw)
         if entry is None:
             continue
-        if not entry.thumbnail_url and entry.id:
+        if source == "soundcloud":
+            # The flat hit's `url` is an unresolvable api.soundcloud.com link;
+            # the public permalink (`webpage_url`) is what /api/info needs.
+            webpage = raw.get("webpage_url")
+            if isinstance(webpage, str):
+                entry.url = webpage
+        elif not entry.thumbnail_url and entry.id:
+            # YouTube flat hits may omit the thumbnail — fall back to the
+            # deterministic per-video URL. (SoundCloud carries its own artwork.)
             entry.thumbnail_url = f"https://i.ytimg.com/vi/{entry.id}/mqdefault.jpg"
         results.append(entry)
     return results

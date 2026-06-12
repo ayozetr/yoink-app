@@ -18,14 +18,15 @@ export const en = {
     close: "Close",
   },
   url: {
-    placeholder: "Paste the content URL here, or search YouTube directly",
+    placeholder: "Paste the content URL here, or search {{source}} directly",
     paste: "Paste from clipboard",
-    searching: "Searching YouTube…",
+    searching: "Searching {{source}}…",
     noResults: "No results.",
     searchError: "Search failed — check your connection and try again.",
     views: "{{n}} views",
     analyze: "Analyze",
     analyzing: "Analyzing…",
+    searchSource: "Search source",
   },
   preview: {
     label: "Preview",
