@@ -128,7 +128,7 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
         aria-modal="true"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
+        className="w-full max-w-xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
       >
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -153,7 +153,7 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
               key={site.name}
               type="button"
               onClick={() => void openExternal(site.url)}
-              className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-left text-sm text-zinc-200 transition hover:bg-white/10 hover:text-white"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3.5 text-center text-sm text-zinc-200 transition hover:bg-white/10 hover:text-white"
             >
               {site.slug ? (
                 <img
@@ -174,7 +174,7 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
               ) : (
                 <Globe size={20} className="size-[22px] shrink-0 text-zinc-500" />
               )}
-              <span className="truncate">{site.name}</span>
+              <span className="leading-tight">{site.name}</span>
             </button>
           ))}
         </div>
