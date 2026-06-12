@@ -96,7 +96,10 @@ def _forbidden_penalty(cand_title_slug: str, track_title_slug: str) -> float:
 
 def name_match(track_title: str, cand_title: str) -> float:
     """Title similarity. Also tries the candidate's text after an 'Artist - ' prefix."""
-    t = _slug(track_title)
+    # Drop the "(feat. X)" credit from the song name — it isn't part of the title
+    # and, when a *different* song shares the same featured artist, the common
+    # "feat X" tokens would otherwise inflate the similarity into a false match.
+    t = _slug(_FEAT_RE.sub("", track_title))
     c = _slug(cand_title)
     best = _ratio(t, c)
     # YouTube titles are often "Artist - Title (…)" — compare against the tail too.
@@ -110,20 +113,37 @@ def name_match(track_title: str, cand_title: str) -> float:
 # tacks onto the main credit but the YouTube channel/title usually omits, so it
 # only drags the coverage down. Drop it before matching.
 _FEAT_RE = re.compile(r"\s*[\(\[]?\s*(?:feat\.?|ft\.?|featuring)\s.+$", re.IGNORECASE)
+# Credit separators between collaborating artists ("A, B & C" / "A x B").
+_ARTIST_SPLIT_RE = re.compile(r"\s*(?:,|&|/|\bx\b)\s*", re.IGNORECASE)
+
+
+def _coverage(artist_slug: str, cand_tokens: set[str]) -> float:
+    """Share of an artist's tokens that appear in the candidate (0–100)."""
+    tokens = artist_slug.split()
+    if not tokens:
+        return 0.0
+    return 100.0 * sum(1 for tok in tokens if tok in cand_tokens) / len(tokens)
 
 
 def artist_match(track_artists: str, cand_title: str, cand_channel: str) -> float:
-    """How well the track's artists appear in the candidate's channel + title."""
-    artist_slug = _slug(_FEAT_RE.sub("", track_artists))
+    """How well the track's artists appear in the candidate's channel + title.
+
+    A YouTube upload of a collab usually credits only the *primary* artist
+    ("HUNTR/X - Golden" for a 5-name Spotify credit), so requiring every listed
+    artist's tokens sinks valid matches. Score the full credit AND the lead
+    artist alone, and take the best (plus a direct channel ratio floor).
+    """
+    cleaned = _FEAT_RE.sub("", track_artists)
+    artist_slug = _slug(cleaned)
     if not artist_slug:
         return 0.0
-    cand_text = _slug(f"{cand_channel} {cand_title}")
-    cand_tokens = set(cand_text.split())
-    artist_tokens = artist_slug.split()
-    present = sum(1 for tok in artist_tokens if tok in cand_tokens)
-    coverage = 100.0 * present / len(artist_tokens)
-    # Floor with a direct ratio against the channel (often exactly the artist).
-    return max(coverage, _ratio(artist_slug, _slug(cand_channel)))
+    cand_tokens = set(_slug(f"{cand_channel} {cand_title}").split())
+    primary_slug = _slug(_ARTIST_SPLIT_RE.split(cleaned, maxsplit=1)[0])
+    return max(
+        _coverage(artist_slug, cand_tokens),
+        _coverage(primary_slug, cand_tokens),
+        _ratio(artist_slug, _slug(cand_channel)),
+    )
 
 
 def time_match(track_secs: float | None, cand_secs: float | None) -> float:
