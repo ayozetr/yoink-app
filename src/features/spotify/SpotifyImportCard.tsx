@@ -187,6 +187,96 @@ export function SpotifyImportCard({
 
   const doneCount = Object.values(rows).filter((s) => s === "done").length;
 
+  // A single Spotify track: show it like a preview, but with a SQUARE cover and
+  // the track's own Spotify metadata (not the matched YouTube video's).
+  const single = info.tracks[0];
+  if (info.type === "track" && single) {
+    const status = rows[0];
+    const meta = [single.album, single.year, fmtMs(single.duration_ms)]
+      .filter(Boolean)
+      .join(" · ");
+    return (
+      <GlassPanel className="p-5">
+        <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-400">
+          <Music4 size={14} />
+          {t("spotify.label")}
+        </span>
+        <div className="mt-3 flex flex-col gap-5 sm:flex-row">
+          <div className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600/40 to-blue-600/40 sm:w-[180px] sm:self-start">
+            {single.cover_url ? (
+              <Thumbnail
+                src={single.cover_url}
+                alt={single.title}
+                className="h-full w-full object-cover"
+                fallback={<Music4 size={48} className="text-white/70" />}
+              />
+            ) : (
+              <Music4 size={48} className="text-white/70" />
+            )}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold leading-tight">
+                {single.title}
+              </h2>
+              <p className="mt-1 truncate text-zinc-300">{single.artists}</p>
+              {meta && <p className="mt-1 text-sm text-zinc-400">{meta}</p>}
+              <p className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
+                <AlertCircle size={14} className="shrink-0" />
+                {t("spotify.hint")}
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Select
+                  ariaLabel={t("preview.audioFormat")}
+                  value={audioFormat}
+                  onChange={(v) => setAudioFormat(v as AudioFormat)}
+                  options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
+                    value: o.value,
+                    label: o.label,
+                  }))}
+                  className="h-12 min-w-[140px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
+                />
+                {running ? (
+                  <button
+                    type="button"
+                    onClick={stop}
+                    className="h-12 px-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-surface text-sm transition hover:bg-surface-hover"
+                  >
+                    <Square size={16} />
+                    {t("queue.stop")}
+                  </button>
+                ) : status === "done" ? (
+                  <span className="flex h-12 items-center gap-2 text-sm text-emerald-300">
+                    <CheckCircle2 size={18} />
+                    {t("spotify.done")}
+                  </span>
+                ) : (
+                  <Button
+                    variant="gradient"
+                    onClick={start}
+                    className="h-12 flex-1"
+                  >
+                    <Download size={18} />
+                    {t("spotify.download")}
+                  </Button>
+                )}
+              </div>
+              {running && <ProgressBar percent={percent} />}
+              {(status === "error" || status === "skipped") && (
+                <p className="flex items-center gap-2 text-xs text-red-400">
+                  <AlertCircle size={14} className="shrink-0" />
+                  {t("spotify.noMatch")}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </GlassPanel>
+    );
+  }
+
   return (
     <GlassPanel className="p-5">
       <div className="flex items-center justify-between gap-3 mb-1">

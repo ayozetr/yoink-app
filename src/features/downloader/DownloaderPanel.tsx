@@ -9,13 +9,7 @@ import { DownloadProgressCard } from "./components/DownloadProgressCard";
 import { AutoTagPanel } from "../autotag/AutoTagPanel";
 import { AutoTagBatchPanel } from "../autotag/AutoTagBatchPanel";
 import { GlassPanel } from "../../components/ui/GlassPanel";
-import {
-  fetchInfo,
-  isSpotifyUrl,
-  matchSpotify,
-  resolveSpotify,
-  ApiError,
-} from "../../lib/api";
+import { fetchInfo, isSpotifyUrl, resolveSpotify, ApiError } from "../../lib/api";
 import { SpotifyImportCard } from "../spotify/SpotifyImportCard";
 import type { SpotifyImportInfo } from "../../types/spotify";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
@@ -245,19 +239,8 @@ export function DownloaderPanel({
 
     try {
       if (isSpotifyUrl(trimmed)) {
-        const sp = await resolveSpotify(trimmed, controller.signal);
-        // A single track has nothing to select, so match it on YouTube and show
-        // it as a normal preview (full download controls) like any video/audio.
-        // Albums/playlists get the multi-track import card.
-        if (sp.type === "track" && sp.tracks[0]) {
-          const yt = await matchSpotify(sp.tracks[0], controller.signal);
-          if (!yt) throw new ApiError(t("spotify.noMatch"), 422);
-          setSpotifyInfo(null);
-          setInfo(await fetchInfo(yt, controller.signal));
-        } else {
-          setInfo(null);
-          setSpotifyInfo(sp);
-        }
+        setInfo(null);
+        setSpotifyInfo(await resolveSpotify(trimmed, controller.signal));
       } else {
         setSpotifyInfo(null);
         setInfo(await fetchInfo(trimmed, controller.signal));

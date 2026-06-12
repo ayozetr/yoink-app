@@ -108,6 +108,8 @@ export const es = {
     truncated: "(solo los temas que expone el embed)",
     hint: "El audio de Spotify no se puede bajar directamente — cada tema se busca en YouTube, se descarga y se etiqueta con los metadatos de Spotify.",
     import: "Importar {{count}} como audio",
+    download: "Descargar como audio",
+    done: "Importado",
     noMatch: "No se encontró equivalente en YouTube para este tema.",
   },
   autotag: {
