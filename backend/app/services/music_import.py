@@ -16,6 +16,7 @@ import re
 from html import unescape
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from yt_dlp import YoutubeDL
@@ -506,6 +507,49 @@ _AMZ_ASIN_RE = re.compile(r'data-asin="([A-Z0-9]+)"')
 _TITLE_TAG_RE = re.compile(r"<title>(.*?)</title>", re.DOTALL)
 
 
+def _norm_title(title: str) -> str:
+    """Loosely normalise a track title for cross-service matching (lower-case,
+    drop "[Explicit]"/parentheticals/punctuation)."""
+    text = re.sub(r"\s*\[explicit\]\s*", " ", title.lower())
+    text = re.sub(r"\s*\([^)]*\)\s*", " ", text)
+    text = re.sub(r"[^\w\s]", "", text, flags=re.UNICODE)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _deezer_enrich(name: str, artist: str, tracks: list[MusicTrack]) -> str | None:
+    """Amazon's embed exposes neither cover art nor durations, so look the album
+    up on Deezer's keyless API and fill them in. Mutates ``tracks`` with matched
+    durations/cover and returns the album cover URL — a best-effort no-op (None,
+    tracks untouched) on any lookup miss or error."""
+    if not name:
+        return None
+    try:
+        for query in (f'artist:"{artist}" album:"{name}"', f"{artist} {name}".strip()):
+            found = _get_json(
+                "https://api.deezer.com/search/album?limit=1&q="
+                + quote(query)
+            )
+            data = found.get("data") if isinstance(found, dict) else None
+            if data:
+                break
+        if not data:
+            return None
+        album = _get_json(f"https://api.deezer.com/album/{data[0].get('id')}")
+        cover = album.get("cover_xl") or album.get("cover_big") or data[0].get("cover_xl")
+        durations: dict[str, int] = {}
+        for entry in (album.get("tracks") or {}).get("data") or []:
+            key = _norm_title(str(entry.get("title", "")))
+            if key and key not in durations and entry.get("duration"):
+                durations[key] = int(entry["duration"]) * 1000  # seconds -> ms
+        for track in tracks:
+            track.duration_ms = track.duration_ms or durations.get(_norm_title(track.title))
+            if cover and not track.cover_url:
+                track.cover_url = cover
+        return cover
+    except (MusicImportError, KeyError, ValueError, TypeError):
+        return None
+
+
 def _resolve_amazon(url: str) -> MusicImportInfo:
     match = _AMAZON_RE.search(url)
     if not match:
@@ -551,6 +595,13 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
 
     if not tracks:
         raise MusicImportError("Could not read the Amazon Music tracklist.")
+
+    # The embed carries no cover/durations; backfill them from Deezer's keyless API.
+    if cover is None and kind in ("album", "track"):
+        enriched = _deezer_enrich(set_name, tracks[0].artists, tracks)
+        if enriched:
+            cover = enriched
+
     if kind == "track":
         return MusicImportInfo(source="amazon", type="track", name=tracks[0].title,
                                subtitle=tracks[0].artists, cover_url=cover, tracks=tracks[:1])

@@ -94,6 +94,35 @@ def test_resolve_amazon_scrape(monkeypatch):
     assert info.subtitle == "The Artist"
 
 
+# Same album HTML but with no og:image — the real Amazon embed exposes neither
+# cover art nor durations, so resolution must fall back to Deezer for both.
+_AMAZON_HTML_NO_COVER = _AMAZON_HTML.replace(
+    '<meta property="og:image" content="http://cover.jpg" />', ""
+)
+_DEEZER_SEARCH = {"data": [{"id": 99, "cover_xl": "http://dz/cover_xl"}]}
+_DEEZER_ALBUM_LOOKUP = {
+    "cover_xl": "http://dz/cover_xl",
+    "tracks": {"data": [
+        {"title": "T1", "duration": 200},
+        {"title": "T2 (feat. X)", "duration": 180},
+    ]},
+}
+
+
+def test_resolve_amazon_enriches_from_deezer(monkeypatch):
+    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_HTML_NO_COVER)
+
+    def fake_json(url, headers=None):
+        return _DEEZER_ALBUM_LOOKUP if "/album/" in url else _DEEZER_SEARCH
+
+    monkeypatch.setattr(mi, "_get_json", fake_json)
+    info = mi.resolve("https://music.amazon.es/albums/B0C5JPHTGC")
+    assert info.cover_url == "http://dz/cover_xl"  # backfilled
+    assert info.tracks[0].duration_ms == 200000  # matched "T1"
+    assert info.tracks[1].duration_ms == 180000  # matched ignoring "(feat. X)"
+    assert info.tracks[0].cover_url == "http://dz/cover_xl"
+
+
 def test_find_youtube_match(monkeypatch):
     from app.models.music import MusicTrack
 
