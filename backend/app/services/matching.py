@@ -38,9 +38,16 @@ def _strip_accents(text: str) -> str:
     )
 
 
+# Symbol/currency glyphs artists stylize letters with (Cruz Cafuné's "rang€ rov€r",
+# "A$AP", "Ke$ha") — folded to their letter so the slug matches a plain title.
+_LOOKALIKES = str.maketrans({
+    "€": "e", "$": "s", "@": "a", "£": "l", "¥": "y", "ø": "o", "ł": "l", "đ": "d",
+})
+
+
 def _slug(text: str) -> str:
     """Lowercase, de-accented, alphanumeric-only token string for comparison."""
-    text = _strip_accents(text).lower()
+    text = _strip_accents(text.translate(_LOOKALIKES)).lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -139,7 +146,12 @@ def score(
     track_secs = (track_duration_ms / 1000) if track_duration_ms else None
     tm = time_match(track_secs, cand.get("duration"))
 
-    if nm < _MIN_NAME or am < _MIN_ARTIST or tm < _MIN_TIME:
+    # A near-exact name+artist hit shouldn't be rejected over a moderate length
+    # gap — remixes/edits add a "ft." intro or tag worth 10–20s. Relax the time
+    # floor when both are strong (a grossly wrong length still scores ~0 and is
+    # rejected); keep it strict otherwise to filter ambiguous matches.
+    min_time = 10.0 if (nm >= 85 and am >= 85) else _MIN_TIME
+    if nm < _MIN_NAME or am < _MIN_ARTIST or tm < min_time:
         return None
 
     avg = (nm + am) / 2
