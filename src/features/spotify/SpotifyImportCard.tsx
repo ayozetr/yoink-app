@@ -187,229 +187,182 @@ export function SpotifyImportCard({
 
   const doneCount = Object.values(rows).filter((s) => s === "done").length;
 
-  // A single Spotify track: show it like a preview, but with a SQUARE cover and
-  // the track's own Spotify metadata (not the matched YouTube video's).
-  const single = info.tracks[0];
-  if (info.type === "track" && single) {
-    const status = rows[0];
-    const meta = [single.album, single.year, fmtMs(single.duration_ms)]
-      .filter(Boolean)
-      .join(" · ");
-    return (
-      <GlassPanel className="p-5">
-        <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-400">
-          <Music4 size={14} />
-          {t("spotify.label")}
-        </span>
-        <div className="mt-3 flex flex-col gap-5 sm:flex-row">
-          <div className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600/40 to-blue-600/40 sm:w-[180px] sm:self-start">
-            {single.cover_url ? (
-              <Thumbnail
-                src={single.cover_url}
-                alt={single.title}
-                className="h-full w-full object-cover"
-                fallback={<Music4 size={48} className="text-white/70" />}
-              />
-            ) : (
-              <Music4 size={48} className="text-white/70" />
-            )}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold leading-tight">
-                {single.title}
-              </h2>
-              <p className="mt-1 truncate text-zinc-300">{single.artists}</p>
-              {meta && <p className="mt-1 text-sm text-zinc-400">{meta}</p>}
-              <p className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
-                <AlertCircle size={14} className="shrink-0" />
-                {t("spotify.hint")}
-              </p>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <Select
-                  ariaLabel={t("preview.audioFormat")}
-                  value={audioFormat}
-                  onChange={(v) => setAudioFormat(v as AudioFormat)}
-                  options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
-                    value: o.value,
-                    label: o.label,
-                  }))}
-                  className="h-12 min-w-[140px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
-                />
-                {running ? (
-                  <button
-                    type="button"
-                    onClick={stop}
-                    className="h-12 px-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-surface text-sm transition hover:bg-surface-hover"
-                  >
-                    <Square size={16} />
-                    {t("queue.stop")}
-                  </button>
-                ) : status === "done" ? (
-                  <span className="flex h-12 items-center gap-2 text-sm text-emerald-300">
-                    <CheckCircle2 size={18} />
-                    {t("spotify.done")}
-                  </span>
-                ) : (
-                  <Button
-                    variant="gradient"
-                    onClick={start}
-                    className="h-12 flex-1"
-                  >
-                    <Download size={18} />
-                    {t("spotify.download")}
-                  </Button>
-                )}
-              </div>
-              {running && <ProgressBar percent={percent} />}
-              {(status === "error" || status === "skipped") && (
-                <p className="flex items-center gap-2 text-xs text-red-400">
-                  <AlertCircle size={14} className="shrink-0" />
-                  {t("spotify.noMatch")}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </GlassPanel>
-    );
-  }
+  // One unified card: a big square cover + Spotify metadata header (like a
+  // preview) for everything, with the track selection list below for
+  // albums/playlists.
+  const isSingle = info.type === "track";
+  const first = info.tracks[0];
+  const status0 = rows[0];
+  // A single track / an album show an artist; a playlist has no single artist.
+  const headerArtist = isSingle || info.type === "album" ? (first?.artists ?? "") : "";
+  const headerMeta = isSingle
+    ? [first?.album, first?.year, fmtMs(first?.duration_ms ?? null)]
+        .filter(Boolean)
+        .join(" · ")
+    : `${t("playlist.videos", { count: info.tracks.length })}${
+        info.truncated ? ` ${t("spotify.truncated")}` : ""
+      }`;
 
   return (
     <GlassPanel className="p-5">
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-400">
-          <Music4 size={14} />
-          {t("spotify.label")}
-        </span>
-        {!running && (
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="text-xs text-zinc-400 hover:text-white transition"
-          >
-            {allSelected ? t("playlist.deselectAll") : t("playlist.selectAll")}
-          </button>
-        )}
-      </div>
+      <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-400">
+        <Music4 size={14} />
+        {t("spotify.label")}
+      </span>
 
-      <div className="flex items-center gap-3">
-        {info.cover_url && (
-          <Thumbnail
-            src={info.cover_url}
-            alt={info.name}
-            className="h-12 w-12 shrink-0 rounded-lg object-cover"
-            fallback={null}
-          />
-        )}
-        <div className="min-w-0">
-          <h2 className="text-xl font-semibold truncate">{info.name}</h2>
-          <p className="text-sm text-zinc-400">
-            {t("playlist.videos", { count: info.tracks.length })}
-            {info.truncated && ` ${t("spotify.truncated")}`}
-          </p>
-        </div>
-      </div>
-
-      <p className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
-        <AlertCircle size={14} className="shrink-0" />
-        {t("spotify.hint")}
-      </p>
-
-      <div className="mt-4 flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Select
-            ariaLabel={t("preview.audioFormat")}
-            value={audioFormat}
-            onChange={(v) => setAudioFormat(v as AudioFormat)}
-            options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
-            className="h-12 min-w-[160px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
-          />
-          {running ? (
-            <button
-              type="button"
-              onClick={stop}
-              className="h-12 px-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-surface text-sm transition hover:bg-surface-hover"
-            >
-              <Square size={16} />
-              {t("queue.stop")}
-            </button>
+      <div className="mt-3 flex flex-col gap-5 sm:flex-row">
+        {/* Square cover */}
+        <div className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600/40 to-blue-600/40 sm:w-[180px] sm:self-start">
+          {info.cover_url ? (
+            <Thumbnail
+              src={info.cover_url}
+              alt={info.name}
+              className="h-full w-full object-cover"
+              fallback={<Music4 size={48} className="text-white/70" />}
+            />
           ) : (
-            <Button
-              variant="gradient"
-              onClick={start}
-              disabled={selected.size === 0}
-              className="h-12 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download size={18} />
-              {t("spotify.import", { count: selected.size })}
-            </Button>
+            <Music4 size={48} className="text-white/70" />
           )}
         </div>
 
-        {running && (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-xs text-zinc-400">
-              <span className="truncate">
-                {activeIdx != null ? info.tracks[activeIdx].title : ""}
-              </span>
-              <span className="shrink-0">
-                {doneCount}/{runTotal}
-              </span>
+        {/* Info + controls */}
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
+          <div>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-2xl font-semibold leading-tight">{info.name}</h2>
+              {!isSingle && !running && (
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="mt-1 shrink-0 text-xs text-zinc-400 hover:text-white transition"
+                >
+                  {allSelected ? t("playlist.deselectAll") : t("playlist.selectAll")}
+                </button>
+              )}
             </div>
-            <ProgressBar percent={percent} />
+            {headerArtist && (
+              <p className="mt-1 truncate text-zinc-300">{headerArtist}</p>
+            )}
+            {headerMeta && <p className="mt-1 text-sm text-zinc-400">{headerMeta}</p>}
+            <p className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
+              <AlertCircle size={14} className="shrink-0" />
+              {t("spotify.hint")}
+            </p>
           </div>
-        )}
+
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Select
+                ariaLabel={t("preview.audioFormat")}
+                value={audioFormat}
+                onChange={(v) => setAudioFormat(v as AudioFormat)}
+                options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
+                  value: o.value,
+                  label: o.label,
+                }))}
+                className="h-12 min-w-[140px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
+              />
+              {running ? (
+                <button
+                  type="button"
+                  onClick={stop}
+                  className="h-12 px-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-surface text-sm transition hover:bg-surface-hover"
+                >
+                  <Square size={16} />
+                  {t("queue.stop")}
+                </button>
+              ) : isSingle && status0 === "done" ? (
+                <span className="flex h-12 items-center gap-2 text-sm text-emerald-300">
+                  <CheckCircle2 size={18} />
+                  {t("spotify.done")}
+                </span>
+              ) : (
+                <Button
+                  variant="gradient"
+                  onClick={start}
+                  disabled={selected.size === 0}
+                  className="h-12 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download size={18} />
+                  {isSingle
+                    ? t("spotify.download")
+                    : t("spotify.import", { count: selected.size })}
+                </Button>
+              )}
+            </div>
+
+            {running &&
+              (isSingle ? (
+                <ProgressBar percent={percent} />
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <span className="truncate">
+                      {activeIdx != null ? info.tracks[activeIdx].title : ""}
+                    </span>
+                    <span className="shrink-0">
+                      {doneCount}/{runTotal}
+                    </span>
+                  </div>
+                  <ProgressBar percent={percent} />
+                </div>
+              ))}
+
+            {isSingle && (status0 === "error" || status0 === "skipped") && (
+              <p className="flex items-center gap-2 text-xs text-red-400">
+                <AlertCircle size={14} className="shrink-0" />
+                {t("spotify.noMatch")}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Tracks */}
-      <div className="flex flex-col gap-1.5 mt-4 max-h-[320px] overflow-auto pr-1">
-        {info.tracks.map((track, i) => {
-          const status = rows[i];
-          return (
-            <label
-              key={`${track.spotify_url}-${i}`}
-              className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(i)}
-                disabled={running}
-                onChange={() => toggle(i)}
-                className="size-4 accent-emerald-500 shrink-0 disabled:opacity-40"
-              />
-              <span className="flex-1 min-w-0">
-                <span className="block truncate text-sm">{track.title}</span>
-                <span className="block truncate text-xs text-zinc-400">
-                  {track.artists}
+      {/* Track selection — albums/playlists only */}
+      {info.tracks.length > 1 && (
+        <div className="flex flex-col gap-1.5 mt-5 max-h-[320px] overflow-auto pr-1">
+          {info.tracks.map((track, i) => {
+            const status = rows[i];
+            return (
+              <label
+                key={`${track.spotify_url}-${i}`}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(i)}
+                  disabled={running}
+                  onChange={() => toggle(i)}
+                  className="size-4 accent-emerald-500 shrink-0 disabled:opacity-40"
+                />
+                <span className="flex-1 min-w-0">
+                  <span className="block truncate text-sm">{track.title}</span>
+                  <span className="block truncate text-xs text-zinc-400">
+                    {track.artists}
+                  </span>
                 </span>
-              </span>
-              {status === "active" && (
-                <Loader2 size={15} className="shrink-0 animate-spin text-emerald-400" />
-              )}
-              {status === "done" && (
-                <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
-              )}
-              {status === "error" && (
-                <AlertCircle size={15} className="shrink-0 text-red-400" />
-              )}
-              {status === "skipped" && (
-                <SkipForward size={15} className="shrink-0 text-zinc-500" />
-              )}
-              {!status && track.duration_ms && (
-                <span className="shrink-0 text-xs text-zinc-400">
-                  {fmtMs(track.duration_ms)}
-                </span>
-              )}
-            </label>
-          );
-        })}
-      </div>
+                {status === "active" && (
+                  <Loader2 size={15} className="shrink-0 animate-spin text-emerald-400" />
+                )}
+                {status === "done" && (
+                  <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+                )}
+                {status === "error" && (
+                  <AlertCircle size={15} className="shrink-0 text-red-400" />
+                )}
+                {status === "skipped" && (
+                  <SkipForward size={15} className="shrink-0 text-zinc-500" />
+                )}
+                {!status && track.duration_ms && (
+                  <span className="shrink-0 text-xs text-zinc-400">
+                    {fmtMs(track.duration_ms)}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      )}
     </GlassPanel>
   );
 }
