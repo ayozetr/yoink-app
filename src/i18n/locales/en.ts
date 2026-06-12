@@ -105,6 +105,7 @@ export const en = {
   },
   spotify: {
     label: "Spotify import",
+    songs: "{{count}} songs",
     truncated: "(only the tracks the embed exposes)",
     hint: "Spotify audio can't be downloaded directly — each track is matched on YouTube, downloaded, and tagged with the Spotify metadata.",
     import: "Import {{count}} as audio",

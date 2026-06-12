@@ -193,13 +193,13 @@ export function SpotifyImportCard({
   const isSingle = info.type === "track";
   const first = info.tracks[0];
   const status0 = rows[0];
-  // A single track / an album show an artist; a playlist has no single artist.
-  const headerArtist = isSingle || info.type === "album" ? (first?.artists ?? "") : "";
+  // Header artist line: playlist owner / album artist / track artist.
+  const headerArtist = info.subtitle ?? "";
   const headerMeta = isSingle
     ? [first?.album, first?.year, fmtMs(first?.duration_ms ?? null)]
         .filter(Boolean)
         .join(" · ")
-    : `${t("playlist.videos", { count: info.tracks.length })}${
+    : `${t("spotify.songs", { count: info.tracks.length })}${
         info.truncated ? ` ${t("spotify.truncated")}` : ""
       }`;
 

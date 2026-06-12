@@ -27,6 +27,9 @@ class SpotifyImportInfo(BaseModel):
 
     type: SpotifyKind
     name: str = Field(description="Track title, or the album/playlist name.")
+    subtitle: str | None = Field(
+        default=None, description="Playlist owner (or album/track artist)."
+    )
     cover_url: str | None = None
     tracks: list[SpotifyTrack]
     truncated: bool = Field(

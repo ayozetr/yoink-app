@@ -218,7 +218,11 @@ def resolve_spotify(url: str) -> SpotifyImportInfo:
             spotify_url=f"https://open.spotify.com/track/{spotify_id}",
         )
         return SpotifyImportInfo(
-            type="track", name=track.title, cover_url=cover, tracks=[track]
+            type="track",
+            name=track.title,
+            subtitle=track.artists,
+            cover_url=cover,
+            tracks=[track],
         )
 
     # Albums/playlists: try the FULL tracklist via the anonymous token (the embed
@@ -255,9 +259,16 @@ def resolve_spotify(url: str) -> SpotifyImportInfo:
         # We only have the embed's first page; flag a likely cap on big lists.
         truncated = len(tracks) >= 100
 
+    # A playlist's "artist" is its owner; an album's is its (shared) track artist.
+    subtitle = (
+        entity.get("subtitle")
+        if kind == "playlist"
+        else (tracks[0].artists if tracks else None)
+    )
     return SpotifyImportInfo(
         type=kind,
         name=entity.get("name") or entity.get("title") or "",
+        subtitle=subtitle,
         cover_url=cover,
         tracks=tracks,
         truncated=truncated,

@@ -16,6 +16,8 @@ export interface SpotifyTrack {
 export interface SpotifyImportInfo {
   type: SpotifyKind;
   name: string;
+  /** Playlist owner, or album/track artist. */
+  subtitle: string | null;
   cover_url: string | null;
   tracks: SpotifyTrack[];
   /** True if the embed exposed fewer tracks than the real total. */
