@@ -473,6 +473,21 @@ _SEARCH_CAP = 8
 _SEARCH_PREFIXES: dict[str, str] = {"youtube": "ytsearch", "soundcloud": "scsearch"}
 
 
+def _is_collection_hit(raw: dict[str, Any]) -> bool:
+    """A flat search hit that's a channel / user profile / playlist rather than a
+    single playable track — these shouldn't appear in the URL-field typeahead.
+
+    The reliable signal is yt-dlp's extractor key: a video is ``Youtube`` /
+    ``Soundcloud`` while a channel/playlist/profile is ``YoutubeTab`` /
+    ``SoundcloudUser`` / ``SoundcloudSet`` etc. The URL pattern is a backstop.
+    """
+    ie = str(raw.get("ie_key") or raw.get("extractor_key") or "")
+    if any(token in ie for token in ("Tab", "Channel", "User", "Playlist", "Set")):
+        return True
+    url = str(raw.get("url") or raw.get("webpage_url") or "")
+    return any(p in url for p in ("/channel/", "/user/", "/@", "youtube.com/c/"))
+
+
 def search_youtube(
     query: str, limit: int = _SEARCH_CAP, source: str = "youtube"
 ) -> list[PlaylistEntry]:
@@ -516,6 +531,8 @@ def search_youtube(
     for raw in info.get("entries") or []:
         if not isinstance(raw, dict):
             continue
+        if _is_collection_hit(raw):
+            continue  # drop channels / user profiles / playlists from search
         entry = _build_entry(raw)
         if entry is None:
             continue

@@ -24,10 +24,29 @@ from app.services.ytdlp_service import (
     _build_playlist,
     _build_video,
     _format_duration,
+    _is_collection_hit,
     _is_lossless_acodec,
     _map_format,
     _subtitle_langs,
 )
+
+
+def test_is_collection_hit():
+    # Channels / user profiles / playlists are dropped from search.
+    assert _is_collection_hit(
+        {"ie_key": "YoutubeTab", "url": "https://www.youtube.com/channel/UC123"}
+    )
+    assert _is_collection_hit({"ie_key": "SoundcloudUser", "url": "x"})
+    assert _is_collection_hit(
+        {"ie_key": "Youtube", "url": "https://www.youtube.com/@somehandle"}
+    )
+    # A real video / track is kept.
+    assert not _is_collection_hit(
+        {"ie_key": "Youtube", "url": "https://www.youtube.com/watch?v=abc"}
+    )
+    assert not _is_collection_hit(
+        {"ie_key": "SoundcloudIE", "url": "https://soundcloud.com/artist/track"}
+    )
 
 
 @pytest.mark.parametrize(
