@@ -24,9 +24,17 @@ def test_detect_vr_known_studio():
 
 
 def test_detect_vr_title_360():
-    is_vr, layout = vr.detect_vr({"title": "Amazing 360 experience", "uploader": "x"})
+    # A 360 degree marker only counts as VR alongside a stereo/VR cue.
+    is_vr, layout = vr.detect_vr({"title": "Amazing 360 VR experience", "uploader": "x"})
     assert is_vr is True
     assert layout == "360_sbs"
+
+
+def test_detect_vr_bare_degree_is_not_vr():
+    # A lone "180"/"360" with no VR cue is far too common to mean VR.
+    for title in ("Xbox 360 retrospective", "Top 180 Workout Songs", "Nikon Z6 360 review"):
+        is_vr, _ = vr.detect_vr({"title": title, "uploader": "x"})
+        assert is_vr is False, title
 
 
 def test_detect_vr_top_bottom_360():

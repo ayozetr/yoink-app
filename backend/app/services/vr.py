@@ -114,14 +114,26 @@ _VR_STUDIOS: tuple[str, ...] = (
     "povr",
 )
 
-# Textual markers that, alone, signal immersive content. Word-bounded so "180"
-# inside a longer number doesn't match, plus a few multi-word phrases. Bare "tb"
-# is intentionally excluded here (too generic) — it only informs layout below.
-_VR_MARKER = re.compile(
-    r"\b(vr180|vr|180|360|sbs|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b"
-    r"|virtual reality|side[ -]by[ -]side|top[ -]bottom|over[ -]under",
+# Markers that, on their own, signal immersive content. A bare "180"/"360" is
+# deliberately NOT here — it's far too common ("Xbox 360", "Top 180 Songs") to
+# mean VR by itself; it only counts alongside a stereo/VR cue (see _is_vr_text).
+_VR_STRONG = re.compile(
+    r"\b(vr180|vr|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b|virtual reality",
     re.IGNORECASE,
 )
+# A degree marker (180/360) plus one of these cues is the weaker combined signal.
+_VR_DEGREE = re.compile(r"\b(180|360)\b", re.IGNORECASE)
+_VR_CUE = re.compile(
+    r"\b(vr|sbs|tb)\b|side[ -]by[ -]side|top[ -]bottom|over[ -]under|monoscopic",
+    re.IGNORECASE,
+)
+
+
+def _is_vr_text(blob: str) -> bool:
+    """True if the text signals VR: a strong marker, or a 180/360 with a cue."""
+    if _VR_STRONG.search(blob):
+        return True
+    return bool(_VR_DEGREE.search(blob) and _VR_CUE.search(blob))
 _DEG360 = re.compile(r"\b360\b", re.IGNORECASE)
 _DEG180 = re.compile(r"\b(180|vr180)\b", re.IGNORECASE)
 _STEREO_TB_MARK = re.compile(r"\btb\b|top[ -]bottom|over[ -]under|3dv", re.IGNORECASE)
@@ -236,7 +248,7 @@ def detect_vr(info: dict) -> tuple[bool, VRLayout]:
     only refines the *layout* guess, never the is-VR decision.
     """
     blob = _text_blob(info)
-    is_vr = _studio_hit(info) or bool(_VR_MARKER.search(blob))
+    is_vr = _studio_hit(info) or _is_vr_text(blob)
     return is_vr, _infer_layout(blob, _best_video_aspect(info))
 
 

@@ -298,6 +298,13 @@ export function QueuePanel({
         </div>
       </div>
 
+      {items.length === 0 && (
+        <div className="mt-3 flex flex-col items-center gap-2 py-6 text-center text-zinc-500">
+          <ListPlus size={28} className="opacity-60" />
+          <p className="text-xs">{t("queue.empty")}</p>
+        </div>
+      )}
+
       {items.length > 0 && (
         <ul className="mt-3 flex max-h-72 flex-col gap-1.5 overflow-auto pr-1">
           {items.map((item) => (

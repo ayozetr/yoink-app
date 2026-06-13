@@ -105,6 +105,7 @@ export const es = {
     stop: "Detener",
     clearDone: "Limpiar completadas",
     remove: "Quitar de la cola",
+    empty: "Pega enlaces arriba y pulsa Añadir para crear un lote.",
   },
   music: {
     label: "Importar de {{source}}",

@@ -105,6 +105,7 @@ export const en = {
     stop: "Stop",
     clearDone: "Clear finished",
     remove: "Remove from queue",
+    empty: "Paste links above and press Add to build a batch.",
   },
   music: {
     label: "{{source}} import",
