@@ -127,6 +127,15 @@ export function HistoryItemCard({
             )}
             <span className="truncate text-zinc-400">{meta}</span>
           </div>
+
+          {!isCompleted && item.error_message && (
+            <p
+              className="mt-1 line-clamp-2 text-xs text-red-300/80"
+              title={item.error_message}
+            >
+              {item.error_message}
+            </p>
+          )}
         </div>
 
         {/* Open folder + open file (play), stacked and vertically centered */}

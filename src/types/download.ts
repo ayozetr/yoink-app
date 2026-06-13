@@ -48,6 +48,8 @@ export interface HistoryEntry {
   filesize: number | null;
   /** Resolution (video, e.g. "1080p") or bitrate/format (audio, e.g. "320 kbps"). */
   quality: string | null;
+  /** Failure reason when status is "error". */
+  error_message: string | null;
   created_at: string;
 }
 

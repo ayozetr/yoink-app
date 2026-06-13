@@ -6,6 +6,7 @@ actual download + progress-streaming logic will live alongside it later.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, cast
 
@@ -22,6 +23,8 @@ from app.models.media import (
     PlaylistInfo,
     VideoInfo,
 )
+
+logger = logging.getLogger(__name__)
 
 # Cap the number of playlist entries returned so huge playlists stay snappy.
 _ENTRY_CAP = 200
@@ -416,6 +419,7 @@ def extract_info(url: str) -> InfoResponse:
             try:
                 tolerant = _extract({**options, "ignore_no_formats_error": True})
             except DownloadError:
+                logger.warning("Extraction failed for %s: %s", url, exc)
                 raise MediaExtractionError(
                     str(exc), transient=_is_transient_error(str(exc))
                 ) from exc

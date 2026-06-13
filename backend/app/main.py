@@ -7,10 +7,13 @@ Run locally with:
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.logging_config import setup_logging
 from app.routers import (
     autotag,
     download,
@@ -25,6 +28,10 @@ from app.services import history_store, settings_store
 
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
+    setup_logging()
+    logging.getLogger("app").info(
+        "Starting %s v%s", settings.app_name, settings.app_version
+    )
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,

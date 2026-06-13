@@ -57,6 +57,7 @@ def init_db() -> None:
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute(_SCHEMA)
         _add_column_if_missing(connection, "downloads", "quality", "TEXT")
+        _add_column_if_missing(connection, "downloads", "error_message", "TEXT")
 
 
 def _row_to_entry(row: sqlite3.Row) -> HistoryEntry:
@@ -70,6 +71,7 @@ def _row_to_entry(row: sqlite3.Row) -> HistoryEntry:
         filepath=row["filepath"],
         filesize=row["filesize"],
         quality=row["quality"],
+        error_message=row["error_message"],
         created_at=row["created_at"],
     )
 
@@ -84,6 +86,7 @@ def add_entry(
     filepath: str | None = None,
     filesize: int | None = None,
     quality: str | None = None,
+    error_message: str | None = None,
 ) -> HistoryEntry:
     """Insert a download record and return it (with its generated id)."""
     created_at = datetime.now(timezone.utc).isoformat()
@@ -92,11 +95,11 @@ def add_entry(
             """
             INSERT INTO downloads
                 (title, url, kind, status, filename, filepath, filesize, quality,
-                 created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 error_message, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (title, url, kind, status, filename, filepath, filesize, quality,
-             created_at),
+             error_message, created_at),
         )
         new_id = cursor.lastrowid
     return HistoryEntry(
@@ -109,6 +112,7 @@ def add_entry(
         filepath=filepath,
         filesize=filesize,
         quality=quality,
+        error_message=error_message,
         created_at=created_at,
     )
 

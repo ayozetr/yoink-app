@@ -146,6 +146,7 @@ async def download_ws(websocket: WebSocket) -> None:
                     url=url,
                     kind=request.kind,
                     status="error",
+                    error_message=event.message,
                 )
     except WebSocketDisconnect:
         cancel_event.set()

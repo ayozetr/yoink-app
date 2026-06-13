@@ -285,6 +285,9 @@ class HistoryEntry(BaseModel):
     quality: str | None = Field(
         default=None, description="Resolution (video) or bitrate/format (audio)."
     )
+    error_message: str | None = Field(
+        default=None, description="Failure reason when status is 'error'."
+    )
     created_at: str = Field(..., description="ISO-8601 UTC creation timestamp.")
 
 
