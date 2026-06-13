@@ -202,9 +202,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         </div>
 
         <div className="flex flex-col gap-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-            {t("settings.secDownloads")}
-          </p>
+          <SectionHeader first label={t("settings.secDownloads")} />
           <Field label={t("settings.downloadDir")}>
             <div className="relative">
               <input
@@ -304,9 +302,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </Field>
           </div>
 
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 pt-2">
-            {t("settings.secQuality")}
-          </p>
+          <SectionHeader label={t("settings.secQuality")} />
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("settings.videoCodec")}>
@@ -340,9 +336,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </Field>
           </div>
 
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 pt-2">
-            {t("settings.secProcessing")}
-          </p>
+          <SectionHeader label={t("settings.secProcessing")} />
 
           <Field label={t("settings.autotagSource")}>
             <Select
@@ -392,9 +386,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             )}
           </div>
 
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 pt-2">
-            {t("settings.secNetwork")}
-          </p>
+          <SectionHeader label={t("settings.secNetwork")} />
 
           <Field label={t("settings.rateLimit")}>
             <Select
@@ -669,6 +661,21 @@ function Field({
         {hint}
       </span>
       {children}
+    </div>
+  );
+}
+
+/** A labelled section divider: a violet accent bar + heading, with a top rule
+ *  separating it from the previous group (skipped on the first section). */
+function SectionHeader({ label, first }: { label: string; first?: boolean }) {
+  return (
+    <div
+      className={`flex items-center gap-2 ${first ? "" : "mt-3 border-t border-white/10 pt-4"}`}
+    >
+      <span className="h-3.5 w-1 rounded-full bg-violet-500" />
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-200">
+        {label}
+      </h3>
     </div>
   );
 }
