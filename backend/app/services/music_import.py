@@ -6,7 +6,7 @@ embed scrapes for Spotify/Tidal/Amazon). The audio is never taken from the
 service: :func:`find_youtube_match` finds the best YouTube match per track with
 the spotDL-ported ranker, and the caller downloads + tags it with this metadata.
 
-See docs/spotify-import.md for the design.
+See docs/music-import.md for the design.
 """
 
 from __future__ import annotations

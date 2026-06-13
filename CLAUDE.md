@@ -30,8 +30,15 @@ Two layers communicating asynchronously:
   extraction failure (anti-bot 403 / network blip) is retried before surfacing as
   503 (retryable) vs 422 (a genuinely unsupported URL).
 - **Search (REST):** typing a query (not a URL) in the field hits
-  `GET /api/search?q=`, which runs a flat `ytsearch` and returns matching videos
-  for the live dropdown; picking one analyzes it via `POST /api/info`.
+  `GET /api/search?q=&source=youtube|soundcloud`, a flat `ytsearch`/`scsearch`
+  returning matching tracks for the live dropdown (the header has a
+  YouTube↔SoundCloud toggle); picking one analyzes it via `POST /api/info`.
+- **Music import (REST):** pasting a Spotify/Deezer/Apple/Tidal/Amazon URL hits
+  `POST /api/music/resolve`, which **keyless**ly turns it into a `MusicImportInfo`
+  (track/album/playlist + per-track title/artist/duration/cover). The card then
+  calls `POST /api/music/match` per track to rank a YouTube video (spotDL-ported
+  scorer), downloads it via the normal WS flow, and auto-tags it with the *exact*
+  source metadata. Audio is never taken from the source — only its metadata.
 - **Download & progress (WebSockets):** on "Download", the frontend opens a
   socket to `WS /api/ws/download` and sends the request (`DownloadRequest`:
   `kind`/`quality`, output `container`, `audio_format`, `embed_subs`/
@@ -51,7 +58,8 @@ Two layers communicating asynchronously:
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` (and `src/types/autotag.ts` ↔
-`backend/app/models/autotag.py`) — keep both sides in sync.
+`backend/app/models/autotag.py`, `src/types/music.ts` ↔
+`backend/app/models/music.py`) — keep both sides in sync.
 
 ## Repository layout
 
@@ -66,31 +74,37 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 │   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, EditMenu, …)
 │   ├── features/
 │   │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
-│   │   ├── downloader/       # URL input, preview (incl. VR controls), playlist, progress (main column)
+│   │   ├── music/            # keyless music import card (Spotify/Deezer/Apple/Tidal/Amazon)
+│   │   ├── downloader/       # URL input (+ YouTube/SoundCloud search toggle), preview (incl. VR), playlist, progress
 │   │   ├── queue/            # persistent sequential download queue (opened from the header)
 │   │   ├── history/          # download history + stats (sidebar)
 │   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version)
 │   ├── i18n/                 # react-i18next setup + en/es locale strings
-│   ├── lib/                  # API client + download WebSocket + queue store + VR-layout memory + native dialogs
+│   ├── lib/                  # API client + download WebSocket + queue store + search-source pref + VR-layout memory + native dialogs
 │   └── types/                # shared domain types (backend JSON contract)
 └── backend/                  # FastAPI + yt-dlp engine
     └── app/
-        ├── main.py           # app factory, CORS, router mounting
-        ├── core/config.py    # typed settings (CORS, download dir)
+        ├── main.py           # app factory, logging setup, CORS, router mounting
+        ├── core/config.py    # typed settings (CORS, download dir, ~/.yoink data dir)
+        ├── core/logging_config.py     # rotating file log at ~/.yoink/logs/yoink.log
         ├── models/media.py   # Pydantic models (JSON contract)
         ├── models/autotag.py  # auto-tagging models (TagCandidate, CandidateList, …)
+        ├── models/music.py    # music-import models (MusicTrack, MusicImportInfo, …)
         ├── core/humanize.py   # shared byte/size formatting
         ├── core/ytdlp_options.py      # shared URL normalize + cookie options
         ├── core/safe_http.py  # SSRF-safe fetch (public-host pinning) for client URLs
-        ├── routers/info.py    # POST /api/info (video or playlist), GET /api/search (YouTube)
+        ├── routers/info.py    # POST /api/info (video or playlist), GET /api/search (YouTube/SoundCloud)
         ├── routers/download.py        # WS /api/ws/download (live progress)
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
         ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
         ├── routers/autotag.py         # POST /api/autotag/{identify,search,apply}
+        ├── routers/music.py           # POST /api/music/{resolve,match} (keyless import)
         ├── routers/media.py           # GET /api/thumbnail (host-guarded proxy) + /api/cover (embedded art)
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
         ├── services/download_service.py  # yt-dlp download + progress stream
         ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor
+        ├── services/music_import.py    # keyless resolvers (5 services) + YouTube match
+        ├── services/matching.py        # spotDL-ported YouTube match ranking
         ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing
         ├── services/vr.py              # VR detection + Spherical Video V2 (st3d/sv3d) tagging
         ├── services/history_store.py  # SQLite persistence (history + stats)

@@ -14,6 +14,11 @@
 - **Current release:** **v1.9.1** — hardening + polish: SSRF fix, sharper audio
   auto-tagging, resilient `/api/info`, queue parity (VR auto-detect + format
   defaults), and accessibility/i18n fixes. (v1.9.0: immersive VR + the queue.)
+- **In progress → v2.0.0 (unreleased, on `main`):** keyless **music import from
+  five services** (Spotify/Deezer/Apple/Tidal/Amazon) with a spotDL-ported matcher
+  at **~99.5%** over 2,300+ real tracks and download+tag validated end-to-end on
+  all five; **SoundCloud search**; **backend logging**; **resumable downloads**.
+  See the 🟡 items below.
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
 - **Health:** backend (pytest) + frontend (vitest) green · `npm audit` 0 · strict TS.
@@ -70,22 +75,26 @@ validation), strict TS + tests.
 
 ---
 
-## 🎯 Next up — toward v1.10
+## 🎯 Next up — toward v2.0.0
 
 The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
 *(Queue ↔ feature parity — VR + format defaults — shipped in v1.9.1.)*
 
-1. **Backend logging & observability** (M · **high**) — there is **zero** logging
-   today; yt-dlp's error text is never captured. Structured logs to
-   `~/.yoink/logs/`, persist the error string in history, surface it in the UI.
-   Unblocks debugging everything else.
+1. 🟡 **Backend logging & observability** (M · **high**) *(done locally)* — a
+   structured `app`-namespace logger writes to a rotating `~/.yoink/logs/yoink.log`
+   + console; extraction/download failures log the real yt-dlp text, the error
+   string is persisted on the history row (new `error_message` column) and shown
+   under failed items in the sidebar. *(Still open: surfacing live logs in-app.)*
 2. **Sidecar readiness gate + dynamic port** (M · **high**) — poll `/health`
    before revealing the UI (the splash already exists) and fall back if **8756**
    is taken (it's hardcoded). Affects every cold start of the desktop app.
 3. **First-run empty state** (S · medium) — example URL, "type to search", link to
    supported sites. Big first-impression win for new users.
-4. **Resume partial downloads** (M · medium) — enable yt-dlp `continuedl` so an
-   interrupted `.part` resumes on retry instead of restarting from zero.
+4. 🟡 **Resume partial downloads** (M · medium) *(done locally)* — yt-dlp
+   `continuedl` is on, so a retry of an interrupted download continues the `.part`
+   instead of restarting (both the in-panel batch and the persistent queue).
+   *(Cross-restart playlist resume — routing batches through the persistent queue
+   — is the separate Playlists item below.)*
 5. **Persist the remaining download defaults** (S · medium) — container + audio
    format now persist *(v1.9.1)*; subtitles + chapters still don't.
 
@@ -103,9 +112,13 @@ Not committed and not release-ordered — picked from as capacity allows.
   download + auto-tag with the *exact* source metadata. One source-agnostic
   pipeline (`/api/music/{resolve,match}` + `MusicImportCard`); only the resolver
   differs per service. A single track shows a square-cover preview;
-  albums/playlists a track-picker. The spotDL-ported matcher hits **98%** of
-  tracks on a 403-track real-playlist test across all five sources (token-set
-  title ratio, glyph folding, name+artist-aware duration gate).
+  albums/playlists a track-picker. The spotDL-ported matcher hits **~99.5%** of
+  tracks on **2,300+ real songs** across all five sources (token-set title ratio,
+  glyph folding, name+artist-aware duration gate, primary-artist + branded-channel
+  matching, and a top-5→top-10 second-chance search on a miss). Resolution also
+  handles **Deezer share/short links** and **single-track** URLs on every source,
+  and download→tag→cover was validated **end-to-end on all five** (Amazon-playlist
+  covers, which the embed omits, are backfilled from Deezer at tag time).
   - **Deezer** ⭐ — public API `api.deezer.com` (no key) · full JSON, **no track
     cap** · the standout (we already use its keyless API for auto-tagging).
   - **Apple Music** — iTunes Lookup API for albums/tracks; **playlists** scrape
@@ -152,9 +165,9 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   shows the current selection's count + **total duration** ("23 selected · 1h 18m").
   A rough **size** estimate is still pending (flat entries carry no per-item
   formats, so it needs a probe/heuristic).
-- ⬜ **Audio-first for music playlists** (S) — YT Music mixes (`RD…`/`OLAK…` list ids
-  or `music.youtube.com`) are music-intent; default `kind` to **audio** for them
-  instead of video.
+- 🟡 **Audio-first for music playlists** *(done locally)* — YT Music mixes (`RD…`)
+  and album lists (`OLAK…`) are music-intent, so the playlist card now defaults
+  `kind` to **audio** for them (detected from the playlist id) instead of video.
 - ⬜ **Lazy-load / virtualize the entry thumbnails** (S/M) — up to 200 `<Thumbnail>`
   fire ~200 proxy requests at once on render; `loading="lazy"` or virtualize.
 - ⬜ **Per-item retry in the batch summary** (S) — when some tracks fail, retry just

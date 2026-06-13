@@ -23,18 +23,21 @@ src/
 │   │   ├── DownloaderPanel.tsx  # orchestrates the column + local state
 │   │   ├── formatOptions.ts     # derive kind/quality/container/audio-format options from formats
 │   │   └── components/
-│   │       ├── DownloaderHeader.tsx
-│   │       ├── UrlInput.tsx        # URL field + paste + live YouTube search dropdown
+│   │       ├── DownloaderHeader.tsx     # title + SearchSourceToggle (YouTube↔SoundCloud) + queue/settings
+│   │       ├── SearchSourceToggle.tsx
+│   │       ├── UrlInput.tsx        # URL field + paste + live search dropdown (per source)
 │   │       ├── PreviewCard.tsx     # format/quality/subs + scissors trim + VR controls + size estimate
-│   │       ├── PlaylistCard.tsx
+│   │       ├── PlaylistCard.tsx    # entry picker; music lists (RD…/OLAK…) default to audio
 │   │       └── DownloadProgressCard.tsx
+│   ├── music/                   # keyless music import (Spotify/Deezer/Apple/Tidal/Amazon)
+│   │   └── MusicImportCard.tsx  # resolve → match each track on YouTube → download + tag
 │   ├── queue/                   # persistent sequential download queue (opened from the header)
 │   │   └── QueuePanel.tsx
 │   ├── autotag/                 # audio auto-tagging (Apple Music / Deezer / MusicBrainz), wired into DownloaderPanel
 │   │   ├── AutoTagPanel.tsx     # inline "Tag audio" card after a single audio download
 │   │   ├── AutoTagBatchPanel.tsx # per-track tagging list after an audio playlist
 │   │   └── filename.ts          # "Artist - Title" filename parser (seeds catalogue search)
-│   ├── history/                 # sidebar
+│   ├── history/                 # sidebar (failed rows show the captured error message)
 │   │   ├── HistorySidebar.tsx
 │   │   └── components/
 │   └── settings/                # settings modal (dir, defaults, cookies, language, version)
@@ -42,9 +45,10 @@ src/
 ├── i18n/                        # react-i18next setup + en/es locale strings
 │   ├── index.ts
 │   └── locales/{en,es}.ts
-├── lib/                         # API client, download WebSocket, native dialogs
+├── lib/                         # API client, download WebSocket, search-source pref, native dialogs
 ├── types/
 │   ├── download.ts              # shared domain types (backend JSON contract)
+│   ├── music.ts                 # music-import types (mirror backend models)
 │   └── autotag.ts               # audio auto-tagging types (mirror backend models)
 ├── App.tsx                      # composition root
 ├── main.tsx                     # React entry point (imports ./i18n)

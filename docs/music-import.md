@@ -1,8 +1,14 @@
-# Spotify import — design notes (the spotDL approach)
+# Music import — design notes (the spotDL approach)
 
-Reference for the **"Import from Spotify"** backlog item in
+> **Status: implemented** (→ v2.0.0, unreleased on `main`). Generalized beyond
+> Spotify to **Spotify / Deezer / Apple Music / Tidal / Amazon Music** behind one
+> keyless pipeline. The code lives in `backend/app/services/music_import.py`
+> (resolvers) + `matching.py` (the YouTube ranking) + `routers/music.py`, with the
+> `MusicImportCard` on the frontend. This document is the original design rationale.
+
+Originally the **"Import from Spotify"** backlog item in
 [`ROADMAP.md`](ROADMAP.md). It captures how [spotDL](https://github.com/spotDL/spotify-downloader)
-solves this and what that means for Yoink — **it is not committed work**.
+solves this and what that means for Yoink.
 
 ## The core idea (why this is even possible)
 

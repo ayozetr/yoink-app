@@ -29,8 +29,14 @@ It is split into two layers that communicate asynchronously:
 
 - **Analyze any URL** (with a **paste-from-clipboard** button) → preview (title,
   thumbnail, duration) with the real available formats. ~1800 sites via yt-dlp.
-- **Search YouTube from the URL field** — type a query instead of a URL and pick
-  a result from the live dropdown (thumbnail, channel, views) to download it.
+- **Search from the URL field** — type a query instead of a URL and pick a result
+  from the live dropdown (thumbnail, channel, views); a header toggle switches the
+  search between **YouTube** and **SoundCloud**.
+- **Import from music services** — paste a track/album/playlist URL from
+  **Spotify, Deezer, Apple Music, Tidal or Amazon Music** (no account or API key);
+  Yoink finds the best YouTube match for each song, downloads the audio, and tags
+  it with the *exact* source metadata + cover art. ~99.5% match rate on real
+  playlists. The audio is never taken from the service — only its metadata.
 - **Live downloads** over WebSocket (percent / speed / ETA), with **cancel**
   and **retry**.
 - **Output formats, your choice:**
@@ -101,7 +107,8 @@ src/                      # frontend (React + TS + Tailwind)
 ├── components/{layout,ui}
 ├── features/
 │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
-│   ├── downloader/       # URL input, preview, playlist, progress (main column)
+│   ├── music/            # music-service import card (Spotify/Deezer/Apple/Tidal/Amazon)
+│   ├── downloader/       # URL input (+ search-source toggle), preview, playlist, progress
 │   ├── history/          # download history + stats (sidebar)
 │   └── settings/         # settings modal (download dir, defaults, cookies, version)
 ├── lib/                  # API client + download WebSocket

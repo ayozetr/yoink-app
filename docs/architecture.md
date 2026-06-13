@@ -38,9 +38,16 @@ When the user pastes a URL and clicks **Analyze**:
    and `has_chapters`.
 4. Frontend populates the preview card and the format/quality selectors.
 
-Typing a query instead of a URL hits `GET /api/search?q=` (a flat yt-dlp
-`ytsearch`); the field shows a live dropdown of matching videos and picking one
-analyzes it through the same `POST /api/info` flow.
+Typing a query instead of a URL hits `GET /api/search?q=&source=youtube|soundcloud`
+(a flat yt-dlp `ytsearch`/`scsearch` — a header toggle picks the platform); the
+field shows a live dropdown of matching tracks and picking one analyzes it
+through the same `POST /api/info` flow.
+
+Pasting a **music-service** URL (Spotify/Deezer/Apple/Tidal/Amazon) instead hits
+`POST /api/music/resolve`, which keyless­ly returns a `MusicImportInfo` tracklist;
+the import card then calls `POST /api/music/match` per track (a spotDL-ported
+YouTube ranking) and downloads + auto-tags each via the normal flow. See
+[`music-import.md`](music-import.md).
 
 For a playlist, the backend additionally resolves the **first entry** to set
 `source_lossless` / `best_audio_abr` on the listing, so the playlist UI gates
