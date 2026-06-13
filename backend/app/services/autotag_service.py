@@ -353,7 +353,16 @@ def guess_from_filename(name: str) -> tuple[str, str]:
 
 def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
     """Write the chosen tags + cover art into the file."""
-    cover = _fetch_cover(request.cover_url) if request.cover_url else None
+    cover_url = request.cover_url
+    # No source cover (e.g. an Amazon-playlist track, whose embed exposes none) —
+    # best-effort lookup on Deezer by artist+title so the file still gets art.
+    if not cover_url and request.artist and request.title:
+        try:
+            hits = _deezer_search(request.artist, request.title, limit=1)
+            cover_url = next((c.cover_url for c in hits if c.cover_url), None)
+        except AutotagError:
+            cover_url = None
+    cover = _fetch_cover(cover_url) if cover_url else None
     tags = {
         "title": request.title,
         "artist": request.artist,
