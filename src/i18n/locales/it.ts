@@ -84,6 +84,8 @@ export const it = {
     dismiss: "Ignora",
   },
   panel: {
+    emptyTitle: "Pronto per scaricare",
+    emptyHint: "Incolla un link qui sopra, oppure scrivi per cercare su YouTube o SoundCloud.",
     analyzeError: "Si è verificato un errore imprevisto durante l'analisi dell'URL.",
     analyzeTransient:
       "La fonte non è disponibile al momento. Riprova tra poco.",
@@ -155,6 +157,10 @@ export const it = {
     transferred: "Trasferiti",
   },
   settings: {
+    secDownloads: "Download",
+    secQuality: "Qualità",
+    secProcessing: "Elaborazione",
+    secNetwork: "Rete e accesso",
     title: "Impostazioni",
     close: "Chiudi",
     downloadDir: "Cartella download",

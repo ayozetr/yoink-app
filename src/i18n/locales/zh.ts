@@ -84,6 +84,8 @@ export const zh = {
     dismiss: "忽略",
   },
   panel: {
+    emptyTitle: "准备下载",
+    emptyHint: "在上方粘贴链接，或输入关键词在 YouTube 或 SoundCloud 中搜索。",
     analyzeError: "解析此链接时发生意外错误。",
     analyzeTransient:
       "该来源暂时不可用，请稍后重试。",
@@ -155,6 +157,10 @@ export const zh = {
     transferred: "已传输",
   },
   settings: {
+    secDownloads: "下载",
+    secQuality: "质量",
+    secProcessing: "处理",
+    secNetwork: "网络与访问",
     title: "设置",
     close: "关闭",
     downloadDir: "下载文件夹",

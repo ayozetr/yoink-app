@@ -84,6 +84,8 @@ export const ja = {
     dismiss: "閉じる",
   },
   panel: {
+    emptyTitle: "ダウンロードの準備完了",
+    emptyHint: "上にリンクを貼り付けるか、入力して YouTube や SoundCloud を検索します。",
     analyzeError: "URL の解析中に予期しないエラーが発生しました。",
     analyzeTransient:
       "ソースが一時的に利用できません。しばらくしてからもう一度お試しください。",
@@ -155,6 +157,10 @@ export const ja = {
     transferred: "転送量",
   },
   settings: {
+    secDownloads: "ダウンロード",
+    secQuality: "品質",
+    secProcessing: "処理",
+    secNetwork: "ネットワークとアクセス",
     title: "設定",
     close: "閉じる",
     downloadDir: "ダウンロードフォルダ",

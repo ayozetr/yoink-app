@@ -84,6 +84,8 @@ export const id = {
     dismiss: "Tutup",
   },
   panel: {
+    emptyTitle: "Siap mengunduh",
+    emptyHint: "Tempel tautan di atas, atau ketik untuk mencari di YouTube atau SoundCloud.",
     analyzeError: "Terjadi kesalahan tak terduga saat menganalisis URL.",
     analyzeTransient:
       "Sumber tidak tersedia untuk sementara. Coba lagi sebentar lagi.",
@@ -155,6 +157,10 @@ export const id = {
     transferred: "Terkirim",
   },
   settings: {
+    secDownloads: "Unduhan",
+    secQuality: "Kualitas",
+    secProcessing: "Pemrosesan",
+    secNetwork: "Jaringan & akses",
     title: "Pengaturan",
     close: "Tutup",
     downloadDir: "Folder unduhan",

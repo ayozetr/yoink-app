@@ -27,7 +27,10 @@ import {
   RELEASES_URL,
   type UpdateCheck,
 } from "../../lib/updater";
-import i18n, { SUPPORTED_LANGUAGES } from "../../i18n";
+import {
+  SUPPORTED_LANGUAGES,
+  changeLanguage as applyLanguage,
+} from "../../i18n";
 import type {
   AppSettings,
   AudioBitrate,
@@ -112,12 +115,10 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
       localStorage.removeItem(LANG_STORAGE_KEY);
       // Follow the OS language if we support it, else fall back to English.
       const sys = navigator.language.split("-")[0];
-      void i18n.changeLanguage(
-        SUPPORTED_LANGUAGES.includes(sys) ? sys : "en",
-      );
+      void applyLanguage(SUPPORTED_LANGUAGES.includes(sys) ? sys : "en");
     } else {
       localStorage.setItem(LANG_STORAGE_KEY, value); // persist the explicit choice
-      void i18n.changeLanguage(value);
+      void applyLanguage(value);
     }
   };
 
@@ -183,7 +184,7 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         aria-modal="true"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
+        className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -201,6 +202,9 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
         </div>
 
         <div className="flex flex-col gap-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            {t("settings.secDownloads")}
+          </p>
           <Field label={t("settings.downloadDir")}>
             <div className="relative">
               <input
@@ -221,6 +225,36 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               </button>
             </div>
           </Field>
+
+          <Field label={t("settings.filenameTemplate")}>
+            <Select
+              ariaLabel={t("settings.filenameTemplate")}
+              value={templateCustom ? "__custom__" : form.filename_template}
+              onChange={(v) => {
+                if (v === "__custom__") {
+                  setTemplateCustom(true);
+                } else {
+                  setTemplateCustom(false);
+                  set("filename_template", v);
+                }
+              }}
+              options={[
+                ...TEMPLATE_PRESETS.map((p) => ({ value: p, label: p })),
+                { value: "__custom__", label: t("settings.filenameCustom") },
+              ]}
+              className={`${INPUT_CLASS} w-full`}
+            />
+          </Field>
+          {templateCustom && (
+            <input
+              type="text"
+              aria-label={t("settings.filenameCustom")}
+              value={form.filename_template}
+              onChange={(e) => set("filename_template", e.target.value)}
+              placeholder="%(title)s"
+              className={`${INPUT_CLASS} w-full font-mono text-xs`}
+            />
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("settings.defaultFormat")}>
@@ -270,22 +304,9 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </Field>
           </div>
 
-          <Field label={t("settings.rateLimit")}>
-            <Select
-              ariaLabel={t("settings.rateLimit")}
-              value={form.rate_limit ?? ""}
-              onChange={(v) => set("rate_limit", v === "" ? null : v)}
-              options={[
-                { value: "", label: t("settings.rateLimitNone") },
-                { value: "5M", label: "5 MB/s" },
-                { value: "10M", label: "10 MB/s" },
-                { value: "20M", label: "20 MB/s" },
-                { value: "35M", label: "35 MB/s" },
-                { value: "50M", label: "50 MB/s" },
-              ]}
-              className={`${INPUT_CLASS} w-full`}
-            />
-          </Field>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 pt-2">
+            {t("settings.secQuality")}
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("settings.videoCodec")}>
@@ -319,35 +340,9 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </Field>
           </div>
 
-          <Field label={t("settings.filenameTemplate")}>
-            <Select
-              ariaLabel={t("settings.filenameTemplate")}
-              value={templateCustom ? "__custom__" : form.filename_template}
-              onChange={(v) => {
-                if (v === "__custom__") {
-                  setTemplateCustom(true);
-                } else {
-                  setTemplateCustom(false);
-                  set("filename_template", v);
-                }
-              }}
-              options={[
-                ...TEMPLATE_PRESETS.map((p) => ({ value: p, label: p })),
-                { value: "__custom__", label: t("settings.filenameCustom") },
-              ]}
-              className={`${INPUT_CLASS} w-full`}
-            />
-          </Field>
-          {templateCustom && (
-            <input
-              type="text"
-              aria-label={t("settings.filenameCustom")}
-              value={form.filename_template}
-              onChange={(e) => set("filename_template", e.target.value)}
-              placeholder="%(title)s"
-              className={`${INPUT_CLASS} w-full font-mono text-xs`}
-            />
-          )}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 pt-2">
+            {t("settings.secProcessing")}
+          </p>
 
           <Field label={t("settings.autotagSource")}>
             <Select
@@ -397,33 +392,27 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             )}
           </div>
 
-          <Field label={t("settings.language")}>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 pt-2">
+            {t("settings.secNetwork")}
+          </p>
+
+          <Field label={t("settings.rateLimit")}>
             <Select
-              ariaLabel={t("settings.language")}
-              value={lang}
-              onChange={changeLanguage}
+              ariaLabel={t("settings.rateLimit")}
+              value={form.rate_limit ?? ""}
+              onChange={(v) => set("rate_limit", v === "" ? null : v)}
               options={[
-                { value: "system", label: t("settings.langSystem") },
-                { value: "en", label: "English" },
-                { value: "es", label: "Español" },
-                { value: "fr", label: "Français" },
-                { value: "de", label: "Deutsch" },
-                { value: "it", label: "Italiano" },
-                { value: "pt", label: "Português (BR)" },
-                { value: "ru", label: "Русский" },
-                { value: "pl", label: "Polski" },
-                { value: "uk", label: "Українська" },
-                { value: "id", label: "Bahasa Indonesia" },
-                { value: "hi", label: "हिन्दी" },
-                { value: "zh", label: "简体中文" },
-                { value: "ja", label: "日本語" },
-                { value: "ko", label: "한국어" },
+                { value: "", label: t("settings.rateLimitNone") },
+                { value: "5M", label: "5 MB/s" },
+                { value: "10M", label: "10 MB/s" },
+                { value: "20M", label: "20 MB/s" },
+                { value: "35M", label: "35 MB/s" },
+                { value: "50M", label: "50 MB/s" },
               ]}
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
 
-          <div className="pt-1 border-t border-white/10" />
           <p className="text-xs text-zinc-400 -mb-1">
             {t("settings.cookiesHint")}
           </p>
@@ -477,6 +466,33 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               value={form.proxy ?? ""}
               placeholder="socks5://127.0.0.1:1080"
               onChange={(e) => set("proxy", e.target.value || null)}
+              className={`${INPUT_CLASS} w-full`}
+            />
+          </Field>
+
+          <div className="pt-1 border-t border-white/10" />
+          <Field label={t("settings.language")}>
+            <Select
+              ariaLabel={t("settings.language")}
+              value={lang}
+              onChange={changeLanguage}
+              options={[
+                { value: "system", label: t("settings.langSystem") },
+                { value: "en", label: "English" },
+                { value: "es", label: "Español" },
+                { value: "fr", label: "Français" },
+                { value: "de", label: "Deutsch" },
+                { value: "it", label: "Italiano" },
+                { value: "pt", label: "Português (BR)" },
+                { value: "ru", label: "Русский" },
+                { value: "pl", label: "Polski" },
+                { value: "uk", label: "Українська" },
+                { value: "id", label: "Bahasa Indonesia" },
+                { value: "hi", label: "हिन्दी" },
+                { value: "zh", label: "简体中文" },
+                { value: "ja", label: "日本語" },
+                { value: "ko", label: "한국어" },
+              ]}
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>

@@ -84,6 +84,8 @@ export const ko = {
     dismiss: "닫기",
   },
   panel: {
+    emptyTitle: "다운로드 준비 완료",
+    emptyHint: "위에 링크를 붙여넣거나, 입력하여 YouTube 또는 SoundCloud에서 검색하세요.",
     analyzeError: "URL을 분석하는 중 예기치 않은 오류가 발생했습니다.",
     analyzeTransient:
       "소스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
@@ -155,6 +157,10 @@ export const ko = {
     transferred: "전송량",
   },
   settings: {
+    secDownloads: "다운로드",
+    secQuality: "품질",
+    secProcessing: "처리",
+    secNetwork: "네트워크 및 접근",
     title: "설정",
     close: "닫기",
     downloadDir: "다운로드 폴더",

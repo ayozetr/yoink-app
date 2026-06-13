@@ -84,6 +84,8 @@ export const en = {
     dismiss: "Dismiss",
   },
   panel: {
+    emptyTitle: "Ready to download",
+    emptyHint: "Paste a link above, or type to search YouTube or SoundCloud.",
     analyzeError: "An unexpected error occurred while analyzing the URL.",
     analyzeTransient:
       "The source is temporarily unavailable. Try again in a moment.",
@@ -155,6 +157,10 @@ export const en = {
     transferred: "Transferred",
   },
   settings: {
+    secDownloads: "Downloads",
+    secQuality: "Quality",
+    secProcessing: "Processing",
+    secNetwork: "Network & access",
     title: "Settings",
     close: "Close",
     downloadDir: "Download folder",

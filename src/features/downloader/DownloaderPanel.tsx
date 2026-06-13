@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, RotateCw, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, DownloadCloud, RotateCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DownloaderHeader } from "./components/DownloaderHeader";
 import { UrlInput } from "./components/UrlInput";
@@ -350,6 +350,29 @@ export function DownloaderPanel({
         searchSource={searchSource}
         loading={loading}
       />
+
+      {!loading &&
+        !error &&
+        !info &&
+        !musicInfo &&
+        !progress &&
+        !completed &&
+        !downloading &&
+        batchItems.length === 0 &&
+        !summary &&
+        !downloadError && (
+          <GlassPanel className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+            <DownloadCloud className="size-10 text-zinc-600" />
+            <div>
+              <p className="text-sm font-medium text-zinc-200">
+                {t("panel.emptyTitle")}
+              </p>
+              <p className="mx-auto mt-1 max-w-xs text-xs text-zinc-500">
+                {t("panel.emptyHint")}
+              </p>
+            </div>
+          </GlassPanel>
+        )}
 
       {error && (
         <GlassPanel className="p-4 border-red-500/30">

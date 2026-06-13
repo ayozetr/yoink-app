@@ -84,6 +84,8 @@ export const ru = {
     dismiss: "Скрыть",
   },
   panel: {
+    emptyTitle: "Готово к загрузке",
+    emptyHint: "Вставьте ссылку выше или начните вводить, чтобы искать на YouTube или SoundCloud.",
     analyzeError: "При анализе URL произошла непредвиденная ошибка.",
     analyzeTransient:
       "Источник временно недоступен. Попробуйте снова через мгновение.",
@@ -155,6 +157,10 @@ export const ru = {
     transferred: "Передано",
   },
   settings: {
+    secDownloads: "Загрузки",
+    secQuality: "Качество",
+    secProcessing: "Обработка",
+    secNetwork: "Сеть и доступ",
     title: "Настройки",
     close: "Закрыть",
     downloadDir: "Папка для загрузок",

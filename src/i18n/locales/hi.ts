@@ -84,6 +84,8 @@ export const hi = {
     dismiss: "खारिज करें",
   },
   panel: {
+    emptyTitle: "डाउनलोड के लिए तैयार",
+    emptyHint: "ऊपर एक लिंक पेस्ट करें, या YouTube या SoundCloud पर खोजने के लिए टाइप करें।",
     analyzeError: "URL का विश्लेषण करते समय एक अप्रत्याशित त्रुटि हुई।",
     analyzeTransient:
       "स्रोत फ़िलहाल अनुपलब्ध है। थोड़ी देर बाद दोबारा कोशिश करें।",
@@ -155,6 +157,10 @@ export const hi = {
     transferred: "स्थानांतरित",
   },
   settings: {
+    secDownloads: "डाउनलोड",
+    secQuality: "गुणवत्ता",
+    secProcessing: "प्रोसेसिंग",
+    secNetwork: "नेटवर्क और एक्सेस",
     title: "सेटिंग्स",
     close: "बंद करें",
     downloadDir: "डाउनलोड फ़ोल्डर",

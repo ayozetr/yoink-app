@@ -84,6 +84,8 @@ export const pt = {
     dismiss: "Dispensar",
   },
   panel: {
+    emptyTitle: "Pronto para baixar",
+    emptyHint: "Cole um link acima, ou digite para pesquisar no YouTube ou SoundCloud.",
     analyzeError: "Ocorreu um erro inesperado ao analisar a URL.",
     analyzeTransient:
       "A fonte está temporariamente indisponível. Tente novamente em instantes.",
@@ -155,6 +157,10 @@ export const pt = {
     transferred: "Transferido",
   },
   settings: {
+    secDownloads: "Downloads",
+    secQuality: "Qualidade",
+    secProcessing: "Processamento",
+    secNetwork: "Rede e acesso",
     title: "Configurações",
     close: "Fechar",
     downloadDir: "Pasta de downloads",

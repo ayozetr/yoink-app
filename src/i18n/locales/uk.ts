@@ -84,6 +84,8 @@ export const uk = {
     dismiss: "Сховати",
   },
   panel: {
+    emptyTitle: "Готово до завантаження",
+    emptyHint: "Вставте посилання вище або почніть вводити, щоб шукати на YouTube чи SoundCloud.",
     analyzeError: "Під час аналізу URL сталася неочікувана помилка.",
     analyzeTransient:
       "Джерело тимчасово недоступне. Спробуйте за мить.",
@@ -155,6 +157,10 @@ export const uk = {
     transferred: "Передано",
   },
   settings: {
+    secDownloads: "Завантаження",
+    secQuality: "Якість",
+    secProcessing: "Обробка",
+    secNetwork: "Мережа та доступ",
     title: "Налаштування",
     close: "Закрити",
     downloadDir: "Тека для завантажень",

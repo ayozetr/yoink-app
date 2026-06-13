@@ -84,6 +84,8 @@ export const de = {
     dismiss: "Verwerfen",
   },
   panel: {
+    emptyTitle: "Bereit zum Herunterladen",
+    emptyHint: "Füge oben einen Link ein oder tippe, um YouTube oder SoundCloud zu durchsuchen.",
     analyzeError: "Beim Analysieren der URL ist ein unerwarteter Fehler aufgetreten.",
     analyzeTransient:
       "Die Quelle ist vorübergehend nicht verfügbar. Versuche es gleich noch einmal.",
@@ -155,6 +157,10 @@ export const de = {
     transferred: "Übertragen",
   },
   settings: {
+    secDownloads: "Downloads",
+    secQuality: "Qualität",
+    secProcessing: "Verarbeitung",
+    secNetwork: "Netzwerk und Zugriff",
     title: "Einstellungen",
     close: "Schließen",
     downloadDir: "Download-Ordner",

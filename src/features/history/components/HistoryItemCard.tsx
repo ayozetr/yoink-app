@@ -138,13 +138,14 @@ export function HistoryItemCard({
           )}
         </div>
 
-        {/* Open folder + open file (play), stacked and vertically centered */}
+        {/* Open folder + open file (play), revealed on hover (always shown on
+            touch / narrow screens where there's no hover). */}
         {isCompleted && (
-          <div className="flex flex-col justify-center gap-1.5 shrink-0">
+          <div className="flex flex-col justify-center gap-1.5 shrink-0 opacity-100 transition group-hover:opacity-100 focus-within:opacity-100 sm:opacity-0">
             <button
               type="button"
               onClick={() => onOpenFolder?.(item)}
-              className="text-zinc-400 opacity-60 hover:text-white hover:opacity-100 transition"
+              className="text-zinc-400 hover:text-white transition"
               aria-label={t("history.openFolder")}
               title={t("history.openFolder")}
             >
@@ -153,7 +154,7 @@ export function HistoryItemCard({
             <button
               type="button"
               onClick={() => onOpenFile?.(item)}
-              className="text-zinc-400 opacity-60 hover:text-white hover:opacity-100 transition"
+              className="text-zinc-400 hover:text-white transition"
               aria-label={t("history.openFile")}
               title={t("history.openFile")}
             >
@@ -163,7 +164,7 @@ export function HistoryItemCard({
               <button
                 type="button"
                 onClick={() => onRetag?.(item)}
-                className="text-zinc-400 opacity-60 hover:text-white hover:opacity-100 transition"
+                className="text-zinc-400 hover:text-white transition"
                 aria-label={t("history.retag")}
                 title={t("history.retag")}
               >

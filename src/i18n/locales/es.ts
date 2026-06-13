@@ -84,6 +84,8 @@ export const es = {
     dismiss: "Descartar",
   },
   panel: {
+    emptyTitle: "Listo para descargar",
+    emptyHint: "Pega un enlace arriba, o escribe para buscar en YouTube o SoundCloud.",
     analyzeError: "Ocurrió un error inesperado al analizar la URL.",
     analyzeTransient:
       "La fuente no está disponible ahora mismo. Inténtalo de nuevo en un momento.",
@@ -155,6 +157,10 @@ export const es = {
     transferred: "Transferidos",
   },
   settings: {
+    secDownloads: "Descargas",
+    secQuality: "Calidad",
+    secProcessing: "Procesado",
+    secNetwork: "Red y acceso",
     title: "Ajustes",
     close: "Cerrar",
     downloadDir: "Carpeta para descargas",

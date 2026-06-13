@@ -84,6 +84,8 @@ export const pl = {
     dismiss: "Odrzuć",
   },
   panel: {
+    emptyTitle: "Gotowe do pobrania",
+    emptyHint: "Wklej link powyżej lub wpisz tekst, aby wyszukać w YouTube lub SoundCloud.",
     analyzeError: "Wystąpił nieoczekiwany błąd podczas analizy adresu URL.",
     analyzeTransient:
       "Źródło jest chwilowo niedostępne. Spróbuj ponownie za chwilę.",
@@ -155,6 +157,10 @@ export const pl = {
     transferred: "Przesłano",
   },
   settings: {
+    secDownloads: "Pobieranie",
+    secQuality: "Jakość",
+    secProcessing: "Przetwarzanie",
+    secNetwork: "Sieć i dostęp",
     title: "Ustawienia",
     close: "Zamknij",
     downloadDir: "Folder pobierania",

@@ -84,6 +84,8 @@ export const fr = {
     dismiss: "Ignorer",
   },
   panel: {
+    emptyTitle: "Prêt à télécharger",
+    emptyHint: "Collez un lien ci-dessus, ou tapez pour rechercher sur YouTube ou SoundCloud.",
     analyzeError: "Une erreur inattendue s'est produite lors de l'analyse de l'URL.",
     analyzeTransient:
       "La source est temporairement indisponible. Réessayez dans un instant.",
@@ -155,6 +157,10 @@ export const fr = {
     transferred: "Transféré",
   },
   settings: {
+    secDownloads: "Téléchargements",
+    secQuality: "Qualité",
+    secProcessing: "Traitement",
+    secNetwork: "Réseau et accès",
     title: "Paramètres",
     close: "Fermer",
     downloadDir: "Dossier de téléchargement",
