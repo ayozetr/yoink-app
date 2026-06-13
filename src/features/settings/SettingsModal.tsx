@@ -5,6 +5,7 @@ import {
   ArrowUpCircle,
   CheckCircle2,
   Coffee,
+  CornerDownRight,
   FolderOpen,
   HelpCircle,
   Loader2,
@@ -59,6 +60,25 @@ const TEMPLATE_PRESETS = [
   "%(upload_date)s - %(title)s",
   "%(title)s [%(id)s]",
 ];
+
+// Illustrative values so a yt-dlp template renders as a concrete sample filename.
+const TEMPLATE_SAMPLE: Record<string, string> = {
+  title: "Blinding Lights",
+  uploader: "The Weeknd",
+  upload_date: "20200320",
+  id: "4NRXx6U8ABQ",
+  playlist_index: "01",
+  ext: "mp3",
+};
+
+/** Render a yt-dlp output template as an example filename (e.g. "Blinding Lights.mp3"). */
+function templateExample(tpl: string): string {
+  const name = (tpl || "%(title)s").replace(
+    /%\(([a-z_]+)\)s/g,
+    (_, key: string) => TEMPLATE_SAMPLE[key] ?? `%(${key})s`,
+  );
+  return `${name}.mp3`;
+}
 const INPUT_CLASS =
   "h-11 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500";
 
@@ -253,6 +273,12 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               className={`${INPUT_CLASS} w-full font-mono text-xs`}
             />
           )}
+          <p className="-mt-1 flex items-center gap-1.5 truncate text-[11px] text-zinc-500">
+            <CornerDownRight size={12} className="shrink-0" />
+            <span className="truncate font-mono text-zinc-400">
+              {templateExample(form.filename_template)}
+            </span>
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("settings.defaultFormat")}>
