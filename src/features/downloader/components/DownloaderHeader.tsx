@@ -30,7 +30,7 @@ export function DownloaderHeader({
   const [showSites, setShowSites] = useState(false);
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
           {t("header.title")}
@@ -61,7 +61,7 @@ export function DownloaderHeader({
           className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.06] text-zinc-300 hover:text-white hover:bg-white/10 transition"
         >
           <ListPlus className="size-4 text-violet-400" />
-          <span className="text-sm">
+          <span className="hidden text-sm sm:inline">
             {t(queueOpen ? "queue.close" : "queue.open")}
           </span>
           {queueCount > 0 && (
