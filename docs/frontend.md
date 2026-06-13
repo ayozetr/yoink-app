@@ -42,9 +42,9 @@ src/
 │   │   └── components/
 │   └── settings/                # settings modal (dir, defaults, cookies, language, version)
 │       └── SettingsModal.tsx
-├── i18n/                        # react-i18next setup + en/es locale strings
+├── i18n/                        # react-i18next setup + 14 locale files (lazy-loaded)
 │   ├── index.ts
-│   └── locales/{en,es}.ts
+│   └── locales/{en,es,fr,de,it,pt,ru,pl,uk,id,hi,zh,ja,ko}.ts
 ├── lib/                         # API client, download WebSocket, search-source pref, native dialogs
 ├── types/
 │   ├── download.ts              # shared domain types (backend JSON contract)
@@ -66,7 +66,8 @@ src/
 - **Types:** keep `types/download.ts` aligned with the backend's Pydantic
   models — it's the single source of truth for the API shape on the client.
 - **i18n:** user-facing strings come from `react-i18next` (`useTranslation`),
-  with English + Spanish dictionaries in `i18n/locales`. The language is
+  with 14 language dictionaries in `i18n/locales` (English bundled, the rest
+  lazy-loaded per chunk). The language is
   auto-detected from the system and overridable in Settings; the choice is
   persisted under the `yoink-lang` localStorage key. Backend error messages
   arrive in English; the frontend only translates its own UI.

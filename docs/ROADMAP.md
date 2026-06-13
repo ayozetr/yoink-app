@@ -11,14 +11,12 @@
 
 ## 📍 Status
 
-- **Current release:** **v1.9.1** — hardening + polish: SSRF fix, sharper audio
-  auto-tagging, resilient `/api/info`, queue parity (VR auto-detect + format
-  defaults), and accessibility/i18n fixes. (v1.9.0: immersive VR + the queue.)
-- **In progress → v2.0.0 (unreleased, on `main`):** keyless **music import from
-  five services** (Spotify/Deezer/Apple/Tidal/Amazon) with a spotDL-ported matcher
-  at **~99.5%** over 2,300+ real tracks and download+tag validated end-to-end on
-  all five; **SoundCloud search**; **backend logging**; **resumable downloads**.
-  See the 🟡 items below.
+- **Current release:** **v2.0.0** — keyless **music import from five services**
+  (Spotify/Deezer/Apple/Tidal/Amazon) with a spotDL-ported YouTube matcher at
+  **~99.5%** over 2,300+ real tracks (download+tag+cover validated end-to-end on
+  all five), **SoundCloud search**, **14 UI languages**, **backend logging**,
+  **resumable downloads**, and release-polish (first-run state, sectioned
+  Settings, lazy-loaded locales). (v1.9.x: immersive VR, the queue, hardening.)
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
 - **Health:** backend (pytest) + frontend (vitest) green · `npm audit` 0 · strict TS.
@@ -75,12 +73,13 @@ validation), strict TS + tests.
 
 ---
 
-## 🎯 Next up — toward v2.0.0
+## 🎯 Next up — toward v2.1.0
 
 The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
-*(Queue ↔ feature parity — VR + format defaults — shipped in v1.9.1.)*
+*(Music import, SoundCloud search, 14 languages, logging, resume and the
+release polish shipped in v2.0.0.)*
 
-1. 🟡 **Backend logging & observability** (M · **high**) *(done locally)* — a
+1. ✅ **Backend logging & observability** (M · **high**) *(v2.0.0)* — a
    structured `app`-namespace logger writes to a rotating `~/.yoink/logs/yoink.log`
    + console; extraction/download failures log the real yt-dlp text, the error
    string is persisted on the history row (new `error_message` column) and shown
@@ -88,9 +87,9 @@ The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
 2. **Sidecar readiness gate + dynamic port** (M · **high**) — poll `/health`
    before revealing the UI (the splash already exists) and fall back if **8756**
    is taken (it's hardcoded). Affects every cold start of the desktop app.
-3. **First-run empty state** (S · medium) — example URL, "type to search", link to
-   supported sites. Big first-impression win for new users.
-4. 🟡 **Resume partial downloads** (M · medium) *(done locally)* — yt-dlp
+3. ✅ **First-run empty state** (S · medium) *(v2.0.0)* — the main column shows a
+   download icon + "ready to download" hint until a URL is analyzed.
+4. ✅ **Resume partial downloads** (M · medium) *(v2.0.0)* — yt-dlp
    `continuedl` is on, so a retry of an interrupted download continues the `.part`
    instead of restarting (both the in-panel batch and the persistent queue).
    *(Cross-restart playlist resume — routing batches through the persistent queue
@@ -105,7 +104,7 @@ The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
 Not committed and not release-ordered — picked from as capacity allows.
 
 ### 🎬 Download & conversion
-- 🟡 **Import from music services** *(implemented locally — pending release)* —
+- ✅ **Import from music services** *(v2.0.0)* —
   paste a track/album/playlist URL from **Spotify, Deezer, Apple Music, Tidal or
   Amazon Music** → resolve it **keyless** (public APIs / embed scrapes, like the
   Threads extractor) → rank a YouTube match with a **spotDL-ported** scorer →
@@ -132,7 +131,7 @@ Not committed and not release-ordered — picked from as capacity allows.
     (matched by a loosened title key).
   API-based (Deezer/Apple) are sturdier; the embed scrapes (Spotify/Tidal/Amazon)
   are more fragile — a page change needs an extractor tweak, like Threads.
-- 🟡 **Search beyond YouTube** *(implemented locally — pending release)* — a
+- ✅ **Search beyond YouTube** *(v2.0.0)* — a
   **YouTube ↔ SoundCloud** selector in the header (persisted) drives the URL-field
   typeahead, flipping the yt-dlp search prefix (`ytsearch`→`scsearch`). More
   platforms drop in by adding a prefix.
@@ -161,11 +160,11 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   `max-h` box with no filter; add a "filter tracks…" input to narrow the list.
 - ⬜ **Range + smarter selection** (S) — only select-all/none today; add shift-click
   range selection (and maybe "select first N").
-- 🟡 **Batch totals** *(implemented locally — pending release)* — the playlist card
+- ✅ **Batch totals** *(v2.0.0)* — the playlist card
   shows the current selection's count + **total duration** ("23 selected · 1h 18m").
   A rough **size** estimate is still pending (flat entries carry no per-item
   formats, so it needs a probe/heuristic).
-- 🟡 **Audio-first for music playlists** *(done locally)* — YT Music mixes (`RD…`)
+- ✅ **Audio-first for music playlists** *(v2.0.0)* — YT Music mixes (`RD…`)
   and album lists (`OLAK…`) are music-intent, so the playlist card now defaults
   `kind` to **audio** for them (detected from the playlist id) instead of video.
 - ⬜ **Lazy-load / virtualize the entry thumbnails** (S/M) — up to 200 `<Thumbnail>`

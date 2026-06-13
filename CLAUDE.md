@@ -79,7 +79,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 │   │   ├── queue/            # persistent sequential download queue (opened from the header)
 │   │   ├── history/          # download history + stats (sidebar)
 │   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version)
-│   ├── i18n/                 # react-i18next setup + en/es locale strings
+│   ├── i18n/                 # react-i18next setup + 14 lazy-loaded locale files
 │   ├── lib/                  # API client + download WebSocket + queue store + search-source pref + VR-layout memory + native dialogs
 │   └── types/                # shared domain types (backend JSON contract)
 └── backend/                  # FastAPI + yt-dlp engine
@@ -179,7 +179,7 @@ release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.
   Dependencies isolated in a `venv`.
 - **Security:** keep `npm audit` at **0 vulnerabilities**.
 - **Icons:** `lucide-react`.
-- **i18n:** UI strings go through `react-i18next` (English + Spanish in
+- **i18n:** UI strings go through `react-i18next` (14 languages in
   `src/i18n/locales`); the language is auto-detected from the system and
   overridable in Settings (persisted under the `yoink-lang` localStorage key).
   Backend error messages stay in **English**; the frontend translates its own UI.

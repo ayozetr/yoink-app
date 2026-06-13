@@ -19,7 +19,7 @@ for merging high-quality streams).
 It is split into two layers that communicate asynchronously:
 
 - **Frontend** — React + TypeScript + Tailwind CSS (Vite). A reactive, dark-mode
-  UI (English/Spanish) that shows previews, lets you pick the container/format,
+  UI (14 languages) that shows previews, lets you pick the container/format,
   quality, subtitles and chapters, and reflects download progress in real time.
 - **Backend** — Python + FastAPI (in `backend/`). Wraps yt-dlp, manages the local
   filesystem, and invokes ffmpeg. Metadata is served over REST (`POST /api/info`);
@@ -71,7 +71,7 @@ It is split into two layers that communicate asynchronously:
   `cookies.txt`).
 - **Desktop notifications** when a download finishes, **taskbar/title progress**,
   and keyboard shortcuts (Ctrl/Cmd+L focus URL, Ctrl/Cmd+, settings).
-- **English & Spanish UI** (react-i18next), auto-detected from your system
+- **14 UI languages** (react-i18next: EN/ES/FR/DE/IT/PT-BR/RU/PL/UK/ID/HI/ZH/JA/KO), auto-detected from your system
   language and switchable in Settings.
 - **Update check** against the latest GitHub release; Settings also shows the
   bundled **yt-dlp version** and whether a newer one is out.
