@@ -139,6 +139,14 @@ def artist_match(track_artists: str, cand_title: str, cand_channel: str) -> floa
         return 0.0
     cand_tokens = set(_slug(f"{cand_channel} {cand_title}").split())
     primary_slug = _slug(_ARTIST_SPLIT_RE.split(cleaned, maxsplit=1)[0])
+    # Artist-branded channels run the name together ("ElAlfaElJefeTV", "DrakeVEVO"),
+    # so the tokens don't line up — but the de-spaced artist is a substring of the
+    # de-spaced channel. Guard on length (>=5) so short names don't match by chance.
+    channel_blob = _slug(cand_channel).replace(" ", "")
+    for variant in (artist_slug, primary_slug):
+        despaced = variant.replace(" ", "")
+        if len(despaced) >= 5 and despaced in channel_blob:
+            return 100.0
     return max(
         _coverage(artist_slug, cand_tokens),
         _coverage(primary_slug, cand_tokens),
