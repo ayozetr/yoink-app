@@ -60,6 +60,12 @@ function formatTotal(total: number): string {
   return `${total}s`;
 }
 
+/** YouTube's auto-generated music lists — radio mixes (RD…) and album playlists
+ * (OLAK…) — are music-intent, so they default to an audio download. */
+function isMusicPlaylist(playlist: PlaylistInfo): boolean {
+  return /^(RD|OLAK)/.test(playlist.id);
+}
+
 /** Preview of an analyzed playlist: pick which items to download. */
 export function PlaylistCard({
   playlist,
@@ -72,7 +78,9 @@ export function PlaylistCard({
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(playlist.entries.map((entry) => entry.id)),
   );
-  const [kind, setKind] = useState<MediaKind>(defaultKind ?? "video");
+  const [kind, setKind] = useState<MediaKind>(
+    isMusicPlaylist(playlist) ? "audio" : (defaultKind ?? "video"),
+  );
   const [quality, setQuality] = useState<string>(
     defaultQuality && QUALITY_OPTIONS.includes(defaultQuality)
       ? defaultQuality
