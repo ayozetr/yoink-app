@@ -27,7 +27,7 @@ import {
   RELEASES_URL,
   type UpdateCheck,
 } from "../../lib/updater";
-import i18n from "../../i18n";
+import i18n, { SUPPORTED_LANGUAGES } from "../../i18n";
 import type {
   AppSettings,
   AudioBitrate,
@@ -110,7 +110,11 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
     setLang(value);
     if (value === "system") {
       localStorage.removeItem(LANG_STORAGE_KEY);
-      void i18n.changeLanguage(navigator.language.startsWith("es") ? "es" : "en");
+      // Follow the OS language if we support it, else fall back to English.
+      const sys = navigator.language.split("-")[0];
+      void i18n.changeLanguage(
+        SUPPORTED_LANGUAGES.includes(sys) ? sys : "en",
+      );
     } else {
       localStorage.setItem(LANG_STORAGE_KEY, value); // persist the explicit choice
       void i18n.changeLanguage(value);
@@ -400,8 +404,20 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
               onChange={changeLanguage}
               options={[
                 { value: "system", label: t("settings.langSystem") },
-                { value: "es", label: "Español" },
                 { value: "en", label: "English" },
+                { value: "es", label: "Español" },
+                { value: "fr", label: "Français" },
+                { value: "de", label: "Deutsch" },
+                { value: "it", label: "Italiano" },
+                { value: "pt", label: "Português (BR)" },
+                { value: "ru", label: "Русский" },
+                { value: "pl", label: "Polski" },
+                { value: "uk", label: "Українська" },
+                { value: "id", label: "Bahasa Indonesia" },
+                { value: "hi", label: "हिन्दी" },
+                { value: "zh", label: "简体中文" },
+                { value: "ja", label: "日本語" },
+                { value: "ko", label: "한국어" },
               ]}
               className={`${INPUT_CLASS} w-full`}
             />
