@@ -93,7 +93,7 @@ export function HistoryItemCard({
 
   return (
     <div className="group rounded-2xl border border-white/10 bg-surface/70 hover:bg-surface-hover transition p-3">
-      <div className="flex gap-3">
+      <div className="flex items-center gap-3">
         {/* Cover art (tagged audio) or a kind icon over a gradient */}
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500/40 to-blue-500/40 flex items-center justify-center shrink-0 overflow-hidden">
           {showCover && item.filepath ? (
