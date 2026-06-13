@@ -10,6 +10,7 @@ back to the event loop through an ``asyncio.Queue``. The public entry point,
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import threading
 from pathlib import Path
@@ -31,6 +32,8 @@ from app.models.media import (
     ErrorEvent,
     ProgressEvent,
 )
+
+logger = logging.getLogger(__name__)
 
 # Event objects pushed onto the bridge queue.
 _Event = ProgressEvent | CompletedEvent | ErrorEvent
@@ -228,6 +231,8 @@ def _build_options(
         # Fetch HLS/DASH fragments in parallel — a big speed-up for segmented
         # streams (common for VR and most platforms), with a modest cap.
         "concurrent_fragment_downloads": 4,
+        # Resume an interrupted .part on retry instead of restarting from zero.
+        "continuedl": True,
         "outtmpl": str(download_dir / f"{name_template}.%(ext)s"),
         "progress_hooks": [hook],
         **network_options(),
@@ -449,13 +454,16 @@ async def download_events(
         except DownloadError as exc:
             if cancel_event is not None and cancel_event.is_set():
                 return
+            logger.error("Download failed for %s: %s", request.url, exc)
             yield ErrorEvent(message=str(exc))
             return
         except Exception as exc:  # noqa: BLE001 — surface any failure to the client.
+            logger.exception("Unexpected download error for %s", request.url)
             yield ErrorEvent(message=f"Unexpected download error: {exc}")
             return
 
         if not path_str:
+            logger.error("Download for %s produced no output file", request.url)
             yield ErrorEvent(message="Download finished but no output file was produced.")
             return
 
@@ -464,8 +472,10 @@ async def download_events(
             # yt-dlp reported a name but the file isn't on disk (postprocessor
             # rename mismatch, race, …). Don't emit a "completed" pointing at a
             # missing file — the history entry and "Open" action would dangle.
+            logger.error("Download for %s vanished after finishing: %s", request.url, path)
             yield ErrorEvent(message="Download finished but the output file is missing.")
             return
+        logger.info("Downloaded %s -> %s", request.url, path.name)
         yield CompletedEvent(
             filename=path.name,
             filepath=str(path),
