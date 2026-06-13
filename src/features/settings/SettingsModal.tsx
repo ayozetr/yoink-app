@@ -63,10 +63,10 @@ const TEMPLATE_PRESETS = [
 
 // Illustrative values so a yt-dlp template renders as a concrete sample filename.
 const TEMPLATE_SAMPLE: Record<string, string> = {
-  title: "Blinding Lights",
-  uploader: "The Weeknd",
-  upload_date: "20200320",
-  id: "4NRXx6U8ABQ",
+  title: "Big Poppa",
+  uploader: "The Notorious B.I.G.",
+  upload_date: "19940913",
+  id: "tCJh3sQ9zEg",
   playlist_index: "01",
   ext: "mp3",
 };
