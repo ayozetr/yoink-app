@@ -197,6 +197,7 @@ export default function App() {
               onDismiss={() => setRetagItem(null)}
               onApplied={refresh}
               autoOpen
+              panelClassName="!bg-[#16181f]"
             />
           </div>
         </div>

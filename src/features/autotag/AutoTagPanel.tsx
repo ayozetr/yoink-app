@@ -31,6 +31,8 @@ interface AutoTagPanelProps {
   onApplied?: () => void;
   /** Open + identify immediately on mount (e.g. re-tagging from history). */
   autoOpen?: boolean;
+  /** Extra classes for the root panel (e.g. a solid bg when shown in a modal). */
+  panelClassName?: string;
 }
 
 const INPUT =
@@ -52,6 +54,7 @@ export function AutoTagPanel({
   onDismiss,
   onApplied,
   autoOpen,
+  panelClassName = "",
 }: AutoTagPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(!!autoOpen);
@@ -198,7 +201,7 @@ export function AutoTagPanel({
   const reviewing = stage === "review" || stage === "applying";
 
   return (
-    <GlassPanel className="p-5">
+    <GlassPanel className={`p-5 ${panelClassName}`}>
       {autoOpen ? (
         // Re-tagging from history: the panel is fixed open (no collapse toggle).
         <div className="flex w-full items-center text-sm font-semibold text-zinc-200">
