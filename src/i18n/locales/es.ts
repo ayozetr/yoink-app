@@ -143,6 +143,7 @@ export const es = {
     includeTrack: "Incluir este tema",
   },
   history: {
+    clearConfirm: "¿Confirmar?",
     title: "Historial de descargas",
     clear: "Limpiar",
     empty: "Aún no hay descargas. Analiza una URL para empezar.",

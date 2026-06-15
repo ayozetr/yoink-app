@@ -143,6 +143,7 @@ export const hi = {
     includeTrack: "इस ट्रैक को शामिल करें",
   },
   history: {
+    clearConfirm: "पुष्टि करें?",
     title: "डाउनलोड इतिहास",
     clear: "साफ़ करें",
     empty: "अभी तक कोई डाउनलोड नहीं। शुरू करने के लिए एक URL का विश्लेषण करें।",

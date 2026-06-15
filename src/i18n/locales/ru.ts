@@ -143,6 +143,7 @@ export const ru = {
     includeTrack: "Включить этот трек",
   },
   history: {
+    clearConfirm: "Подтвердить?",
     title: "История загрузок",
     clear: "Очистить",
     empty: "Загрузок пока нет. Проанализируйте URL, чтобы начать.",

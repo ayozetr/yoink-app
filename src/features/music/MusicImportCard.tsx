@@ -75,8 +75,13 @@ export function MusicImportCard({
 
   // Cancel a live socket + free the lock if the card unmounts mid-import (it is
   // remounted per source URL via its key, so this fires on every new analysis).
+  // Clearing runningRef is essential: the import loop has awaits (matchMusic /
+  // applyAudioTags) whose continuations outlive the socket and would otherwise
+  // keep spawning lock-free downloads after unmount — every survivor is gated by
+  // a runningRef check, so flipping it false stops them.
   useEffect(
     () => () => {
+      runningRef.current = false;
       handleRef.current?.cancel();
       releaseDownloadLock("music");
     },
@@ -104,6 +109,15 @@ export function MusicImportCard({
     setActiveIdx(null);
     setPercent(0);
     handleRef.current = null;
+    // A track left mid-flight (e.g. Stop) would otherwise keep its row spinning
+    // forever — drop any "active" status back to neutral.
+    setRows((prev) => {
+      const next: Record<number, RowStatus> = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (v !== "active") next[Number(k)] = v;
+      }
+      return next;
+    });
     onDownloadFinished?.();
   };
 

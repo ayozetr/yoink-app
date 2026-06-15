@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../components/ui/GlassPanel";
@@ -26,6 +27,27 @@ export function HistorySidebar({
   onClear,
 }: HistorySidebarProps) {
   const { t } = useTranslation();
+  // Clearing history is destructive and irreversible — require a second click to
+  // confirm (auto-resets after a few seconds), avoiding a heavier modal.
+  const [confirming, setConfirming] = useState(false);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    },
+    [],
+  );
+
+  const handleClear = () => {
+    if (confirming) {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+      setConfirming(false);
+      onClear?.();
+    } else {
+      setConfirming(true);
+      resetTimer.current = setTimeout(() => setConfirming(false), 3000);
+    }
+  };
 
   return (
     <GlassPanel className="w-full lg:h-full p-5 flex flex-col">
@@ -33,12 +55,14 @@ export function HistorySidebar({
         <h2 className="font-semibold text-lg">{t("history.title")}</h2>
         <button
           type="button"
-          onClick={onClear}
+          onClick={handleClear}
           disabled={items.length === 0}
-          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-red-400 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-zinc-400"
+          className={`flex items-center gap-1.5 text-sm transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-zinc-400 ${
+            confirming ? "text-red-400" : "text-zinc-400 hover:text-red-400"
+          }`}
         >
           <Trash2 size={15} />
-          {t("history.clear")}
+          {confirming ? t("history.clearConfirm") : t("history.clear")}
         </button>
       </div>
 

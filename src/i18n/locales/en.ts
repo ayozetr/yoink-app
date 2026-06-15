@@ -143,6 +143,7 @@ export const en = {
     includeTrack: "Include this track",
   },
   history: {
+    clearConfirm: "Confirm?",
     title: "Download history",
     clear: "Clear",
     empty: "No downloads yet. Analyze a URL to get started.",

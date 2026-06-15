@@ -143,6 +143,7 @@ export const zh = {
     includeTrack: "包含此曲目",
   },
   history: {
+    clearConfirm: "确认？",
     title: "下载历史",
     clear: "清除",
     empty: "暂无下载记录。解析一个链接即可开始。",

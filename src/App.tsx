@@ -118,6 +118,15 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
+      // Don't let the mod shortcuts (focus URL / toggle Settings) reach behind an
+      // open modal dialog — focus must stay trapped and a second modal mustn't
+      // stack on top. Escape (below) still closes whatever's open.
+      if (
+        mod &&
+        document.querySelector('[role="dialog"][aria-modal="true"]')
+      ) {
+        return;
+      }
       if (mod && e.key.toLowerCase() === "l") {
         e.preventDefault();
         const input = document.getElementById(

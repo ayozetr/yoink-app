@@ -143,6 +143,7 @@ export const de = {
     includeTrack: "Diesen Titel einschließen",
   },
   history: {
+    clearConfirm: "Bestätigen?",
     title: "Download-Verlauf",
     clear: "Leeren",
     empty: "Noch keine Downloads. Analysiere eine URL, um zu beginnen.",

@@ -143,6 +143,7 @@ export const it = {
     includeTrack: "Includi questo brano",
   },
   history: {
+    clearConfirm: "Confermare?",
     title: "Cronologia download",
     clear: "Svuota",
     empty: "Ancora nessun download. Analizza un URL per iniziare.",

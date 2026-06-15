@@ -143,6 +143,7 @@ export const ja = {
     includeTrack: "この曲を含める",
   },
   history: {
+    clearConfirm: "確認？",
     title: "ダウンロード履歴",
     clear: "クリア",
     empty: "まだダウンロードはありません。URL を解析して始めましょう。",

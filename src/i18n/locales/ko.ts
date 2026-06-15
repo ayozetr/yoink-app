@@ -143,6 +143,7 @@ export const ko = {
     includeTrack: "이 트랙 포함",
   },
   history: {
+    clearConfirm: "확인?",
     title: "다운로드 기록",
     clear: "지우기",
     empty: "아직 다운로드가 없습니다. URL을 분석해 시작하세요.",

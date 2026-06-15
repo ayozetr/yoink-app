@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -64,6 +64,9 @@ export function QueuePanel({
   // so the queue can't run a second concurrent download into the same folder.
   const lockOwner = useDownloadLock();
   const lockedByOther = lockOwner !== null && lockOwner !== "queue";
+  // Parse the textarea once per change instead of on every render (it's read by
+  // the Add button's disabled state and by addUrls).
+  const parsedInput = useMemo(() => parseUrls(input), [input]);
 
   const itemsRef = useRef(items);
   const handleRef = useRef<DownloadHandle | null>(null);
@@ -192,7 +195,7 @@ export function QueuePanel({
   };
 
   const addUrls = () => {
-    const urls = parseUrls(input);
+    const urls = parsedInput;
     if (urls.length === 0) return;
     setItems((prev) => {
       // Skip URLs already queued (pending/active/done) so re-pasting the same
@@ -290,7 +293,7 @@ export function QueuePanel({
         <div className="flex gap-2 sm:flex-col">
           <Button
             onClick={addUrls}
-            disabled={parseUrls(input).length === 0}
+            disabled={parsedInput.length === 0}
             className="h-10 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ListPlus size={16} />

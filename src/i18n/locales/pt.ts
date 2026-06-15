@@ -143,6 +143,7 @@ export const pt = {
     includeTrack: "Incluir esta faixa",
   },
   history: {
+    clearConfirm: "Confirmar?",
     title: "Histórico de downloads",
     clear: "Limpar",
     empty: "Ainda não há downloads. Analise uma URL para começar.",

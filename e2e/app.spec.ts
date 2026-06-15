@@ -192,6 +192,9 @@ test("clears the history", async ({ page }) => {
   const deleteRequest = page.waitForRequest(
     (req) => req.url().includes("/api/history") && req.method() === "DELETE",
   );
+  // Clearing is destructive: the first click only arms a confirm, the second
+  // (on the "¿Confirmar?" button) actually clears.
   await page.getByRole("button", { name: "Limpiar" }).click();
+  await page.getByRole("button", { name: "¿Confirmar?" }).click();
   await deleteRequest;
 });

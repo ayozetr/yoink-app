@@ -143,6 +143,7 @@ export const id = {
     includeTrack: "Sertakan trek ini",
   },
   history: {
+    clearConfirm: "Konfirmasi?",
     title: "Riwayat unduhan",
     clear: "Bersihkan",
     empty: "Belum ada unduhan. Analisis sebuah URL untuk memulai.",

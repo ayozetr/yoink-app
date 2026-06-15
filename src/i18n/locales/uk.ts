@@ -143,6 +143,7 @@ export const uk = {
     includeTrack: "Включити цей трек",
   },
   history: {
+    clearConfirm: "Підтвердити?",
     title: "Історія завантажень",
     clear: "Очистити",
     empty: "Поки що немає завантажень. Проаналізуйте URL, щоб почати.",

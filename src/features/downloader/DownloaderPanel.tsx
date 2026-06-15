@@ -525,6 +525,11 @@ export function DownloaderPanel({
               {t("panel.retry")}
             </button>
           </div>
+          {/forbidden|\b403\b/i.test(downloadError) && (
+            <p className="mt-2 pl-[30px] text-xs text-zinc-400">
+              {t("panel.blockedHint")}
+            </p>
+          )}
         </GlassPanel>
       )}
 

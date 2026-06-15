@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  AlertCircle,
   ChevronDown,
   Clock3,
   Download,
@@ -312,6 +313,11 @@ export function PreviewCard({
             >
               <SlidersHorizontal size={16} />
               {t("preview.advanced")}
+              {trimError && !advancedOpen && (
+                // Surface that a control inside (the trim range) is invalid, so
+                // the disabled Download button below isn't a mystery.
+                <AlertCircle size={14} className="text-red-400" />
+              )}
               <ChevronDown
                 size={15}
                 className={`text-zinc-400 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
@@ -476,7 +482,7 @@ export function PreviewCard({
 
             <Button
               variant="gradient"
-              disabled={locked || (advancedOpen && trimError)}
+              disabled={locked || trimError}
               title={locked ? t("common.busy") : undefined}
               onClick={() => {
                 // Remember the layout choice for this studio so the next

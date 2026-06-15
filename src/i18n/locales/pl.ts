@@ -143,6 +143,7 @@ export const pl = {
     includeTrack: "Dołącz ten utwór",
   },
   history: {
+    clearConfirm: "Potwierdzić?",
     title: "Historia pobierania",
     clear: "Wyczyść",
     empty: "Brak pobrań. Przeanalizuj adres URL, aby zacząć.",
