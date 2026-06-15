@@ -2,6 +2,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -54,6 +55,12 @@ export function Select({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
+
+  // Stable ids wiring the combobox trigger to its listbox + active option, so a
+  // screen reader announces the highlighted option during keyboard navigation.
+  const baseId = useId();
+  const listboxId = `${baseId}listbox`;
+  const optionId = (i: number) => `${baseId}opt${i}`;
 
   const selected = options.find((o) => o.value === value);
   const selectable = () =>
@@ -153,8 +160,13 @@ export function Select({
         type="button"
         disabled={disabled}
         aria-label={ariaLabel}
+        role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-activedescendant={
+          open && activeIndex >= 0 ? optionId(activeIndex) : undefined
+        }
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={onKeyDown}
         className={`flex cursor-pointer items-center justify-between gap-2 ${className}`}
@@ -176,7 +188,9 @@ export function Select({
       {open && rect && (
         <div
           ref={dropdownRef}
+          id={listboxId}
           role="listbox"
+          aria-label={ariaLabel}
           style={{
             position: "fixed",
             top: rect.top,
@@ -202,6 +216,7 @@ export function Select({
             return (
               <button
                 key={option.value}
+                id={optionId(i)}
                 ref={highlighted ? activeRef : undefined}
                 type="button"
                 role="option"
