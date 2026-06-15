@@ -29,7 +29,7 @@ backend/
 │   │   └── media.py            # GET /api/thumbnail (host-guarded image proxy)
 │   └── services/
 │       ├── ytdlp_service.py    # typed yt-dlp metadata wrapper (extract_info, download=False)
-│       ├── download_service.py # yt-dlp download + typed progress stream
+│       ├── download_service.py # yt-dlp download + typed progress stream (one job at a time via a process-wide asyncio lock)
 │       ├── music_import.py     # keyless resolvers (Spotify/Deezer/Apple/Tidal/Amazon) + YouTube match
 │       ├── matching.py         # spotDL-ported YouTube match ranking (pure, no network)
 │       ├── autotag_service.py  # Apple Music (iTunes) / Deezer / MusicBrainz lookup + mutagen tag/cover writing

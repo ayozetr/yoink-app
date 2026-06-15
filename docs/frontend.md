@@ -26,7 +26,7 @@ src/
 │   │       ├── DownloaderHeader.tsx     # title + SearchSourceToggle (YouTube↔SoundCloud) + queue/settings
 │   │       ├── SearchSourceToggle.tsx
 │   │       ├── UrlInput.tsx        # URL field + paste + live search dropdown (per source)
-│   │       ├── PreviewCard.tsx     # format/quality/subs + scissors trim + VR controls + size estimate
+│   │       ├── PreviewCard.tsx     # format/quality + "Advanced options" (subs/chapters/VR/trim) + size estimate
 │   │       ├── PlaylistCard.tsx    # entry picker; music lists (RD…/OLAK…) default to audio
 │   │       └── DownloadProgressCard.tsx
 │   ├── music/                   # keyless music import (Spotify/Deezer/Apple/Tidal/Amazon)
@@ -45,7 +45,7 @@ src/
 ├── i18n/                        # react-i18next setup + 14 locale files (lazy-loaded)
 │   ├── index.ts
 │   └── locales/{en,es,fr,de,it,pt,ru,pl,uk,id,hi,zh,ja,ko}.ts
-├── lib/                         # API client, download WebSocket, search-source pref, native dialogs
+├── lib/                         # API client (runtime backend-port resolve), download WebSocket, single-download lock, search-source pref, native dialogs
 ├── types/
 │   ├── download.ts              # shared domain types (backend JSON contract)
 │   ├── music.ts                 # music-import types (mirror backend models)
@@ -80,6 +80,13 @@ selectors from the real formats (`formatOptions.ts`), and streams download
 progress over the WebSocket client in `lib/`. FLAC/WAV are gated behind probed
 lossless detection — `PreviewCard` uses the single video's `source_lossless`
 and `PlaylistCard` uses `playlist.source_lossless` (probed from the first entry).
+
+The three download engines — `DownloaderPanel` (single/playlist), `QueuePanel`
+and `MusicImportCard` — share a single in-memory **download lock**
+(`lib/downloadLock.ts`): each acquires it before opening a socket and releases it
+on drain/cancel/unmount, and the others' start buttons are disabled while it's
+held, so two engines can't write the same `.part` at once (the backend has an
+`asyncio.Lock` backstop for the multi-client case).
 
 After an audio download, `DownloaderPanel` offers opt-in **audio auto-tagging**
 (Apple Music, Deezer or MusicBrainz, chosen in Settings): a single one-song download shows the

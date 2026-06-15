@@ -17,6 +17,12 @@
   all five), **SoundCloud search**, **14 UI languages**, **backend logging**,
   **resumable downloads**, and release-polish (first-run state, sectioned
   Settings, lazy-loaded locales). (v1.9.x: immersive VR, the queue, hardening.)
+- **Unreleased (v2.1.0, in dev):** a process-wide **single-download lock** (no two
+  engines collide on the same `.part`), a **dynamic backend port** (falls back when
+  8756 is taken), **persisted subtitle/chapter defaults**, a collapsible **"Advanced
+  options"** in the preview, plus accessibility/perf polish (accessible re-tag
+  dialog, `Select` `aria-activedescendant`, lazy-loaded modals, cancel during
+  post-processing).
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
 - **Health:** backend (pytest) + frontend (vitest) green · `npm audit` 0 · strict TS.
@@ -84,9 +90,12 @@ release polish shipped in v2.0.0.)*
    + console; extraction/download failures log the real yt-dlp text, the error
    string is persisted on the history row (new `error_message` column) and shown
    under failed items in the sidebar. *(Still open: surfacing live logs in-app.)*
-2. **Sidecar readiness gate + dynamic port** (M · **high**) — poll `/health`
-   before revealing the UI (the splash already exists) and fall back if **8756**
-   is taken (it's hardcoded). Affects every cold start of the desktop app.
+2. ✅ **Sidecar readiness gate + dynamic port** (M · **high**) *(v2.1.0)* — the
+   desktop shell now picks the backend port at launch (**8756** when free, else an
+   OS-assigned free port), hands it to the sidecar via `YOINK_PORT`, and exposes it
+   to the frontend (`backend_port` command) so a busy 8756 no longer breaks
+   startup. The splash already gates the UI until the backend answers (settings
+   retry), so a busy-port cold start is now handled end-to-end.
 3. ✅ **First-run empty state** (S · medium) *(v2.0.0)* — the main column shows a
    download icon + "ready to download" hint until a URL is analyzed.
 4. ✅ **Resume partial downloads** (M · medium) *(v2.0.0)* — yt-dlp
@@ -94,8 +103,10 @@ release polish shipped in v2.0.0.)*
    instead of restarting (both the in-panel batch and the persistent queue).
    *(Cross-restart playlist resume — routing batches through the persistent queue
    — is the separate Playlists item below.)*
-5. **Persist the remaining download defaults** (S · medium) — container + audio
-   format now persist *(v1.9.1)*; subtitles + chapters still don't.
+5. ✅ **Persist the remaining download defaults** (S · medium) *(v2.1.0)* — container
+   + audio format persisted in v1.9.1; subtitles + chapters now persist too
+   (`default_embed_subs` / `default_embed_chapters`), seeding the preview's
+   subtitle picker and chapter toggle.
 
 ---
 
@@ -247,8 +258,11 @@ Bigger, standalone efforts. Desktop (Linux/Windows) stays the focus.
 
 Decisions kept here so they aren't re-proposed.
 
-- **Concurrent downloads** — the queue is **sequential by design**. Parallelising
-  means redesigning the whole progress/history UI for a modest gain and real
-  regression risk; revisit only with a dedicated multi-progress UI.
+- **Concurrent downloads** — the queue is **sequential by design**, and a
+  process-wide **single-download lock** (frontend + an `asyncio.Lock` backstop)
+  now enforces it across every engine (panel / queue / music import) so two jobs
+  can't collide on the same `.part`. Parallelising means redesigning the whole
+  progress/history UI for a modest gain and real regression risk; revisit only with
+  a dedicated multi-progress UI.
 - **In-app yt-dlp update** — **not happening, by design.** Yoink only *reports* the
   bundled yt-dlp version; it's updated with the next Yoink release (owner's decision).

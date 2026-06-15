@@ -80,7 +80,7 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 │   │   ├── history/          # download history + stats (sidebar)
 │   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version)
 │   ├── i18n/                 # react-i18next setup + 14 lazy-loaded locale files
-│   ├── lib/                  # API client + download WebSocket + queue store + search-source pref + VR-layout memory + native dialogs
+│   ├── lib/                  # API client (+ runtime backend-port resolve) + download WebSocket + single-download lock + queue store + search-source pref + VR-layout memory + native dialogs
 │   └── types/                # shared domain types (backend JSON contract)
 └── backend/                  # FastAPI + yt-dlp engine
     └── app/
