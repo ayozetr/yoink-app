@@ -158,6 +158,8 @@ export const ja = {
     transferred: "転送量",
   },
   settings: {
+    defaultEmbedSubs: "デフォルトで字幕を埋め込む",
+    defaultEmbedChapters: "デフォルトでチャプターを埋め込む",
     secDownloads: "ダウンロード",
     secQuality: "品質",
     secProcessing: "処理",
@@ -248,6 +250,7 @@ export const ja = {
     preparing: "準備しています…",
   },
   common: {
+    busy: "別のダウンロードが進行中です",
     cut: "切り取り",
     copy: "コピー",
     paste: "貼り付け",

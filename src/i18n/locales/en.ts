@@ -158,6 +158,8 @@ export const en = {
     transferred: "Transferred",
   },
   settings: {
+    defaultEmbedSubs: "Embed subtitles by default",
+    defaultEmbedChapters: "Embed chapters by default",
     secDownloads: "Downloads",
     secQuality: "Quality",
     secProcessing: "Processing",
@@ -248,6 +250,7 @@ export const en = {
     preparing: "Getting everything ready…",
   },
   common: {
+    busy: "Another download is in progress",
     cut: "Cut",
     copy: "Copy",
     paste: "Paste",

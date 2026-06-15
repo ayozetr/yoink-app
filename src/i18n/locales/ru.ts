@@ -158,6 +158,8 @@ export const ru = {
     transferred: "Передано",
   },
   settings: {
+    defaultEmbedSubs: "Встраивать субтитры по умолчанию",
+    defaultEmbedChapters: "Встраивать главы по умолчанию",
     secDownloads: "Загрузки",
     secQuality: "Качество",
     secProcessing: "Обработка",
@@ -248,6 +250,7 @@ export const ru = {
     preparing: "Всё готовится…",
   },
   common: {
+    busy: "Уже идёт другая загрузка",
     cut: "Вырезать",
     copy: "Копировать",
     paste: "Вставить",

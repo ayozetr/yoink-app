@@ -16,6 +16,11 @@ import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Thumbnail } from "../../components/ui/Thumbnail";
 import { applyAudioTags, matchMusic } from "../../lib/api";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
+import {
+  acquireDownloadLock,
+  releaseDownloadLock,
+  useDownloadLock,
+} from "../../lib/downloadLock";
 import { AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT } from "../downloader/formatOptions";
 import type { AudioFormat } from "../../types/download";
 import { MUSIC_SOURCE_NAMES, type MusicImportInfo } from "../../types/music";
@@ -63,6 +68,20 @@ export function MusicImportCard({
   useEffect(() => {
     fmtRef.current = audioFormat;
   });
+  // Shared download lock: another engine downloading blocks Start here so the
+  // music import can't run a second concurrent download.
+  const lockOwner = useDownloadLock();
+  const lockedByOther = lockOwner !== null && lockOwner !== "music";
+
+  // Cancel a live socket + free the lock if the card unmounts mid-import (it is
+  // remounted per source URL via its key, so this fires on every new analysis).
+  useEffect(
+    () => () => {
+      handleRef.current?.cancel();
+      releaseDownloadLock("music");
+    },
+    [],
+  );
 
   const allSelected = selected.size === info.tracks.length;
   const setRow = (i: number, status: RowStatus) =>
@@ -80,6 +99,7 @@ export function MusicImportCard({
 
   const finish = () => {
     runningRef.current = false;
+    releaseDownloadLock("music");
     setRunning(false);
     setActiveIdx(null);
     setPercent(0);
@@ -164,6 +184,9 @@ export function MusicImportCard({
 
   const start = () => {
     if (runningRef.current || selected.size === 0) return;
+    // Refuse to start while another engine downloads (the button is also
+    // disabled; this guards the render-vs-click race).
+    if (!acquireDownloadLock("music")) return;
     orderRef.current = [...selected].sort((a, b) => a - b);
     posRef.current = 0;
     setRows({});
@@ -280,7 +303,8 @@ export function MusicImportCard({
                 <Button
                   variant="gradient"
                   onClick={start}
-                  disabled={selected.size === 0}
+                  disabled={selected.size === 0 || lockedByOther}
+                  title={lockedByOther ? t("common.busy") : undefined}
                   className="h-12 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download size={18} />

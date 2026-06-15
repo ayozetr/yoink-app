@@ -158,6 +158,8 @@ export const de = {
     transferred: "Übertragen",
   },
   settings: {
+    defaultEmbedSubs: "Untertitel standardmäßig einbetten",
+    defaultEmbedChapters: "Kapitel standardmäßig einbetten",
     secDownloads: "Downloads",
     secQuality: "Qualität",
     secProcessing: "Verarbeitung",
@@ -248,6 +250,7 @@ export const de = {
     preparing: "Bereite alles vor…",
   },
   common: {
+    busy: "Ein anderer Download läuft gerade",
     cut: "Ausschneiden",
     copy: "Kopieren",
     paste: "Einfügen",

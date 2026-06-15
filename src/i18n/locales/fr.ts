@@ -158,6 +158,8 @@ export const fr = {
     transferred: "Transféré",
   },
   settings: {
+    defaultEmbedSubs: "Intégrer les sous-titres par défaut",
+    defaultEmbedChapters: "Intégrer les chapitres par défaut",
     secDownloads: "Téléchargements",
     secQuality: "Qualité",
     secProcessing: "Traitement",
@@ -248,6 +250,7 @@ export const fr = {
     preparing: "Préparation en cours…",
   },
   common: {
+    busy: "Un autre téléchargement est en cours",
     cut: "Couper",
     copy: "Copier",
     paste: "Coller",

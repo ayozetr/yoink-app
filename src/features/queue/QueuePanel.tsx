@@ -13,6 +13,11 @@ import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
+import {
+  acquireDownloadLock,
+  releaseDownloadLock,
+  useDownloadLock,
+} from "../../lib/downloadLock";
 import { notify } from "../../lib/notify";
 import {
   loadQueue,
@@ -55,6 +60,10 @@ export function QueuePanel({
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [percent, setPercent] = useState(0);
+  // Shared download lock: the main panel / music import holding it blocks Start
+  // so the queue can't run a second concurrent download into the same folder.
+  const lockOwner = useDownloadLock();
+  const lockedByOther = lockOwner !== null && lockOwner !== "queue";
 
   const itemsRef = useRef(items);
   const handleRef = useRef<DownloadHandle | null>(null);
@@ -101,8 +110,14 @@ export function QueuePanel({
     );
   }, [items, onPendingChange]);
 
-  // Tear down a live socket if the panel unmounts.
-  useEffect(() => () => handleRef.current?.cancel(), []);
+  // Tear down a live socket + free the lock if the panel unmounts.
+  useEffect(
+    () => () => {
+      handleRef.current?.cancel();
+      releaseDownloadLock("queue");
+    },
+    [],
+  );
 
   const update = (id: string, patch: Partial<QueueItem>) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -112,6 +127,7 @@ export function QueuePanel({
     if (!next) {
       const wasRunning = runningRef.current;
       runningRef.current = false;
+      releaseDownloadLock("queue");
       setRunning(false);
       setPercent(0);
       onDownloadFinished?.();
@@ -200,13 +216,18 @@ export function QueuePanel({
   };
 
   const start = () => {
-    if (!runningRef.current) processNext();
+    if (runningRef.current) return;
+    // Refuse to start while another engine downloads (Start is also disabled in
+    // the UI; this guards the race between render and click).
+    if (!acquireDownloadLock("queue")) return;
+    processNext();
   };
 
   const stop = () => {
     runningRef.current = false;
     handleRef.current?.cancel();
     handleRef.current = null;
+    releaseDownloadLock("queue");
     setRunning(false);
     setPercent(0);
     // Put the interrupted item back in line so it can resume.
@@ -288,7 +309,8 @@ export function QueuePanel({
             <button
               type="button"
               onClick={start}
-              disabled={pending === 0}
+              disabled={pending === 0 || lockedByOther}
+              title={lockedByOther ? t("common.busy") : undefined}
               className="flex h-10 items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-600/10 px-4 text-sm text-white transition hover:bg-violet-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Play size={15} />

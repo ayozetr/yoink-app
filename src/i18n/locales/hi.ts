@@ -158,6 +158,8 @@ export const hi = {
     transferred: "स्थानांतरित",
   },
   settings: {
+    defaultEmbedSubs: "डिफ़ॉल्ट रूप से उपशीर्षक एम्बेड करें",
+    defaultEmbedChapters: "डिफ़ॉल्ट रूप से अध्याय एम्बेड करें",
     secDownloads: "डाउनलोड",
     secQuality: "गुणवत्ता",
     secProcessing: "प्रोसेसिंग",
@@ -248,6 +250,7 @@ export const hi = {
     preparing: "सब कुछ तैयार किया जा रहा है…",
   },
   common: {
+    busy: "एक और डाउनलोड चल रहा है",
     cut: "कट करें",
     copy: "कॉपी करें",
     paste: "पेस्ट करें",

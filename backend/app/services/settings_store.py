@@ -32,6 +32,10 @@ def _apply(data: dict[str, Any]) -> None:
         settings.default_container = data["default_container"]
     if data.get("default_audio_format") in ("mp3", "m4a", "flac", "wav"):
         settings.default_audio_format = data["default_audio_format"]
+    if isinstance(data.get("default_embed_subs"), bool):
+        settings.default_embed_subs = data["default_embed_subs"]
+    if isinstance(data.get("default_embed_chapters"), bool):
+        settings.default_embed_chapters = data["default_embed_chapters"]
 
     settings.cookies_from_browser = data.get("cookies_from_browser") or None
     cookies_file = data.get("cookies_file")
@@ -76,6 +80,8 @@ def get_current() -> AppSettings:
         default_quality=settings.default_quality,
         default_container=settings.default_container,
         default_audio_format=settings.default_audio_format,
+        default_embed_subs=settings.default_embed_subs,
+        default_embed_chapters=settings.default_embed_chapters,
         cookies_from_browser=settings.cookies_from_browser,
         cookies_file=str(settings.cookies_file) if settings.cookies_file else None,
         proxy=settings.proxy,

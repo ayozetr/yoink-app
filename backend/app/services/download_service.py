@@ -35,6 +35,16 @@ from app.models.media import (
 
 logger = logging.getLogger(__name__)
 
+# Serializes downloads across the whole backend process. Yoink downloads one
+# file at a time (concurrent downloads are an explicit non-goal); two jobs share
+# one download folder and can resolve to the same ".part" file, so running them
+# at once would corrupt each other. The frontend already serializes within a
+# single client, but a second browser tab / LAN client could otherwise bypass
+# that — this lock is the server-side backstop. A blocking acquire means a
+# second job simply waits for the first to finish (the queue's sequential
+# hand-off waits only milliseconds), rather than failing.
+_download_lock = asyncio.Lock()
+
 # Event objects pushed onto the bridge queue.
 _Event = ProgressEvent | CompletedEvent | ErrorEvent
 
@@ -434,6 +444,10 @@ async def download_events(
                         path = str(apply_vr(file, layout))
             return path
 
+    # Hold the process-wide lock for the whole job so a second download can't run
+    # concurrently. Acquired before the worker thread starts (yt-dlp writes
+    # immediately) and released in the finally below.
+    await _download_lock.acquire()
     worker = asyncio.create_task(asyncio.to_thread(blocking))
 
     # Drain progress events until the worker finishes, then flush the queue.
@@ -503,3 +517,4 @@ async def download_events(
         if getter is not None and not getter.done():
             getter.cancel()
         await asyncio.gather(worker, return_exceptions=True)
+        _download_lock.release()

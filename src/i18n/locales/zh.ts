@@ -158,6 +158,8 @@ export const zh = {
     transferred: "已传输",
   },
   settings: {
+    defaultEmbedSubs: "默认嵌入字幕",
+    defaultEmbedChapters: "默认嵌入章节",
     secDownloads: "下载",
     secQuality: "质量",
     secProcessing: "处理",
@@ -248,6 +250,7 @@ export const zh = {
     preparing: "正在准备一切…",
   },
   common: {
+    busy: "已有一个下载正在进行",
     cut: "剪切",
     copy: "复制",
     paste: "粘贴",

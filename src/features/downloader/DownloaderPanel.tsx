@@ -26,6 +26,11 @@ import { loadSearchSource, persistSearchSource } from "../../lib/searchSource";
 import { MusicImportCard } from "../music/MusicImportCard";
 import type { MusicImportInfo } from "../../types/music";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
+import {
+  acquireDownloadLock,
+  releaseDownloadLock,
+  useDownloadLock,
+} from "../../lib/downloadLock";
 import { setWindowProgress } from "../../lib/windowProgress";
 import { notify } from "../../lib/notify";
 import type {
@@ -51,6 +56,9 @@ interface DownloaderPanelProps {
   defaultKind?: MediaKind;
   defaultQuality?: string;
   defaultAudioFormat?: AudioFormat;
+  /** Persisted "embed subtitles/chapters by default" toggles (seed the preview). */
+  defaultEmbedSubs?: boolean;
+  defaultEmbedChapters?: boolean;
 }
 
 interface DownloadJob {
@@ -87,8 +95,14 @@ export function DownloaderPanel({
   defaultKind,
   defaultQuality,
   defaultAudioFormat,
+  defaultEmbedSubs,
+  defaultEmbedChapters,
 }: DownloaderPanelProps) {
   const { t } = useTranslation();
+  // Shared download lock: another engine (the queue / music import) holding it
+  // disables this panel's download buttons so two jobs can't collide on disk.
+  const lockOwner = useDownloadLock();
+  const lockedByOther = lockOwner !== null && lockOwner !== "downloader";
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<InfoResponse | null>(null);
   const [musicInfo, setMusicInfo] = useState<MusicImportInfo | null>(null);
@@ -124,12 +138,19 @@ export function DownloaderPanel({
   const lastJobsRef = useRef<DownloadJob[]>([]);
   const audioPathsRef = useRef<TagItem[]>([]);
 
-  // Tear down the socket if the panel unmounts mid-download.
-  useEffect(() => () => downloadRef.current?.cancel(), []);
+  // Tear down the socket + free the lock if the panel unmounts mid-download.
+  useEffect(
+    () => () => {
+      downloadRef.current?.cancel();
+      releaseDownloadLock("downloader");
+    },
+    [],
+  );
 
   const resetDownload = () => {
     downloadRef.current?.cancel();
     downloadRef.current = null;
+    releaseDownloadLock("downloader");
     queueRef.current = [];
     resultsRef.current = [];
     setProgress(null);
@@ -158,6 +179,7 @@ export function DownloaderPanel({
   const runJob = (index: number) => {
     const jobs = queueRef.current;
     if (index >= jobs.length) {
+      releaseDownloadLock("downloader");
       setDownloading(false);
       setProgress(null);
       setWindowProgress(null);
@@ -233,6 +255,10 @@ export function DownloaderPanel({
   const startQueue = (jobs: DownloadJob[]) => {
     resetDownload();
     if (jobs.length === 0) return;
+    // Take the shared lock so the queue / music import can't run concurrently
+    // (the buttons are already disabled when another engine holds it; this is
+    // the correctness backstop against a race).
+    if (!acquireDownloadLock("downloader")) return;
     queueRef.current = jobs;
     lastJobsRef.current = jobs;
     resultsRef.current = [];
@@ -401,6 +427,9 @@ export function DownloaderPanel({
           onDownload={handleDownload}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
+          defaultEmbedSubs={defaultEmbedSubs}
+          defaultEmbedChapters={defaultEmbedChapters}
+          locked={lockedByOther}
         />
       )}
 
@@ -409,7 +438,7 @@ export function DownloaderPanel({
           key={info.playlist.id}
           playlist={info.playlist}
           onDownload={handleDownloadPlaylist}
-          busy={downloading}
+          busy={downloading || lockedByOther}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
         />

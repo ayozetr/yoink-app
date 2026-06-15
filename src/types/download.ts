@@ -229,6 +229,10 @@ export interface AppSettings {
   default_quality: string;
   default_container: VideoContainer;
   default_audio_format: AudioFormat;
+  /** Seed the subtitle picker to embed subs by default (when the container allows). */
+  default_embed_subs: boolean;
+  /** Seed new video downloads to embed chapter markers by default. */
+  default_embed_chapters: boolean;
   cookies_from_browser: string | null;
   cookies_file: string | null;
   /** Proxy URL (http/https/socks) for metadata + downloads; null = none. */

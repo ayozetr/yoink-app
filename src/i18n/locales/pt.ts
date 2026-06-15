@@ -158,6 +158,8 @@ export const pt = {
     transferred: "Transferido",
   },
   settings: {
+    defaultEmbedSubs: "Incorporar legendas por padrão",
+    defaultEmbedChapters: "Incorporar capítulos por padrão",
     secDownloads: "Downloads",
     secQuality: "Qualidade",
     secProcessing: "Processamento",
@@ -248,6 +250,7 @@ export const pt = {
     preparing: "Preparando tudo…",
   },
   common: {
+    busy: "Outro download está em andamento",
     cut: "Recortar",
     copy: "Copiar",
     paste: "Colar",

@@ -158,6 +158,8 @@ export const id = {
     transferred: "Terkirim",
   },
   settings: {
+    defaultEmbedSubs: "Sematkan subtitle secara default",
+    defaultEmbedChapters: "Sematkan bab secara default",
     secDownloads: "Unduhan",
     secQuality: "Kualitas",
     secProcessing: "Pemrosesan",
@@ -248,6 +250,7 @@ export const id = {
     preparing: "Menyiapkan semuanya…",
   },
   common: {
+    busy: "Unduhan lain sedang berlangsung",
     cut: "Potong",
     copy: "Salin",
     paste: "Tempel",

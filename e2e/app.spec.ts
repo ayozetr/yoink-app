@@ -61,6 +61,12 @@ const VIDEO_INFO = {
   },
 };
 
+/** Same as VIDEO_INFO but flagged as immersive (VR) — seeds the auto-expand. */
+const VR_VIDEO_INFO = {
+  ...VIDEO_INFO,
+  video: { ...VIDEO_INFO.video, id: "vr1", title: "My VR Video", is_vr: true, vr_layout: "180_sbs" },
+};
+
 const PLAYLIST_INFO = {
   type: "playlist",
   video: null,
@@ -97,6 +103,36 @@ test("analyzes a single video into a preview", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "My Test Video" })).toBeVisible();
   await expect(page.getByText("Vista previa")).toBeVisible();
   await expect(page.getByText("Test Channel")).toBeVisible();
+});
+
+test("collapses secondary controls under Advanced options", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: VIDEO_INFO }));
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://x.com/v");
+  await page.getByRole("button", { name: "Analizar" }).click();
+  await expect(page.getByRole("heading", { name: "My Test Video" })).toBeVisible();
+
+  // Trim lives under "Opciones avanzadas" — hidden until the toggle is opened.
+  await expect(page.getByRole("button", { name: "Recortar" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Opciones avanzadas" }).click();
+  await expect(page.getByRole("button", { name: "Recortar" })).toBeVisible();
+});
+
+test("auto-expands Advanced options for a VR video", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: VR_VIDEO_INFO }));
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://x.com/vr");
+  await page.getByRole("button", { name: "Analizar" }).click();
+  await expect(page.getByRole("heading", { name: "My VR Video" })).toBeVisible();
+
+  // VR is detected, so the advanced section opens itself: trim + the VR toggle
+  // are visible with no click.
+  await expect(page.getByRole("button", { name: "Recortar" })).toBeVisible();
+  await expect(page.getByText("VR (inmersivo)")).toBeVisible();
 });
 
 test("analyzes a playlist with per-item selection", async ({ page }) => {

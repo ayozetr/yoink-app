@@ -328,6 +328,21 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             </Field>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <Toggle
+              checked={form.default_embed_subs}
+              onChange={(v) => set("default_embed_subs", v)}
+              label={t("settings.defaultEmbedSubs")}
+              className="w-full"
+            />
+            <Toggle
+              checked={form.default_embed_chapters}
+              onChange={(v) => set("default_embed_chapters", v)}
+              label={t("settings.defaultEmbedChapters")}
+              className="w-full"
+            />
+          </div>
+
           <SectionHeader label={t("settings.secQuality")} />
 
           <div className="grid grid-cols-2 gap-3">

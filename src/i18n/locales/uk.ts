@@ -158,6 +158,8 @@ export const uk = {
     transferred: "Передано",
   },
   settings: {
+    defaultEmbedSubs: "Вбудовувати субтитри за замовчуванням",
+    defaultEmbedChapters: "Вбудовувати розділи за замовчуванням",
     secDownloads: "Завантаження",
     secQuality: "Якість",
     secProcessing: "Обробка",
@@ -248,6 +250,7 @@ export const uk = {
     preparing: "Готую все необхідне…",
   },
   common: {
+    busy: "Триває інше завантаження",
     cut: "Вирізати",
     copy: "Копіювати",
     paste: "Вставити",

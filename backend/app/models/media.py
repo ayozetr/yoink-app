@@ -313,6 +313,13 @@ class AppSettings(BaseModel):
     default_audio_format: AudioFormat = Field(
         default="mp3", description="Default audio format (also the queue's)."
     )
+    default_embed_subs: bool = Field(
+        default=False,
+        description="Seed the subtitle picker to embed subs (when the container allows).",
+    )
+    default_embed_chapters: bool = Field(
+        default=False, description="Seed new video downloads to embed chapter markers."
+    )
     cookies_from_browser: str | None = Field(
         default=None, description="Browser to read cookies from (e.g. 'firefox')."
     )

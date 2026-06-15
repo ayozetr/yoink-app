@@ -76,6 +76,11 @@ class Settings(BaseSettings):
     # queue's per-item format (the queue has no per-item picker).
     default_container: Literal["mp4", "mov", "mkv"] = "mp4"
     default_audio_format: Literal["mp3", "m4a", "flac", "wav"] = "mp3"
+    # Whether new video downloads default to embedding subtitles (the "all"
+    # languages option, applied only when the container can carry them) and
+    # chapter markers. Container/audio already persist; these complete the set.
+    default_embed_subs: bool = False
+    default_embed_chapters: bool = False
 
     # Filename template (the name part; ".%(ext)s" is appended at download time).
     # yt-dlp outtmpl fields, e.g. "%(title)s" or "%(uploader)s - %(title)s".

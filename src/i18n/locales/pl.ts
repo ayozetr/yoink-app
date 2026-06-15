@@ -158,6 +158,8 @@ export const pl = {
     transferred: "Przesłano",
   },
   settings: {
+    defaultEmbedSubs: "Domyślnie osadzaj napisy",
+    defaultEmbedChapters: "Domyślnie osadzaj rozdziały",
     secDownloads: "Pobieranie",
     secQuality: "Jakość",
     secProcessing: "Przetwarzanie",
@@ -248,6 +250,7 @@ export const pl = {
     preparing: "Przygotowywanie wszystkiego…",
   },
   common: {
+    busy: "Trwa już inne pobieranie",
     cut: "Wytnij",
     copy: "Kopiuj",
     paste: "Wklej",

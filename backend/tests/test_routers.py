@@ -91,6 +91,8 @@ def test_settings_get_and_put(temp_dirs):
         "default_quality": "480p",
         "default_container": "mkv",
         "default_audio_format": "flac",
+        "default_embed_subs": True,
+        "default_embed_chapters": True,
         "cookies_from_browser": "firefox",
         "cookies_file": None,
         "download_dir": str(temp_dirs / "dl"),
@@ -105,6 +107,8 @@ def test_settings_get_and_put(temp_dirs):
     assert saved.json()["default_kind"] == "audio"
     assert saved.json()["default_container"] == "mkv"
     assert saved.json()["default_audio_format"] == "flac"
+    assert saved.json()["default_embed_subs"] is True
+    assert saved.json()["default_embed_chapters"] is True
     assert saved.json()["cookies_from_browser"] == "firefox"
     assert saved.json()["filename_template"] == "%(uploader)s - %(title)s"
     assert saved.json()["rate_limit"] == "1M"

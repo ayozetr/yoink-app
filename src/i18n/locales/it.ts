@@ -158,6 +158,8 @@ export const it = {
     transferred: "Trasferiti",
   },
   settings: {
+    defaultEmbedSubs: "Incorpora i sottotitoli per impostazione predefinita",
+    defaultEmbedChapters: "Incorpora i capitoli per impostazione predefinita",
     secDownloads: "Download",
     secQuality: "Qualità",
     secProcessing: "Elaborazione",
@@ -248,6 +250,7 @@ export const it = {
     preparing: "Preparazione di tutto…",
   },
   common: {
+    busy: "È in corso un altro download",
     cut: "Taglia",
     copy: "Copia",
     paste: "Incolla",

@@ -78,6 +78,12 @@ interface PreviewCardProps {
   onDownload: (selection: DownloadSelection) => void;
   defaultKind?: MediaKind;
   defaultQuality?: string;
+  /** Seed the subtitle picker to "embed all" by default (persisted setting). */
+  defaultEmbedSubs?: boolean;
+  /** Seed the chapters toggle on by default (persisted setting). */
+  defaultEmbedChapters?: boolean;
+  /** Disable the Download button while another engine (the queue) is busy. */
+  locked?: boolean;
 }
 
 /** Preview of the analyzed media: thumbnail, info and download controls. */
@@ -86,6 +92,9 @@ export function PreviewCard({
   onDownload,
   defaultKind,
   defaultQuality,
+  defaultEmbedSubs,
+  defaultEmbedChapters,
+  locked = false,
 }: PreviewCardProps) {
   const { t } = useTranslation();
   const kinds = useMemo(() => availableKinds(info), [info]);
@@ -104,9 +113,15 @@ export function PreviewCard({
   const [audioFormat, setAudioFormat] = useState<AudioFormat>(
     DEFAULT_AUDIO_FORMAT,
   );
-  // "None" by default: subtitles are opt-in.
-  const [subtitle, setSubtitle] = useState<string>(SUBS_NONE);
-  const [embedChapters, setEmbedChapters] = useState(false);
+  // Subtitles are opt-in, but the user can persist an "embed by default" choice
+  // that seeds the picker to "all" (it only takes effect once a container that
+  // can carry subtitles, i.e. MKV, is selected).
+  const [subtitle, setSubtitle] = useState<string>(
+    defaultEmbedSubs ? "all" : SUBS_NONE,
+  );
+  const [embedChapters, setEmbedChapters] = useState(
+    defaultEmbedChapters ?? false,
+  );
   const [audioMultistreams, setAudioMultistreams] = useState(false);
   const [trimOpen, setTrimOpen] = useState(false);
   const [trimStart, setTrimStart] = useState("");
@@ -161,10 +176,14 @@ export function PreviewCard({
 
   const trimStartSec = parseTime(trimStart);
   const trimEndSec = parseTime(trimEnd);
+  // A trim is "applied" whenever a valid start or end is present — independent
+  // of whether the input panel happens to be expanded. Collapsing the panel
+  // keeps a set range (and still clips); it isn't tied to panel visibility.
+  const trimActive = trimStartSec != null || trimEndSec != null;
   // Invalid when a given end isn't past the (effective) start — also catches a
-  // lone end of 0, which would otherwise be an empty (0,0) range.
-  const trimError =
-    trimOpen && trimEndSec != null && trimEndSec <= (trimStartSec ?? 0);
+  // lone end of 0, which would otherwise be an empty (0,0) range. Computed from
+  // the values, not panel state, so the range is validated even when collapsed.
+  const trimError = trimEndSec != null && trimEndSec <= (trimStartSec ?? 0);
 
   return (
     <GlassPanel className="p-5">
@@ -406,7 +425,7 @@ export function PreviewCard({
                   onClick={() => setTrimOpen((v) => !v)}
                   aria-expanded={trimOpen}
                   className={`flex h-11 w-fit shrink-0 items-center gap-2 rounded-xl border px-4 text-sm transition ${
-                    trimOpen
+                    trimOpen || trimActive
                       ? "border-violet-500/50 bg-violet-600/10 text-white"
                       : "border-white/10 bg-surface text-zinc-300 hover:border-white/20"
                   }`}
@@ -440,6 +459,11 @@ export function PreviewCard({
                     </span>
                   </>
                 )}
+                {!trimOpen && trimActive && (
+                  <span className="text-xs text-zinc-400">
+                    {trimStart || "0:00"} → {trimEnd || "…"}
+                  </span>
+                )}
               </div>
               {trimError && (
                 <p className="flex items-center gap-2 text-xs text-red-300">
@@ -452,7 +476,8 @@ export function PreviewCard({
 
             <Button
               variant="gradient"
-              disabled={trimError}
+              disabled={locked || (advancedOpen && trimError)}
+              title={locked ? t("common.busy") : undefined}
               onClick={() => {
                 // Remember the layout choice for this studio so the next
                 // download from the same uploader defaults to it.
@@ -469,8 +494,8 @@ export function PreviewCard({
                   audio_multistreams: showMultiAudio
                     ? audioMultistreams
                     : undefined,
-                  trim_start: trimOpen && !trimError ? trimStartSec : undefined,
-                  trim_end: trimOpen && !trimError ? trimEndSec : undefined,
+                  trim_start: !trimError ? trimStartSec : undefined,
+                  trim_end: !trimError ? trimEndSec : undefined,
                   is_vr: isVideo ? isVr : undefined,
                   vr_layout: isVideo && isVr ? vrLayout : undefined,
                 });
