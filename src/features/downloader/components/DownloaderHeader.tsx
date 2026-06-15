@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { ListPlus, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { SupportedSitesModal } from "./SupportedSitesModal";
 import { SearchSourceToggle } from "./SearchSourceToggle";
 import type { SearchSource } from "../../../lib/api";
+
+const SupportedSitesModal = lazy(() =>
+  import("./SupportedSitesModal").then((m) => ({
+    default: m.SupportedSitesModal,
+  })),
+);
 
 interface DownloaderHeaderProps {
   /** Number of unfinished queue items, badged on the queue button. */
@@ -48,7 +53,11 @@ export function DownloaderHeader({
         </p>
       </div>
 
-      {showSites && <SupportedSitesModal onClose={() => setShowSites(false)} />}
+      {showSites && (
+        <Suspense fallback={null}>
+          <SupportedSitesModal onClose={() => setShowSites(false)} />
+        </Suspense>
+      )}
 
       <div className="flex items-center gap-3">
         <SearchSourceToggle

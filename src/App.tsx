@@ -1,12 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
-import { AutoTagPanel } from "./features/autotag/AutoTagPanel";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { QueuePanel } from "./features/queue/QueuePanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
-import { SettingsModal } from "./features/settings/SettingsModal";
+
+// Modal-ish, opened on demand — split into their own chunks to keep the initial
+// bundle small (they're not needed on first paint).
+const SettingsModal = lazy(() =>
+  import("./features/settings/SettingsModal").then((m) => ({
+    default: m.SettingsModal,
+  })),
+);
+const AutoTagPanel = lazy(() =>
+  import("./features/autotag/AutoTagPanel").then((m) => ({
+    default: m.AutoTagPanel,
+  })),
+);
 import {
   clearHistory,
   fetchHistory,
@@ -175,11 +186,13 @@ export default function App() {
       />
 
       {settingsOpen && settings && (
-        <SettingsModal
-          settings={settings}
-          onClose={() => setSettingsOpen(false)}
-          onSaved={setSettings}
-        />
+        <Suspense fallback={null}>
+          <SettingsModal
+            settings={settings}
+            onClose={() => setSettingsOpen(false)}
+            onSaved={setSettings}
+          />
+        </Suspense>
       )}
 
       {retagItem?.filepath && (
@@ -191,14 +204,16 @@ export default function App() {
             className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <AutoTagPanel
-              path={retagItem.filepath}
-              filename={retagItem.filename ?? undefined}
-              onDismiss={() => setRetagItem(null)}
-              onApplied={refresh}
-              autoOpen
-              panelClassName="!bg-[#16181f]"
-            />
+            <Suspense fallback={null}>
+              <AutoTagPanel
+                path={retagItem.filepath}
+                filename={retagItem.filename ?? undefined}
+                onDismiss={() => setRetagItem(null)}
+                onApplied={refresh}
+                autoOpen
+                panelClassName="!bg-[#16181f]"
+              />
+            </Suspense>
           </div>
         </div>
       )}

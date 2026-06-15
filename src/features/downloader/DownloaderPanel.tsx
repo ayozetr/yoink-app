@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, DownloadCloud, RotateCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DownloaderHeader } from "./components/DownloaderHeader";
@@ -6,8 +6,14 @@ import { UrlInput } from "./components/UrlInput";
 import { PreviewCard, type DownloadSelection } from "./components/PreviewCard";
 import { PlaylistCard } from "./components/PlaylistCard";
 import { DownloadProgressCard } from "./components/DownloadProgressCard";
-import { AutoTagPanel } from "../autotag/AutoTagPanel";
-import { AutoTagBatchPanel } from "../autotag/AutoTagBatchPanel";
+const AutoTagPanel = lazy(() =>
+  import("../autotag/AutoTagPanel").then((m) => ({ default: m.AutoTagPanel })),
+);
+const AutoTagBatchPanel = lazy(() =>
+  import("../autotag/AutoTagBatchPanel").then((m) => ({
+    default: m.AutoTagBatchPanel,
+  })),
+);
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import {
   fetchInfo,
@@ -433,20 +439,24 @@ export function DownloaderPanel({
       />
 
       {completed?.filepath && lastKind === "audio" && !downloading && !tagDismissedSingle && (
-        <AutoTagPanel
-          path={completed.filepath}
-          filename={completed.filename}
-          onDismiss={() => setTagDismissedSingle(true)}
-          onApplied={onDownloadFinished}
-        />
+        <Suspense fallback={null}>
+          <AutoTagPanel
+            path={completed.filepath}
+            filename={completed.filename}
+            onDismiss={() => setTagDismissedSingle(true)}
+            onApplied={onDownloadFinished}
+          />
+        </Suspense>
       )}
 
       {batchItems.length > 0 && !downloading && !tagDismissedBatch && (
-        <AutoTagBatchPanel
-          items={batchItems}
-          onDismiss={() => setTagDismissedBatch(true)}
-          onApplied={onDownloadFinished}
-        />
+        <Suspense fallback={null}>
+          <AutoTagBatchPanel
+            items={batchItems}
+            onDismiss={() => setTagDismissedBatch(true)}
+            onApplied={onDownloadFinished}
+          />
+        </Suspense>
       )}
 
       {summary && (
