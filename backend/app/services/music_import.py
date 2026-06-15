@@ -51,7 +51,10 @@ def _get(url: str, headers: dict[str, str] | None = None) -> str:
         raise MusicImportError(f"Could not reach the music service: {exc}") from exc
 
 
-_DEEZER_SHORT_RE = re.compile(r"(?:link\.deezer\.com|deezer\.page\.link|dzr\.page\.link)/", re.IGNORECASE)
+_DEEZER_SHORT_RE = re.compile(
+    r"^(?:https?://)?(?:link\.deezer\.com|deezer\.page\.link|dzr\.page\.link)/",
+    re.IGNORECASE,
+)
 
 
 def _final_url(url: str) -> str:
@@ -84,27 +87,34 @@ def _mmss_to_ms(text: str) -> int | None:
 # --- source detection ------------------------------------------------------
 
 # Each entry: source -> (regex with (kind, id) groups). Spotify/Apple add extras.
+# Each pattern is anchored at the URL start (`^`) and pins the brand as the
+# *host* (right after an optional scheme), not just anywhere in the string. This
+# is also an SSRF guard: an unanchored `.search` matched e.g.
+# `http://169.254.169.254/music.apple.com/...`, which would then be fetched —
+# anchoring keeps detection (and the fetches it gates) to the real service hosts.
 _SPOTIFY_RE = re.compile(
-    r"(?:open\.spotify\.com/(?:intl-[a-z-]+/)?|spotify:)"
+    r"^(?:https?://)?(?:open\.spotify\.com/(?:intl-[a-z-]+/)?|spotify:)"
     r"(track|album|playlist)[/:]([A-Za-z0-9]+)",
     re.IGNORECASE,
 )
 _DEEZER_RE = re.compile(
-    r"(?:deezer\.com|deezer\.page\.link)/(?:[a-z]{2}/)?(track|album|playlist)/(\d+)",
+    r"^(?:https?://)?(?:www\.)?(?:deezer\.com|deezer\.page\.link)/"
+    r"(?:[a-z]{2}/)?(track|album|playlist)/(\d+)",
     re.IGNORECASE,
 )
 _APPLE_RE = re.compile(
-    r"music\.apple\.com/(?:([a-z]{2})/)?(album|song|playlist)/[^/]+/(pl\.[\w-]+|\d+)",
+    r"^(?:https?://)?(?:[\w-]+\.)*music\.apple\.com/"
+    r"(?:([a-z]{2})/)?(album|song|playlist)/[^/]+/(pl\.[\w-]+|\d+)",
     re.IGNORECASE,
 )
 _APPLE_TRACK_RE = re.compile(r"[?&]i=(\d+)")
 _TIDAL_RE = re.compile(
-    r"(?:tidal\.com|embed\.tidal\.com|listen\.tidal\.com)/(?:browse/)?"
+    r"^(?:https?://)?(?:tidal\.com|embed\.tidal\.com|listen\.tidal\.com)/(?:browse/)?"
     r"(track|album|playlist)s?/([\w-]+)",
     re.IGNORECASE,
 )
 _AMAZON_RE = re.compile(
-    r"music\.amazon\.[a-z.]+/(albums|tracks|playlists|user-playlists)/([A-Z0-9.]+)",
+    r"^(?:https?://)?music\.amazon\.[a-z.]+/(albums|tracks|playlists|user-playlists)/([A-Z0-9.]+)",
     re.IGNORECASE,
 )
 

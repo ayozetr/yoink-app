@@ -18,6 +18,15 @@ def test_detect_source():
     assert mi.detect_source("https://link.deezer.com/s/33x4zIvNQBwjhW4mk") == "deezer"
 
 
+def test_detect_source_rejects_ssrf_steering():
+    # Detection must pin the brand to the URL *host*, not match it anywhere in
+    # the path — otherwise an internal host could be steered into a fetch (SSRF).
+    assert mi.detect_source("http://169.254.169.254/music.apple.com/us/playlist/x/pl.abc") is None
+    assert mi.detect_source("http://127.0.0.1:8756/link.deezer.com/s/x") is None
+    assert mi.detect_source("https://music.apple.com.attacker.example/us/playlist/x/pl.abc") is None
+    assert mi.detect_source("https://evil.test/?u=https://open.spotify.com/album/abc") is None
+
+
 _DEEZER_ALBUM = {
     "title": "My Album",
     "artist": {"name": "The Artist"},
