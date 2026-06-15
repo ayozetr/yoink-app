@@ -204,6 +204,12 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Re-download / re-analyze from history** (S).
 - ⬜ **Skip-current vs cancel-all** in the queue (M).
 - ⬜ **Reorder the queue** (drag up/down) (M).
+- ⬜ **Auto-fill a clipboard URL on window focus** (M) — when the field is empty and
+  the clipboard holds a link, pre-fill it (non-destructive) so a paste→analyze is one step.
+- ⬜ **Paste-and-analyze keyboard gesture** (S) — `Ctrl/Cmd+Shift+V` to paste a link and
+  analyze it in one shot, from anywhere in the window.
+- ⬜ **"Copy error" button** (S) — on a failed download and on history error rows, so the
+  raw failure text is one click away (pairs with friendlier error messages below).
 
 ### 🔌 OS & integrations
 - ⬜ **`yoink://` deep link** (M · **high**) — enables "send to Yoink" from anywhere,
@@ -228,6 +234,21 @@ also in *Next up* are the urgent ones.)
 - ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
   frontend `estimatedSizeBytes`/`formatBytes`.
 - ⬜ **PyInstaller `--onedir`** (M) — faster cold start (no per-launch re-extraction).
+- ⬜ **Friendlier download/extraction error messages** (S) — strip the raw yt-dlp
+  `ERROR:`/`[extractor]`/"report this issue" noise and map common cases (anti-bot/403 →
+  "blocked, try cookies", format unavailable, …) before showing them / saving to history.
+- ⬜ **Pre-flight free-disk-space check** (S) — `shutil.disk_usage` before a download
+  starts; fail early with a clear message instead of mid-download.
+- ⬜ **Route music-import fetches through `safe_http`** (S/M) — `_get`/`_final_url` in
+  `music_import.py` use a bare `urlopen`; move them onto `core/safe_http.fetch_public`
+  (IP-pinned, redirect-revalidating) for defense-in-depth. *(The SSRF steering vector is
+  already closed by host-anchored URL detection; this hardens the redirect-follow path.)*
+- ⬜ **Cancel a queued download blocked on the download lock when the client disconnects**
+  (S) — a second concurrent job (e.g. a second web tab) currently awaits the process-wide
+  lock without noticing a disconnect; race the acquire against the cancel signal.
+- ⬜ **Re-tag dialog initial focus with a cold lazy chunk** (S · a11y) — when
+  `AutoTagPanel`'s lazy chunk isn't loaded yet, `useFocusTrap` focuses the container
+  instead of the first field; re-run the focus pass once the panel mounts.
 
 ## 🥽 VR follow-ups
 

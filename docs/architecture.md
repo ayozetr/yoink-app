@@ -75,6 +75,14 @@ When the user clicks **Download**:
 6. ffmpeg merges separate video/audio streams (and extracts/embeds audio,
    subtitles, and chapters) as needed.
 
+Downloads run **one at a time** (concurrent downloads are a non-goal): the three
+frontend engines (main panel, queue, music import) share an in-memory lock
+(`src/lib/downloadLock.ts`) and the backend serializes jobs with a process-wide
+`asyncio.Lock`, so two jobs can't write the same `.part` in the shared download
+folder. In the desktop app the backend port is chosen at launch (8756, or an
+OS-assigned free port when it's taken) and handed to the frontend via the
+`backend_port` command.
+
 ### 3. Audio auto-tagging — REST (implemented)
 
 After an audio download (single or playlist), the UI offers to tag the file(s)

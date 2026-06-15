@@ -66,9 +66,9 @@ It is split into two layers that communicate asynchronously:
   bitrate), re-tagging, and **cover art** for tagged
   audio, open file / folder, and clear.
 - **Settings** — download folder, default format/quality (up to **4K / best**),
-  **filename template**, **video codec** & **audio bitrate**, **bandwidth limit**,
-  **proxy** (http/socks), **language**, and cookies (browser — with icons — or
-  `cookies.txt`).
+  **default subtitles/chapters embedding**, **filename template**, **video codec** &
+  **audio bitrate**, **bandwidth limit**, **proxy** (http/socks), **language**, and
+  cookies (browser — with icons — or `cookies.txt`).
 - **Desktop notifications** when a download finishes, **taskbar/title progress**,
   and keyboard shortcuts (Ctrl/Cmd+L focus URL, Ctrl/Cmd+, settings).
 - **14 UI languages** (react-i18next: EN/ES/FR/DE/IT/PT-BR/RU/PL/UK/ID/HI/ZH/JA/KO), auto-detected from your system
