@@ -203,7 +203,7 @@ def _parse_rate_limit(value: str | None) -> float | None:
 
 
 def _build_options(
-    request: DownloadRequest, hook: Any
+    request: DownloadRequest, hook: Any, pp_hook: Any = None
 ) -> dict[str, Any]:
     """Assemble yt-dlp options for the requested kind/quality."""
     download_dir = settings.ensure_download_dir()
@@ -235,6 +235,8 @@ def _build_options(
         "continuedl": True,
         "outtmpl": str(download_dir / f"{name_template}.%(ext)s"),
         "progress_hooks": [hook],
+        # Cancel is also honoured between post-processing steps (ffmpeg, …).
+        "postprocessor_hooks": [pp_hook] if pp_hook else [],
         **network_options(),
     }
 
@@ -397,8 +399,16 @@ async def download_events(
         # Hook runs on the worker thread; hand off to the loop thread.
         loop.call_soon_threadsafe(queue.put_nowait, event)
 
+    def pp_hook(raw: dict[str, Any]) -> None:
+        # Post-processing (ffmpeg merge / FLAC extract / SponsorBlock / embed)
+        # runs after the download phase, where `hook` no longer fires. Check the
+        # cancel flag at each post-processor boundary so "Cancel" isn't dead
+        # while ffmpeg works (it aborts before/after the running step).
+        if cancel_event is not None and cancel_event.is_set():
+            raise _DownloadCancelled
+
     def blocking() -> str | None:
-        options = _build_options(request, hook)
+        options = _build_options(request, hook, pp_hook)
         with YoutubeDL(options) as ydl:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
