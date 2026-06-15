@@ -29,6 +29,7 @@ export const ru = {
     searchSource: "Источник поиска",
   },
   preview: {
+    advanced: "Дополнительно",
     label: "Предпросмотр",
     format: "Формат",
     quality: "Качество",

@@ -29,6 +29,7 @@ export const ko = {
     searchSource: "검색 소스",
   },
   preview: {
+    advanced: "고급 옵션",
     label: "미리보기",
     format: "형식",
     quality: "화질",

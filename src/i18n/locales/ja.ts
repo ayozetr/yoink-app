@@ -29,6 +29,7 @@ export const ja = {
     searchSource: "検索ソース",
   },
   preview: {
+    advanced: "詳細オプション",
     label: "プレビュー",
     format: "形式",
     quality: "画質",

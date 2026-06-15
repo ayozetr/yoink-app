@@ -29,6 +29,7 @@ export const fr = {
     searchSource: "Source de recherche",
   },
   preview: {
+    advanced: "Options avancées",
     label: "Aperçu",
     format: "Format",
     quality: "Qualité",

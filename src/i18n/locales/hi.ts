@@ -29,6 +29,7 @@ export const hi = {
     searchSource: "खोज स्रोत",
   },
   preview: {
+    advanced: "उन्नत विकल्प",
     label: "पूर्वावलोकन",
     format: "फ़ॉर्मेट",
     quality: "गुणवत्ता",

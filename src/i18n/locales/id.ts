@@ -29,6 +29,7 @@ export const id = {
     searchSource: "Sumber pencarian",
   },
   preview: {
+    advanced: "Opsi lanjutan",
     label: "Pratinjau",
     format: "Format",
     quality: "Kualitas",

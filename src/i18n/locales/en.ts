@@ -29,6 +29,7 @@ export const en = {
     searchSource: "Search source",
   },
   preview: {
+    advanced: "Advanced options",
     label: "Preview",
     format: "Format",
     quality: "Quality",

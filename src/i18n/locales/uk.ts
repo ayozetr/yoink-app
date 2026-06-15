@@ -29,6 +29,7 @@ export const uk = {
     searchSource: "Джерело пошуку",
   },
   preview: {
+    advanced: "Додаткові параметри",
     label: "Попередній перегляд",
     format: "Формат",
     quality: "Якість",

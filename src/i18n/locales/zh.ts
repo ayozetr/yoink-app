@@ -29,6 +29,7 @@ export const zh = {
     searchSource: "搜索来源",
   },
   preview: {
+    advanced: "高级选项",
     label: "预览",
     format: "格式",
     quality: "画质",

@@ -1,5 +1,15 @@
 import { useMemo, useState } from "react";
-import { Clock3, Download, Glasses, Info, Scissors, User, Video } from "lucide-react";
+import {
+  ChevronDown,
+  Clock3,
+  Download,
+  Glasses,
+  Info,
+  Scissors,
+  SlidersHorizontal,
+  User,
+  Video,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -101,6 +111,10 @@ export function PreviewCard({
   const [trimOpen, setTrimOpen] = useState(false);
   const [trimStart, setTrimStart] = useState("");
   const [trimEnd, setTrimEnd] = useState("");
+  // Secondary controls (subs/chapters/multi-audio/VR/trim) collapse under an
+  // "Advanced options" toggle so the format grid + Download stay above the fold.
+  // Auto-opened when VR is detected, since that needs the user to confirm.
+  const [advancedOpen, setAdvancedOpen] = useState(info.is_vr);
   // VR tagging: seed from the backend's heuristic detection; the user can
   // toggle it and pick the stereo/projection layout. A previously remembered
   // choice for this uploader wins over the heuristic's guess.
@@ -271,8 +285,23 @@ export function PreviewCard({
               </p>
             )}
 
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              aria-expanded={advancedOpen}
+              className="flex h-11 w-fit items-center gap-2 rounded-xl border border-white/10 bg-surface px-4 text-sm text-zinc-300 transition hover:border-white/20"
+            >
+              <SlidersHorizontal size={16} />
+              {t("preview.advanced")}
+              <ChevronDown
+                size={15}
+                className={`text-zinc-400 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
             {/* Subtitles (MKV only) + chapters + multi-audio: video-only, when available. */}
-            {(showSubtitles || (isVideo && info.has_chapters) || showMultiAudio) && (
+            {advancedOpen &&
+              (showSubtitles || (isVideo && info.has_chapters) || showMultiAudio) && (
               <div className="flex flex-wrap items-center gap-3">
                 {showSubtitles && (
                   <Select
@@ -332,7 +361,7 @@ export function PreviewCard({
             {/* VR — shown only when detected as immersive. Lets the user confirm
                 (or turn off a false positive) and pick the stereo/projection
                 layout. Hidden for plain video so it can't be tagged by mistake. */}
-            {isVideo && info.is_vr && (
+            {advancedOpen && isVideo && info.is_vr && (
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <Toggle
@@ -369,6 +398,7 @@ export function PreviewCard({
             )}
 
             {/* Trim / clip — scissors button + (when open) inline start/end inputs. */}
+            {advancedOpen && (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -418,6 +448,7 @@ export function PreviewCard({
                 </p>
               )}
             </div>
+            )}
 
             <Button
               variant="gradient"
