@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
+import { useFocusTrap } from "./lib/useFocusTrap";
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { QueuePanel } from "./features/queue/QueuePanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
@@ -60,6 +62,9 @@ export default function App() {
   // Download queue: opened from the header button; keeps running while hidden.
   const [queueOpen, setQueueOpen] = useState(false);
   const [queuePending, setQueuePending] = useState(0);
+  const { t } = useTranslation();
+  // Trap focus inside the re-tag dialog while it's open (a11y).
+  const retagDialogRef = useFocusTrap<HTMLDivElement>(retagItem?.filepath != null);
 
   const refresh = useCallback(async () => {
     try {
@@ -201,8 +206,22 @@ export default function App() {
           onClick={() => setRetagItem(null)}
         >
           <div
-            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            ref={retagDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("autotag.title")}
+            tabIndex={-1}
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto outline-none"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              // Esc closes the dialog — unless an inner dropdown should eat it first.
+              if (
+                e.key === "Escape" &&
+                !document.querySelector('[role="listbox"], [data-popover="true"]')
+              ) {
+                setRetagItem(null);
+              }
+            }}
           >
             <Suspense fallback={null}>
               <AutoTagPanel
