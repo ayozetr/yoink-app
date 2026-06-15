@@ -21,9 +21,7 @@ import type {
   CandidateList,
 } from "../types/autotag";
 import type { MusicImportInfo, MusicTrack } from "../types/music";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8756/api";
+import { getApiBase } from "./apiBase";
 
 /**
  * Build a URL that proxies a remote thumbnail through the local backend.
@@ -41,7 +39,7 @@ export function thumbnailProxyUrl(
 ): string {
   const params = new URLSearchParams({ url: remoteUrl });
   if (referer) params.set("referer", referer);
-  return `${API_BASE_URL}/thumbnail?${params.toString()}`;
+  return `${getApiBase()}/thumbnail?${params.toString()}`;
 }
 
 /** Error carrying the HTTP status alongside a human-readable message. */
@@ -86,7 +84,7 @@ export async function fetchInfo(
 ): Promise<InfoResponse> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}/info`, {
+    response = await fetch(`${getApiBase()}/info`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
@@ -125,7 +123,7 @@ export async function resolveMusic(
 ): Promise<MusicImportInfo> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}/music/resolve`, {
+    response = await fetch(`${getApiBase()}/music/resolve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
@@ -146,7 +144,7 @@ export async function matchMusic(
   track: MusicTrack,
   signal?: AbortSignal,
 ): Promise<string | null> {
-  const response = await fetch(`${API_BASE_URL}/music/match`, {
+  const response = await fetch(`${getApiBase()}/music/match`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(track),
@@ -170,7 +168,7 @@ export async function searchYoutube(
   signal?: AbortSignal,
 ): Promise<PlaylistEntry[]> {
   const response = await fetch(
-    `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&source=${source}`,
+    `${getApiBase()}/search?q=${encodeURIComponent(query)}&source=${source}`,
     { signal },
   );
   if (!response.ok) {
@@ -184,7 +182,7 @@ export async function searchYoutube(
 export async function fetchYtdlpVersion(
   signal?: AbortSignal,
 ): Promise<VersionInfo> {
-  const response = await fetch(`${API_BASE_URL}/ytdlp-version`, { signal });
+  const response = await fetch(`${getApiBase()}/ytdlp-version`, { signal });
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
@@ -195,7 +193,7 @@ export async function fetchYtdlpVersion(
 export async function fetchHistory(
   signal?: AbortSignal,
 ): Promise<HistoryEntry[]> {
-  const response = await fetch(`${API_BASE_URL}/history`, { signal });
+  const response = await fetch(`${getApiBase()}/history`, { signal });
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
@@ -204,7 +202,7 @@ export async function fetchHistory(
 
 /** Fetch aggregate download statistics via `GET /api/history/stats`. */
 export async function fetchStats(signal?: AbortSignal): Promise<DownloadStats> {
-  const response = await fetch(`${API_BASE_URL}/history/stats`, { signal });
+  const response = await fetch(`${getApiBase()}/history/stats`, { signal });
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
@@ -213,7 +211,7 @@ export async function fetchStats(signal?: AbortSignal): Promise<DownloadStats> {
 
 /** Delete all download history via `DELETE /api/history`. */
 export async function clearHistory(): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/history`, { method: "DELETE" });
+  const response = await fetch(`${getApiBase()}/history`, { method: "DELETE" });
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
@@ -225,7 +223,7 @@ export async function openInFileManager(
   path?: string | null,
   openFile = false,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/open`, {
+  const response = await fetch(`${getApiBase()}/open`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path: path ?? null, open_file: openFile }),
@@ -239,12 +237,12 @@ export async function openInFileManager(
  * `version` is an optional cache-buster so a freshly-tagged file re-fetches. */
 export function coverUrl(path: string, version?: number): string {
   const bust = version != null ? `&v=${version}` : "";
-  return `${API_BASE_URL}/cover?path=${encodeURIComponent(path)}${bust}`;
+  return `${getApiBase()}/cover?path=${encodeURIComponent(path)}${bust}`;
 }
 
 /** Fetch the current settings via `GET /api/settings`. */
 export async function fetchSettings(signal?: AbortSignal): Promise<AppSettings> {
-  const response = await fetch(`${API_BASE_URL}/settings`, { signal });
+  const response = await fetch(`${getApiBase()}/settings`, { signal });
   if (!response.ok) {
     throw new ApiError(await readErrorDetail(response), response.status);
   }
@@ -255,7 +253,7 @@ export async function fetchSettings(signal?: AbortSignal): Promise<AppSettings> 
 export async function updateSettings(
   payload: AppSettings,
 ): Promise<AppSettings> {
-  const response = await fetch(`${API_BASE_URL}/settings`, {
+  const response = await fetch(`${getApiBase()}/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -271,7 +269,7 @@ export async function identifyAudio(
   path: string,
   signal?: AbortSignal,
 ): Promise<CandidateList> {
-  const response = await fetch(`${API_BASE_URL}/autotag/identify`, {
+  const response = await fetch(`${getApiBase()}/autotag/identify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path }),
@@ -289,7 +287,7 @@ export async function searchAudio(
   title: string,
   signal?: AbortSignal,
 ): Promise<CandidateList> {
-  const response = await fetch(`${API_BASE_URL}/autotag/search`, {
+  const response = await fetch(`${getApiBase()}/autotag/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ artist, title }),
@@ -305,7 +303,7 @@ export async function searchAudio(
 export async function applyAudioTags(
   request: ApplyRequest,
 ): Promise<ApplyResponse> {
-  const response = await fetch(`${API_BASE_URL}/autotag/apply`, {
+  const response = await fetch(`${getApiBase()}/autotag/apply`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
