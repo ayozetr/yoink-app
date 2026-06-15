@@ -286,6 +286,7 @@ export function QueuePanel({
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          aria-label={t("queue.placeholder")}
           placeholder={t("queue.placeholder")}
           rows={2}
           className="flex-1 resize-none overflow-y-auto rounded-xl border border-white/10 bg-surface px-4 py-2.5 text-sm outline-none focus:border-violet-500"
