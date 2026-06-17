@@ -22,7 +22,7 @@ import {
   useDownloadLock,
 } from "../../lib/downloadLock";
 import { AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT } from "../downloader/formatOptions";
-import type { AudioFormat } from "../../types/download";
+import type { AudioFormat, DownloadProgressEvent } from "../../types/download";
 import { MUSIC_SOURCE_NAMES, type MusicImportInfo } from "../../types/music";
 
 type RowStatus = "pending" | "active" | "done" | "error" | "skipped";
@@ -58,7 +58,9 @@ export function MusicImportCard({
   const [running, setRunning] = useState(false);
   const [runTotal, setRunTotal] = useState(0);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
-  const [percent, setPercent] = useState(0);
+  // The full live progress event (percent + speed + ETA + status) so the bar
+  // shows the same detail as a normal download, not just a bare percentage.
+  const [progress, setProgress] = useState<DownloadProgressEvent | null>(null);
 
   const runningRef = useRef(false);
   const handleRef = useRef<DownloadHandle | null>(null);
@@ -107,7 +109,7 @@ export function MusicImportCard({
     releaseDownloadLock("music");
     setRunning(false);
     setActiveIdx(null);
-    setPercent(0);
+    setProgress(null);
     handleRef.current = null;
     // A track left mid-flight (e.g. Stop) would otherwise keep its row spinning
     // forever — drop any "active" status back to neutral.
@@ -136,7 +138,7 @@ export function MusicImportCard({
     const idx = orderRef.current[posRef.current];
     const track = info.tracks[idx];
     setActiveIdx(idx);
-    setPercent(0);
+    setProgress(null);
     setRow(idx, "active");
 
     // 1. Find the best YouTube match for this track.
@@ -161,7 +163,7 @@ export function MusicImportCard({
         onEvent: (event) => {
           if (settled) return;
           if (event.type === "progress") {
-            setPercent(event.percent);
+            setProgress(event);
             return;
           }
           settled = true;
@@ -223,6 +225,19 @@ export function MusicImportCard({
   };
 
   const doneCount = Object.values(rows).filter((s) => s === "done").length;
+
+  // Mirror DownloadProgressCard's live readout (label + percent + speed/ETA) so
+  // an imported track shows the same detail as any other download.
+  const percent = progress?.percent ?? 0;
+  const isProcessing = progress?.status === "processing";
+  const progressLabel = isProcessing
+    ? t("progress.processing")
+    : t("progress.downloading");
+  const progressDetail = isProcessing
+    ? t("progress.merging")
+    : [progress?.speed, progress?.eta && `${t("progress.eta")} ${progress.eta}`]
+        .filter(Boolean)
+        .join(" • ");
 
   // One unified card: a big square cover + source metadata header (like a
   // preview) for everything, with the track selection list below for
@@ -329,11 +344,9 @@ export function MusicImportCard({
               )}
             </div>
 
-            {running &&
-              (isSingle ? (
-                <ProgressBar percent={percent} />
-              ) : (
-                <div className="flex flex-col gap-1.5">
+            {running && (
+              <div className="flex flex-col gap-1.5">
+                {!isSingle && (
                   <div className="flex items-center justify-between text-xs text-zinc-400">
                     <span className="truncate">
                       {activeIdx != null ? info.tracks[activeIdx].title : ""}
@@ -342,9 +355,22 @@ export function MusicImportCard({
                       {doneCount}/{runTotal}
                     </span>
                   </div>
-                  <ProgressBar percent={percent} />
+                )}
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span
+                    aria-live="polite"
+                    className="flex items-center gap-2 text-zinc-300"
+                  >
+                    <Loader2 size={13} className="animate-spin text-violet-400" />
+                    {progressLabel}
+                  </span>
+                  <span className="shrink-0 font-medium text-violet-400">
+                    {Math.round(percent)}%{progressDetail && ` • ${progressDetail}`}
+                  </span>
                 </div>
-              ))}
+                <ProgressBar percent={percent} />
+              </div>
+            )}
 
             {isSingle && (status0 === "error" || status0 === "skipped") && (
               <p className="flex items-center gap-2 text-xs text-red-400">
