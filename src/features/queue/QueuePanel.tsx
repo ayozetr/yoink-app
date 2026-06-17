@@ -26,7 +26,12 @@ import {
   saveQueue,
   type QueueItem,
 } from "../../lib/queueStore";
-import type { AudioFormat, MediaKind, VideoContainer } from "../../types/download";
+import type {
+  AudioFormat,
+  DownloadProgressEvent,
+  MediaKind,
+  VideoContainer,
+} from "../../types/download";
 
 interface QueuePanelProps {
   /** Whether the panel is visible (the queue keeps running while hidden). */
@@ -59,7 +64,9 @@ export function QueuePanel({
   const [items, setItems] = useState<QueueItem[]>(() => loadQueue());
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
-  const [percent, setPercent] = useState(0);
+  // Full live progress event (percent + speed + ETA + status) for the active
+  // item, so its row shows the same readout as a normal download.
+  const [progress, setProgress] = useState<DownloadProgressEvent | null>(null);
   // Shared download lock: the main panel / music import holding it blocks Start
   // so the queue can't run a second concurrent download into the same folder.
   const lockOwner = useDownloadLock();
@@ -132,7 +139,7 @@ export function QueuePanel({
       runningRef.current = false;
       releaseDownloadLock("queue");
       setRunning(false);
-      setPercent(0);
+      setProgress(null);
       onDownloadFinished?.();
       // A "launch it and walk away" queue shouldn't finish in silence: notify
       // once the run drains (not when Start is pressed on an empty queue).
@@ -148,7 +155,7 @@ export function QueuePanel({
     }
     runningRef.current = true;
     setRunning(true);
-    setPercent(0);
+    setProgress(null);
     update(next.id, { status: "active", error: undefined });
 
     let settled = false;
@@ -167,7 +174,7 @@ export function QueuePanel({
         onEvent: (event) => {
           if (settled) return;
           if (event.type === "progress") {
-            setPercent(event.percent);
+            setProgress(event);
             return;
           }
           settled = true;
@@ -232,7 +239,7 @@ export function QueuePanel({
     handleRef.current = null;
     releaseDownloadLock("queue");
     setRunning(false);
-    setPercent(0);
+    setProgress(null);
     // Put the interrupted item back in line so it can resume.
     setItems((prev) =>
       prev.map((i) => (i.status === "active" ? { ...i, status: "pending" } : i)),
@@ -247,6 +254,15 @@ export function QueuePanel({
 
   const pending = items.filter((i) => i.status === "pending").length;
   const hasDone = items.some((i) => i.status === "done");
+
+  // Same readout as DownloadProgressCard, shown on the active item's row.
+  const percent = progress?.percent ?? 0;
+  const isProcessing = progress?.status === "processing";
+  const progressDetail = isProcessing
+    ? t("progress.merging")
+    : [progress?.speed, progress?.eta && `${t("progress.eta")} ${progress.eta}`]
+        .filter(Boolean)
+        .join(" • ");
 
   // Hidden but still mounted: the queue keeps downloading in the background
   // (returning null doesn't unmount, so its effects/socket live on).
@@ -350,16 +366,30 @@ export function QueuePanel({
                 )}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">
-                  {item.title ?? item.url}
+                <span className="flex items-center justify-between gap-2">
+                  <span className="block truncate text-sm">
+                    {item.title ?? item.url}
+                  </span>
+                  {item.status === "active" && (
+                    <span className="shrink-0 text-xs font-medium text-violet-400">
+                      {Math.round(percent)}%
+                    </span>
+                  )}
                 </span>
                 {item.status === "active" && (
-                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/10">
-                    <span
-                      className="block h-full bg-violet-500 transition-[width]"
-                      style={{ width: `${percent}%` }}
-                    />
-                  </span>
+                  <>
+                    <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/10">
+                      <span
+                        className="block h-full bg-violet-500 transition-[width]"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </span>
+                    {progressDetail && (
+                      <span className="mt-1 block truncate text-xs text-zinc-400">
+                        {progressDetail}
+                      </span>
+                    )}
+                  </>
                 )}
                 {item.status === "error" && item.error && (
                   <span className="block truncate text-xs text-red-300">
