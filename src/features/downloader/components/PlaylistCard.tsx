@@ -334,6 +334,7 @@ export function PlaylistCard({
           variant="gradient"
           onClick={handleDownload}
           disabled={busy || selected.size === 0}
+          title={busy ? t("common.busy") : undefined}
           className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download size={18} />

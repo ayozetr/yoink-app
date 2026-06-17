@@ -275,6 +275,10 @@ export function AutoTagBatchPanel({
                       <span className="block truncate text-amber-400/90">
                         {t("autotag.noResults")} · {tr.filename}
                       </span>
+                    ) : tr.status === "error" ? (
+                      <span className="block truncate text-red-400/90">
+                        {t("autotag.error")} · {tr.filename}
+                      </span>
                     ) : (
                       <>
                         <span className="block truncate text-zinc-200">

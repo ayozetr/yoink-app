@@ -55,6 +55,9 @@ export function MusicImportCard({
       : DEFAULT_AUDIO_FORMAT,
   );
   const [rows, setRows] = useState<Record<number, RowStatus>>({});
+  // Failure reason per track (shown in the row, like the queue) — set alongside
+  // the "error" status so the user sees *why*, not just an icon.
+  const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   const [running, setRunning] = useState(false);
   const [runTotal, setRunTotal] = useState(0);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -93,6 +96,10 @@ export function MusicImportCard({
   const allSelected = selected.size === info.tracks.length;
   const setRow = (i: number, status: RowStatus) =>
     setRows((prev) => ({ ...prev, [i]: status }));
+  const setRowError = (i: number, message: string) => {
+    setRow(i, "error");
+    setRowErrors((prev) => ({ ...prev, [i]: message }));
+  };
 
   const toggle = (i: number) =>
     setSelected((prev) => {
@@ -183,7 +190,7 @@ export function MusicImportCard({
                 advance();
               });
           } else {
-            setRow(idx, "error");
+            setRowError(idx, event.message);
             advance();
           }
         },
@@ -191,7 +198,7 @@ export function MusicImportCard({
           if (settled) return;
           settled = true;
           handleRef.current = null;
-          setRow(idx, "error");
+          setRowError(idx, t("errors.downloadConnectionLost"));
           advance();
         },
       },
@@ -206,6 +213,7 @@ export function MusicImportCard({
     orderRef.current = [...selected].sort((a, b) => a - b);
     posRef.current = 0;
     setRows({});
+    setRowErrors({});
     setRunTotal(orderRef.current.length);
     runningRef.current = true;
     setRunning(true);
@@ -375,7 +383,11 @@ export function MusicImportCard({
             {isSingle && (status0 === "error" || status0 === "skipped") && (
               <p className="flex items-center gap-2 text-xs text-red-400">
                 <AlertCircle size={14} className="shrink-0" />
-                {t("music.noMatch")}
+                {/* "skipped" = no YouTube match; "error" = the match downloaded
+                    but failed, so show the real reason. */}
+                {status0 === "error" && rowErrors[0]
+                  ? rowErrors[0]
+                  : t("music.noMatch")}
               </p>
             )}
           </div>
@@ -412,9 +424,15 @@ export function MusicImportCard({
                 />
                 <span className="flex-1 min-w-0">
                   <span className="block truncate text-sm">{track.title}</span>
-                  <span className="block truncate text-xs text-zinc-400">
-                    {track.artists}
-                  </span>
+                  {status === "error" && rowErrors[i] ? (
+                    <span className="block truncate text-xs text-red-300">
+                      {rowErrors[i]}
+                    </span>
+                  ) : (
+                    <span className="block truncate text-xs text-zinc-400">
+                      {track.artists}
+                    </span>
+                  )}
                 </span>
                 {status === "active" && (
                   <Loader2 size={15} className="shrink-0 animate-spin text-violet-400" />
