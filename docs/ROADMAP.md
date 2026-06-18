@@ -11,18 +11,18 @@
 
 ## 📍 Status
 
-- **Current release:** **v2.0.0** — keyless **music import from five services**
-  (Spotify/Deezer/Apple/Tidal/Amazon) with a spotDL-ported YouTube matcher at
-  **~99.5%** over 2,300+ real tracks (download+tag+cover validated end-to-end on
-  all five), **SoundCloud search**, **14 UI languages**, **backend logging**,
-  **resumable downloads**, and release-polish (first-run state, sectioned
-  Settings, lazy-loaded locales). (v1.9.x: immersive VR, the queue, hardening.)
-- **Unreleased (v2.1.0, in dev):** a process-wide **single-download lock** (no two
+- **Current release:** **v2.1.0** — a process-wide **single-download lock** (no two
   engines collide on the same `.part`), a **dynamic backend port** (falls back when
   8756 is taken), **persisted subtitle/chapter defaults**, a collapsible **"Advanced
-  options"** in the preview, plus accessibility/perf polish (accessible re-tag
-  dialog, `Select` `aria-activedescendant`, lazy-loaded modals, cancel during
-  post-processing).
+  options"** in the preview, **full progress detail** (percent · speed · ETA) on
+  music and queue downloads, **SSRF-hardened** music-import fetches, plus
+  accessibility/perf polish (accessible re-tag dialog, `Select`
+  `aria-activedescendant`, lazy-loaded modals, cancel during post-processing).
+- **Previously (v2.0.0):** keyless **music import from five services**
+  (Spotify/Deezer/Apple/Tidal/Amazon) with a spotDL-ported YouTube matcher at
+  **~99.5%** over 2,300+ real tracks, **SoundCloud search**, **14 UI languages**,
+  **backend logging**, **resumable downloads**. (v1.9.x: immersive VR, the queue,
+  hardening.)
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
 - **Health:** backend (pytest) + frontend (vitest) green · `npm audit` 0 · strict TS.
@@ -239,10 +239,10 @@ also in *Next up* are the urgent ones.)
   "blocked, try cookies", format unavailable, …) before showing them / saving to history.
 - ⬜ **Pre-flight free-disk-space check** (S) — `shutil.disk_usage` before a download
   starts; fail early with a clear message instead of mid-download.
-- ⬜ **Route music-import fetches through `safe_http`** (S/M) — `_get`/`_final_url` in
-  `music_import.py` use a bare `urlopen`; move them onto `core/safe_http.fetch_public`
-  (IP-pinned, redirect-revalidating) for defense-in-depth. *(The SSRF steering vector is
-  already closed by host-anchored URL detection; this hardens the redirect-follow path.)*
+- ✅ **Route music-import fetches through `safe_http`** *(v2.1.0)* — `_get`/`_get_json`/
+  `_final_url` now use `core/safe_http` (`fetch_public` + the pinned `OPENER`): the
+  resolved public IP is pinned and every redirect hop re-validated, on top of the
+  host-anchored URL detection.
 - ⬜ **Cancel a queued download blocked on the download lock when the client disconnects**
   (S) — a second concurrent job (e.g. a second web tab) currently awaits the process-wide
   lock without noticing a disconnect; race the acquire against the cancel signal.
