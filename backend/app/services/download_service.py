@@ -370,6 +370,67 @@ def _final_path(info: dict[str, Any]) -> str | None:
     return None
 
 
+# A substring (matched against the lowercased raw yt-dlp error) → a clearer,
+# user-facing message. Most-specific first; the first match wins.
+_ERROR_HINTS: tuple[tuple[str, str], ...] = (
+    (
+        "confirm you're not a bot",
+        "The site is blocking automated access. Try again later, or point Yoink "
+        "at your browser in Settings → cookies.",
+    ),
+    ("http error 429", "The site is rate-limiting downloads — wait a bit and try again."),
+    (
+        "http error 403",
+        "Access was forbidden (403), often an anti-bot block. Try again, or set "
+        "your browser in Settings → cookies.",
+    ),
+    (
+        "forbidden",
+        "Access was forbidden (403), often an anti-bot block. Try again, or set "
+        "your browser in Settings → cookies.",
+    ),
+    (
+        "requested format is not available",
+        "The chosen quality/format isn't available for this video — try another.",
+    ),
+    (
+        "private video",
+        "This is a private video — it needs an account with access (Settings → cookies).",
+    ),
+    (
+        "members-only",
+        "This video is members-only — it needs an account (Settings → cookies).",
+    ),
+    ("video unavailable", "This video is unavailable."),
+    ("not available in your country", "This video is geo-blocked in your region."),
+    ("unable to extract", "Couldn't read this page — the site may have changed or the link is wrong."),
+    ("unsupported url", "This URL isn't supported."),
+    ("no video formats found", "No downloadable formats were found for this URL."),
+)
+
+
+def friendly_download_error(raw: str) -> str:
+    """Turn a raw yt-dlp error into a concise, user-facing message.
+
+    Drops yt-dlp's ``ERROR:`` / ``[extractor]`` prefix and the "Please report
+    this issue …" boilerplate, maps well-known failures to clearer guidance,
+    and otherwise returns the cleaned first line (capped).
+    """
+    text = re.split(
+        r"\bplease report this issue\b", raw.strip(), maxsplit=1, flags=re.IGNORECASE
+    )[0].strip()
+    low = text.lower()
+    for marker, message in _ERROR_HINTS:
+        if marker in low:
+            return message
+    text = re.sub(r"^ERROR:\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^\[[^\]]+\]\s*", "", text)  # drop a "[youtube]" extractor tag
+    text = re.sub(r"^[\w-]{6,}:\s*", "", text)  # drop a leading video id, "dQw4…:"
+    lines = text.splitlines()
+    first = lines[0].strip() if lines else text
+    return first[:300] or raw.strip()
+
+
 async def download_events(
     request: DownloadRequest,
     cancel_event: threading.Event | None = None,
@@ -479,7 +540,7 @@ async def download_events(
             if cancel_event is not None and cancel_event.is_set():
                 return
             logger.error("Download failed for %s: %s", request.url, exc)
-            yield ErrorEvent(message=str(exc))
+            yield ErrorEvent(message=friendly_download_error(str(exc)))
             return
         except Exception as exc:  # noqa: BLE001 — surface any failure to the client.
             logger.exception("Unexpected download error for %s", request.url)
