@@ -11,6 +11,11 @@
 
 ## 📍 Status
 
+- **Unreleased (next):** **resumable playlist downloads** (the panel batch
+  persists + offers resume on relaunch), VR follow-ups (**Spherical V1** for 360°,
+  **MKV StereoMode**, **post-tag ffprobe validation**), **friendlier yt-dlp error
+  messages**, and **non-Western title parsing** for auto-tag (K-pop quotes /
+  Bollywood pipes).
 - **Current release:** **v2.1.0** — a process-wide **single-download lock** (no two
   engines collide on the same `.part`), a **dynamic backend port** (falls back when
   8756 is taken), **persisted subtitle/chapter defaults**, a collapsible **"Advanced
@@ -161,12 +166,12 @@ Not committed and not release-ordered — picked from as capacity allows.
 *Surfaced testing real YouTube Music "Hits" mixes (`RD…`) and curated `PL` lists —
 extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 `truncated` flag); these are curation/scale/persistence gaps.*
-- ⬜ **Persistent playlist downloads** (M · **high**) — a playlist batch runs through
-  the in-panel flow (`DownloaderPanel` `startQueue`/`runJob`), **not** the
-  persistent queue, so a 144-track download has **no resume**: closing /
-  refreshing / a crash loses all progress. Route playlist batches through the
-  persistent queue (or persist the batch + offer resume). The standout gap for
-  big lists; overlaps with *Resume partial downloads* and the engine-unify big bet.
+- ✅ **Persistent playlist downloads** *(next)* — the in-panel batch
+  (`DownloaderPanel` `startQueue`/`runJob`) now persists to `localStorage`
+  (`lib/batchStore`: jobs + a done count), so a close / refresh / crash no longer
+  loses a multi-item playlist. On the next launch a banner offers to resume the
+  pending items through the same flow (keeping the rich preview + batch
+  auto-tagging that routing into the queue would have lost).
 - ⬜ **Filter/search within the entry list** (S) — up to 200 items scroll in a fixed
   `max-h` box with no filter; add a "filter tracks…" input to narrow the list.
 - ⬜ **Range + smarter selection** (S) — only select-all/none today; add shift-click
@@ -184,14 +189,13 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   those (the single-job retry exists; extend it per failed playlist item).
 
 ### 🎵 Audio library
-- ⬜ **Auto-tag title parsing for non-Western formats** (M) — the filename noise
-  stripper now cleans **~93%** of real popular-playlist titles (English/Spanish/
-  French "(Official Video)/(Vídeo Oficial)/(Clip officiel)", a "| album/label"
-  suffix, "M/V", wrapping quotes, "(Explicit)"). The ~7% tail that still leaks has
-  **no "Artist - Title" structure** — K-pop (`ARTIST 'TITLE' MV`), Bollywood
-  (`Song | Movie | Cast`), quoted-title headers — so artist/title can't be split
-  reliably. Needs format-aware heuristics (or fingerprint-based identify);
-  meanwhile the manual edit/search in the tag card covers it.
+- ✅ **Auto-tag title parsing for non-Western formats** *(next)* — on top of the
+  noise stripper (~93% of titles), the no-dash path now reads two more shapes:
+  K-pop `ARTIST 'TITLE'` / `ARTIST "TITLE"` (quoted run = title, preceded text =
+  artist; a possessive apostrophe isn't mistaken for a quote) and Bollywood
+  `Title | Movie | Cast | …` (≥3 pipe segments → take the leading song). The
+  manual edit/search in the tag card still covers the rest; fingerprint-based
+  identify remains a possible future upgrade.
 - ⬜ **Embed source thumbnail as cover** on audio (S).
 - ⬜ **Lyrics in auto-tagging** (L) — LRCLIB (free, no key).
 - ⬜ **Media-server naming presets** (S) — Jellyfin/Plex/Navidrome layouts.
@@ -234,9 +238,11 @@ also in *Next up* are the urgent ones.)
 - ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
   frontend `estimatedSizeBytes`/`formatBytes`.
 - ⬜ **PyInstaller `--onedir`** (M) — faster cold start (no per-launch re-extraction).
-- ⬜ **Friendlier download/extraction error messages** (S) — strip the raw yt-dlp
-  `ERROR:`/`[extractor]`/"report this issue" noise and map common cases (anti-bot/403 →
-  "blocked, try cookies", format unavailable, …) before showing them / saving to history.
+- ✅ **Friendlier download/extraction error messages** *(next)* —
+  `friendly_download_error()` strips the `ERROR:`/`[extractor]`/"report this issue"
+  noise and maps the common cases (bot-check/403/429 → cookies hint, private/
+  members-only, unavailable, geo-block, unsupported URL, bad format) before the
+  message reaches the WS / history (the full text is still logged).
 - ⬜ **Pre-flight free-disk-space check** (S) — `shutil.disk_usage` before a download
   starts; fail early with a clear message instead of mid-download.
 - ✅ **Route music-import fetches through `safe_http`** *(v2.1.0)* — `_get`/`_get_json`/
@@ -252,11 +258,17 @@ also in *Next up* are the urgent ones.)
 
 ## 🥽 VR follow-ups
 
-- ⬜ **Spherical Video V1** (uuid XML) (M) — for older players + YouTube re-upload,
-  which expect the legacy XML blob alongside the V2 boxes.
-- ⬜ **MKV `StereoMode` tag** (M · low) — MKV currently gets only the name suffix.
-- ⬜ **Fisheye/EAC projection box** (M · low) — 5 of 11 layouts are name-suffix only.
-- ⬜ **Post-tag ffprobe validation** (S) — confirm a player will read the boxes.
+- ✅ **Spherical Video V1** (uuid XML) *(next)* — injected into the video trak for
+  360° equirect layouts (alongside the V2 boxes), for older players + YouTube
+  re-upload. Scoped to 360° because V1 predates 180° VR and would mislabel it.
+- ✅ **MKV `StereoMode` tag** *(next)* — set via a stream-copy ffmpeg remux
+  (left_right / top_bottom); MKV has no Spherical V2 boxes.
+- ✅ **Post-tag ffprobe validation** *(next)* — after tagging an MP4, confirm
+  ffprobe reads the spherical / stereo-3D side data; log a warning if not.
+- 🚫 **Fisheye/EAC projection box** — *not feasible as a projection box.* Spherical
+  V2 has no fisheye projection type (only equirect / cubemap / mesh); the fisheye
+  layouts are signalled by the filename suffix players already parse. Emitting an
+  equirect box for a fisheye file would distort it, so it stays suffix + `st3d`.
 - ⬜ **VR-studio list as versioned data** (S · low) — not a hardcoded tuple.
 
 ---
