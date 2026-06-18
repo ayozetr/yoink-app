@@ -85,6 +85,9 @@ export const en = {
     dismiss: "Dismiss",
   },
   panel: {
+    resumeTitle: "{{count}} downloads left unfinished",
+    resume: "Resume",
+    resumeDismiss: "Discard",
     emptyTitle: "Ready to download",
     emptyHint: "Paste a link above, or type to search YouTube or SoundCloud.",
     analyzeError: "An unexpected error occurred while analyzing the URL.",

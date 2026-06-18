@@ -85,6 +85,9 @@ export const hi = {
     dismiss: "खारिज करें",
   },
   panel: {
+    resumeTitle: "{{count}} डाउनलोड अधूरे रह गए",
+    resume: "फिर से शुरू करें",
+    resumeDismiss: "खारिज करें",
     emptyTitle: "डाउनलोड के लिए तैयार",
     emptyHint: "ऊपर एक लिंक पेस्ट करें, या YouTube या SoundCloud पर खोजने के लिए टाइप करें।",
     analyzeError: "URL का विश्लेषण करते समय एक अप्रत्याशित त्रुटि हुई।",

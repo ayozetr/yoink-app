@@ -85,6 +85,9 @@ export const zh = {
     dismiss: "忽略",
   },
   panel: {
+    resumeTitle: "{{count}} 个未完成的下载",
+    resume: "继续",
+    resumeDismiss: "放弃",
     emptyTitle: "准备下载",
     emptyHint: "在上方粘贴链接，或输入关键词在 YouTube 或 SoundCloud 中搜索。",
     analyzeError: "解析此链接时发生意外错误。",

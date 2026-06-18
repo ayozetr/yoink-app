@@ -85,6 +85,9 @@ export const it = {
     dismiss: "Ignora",
   },
   panel: {
+    resumeTitle: "{{count}} download non completati",
+    resume: "Riprendi",
+    resumeDismiss: "Ignora",
     emptyTitle: "Pronto per scaricare",
     emptyHint: "Incolla un link qui sopra, oppure scrivi per cercare su YouTube o SoundCloud.",
     analyzeError: "Si è verificato un errore imprevisto durante l'analisi dell'URL.",

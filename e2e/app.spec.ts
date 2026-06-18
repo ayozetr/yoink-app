@@ -168,6 +168,29 @@ test("opens the settings modal", async ({ page }) => {
   );
 });
 
+test("offers to resume an unfinished batch", async ({ page }) => {
+  await mockBase(page);
+  // Seed a batch left half-done (1 of 2) before the app boots.
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "yoink-batch",
+      JSON.stringify({
+        jobs: [
+          { request: { url: "http://x/a", kind: "audio" }, title: "Track A" },
+          { request: { url: "http://x/b", kind: "audio" }, title: "Track B" },
+        ],
+        done: 1,
+      }),
+    );
+  });
+  await page.goto("/");
+
+  // One pending item → the resume banner appears; Discard clears it.
+  await expect(page.getByRole("button", { name: "Reanudar" })).toBeVisible();
+  await page.getByRole("button", { name: "Descartar" }).click();
+  await expect(page.getByRole("button", { name: "Reanudar" })).toHaveCount(0);
+});
+
 test("clears the history", async ({ page }) => {
   await mockBase(page, {
     history: [

@@ -85,6 +85,9 @@ export const pt = {
     dismiss: "Dispensar",
   },
   panel: {
+    resumeTitle: "{{count}} downloads não concluídos",
+    resume: "Retomar",
+    resumeDismiss: "Descartar",
     emptyTitle: "Pronto para baixar",
     emptyHint: "Cole um link acima, ou digite para pesquisar no YouTube ou SoundCloud.",
     analyzeError: "Ocorreu um erro inesperado ao analisar a URL.",

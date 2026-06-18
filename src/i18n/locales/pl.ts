@@ -85,6 +85,9 @@ export const pl = {
     dismiss: "Odrzuć",
   },
   panel: {
+    resumeTitle: "{{count}} nieukończonych pobrań",
+    resume: "Wznów",
+    resumeDismiss: "Odrzuć",
     emptyTitle: "Gotowe do pobrania",
     emptyHint: "Wklej link powyżej lub wpisz tekst, aby wyszukać w YouTube lub SoundCloud.",
     analyzeError: "Wystąpił nieoczekiwany błąd podczas analizy adresu URL.",

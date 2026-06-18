@@ -85,6 +85,9 @@ export const uk = {
     dismiss: "Сховати",
   },
   panel: {
+    resumeTitle: "{{count}} незавершених завантажень",
+    resume: "Відновити",
+    resumeDismiss: "Відхилити",
     emptyTitle: "Готово до завантаження",
     emptyHint: "Вставте посилання вище або почніть вводити, щоб шукати на YouTube чи SoundCloud.",
     analyzeError: "Під час аналізу URL сталася неочікувана помилка.",

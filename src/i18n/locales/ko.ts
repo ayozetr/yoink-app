@@ -85,6 +85,9 @@ export const ko = {
     dismiss: "닫기",
   },
   panel: {
+    resumeTitle: "완료되지 않은 다운로드 {{count}}개",
+    resume: "재개",
+    resumeDismiss: "무시",
     emptyTitle: "다운로드 준비 완료",
     emptyHint: "위에 링크를 붙여넣거나, 입력하여 YouTube 또는 SoundCloud에서 검색하세요.",
     analyzeError: "URL을 분석하는 중 예기치 않은 오류가 발생했습니다.",

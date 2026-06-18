@@ -85,6 +85,9 @@ export const ru = {
     dismiss: "Скрыть",
   },
   panel: {
+    resumeTitle: "{{count}} незавершённых загрузок",
+    resume: "Возобновить",
+    resumeDismiss: "Отклонить",
     emptyTitle: "Готово к загрузке",
     emptyHint: "Вставьте ссылку выше или начните вводить, чтобы искать на YouTube или SoundCloud.",
     analyzeError: "При анализе URL произошла непредвиденная ошибка.",

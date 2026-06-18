@@ -26,6 +26,7 @@ import { loadSearchSource, persistSearchSource } from "../../lib/searchSource";
 import { MusicImportCard } from "../music/MusicImportCard";
 import type { MusicImportInfo } from "../../types/music";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
+import { clearBatch, loadPendingBatch, saveBatch } from "../../lib/batchStore";
 import {
   acquireDownloadLock,
   releaseDownloadLock,
@@ -130,6 +131,13 @@ export function DownloaderPanel({
   const [lastKind, setLastKind] = useState<MediaKind | null>(null);
   // Audio files from a finished playlist, for the batch tagging card.
   const [batchItems, setBatchItems] = useState<TagItem[]>([]);
+  // A batch left unfinished by a previous session (persisted), offered for resume.
+  // Read once at mount from localStorage so an interrupted multi-item download
+  // can be picked up where it stopped.
+  const [resumeJobs, setResumeJobs] = useState<DownloadJob[] | null>(() => {
+    const pending = loadPendingBatch();
+    return pending.length > 0 ? pending : null;
+  });
 
   const requestRef = useRef<AbortController | null>(null);
   const downloadRef = useRef<DownloadHandle | null>(null);
@@ -139,6 +147,8 @@ export function DownloaderPanel({
   const audioPathsRef = useRef<TagItem[]>([]);
 
   // Tear down the socket + free the lock if the panel unmounts mid-download.
+  // Note: this does NOT clear the persisted batch — that's the point, so an
+  // interrupted multi-item download can be resumed on the next launch.
   useEffect(
     () => () => {
       downloadRef.current?.cancel();
@@ -151,6 +161,8 @@ export function DownloaderPanel({
     downloadRef.current?.cancel();
     downloadRef.current = null;
     releaseDownloadLock("downloader");
+    clearBatch();
+    setResumeJobs(null);
     queueRef.current = [];
     resultsRef.current = [];
     setProgress(null);
@@ -180,6 +192,7 @@ export function DownloaderPanel({
     const jobs = queueRef.current;
     if (index >= jobs.length) {
       releaseDownloadLock("downloader");
+      clearBatch(); // whole batch finished — nothing left to resume
       setDownloading(false);
       setProgress(null);
       setWindowProgress(null);
@@ -236,6 +249,8 @@ export function DownloaderPanel({
           resultsRef.current.push(false);
           if (jobs.length === 1) setDownloadError(event.message);
         }
+        // Persist progress so a close/crash resumes from the next item.
+        saveBatch(jobs, resultsRef.current.length);
         runJob(index + 1);
       },
       onClose: () => {
@@ -247,6 +262,7 @@ export function DownloaderPanel({
         if (jobs.length === 1) {
           setDownloadError(t("errors.downloadConnectionLost"));
         }
+        saveBatch(jobs, resultsRef.current.length);
         runJob(index + 1);
       },
     });
@@ -262,6 +278,7 @@ export function DownloaderPanel({
     queueRef.current = jobs;
     lastJobsRef.current = jobs;
     resultsRef.current = [];
+    saveBatch(jobs, 0); // persist so the batch survives a close mid-run
     setQueueTotal(jobs.length);
     runJob(0);
   };
@@ -358,6 +375,15 @@ export function DownloaderPanel({
     if (lastJobsRef.current.length > 0) startQueue(lastJobsRef.current);
   };
 
+  // Resume / discard a batch left unfinished by a previous session.
+  const handleResume = () => {
+    if (resumeJobs && resumeJobs.length > 0) startQueue(resumeJobs);
+  };
+  const handleDismissResume = () => {
+    setResumeJobs(null);
+    clearBatch();
+  };
+
   return (
     <>
       <DownloaderHeader
@@ -383,6 +409,34 @@ export function DownloaderPanel({
         loading={loading}
       />
 
+      {resumeJobs && resumeJobs.length > 0 && !downloading && (
+        <GlassPanel className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2 text-sm text-zinc-200">
+              <RotateCw size={16} className="shrink-0 text-violet-400" />
+              {t("panel.resumeTitle", { count: resumeJobs.length })}
+            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResume}
+                className="flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-600/10 px-3 py-1.5 text-sm text-white transition hover:bg-violet-600/20"
+              >
+                <RotateCw size={14} />
+                {t("panel.resume")}
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissResume}
+                className="text-sm text-zinc-400 transition hover:text-white"
+              >
+                {t("panel.resumeDismiss")}
+              </button>
+            </div>
+          </div>
+        </GlassPanel>
+      )}
+
       {!loading &&
         !error &&
         !info &&
@@ -391,6 +445,7 @@ export function DownloaderPanel({
         !completed &&
         !downloading &&
         batchItems.length === 0 &&
+        !resumeJobs &&
         !summary &&
         !downloadError && (
           <GlassPanel className="flex flex-col items-center gap-3 px-6 py-12 text-center">

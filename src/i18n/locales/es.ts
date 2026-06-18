@@ -85,6 +85,9 @@ export const es = {
     dismiss: "Descartar",
   },
   panel: {
+    resumeTitle: "{{count}} descargas sin terminar",
+    resume: "Reanudar",
+    resumeDismiss: "Descartar",
     emptyTitle: "Listo para descargar",
     emptyHint: "Pega un enlace arriba, o escribe para buscar en YouTube o SoundCloud.",
     analyzeError: "Ocurrió un error inesperado al analizar la URL.",

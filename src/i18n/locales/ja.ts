@@ -85,6 +85,9 @@ export const ja = {
     dismiss: "閉じる",
   },
   panel: {
+    resumeTitle: "未完了のダウンロードが {{count}} 件",
+    resume: "再開",
+    resumeDismiss: "破棄",
     emptyTitle: "ダウンロードの準備完了",
     emptyHint: "上にリンクを貼り付けるか、入力して YouTube や SoundCloud を検索します。",
     analyzeError: "URL の解析中に予期しないエラーが発生しました。",

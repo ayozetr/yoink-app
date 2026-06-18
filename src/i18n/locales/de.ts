@@ -85,6 +85,9 @@ export const de = {
     dismiss: "Verwerfen",
   },
   panel: {
+    resumeTitle: "{{count}} unfertige Downloads",
+    resume: "Fortsetzen",
+    resumeDismiss: "Verwerfen",
     emptyTitle: "Bereit zum Herunterladen",
     emptyHint: "Füge oben einen Link ein oder tippe, um YouTube oder SoundCloud zu durchsuchen.",
     analyzeError: "Beim Analysieren der URL ist ein unerwarteter Fehler aufgetreten.",

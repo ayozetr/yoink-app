@@ -85,6 +85,9 @@ export const id = {
     dismiss: "Tutup",
   },
   panel: {
+    resumeTitle: "{{count}} unduhan belum selesai",
+    resume: "Lanjutkan",
+    resumeDismiss: "Buang",
     emptyTitle: "Siap mengunduh",
     emptyHint: "Tempel tautan di atas, atau ketik untuk mencari di YouTube atau SoundCloud.",
     analyzeError: "Terjadi kesalahan tak terduga saat menganalisis URL.",

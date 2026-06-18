@@ -85,6 +85,9 @@ export const fr = {
     dismiss: "Ignorer",
   },
   panel: {
+    resumeTitle: "{{count}} téléchargements inachevés",
+    resume: "Reprendre",
+    resumeDismiss: "Ignorer",
     emptyTitle: "Prêt à télécharger",
     emptyHint: "Collez un lien ci-dessus, ou tapez pour rechercher sur YouTube ou SoundCloud.",
     analyzeError: "Une erreur inattendue s'est produite lors de l'analyse de l'URL.",
