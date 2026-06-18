@@ -21,10 +21,17 @@ damage the user's video — it just keeps the (already working) name suffix.
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Literal
+
+from app.core.ffmpeg import ffmpeg_location, ffprobe_path
+
+logger = logging.getLogger(__name__)
 
 # Stereo + projection layouts we recognise. The default for an unqualified VR
 # hit is 180° side-by-side, by far the most common immersive layout.
@@ -593,6 +600,172 @@ def inject_spherical_metadata(path: Path, layout: str) -> bool:
     return True
 
 
+# ── ffprobe validation + MKV StereoMode ────────────────────────────────────
+
+# ffmpeg `stereo_mode` metadata value per st3d stereo mode (for MKV StereoMode).
+_MKV_STEREO_MODE: dict[int, str] = {
+    _STEREO_LR: "left_right",
+    _STEREO_TB: "top_bottom",
+}
+
+
+def _ffmpeg_exe() -> str:
+    """Path to ffmpeg: the bundled one when packaged, else 'ffmpeg' on PATH."""
+    loc = ffmpeg_location()
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    return str(Path(loc) / exe) if loc else exe
+
+
+def has_spherical_metadata(path: Path) -> bool | None:
+    """Whether ffprobe reads spherical / stereo-3D side data off the video.
+
+    Returns True/False, or None when ffprobe is unavailable or errors — callers
+    treat None as "unknown", never as a failure. Lets us confirm, after tagging,
+    that a player will actually see the boxes we wrote.
+    """
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_path(), "-v", "error", "-select_streams", "v:0",
+                "-show_streams", "-print_format", "json", str(path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        data = json.loads(result.stdout)
+    except ValueError:
+        return None
+    for stream in data.get("streams", []):
+        for side_data in stream.get("side_data_list") or []:
+            if side_data.get("side_data_type") in ("Spherical Mapping", "Stereo 3D"):
+                return True
+    return False
+
+
+def set_mkv_stereo_mode(path: Path, layout: str) -> bool:
+    """Set the Matroska StereoMode on an MKV's video track (stream-copy remux).
+
+    MKV carries no Spherical V2 boxes, so StereoMode is its stereo-3D signal.
+    Mono needs none. Best-effort + atomic: any failure leaves the file (with its
+    projection name suffix) untouched. Returns True if it was set.
+    """
+    spec = _LAYOUTS[normalize_layout(layout)]
+    mode = _MKV_STEREO_MODE.get(int(spec["stereo"]))  # type: ignore[arg-type]
+    if mode is None:  # mono (or unknown) — nothing to signal
+        return False
+    tmp = path.with_name(path.name + ".vrtmp.mkv")
+    try:
+        result = subprocess.run(
+            [
+                _ffmpeg_exe(), "-y", "-loglevel", "error", "-i", str(path),
+                "-map", "0", "-c", "copy",
+                "-metadata:s:v:0", f"stereo_mode={mode}", str(tmp),
+            ],
+            capture_output=True,
+            timeout=1800,
+        )
+        if result.returncode != 0 or not tmp.exists() or tmp.stat().st_size == 0:
+            tmp.unlink(missing_ok=True)
+            return False
+    except (OSError, subprocess.SubprocessError):
+        tmp.unlink(missing_ok=True)
+        return False
+    os.replace(tmp, path)
+    return True
+
+
+# ── Spherical Video V1 (legacy uuid/XML) ───────────────────────────────────
+
+# The well-known UUID that marks a Spherical Video V1 metadata box.
+_SPHERICAL_V1_UUID = bytes.fromhex("ffcc8263f8554a938814587a02521fdd")
+
+
+def _spherical_v1_xml(layout: str) -> bytes | None:
+    """Spherical Video V1 RDF/XML for a 360° equirect layout, else None.
+
+    V1 predates 180° VR and models only a full equirect sphere, so emitting it
+    for a 180°/fisheye file would mislabel it — return None there. Kept for older
+    players and YouTube re-upload, which read the legacy blob alongside V2.
+    """
+    spec = _LAYOUTS[normalize_layout(layout)]
+    if not spec["equirect"] or spec["deg"] != 360:
+        return None
+    mode = {_STEREO_MONO: "mono", _STEREO_LR: "left-right", _STEREO_TB: "top-bottom"}[
+        int(spec["stereo"])  # type: ignore[arg-type]
+    ]
+    xml = (
+        '<?xml version="1.0"?>'
+        "<rdf:SphericalVideo "
+        'xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" '
+        'xmlns:GSpherical="http://ns.google.com/videos/1.0/spherical/">'
+        "<GSpherical:Spherical>true</GSpherical:Spherical>"
+        "<GSpherical:Stitched>true</GSpherical:Stitched>"
+        "<GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType>"
+        f"<GSpherical:StereoMode>{mode}</GSpherical:StereoMode>"
+        "<GSpherical:StitchingSoftware>Yoink</GSpherical:StitchingSoftware>"
+        "</rdf:SphericalVideo>"
+    )
+    return xml.encode("utf-8")
+
+
+def inject_spherical_v1(path: Path, layout: str) -> bool:
+    """Inject the legacy Spherical Video V1 ``uuid`` box into the video trak.
+
+    360°-equirect only (see :func:`_spherical_v1_xml`). Streamed + atomic like
+    the V2 injector, reusing its helpers; the box is appended as the last child
+    of the video trak. Returns True if added, False if not applicable / already
+    present / untaggable.
+    """
+    payload = _spherical_v1_xml(layout)
+    if payload is None:
+        return False
+    filesize = path.stat().st_size
+    with path.open("rb") as f:
+        try:
+            moov_off, moov = _read_moov(f, filesize)
+            if _SPHERICAL_V1_UUID in moov:
+                return False  # already carries V1
+            _, ancestors, chunk_boxes = _locate_video_sample_entry(moov)
+            trak_off, trak_size, trak_hdr = ancestors[5]  # video trak
+            moov_o, moov_size, moov_hdr = ancestors[6]
+            insert = trak_off + trak_size  # right after the trak's children
+            box = _box(b"uuid", _SPHERICAL_V1_UUID + payload)
+            delta = len(box)
+
+            buf = bytearray(moov)
+            _patch_size(buf, trak_off, trak_size, trak_hdr, delta)
+            _patch_size(buf, moov_o, moov_size, moov_hdr, delta)
+            threshold = moov_off + insert
+            for cbox in chunk_boxes:
+                _patch_chunk_offsets(buf, cbox, threshold, delta)
+            new_moov = bytes(buf[:insert]) + box + bytes(buf[insert:])
+        except _SphericalInjectError:
+            return False
+
+        tmp = path.with_name(path.name + ".v1tmp")
+        expected = filesize + delta
+        try:
+            with tmp.open("wb") as out:
+                _copy_range(f, out, 0, moov_off)
+                out.write(new_moov)
+                _copy_range(f, out, moov_off + len(moov), filesize)
+                out.flush()
+                os.fsync(out.fileno())
+            if tmp.stat().st_size != expected:
+                raise _SphericalInjectError("output size mismatch")
+        except (OSError, _SphericalInjectError):
+            tmp.unlink(missing_ok=True)
+            return False
+    os.replace(tmp, path)
+    return True
+
+
 def apply_vr(path: Path, layout: str) -> Path:
     """Tag a finished video as VR: add the projection suffix + spherical boxes.
 
@@ -614,12 +787,28 @@ def apply_vr(path: Path, layout: str) -> Path:
             except OSError:
                 final = path
 
-    # Box metadata is ISO-BMFF (MP4/MOV share the structure); MKV keeps only the
-    # suffix (no st3d/sv3d there). The injector bails safely on anything it can't
-    # parse, so this is best-effort even for .mov.
-    if final.suffix.lower() in (".mp4", ".m4v", ".mov"):
+    # Box metadata is ISO-BMFF (MP4/MOV share the structure): Spherical Video V2
+    # (st3d/sv3d) plus the legacy V1 uuid/XML for 360° (older players / YouTube
+    # re-upload). MKV has no such boxes, so it gets the Matroska StereoMode tag
+    # instead. Everything here is best-effort — the injectors bail safely on
+    # anything they can't parse, leaving the (valid) file + name suffix intact.
+    suffix_lower = final.suffix.lower()
+    if suffix_lower in (".mp4", ".m4v", ".mov"):
         try:
             inject_spherical_metadata(final, layout)
+            inject_spherical_v1(final, layout)  # 360°-only; a no-op otherwise
         except Exception:  # noqa: BLE001 — never let tagging break a good file.
+            pass
+        # Confirm a player will actually read the boxes. A definite False (not
+        # None = ffprobe unavailable) means tagging didn't take — log it; the
+        # file and its projection suffix are still valid.
+        if has_spherical_metadata(final) is False:
+            logger.warning(
+                "VR metadata not detected by ffprobe after tagging %s", final.name
+            )
+    elif suffix_lower == ".mkv":
+        try:
+            set_mkv_stereo_mode(final, layout)
+        except Exception:  # noqa: BLE001
             pass
     return final

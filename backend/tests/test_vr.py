@@ -503,3 +503,57 @@ def test_apply_vr_fisheye_suffix_only(tmp_path: Path):
     se = _video_sample_entry_bytes(result.read_bytes())
     assert b"st3d" in se  # stereo still tagged
     assert b"sv3d" not in se  # but no spherical projection
+
+
+# ── V1 / MKV / ffprobe-validation follow-ups ────────────────────────────────
+
+
+def test_spherical_v1_xml_only_for_360_equirect():
+    # V1 predates 180° VR — it must only be emitted for full 360° equirect.
+    assert vr._spherical_v1_xml("180_sbs") is None
+    assert vr._spherical_v1_xml("180_mono") is None
+    assert vr._spherical_v1_xml("fisheye190") is None
+    assert vr._spherical_v1_xml("mkx200") is None
+    sbs = vr._spherical_v1_xml("360_sbs")
+    assert sbs is not None and b"left-right" in sbs and b"equirectangular" in sbs
+    assert b"top-bottom" in (vr._spherical_v1_xml("360_tb") or b"")
+    assert b"mono" in (vr._spherical_v1_xml("360_mono") or b"")
+
+
+def test_inject_v1_moov_first_repairs_offsets(tmp_path: Path):
+    data, stco_off = _build_mp4(moov_first=True)
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(data)
+    before = _ancestor_sizes(data)  # [se, stsd, stbl, minf, mdia, trak, moov]
+
+    assert vr.inject_spherical_v1(path, "360_mono") is True
+    out = path.read_bytes()
+    delta = len(out) - len(data)
+    assert delta > 0
+
+    # The legacy uuid box + RDF/XML landed.
+    assert vr._SPHERICAL_V1_UUID in out and b"GSpherical:Spherical" in out
+    # It's a trak-level box: only the trak and moov grew; deeper boxes didn't.
+    after = _ancestor_sizes(out)
+    assert after[:5] == before[:5]
+    assert after[5] == before[5] + delta  # trak
+    assert after[6] == before[6] + delta  # moov
+    # moov precedes mdat here, so the chunk offset was repaired by delta.
+    assert _read_video_stco(out) == stco_off + delta
+    # Box tree still fills exactly, and a second pass is a no-op.
+    _assert_tree_fills(out, 0, len(out), 0)
+    assert vr.inject_spherical_v1(path, "360_mono") is False
+    # Not applicable to a 180° layout.
+    assert vr.inject_spherical_v1(path, "180_sbs") is False
+
+
+def test_set_mkv_stereo_mode_mono_is_noop():
+    # Mono has no StereoMode to signal, so it returns early without ffmpeg.
+    assert vr.set_mkv_stereo_mode(Path("/nonexistent.mkv"), "360_mono") is False
+
+
+def test_has_spherical_metadata_none_without_ffprobe(tmp_path: Path, monkeypatch):
+    f = tmp_path / "x.mp4"
+    f.write_bytes(b"\x00" * 32)
+    monkeypatch.setattr(vr, "ffprobe_path", lambda: "/nonexistent/ffprobe-xyz")
+    assert vr.has_spherical_metadata(f) is None
