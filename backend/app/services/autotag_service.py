@@ -346,6 +346,31 @@ def guess_from_filename(name: str) -> tuple[str, str]:
         # separator — drop it. Only safe here, with the artist already known.
         title = re.sub(r"\s*[|｜].*$", "", _strip_noise(match.group(2))).strip()
         return _strip_noise(match.group(1)), title or _strip_noise(match.group(2))
+
+    # No "Artist - Title" dash — try a couple of non-Western shapes before
+    # giving up and treating the whole thing as a title.
+    #
+    # K-pop & friends: ``ARTIST 'TITLE'`` / ``ARTIST "TITLE"`` — the quoted run is
+    # the title, the text before it the artist. The open-quote must follow a space
+    # (not a letter), so a possessive apostrophe ("Destiny's") isn't mistaken for
+    # a title quote.
+    quoted = re.search(r"(?:^|\s)(['‘\"“])([^'’\"”]{2,})['’\"”]", base)
+    if quoted and quoted.start(1) > 0:
+        artist = _strip_noise(base[: quoted.start(1)])
+        title = _strip_noise(quoted.group(2))
+        if artist and title:
+            return artist, title
+
+    # Indian / other Asian uploads: ``Title | Movie | Cast | Singers`` — the song
+    # leads and the rest is movie/cast/label noise. Two-plus pipes is a strong
+    # signal of that shape; a single "A | B" stays put (the pipe might be the
+    # artist/title separator), so only take the first segment when there are ≥3.
+    parts = base.split("|")
+    if len(parts) >= 3:
+        first = _strip_noise(parts[0])
+        if first:
+            return "", first
+
     return "", _strip_noise(base)
 
 

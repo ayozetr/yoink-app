@@ -112,6 +112,16 @@ class _FakeResponse:
         ("Artist - Video Games.mp3", "Artist", "Video Games"),
         ("Artist - Kill the Video.mp3", "Artist", "Kill the Video"),
         ("Artist - Live at Wembley.mp3", "Artist", "Live at Wembley"),
+        # Non-Western shapes with NO "Artist - Title" dash:
+        # K-pop "ARTIST 'TITLE' MV" (straight quotes) and "ARTIST \"TITLE\"" (double).
+        ("aespa 'Whiplash' MV.mp3", "aespa", "Whiplash"),
+        ('IVE "HEYA" Official MV.m4a', "IVE", "HEYA"),
+        # A possessive apostrophe must NOT be read as a title quote.
+        ("Destiny's Child Independent Women.mp3", "", "Destiny's Child Independent Women"),
+        # Bollywood "Title | Movie | Cast | …" (≥3 segments → take the song).
+        ("Kesariya | Brahmastra | Ranbir Kapoor | Alia Bhatt.mp3", "", "Kesariya"),
+        # …but a single ambiguous "A | B" pipe is left intact.
+        ("Some Song | Some Movie.mp3", "", "Some Song | Some Movie"),
     ],
 )
 def test_guess_from_filename(name, artist, title):
