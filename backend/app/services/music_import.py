@@ -16,12 +16,13 @@ import re
 from html import unescape
 from typing import Any
 from urllib.error import URLError
-from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.parse import quote, urlparse
+from urllib.request import Request
 
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
+from app.core.safe_http import OPENER, SafeHTTPError, fetch_public, host_is_blocked
 from app.core.ytdlp_options import network_options
 from app.models.music import MusicImportInfo, MusicKind, MusicSource, MusicTrack
 from app.services.matching import best_match
@@ -44,10 +45,13 @@ def _get(url: str, headers: dict[str, str] | None = None) -> str:
     h = {"User-Agent": _USER_AGENT}
     if headers:
         h.update(headers)
+    # SSRF-safe: pins the resolved public IP and re-validates every redirect hop
+    # (same guard the thumbnail proxy + cover fetch use), so a host that resolves
+    # to / rebinds to an internal address can't be probed through here.
     try:
-        with urlopen(Request(url, headers=h), timeout=15) as resp:  # noqa: S310
-            return resp.read().decode("utf-8", "replace")
-    except (URLError, OSError) as exc:
+        data, _ = fetch_public(url, headers=h, timeout=15)
+        return data.decode("utf-8", "replace")
+    except SafeHTTPError as exc:
         raise MusicImportError(f"Could not reach the music service: {exc}") from exc
 
 
@@ -58,10 +62,17 @@ _DEEZER_SHORT_RE = re.compile(
 
 
 def _final_url(url: str) -> str:
-    """Follow redirects and return the final URL (for share/short links)."""
-    h = {"User-Agent": _USER_AGENT}
+    """Follow redirects and return the final URL (for share/short links).
+
+    Uses the SSRF-safe opener so each redirect hop is re-validated — a short link
+    can't be made to bounce to an internal host.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or host_is_blocked(parsed.hostname):
+        raise MusicImportError("Could not reach the music service: disallowed host")
+    request = Request(url, headers={"User-Agent": _USER_AGENT})
     try:
-        with urlopen(Request(url, headers=h), timeout=15) as resp:  # noqa: S310
+        with OPENER.open(request, timeout=15) as resp:
             return resp.geturl()
     except (URLError, OSError) as exc:
         raise MusicImportError(f"Could not reach the music service: {exc}") from exc

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.services import music_import as mi
 
 
@@ -25,6 +27,15 @@ def test_detect_source_rejects_ssrf_steering():
     assert mi.detect_source("http://127.0.0.1:8756/link.deezer.com/s/x") is None
     assert mi.detect_source("https://music.apple.com.attacker.example/us/playlist/x/pl.abc") is None
     assert mi.detect_source("https://evil.test/?u=https://open.spotify.com/album/abc") is None
+
+
+def test_fetch_helpers_block_internal_hosts():
+    # Defense-in-depth: even if a URL reached a resolver, the fetch layer
+    # (safe_http) must refuse loopback/internal hosts — no localhost/LAN probing.
+    with pytest.raises(mi.MusicImportError):
+        mi._get("http://127.0.0.1:8756/anything")
+    with pytest.raises(mi.MusicImportError):
+        mi._final_url("http://127.0.0.1/redirect")
 
 
 _DEEZER_ALBUM = {
