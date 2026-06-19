@@ -239,10 +239,16 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 Engineering work that keeps the app fast, debuggable and reproducible. (Items
 also in *Next up* are the urgent ones.)
 
-- ⬜ **WebSocket open timeout** (S) — fail fast if the handshake hangs on a slow boot.
-- ⬜ **SQLite schema versioning** (S) — `PRAGMA user_version` + idempotent migrations.
-- ⬜ **Generate TS types from OpenAPI** (M) — kill manual `download.ts` ↔ `media.py` drift.
-- ⬜ **Pin yt-dlp exactly per release** (S) — reproducible builds.
+- ✅ **WebSocket open timeout** *(next)* — the download socket fails fast (15s)
+  with a clear error if the handshake never opens, instead of hanging on 0%.
+- ✅ **SQLite schema versioning** *(next)* — `PRAGMA user_version` + an ordered,
+  idempotent migration list; legacy (v0) DBs migrate cleanly on startup.
+- ✅ **Kill `download.ts` ↔ `media.py` drift** *(next)* — a contract test asserts
+  the hand-written TS types mirror the Pydantic models 1:1 (enforced in pytest),
+  plus `scripts/gen_api_types.py` to generate the literal OpenAPI types on demand
+  (via npx — `openapi-typescript` still peers on TS 5.x, the app is on TS 6.x).
+- ✅ **Pin yt-dlp exactly per release** — already pinned
+  (`yt-dlp[default,curl-cffi]==2026.06.09` in `requirements.txt`).
 - ⬜ **ruff + mypy in CI** (S) — currently only `pytest` runs (CI itself paused on billing).
 - ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
   frontend `estimatedSizeBytes`/`formatBytes`.

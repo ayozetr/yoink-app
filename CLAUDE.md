@@ -60,6 +60,9 @@ The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` (and `src/types/autotag.ts` ↔
 `backend/app/models/autotag.py`, `src/types/music.ts` ↔
 `backend/app/models/music.py`) — keep both sides in sync.
+`backend/tests/test_type_contract.py` enforces field-name parity (it fails if a
+model and its TS interface drift); `scripts/gen_api_types.py` regenerates the
+literal OpenAPI types on demand.
 
 ## Repository layout
 

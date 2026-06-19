@@ -58,3 +58,6 @@ backend/build/
 
 # Bundled ffmpeg/ffprobe (fetched via scripts/fetch_ffmpeg.py)
 backend/vendor/
+
+# Generated OpenAPI types (reference only; the enforced guard is the contract test)
+src/types/api.generated.ts
