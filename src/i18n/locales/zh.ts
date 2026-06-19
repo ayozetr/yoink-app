@@ -63,6 +63,8 @@ export const zh = {
     download: "下载",
   },
   playlist: {
+    filter: "筛选曲目…",
+    noMatches: "没有匹配的曲目。",
     label: "播放列表",
     selectAll: "全选",
     deselectAll: "取消全选",
@@ -85,6 +87,7 @@ export const zh = {
     dismiss: "忽略",
   },
   panel: {
+    retryFailed: "重试失败项 ({{count}})",
     resumeTitle: "{{count}} 个未完成的下载",
     resume: "继续",
     resumeDismiss: "放弃",

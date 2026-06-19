@@ -138,6 +138,8 @@ export function DownloaderPanel({
     const pending = loadPendingBatch();
     return pending.length > 0 ? pending : null;
   });
+  // The jobs that failed in the last batch, for a "retry failed" action.
+  const [retryJobs, setRetryJobs] = useState<DownloadJob[]>([]);
 
   const requestRef = useRef<AbortController | null>(null);
   const downloadRef = useRef<DownloadHandle | null>(null);
@@ -163,6 +165,7 @@ export function DownloaderPanel({
     releaseDownloadLock("downloader");
     clearBatch();
     setResumeJobs(null);
+    setRetryJobs([]);
     queueRef.current = [];
     resultsRef.current = [];
     setProgress(null);
@@ -200,6 +203,9 @@ export function DownloaderPanel({
       const ok = resultsRef.current.length - failed;
       if (jobs.length > 1) {
         setSummary({ completed: ok, failed });
+        // Keep the failed jobs (results are in job order) so just those can be
+        // retried from the summary.
+        setRetryJobs(jobs.filter((_, i) => resultsRef.current[i] === false));
         if (audioPathsRef.current.length > 0) {
           setBatchItems([...audioPathsRef.current]);
         }
@@ -384,6 +390,11 @@ export function DownloaderPanel({
     clearBatch();
   };
 
+  // Re-run only the items that failed in the last batch.
+  const handleRetryFailed = () => {
+    if (retryJobs.length > 0) startQueue(retryJobs);
+  };
+
   return (
     <>
       <DownloaderHeader
@@ -552,14 +563,26 @@ export function DownloaderPanel({
               {summary.failed > 0 &&
                 t("panel.summaryFailed", { count: summary.failed })}
             </span>
-            <button
-              type="button"
-              onClick={() => setSummary(null)}
-              className="text-zinc-400 hover:text-white transition"
-              aria-label={t("panel.closeSummary")}
-            >
-              <X size={16} />
-            </button>
+            <div className="flex shrink-0 items-center gap-3">
+              {summary.failed > 0 && retryJobs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleRetryFailed}
+                  className="flex items-center gap-1.5 text-sm text-zinc-300 transition hover:text-white"
+                >
+                  <RotateCw size={15} />
+                  {t("panel.retryFailed", { count: retryJobs.length })}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSummary(null)}
+                className="text-zinc-400 hover:text-white transition"
+                aria-label={t("panel.closeSummary")}
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
         </GlassPanel>
       )}

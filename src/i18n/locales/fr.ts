@@ -63,6 +63,8 @@ export const fr = {
     download: "Télécharger",
   },
   playlist: {
+    filter: "Filtrer les titres…",
+    noMatches: "Aucun titre correspondant.",
     label: "Playlist",
     selectAll: "Tout sélectionner",
     deselectAll: "Tout désélectionner",
@@ -85,6 +87,7 @@ export const fr = {
     dismiss: "Ignorer",
   },
   panel: {
+    retryFailed: "Réessayer les échecs ({{count}})",
     resumeTitle: "{{count}} téléchargements inachevés",
     resume: "Reprendre",
     resumeDismiss: "Ignorer",

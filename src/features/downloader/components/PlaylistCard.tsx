@@ -1,5 +1,14 @@
-import { useState } from "react";
-import { Clock3, Download, Glasses, Info, ListVideo, Music4, Video } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import {
+  Clock3,
+  Download,
+  Glasses,
+  Info,
+  ListVideo,
+  Music4,
+  Search,
+  Video,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -78,6 +87,11 @@ export function PlaylistCard({
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(playlist.entries.map((entry) => entry.id)),
   );
+  // Free-text filter over the entry list (titles); selection persists across it.
+  const [filter, setFilter] = useState("");
+  // Last checkbox toggled, for shift-click range selection (by id, so it survives
+  // a changing filter view).
+  const lastIdRef = useRef<string | null>(null);
   const [kind, setKind] = useState<MediaKind>(
     isMusicPlaylist(playlist) ? "audio" : (defaultKind ?? "video"),
   );
@@ -115,7 +129,17 @@ export function PlaylistCard({
       ? DEFAULT_AUDIO_FORMAT
       : audioFormat;
   const showLosslessWarning = !isVideo && !losslessAllowed;
-  const allSelected = selected.size === playlist.entries.length;
+  // Entries shown after the title filter (selection itself is unaffected by it).
+  const query = filter.trim().toLowerCase();
+  const visible = useMemo(
+    () =>
+      query
+        ? playlist.entries.filter((e) => e.title.toLowerCase().includes(query))
+        : playlist.entries,
+    [playlist.entries, query],
+  );
+  const allVisibleSelected =
+    visible.length > 0 && visible.every((e) => selected.has(e.id));
   // Total duration of the current selection (some flat entries may lack one).
   const selectedDuration = playlist.entries.reduce(
     (acc, entry) =>
@@ -133,9 +157,37 @@ export function PlaylistCard({
   };
 
   const toggleAll = () => {
-    setSelected(
-      allSelected ? new Set() : new Set(playlist.entries.map((e) => e.id)),
-    );
+    const ids = visible.map((e) => e.id);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  // Click a row: a plain click toggles it; Shift+click extends/clears the range
+  // from the last-clicked row (over the currently-visible list).
+  const clickEntry = (entry: PlaylistEntry, index: number, shiftKey: boolean) => {
+    const lastIdx = lastIdRef.current
+      ? visible.findIndex((e) => e.id === lastIdRef.current)
+      : -1;
+    if (shiftKey && lastIdx >= 0 && lastIdx !== index) {
+      const lo = Math.min(lastIdx, index);
+      const hi = Math.max(lastIdx, index);
+      const target = !selected.has(entry.id); // match the clicked item's new state
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (let i = lo; i <= hi; i++) {
+          if (target) next.add(visible[i].id);
+          else next.delete(visible[i].id);
+        }
+        return next;
+      });
+    } else {
+      toggle(entry.id);
+    }
+    lastIdRef.current = entry.id;
   };
 
   const handleDownload = () => {
@@ -169,7 +221,7 @@ export function PlaylistCard({
           onClick={toggleAll}
           className="text-xs text-zinc-400 hover:text-white transition"
         >
-          {allSelected ? t("playlist.deselectAll") : t("playlist.selectAll")}
+          {allVisibleSelected ? t("playlist.deselectAll") : t("playlist.selectAll")}
         </button>
       </div>
 
@@ -342,49 +394,81 @@ export function PlaylistCard({
         </Button>
       </div>
 
-      {/* Entries */}
-      <div className="flex flex-col gap-1.5 mt-4 max-h-[320px] overflow-auto pr-1">
-        {playlist.entries.map((entry) => (
-          <label
-            key={entry.id}
-            className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              checked={selected.has(entry.id)}
-              onChange={() => toggle(entry.id)}
-              className="size-4 accent-violet-500 shrink-0"
-            />
-            <div className="w-14 h-9 rounded-md bg-gradient-to-br from-violet-500/40 to-blue-500/40 overflow-hidden flex items-center justify-center shrink-0">
-              {entry.thumbnail_url ? (
-                <Thumbnail
-                  src={entry.thumbnail_url}
-                  alt={entry.title}
-                  referer={entry.url}
-                  className="h-full w-full object-cover"
-                  fallback={
-                    kind === "audio" ? (
-                      <Music4 size={14} />
-                    ) : (
-                      <Video size={14} />
-                    )
-                  }
-                />
-              ) : kind === "audio" ? (
-                <Music4 size={14} />
-              ) : (
-                <Video size={14} />
+      {/* Entries — a filter (for long lists) + the selectable rows. */}
+      {playlist.entries.length > 8 && (
+        <div className="relative mt-4">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+          />
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder={t("playlist.filter")}
+            aria-label={t("playlist.filter")}
+            className="h-10 w-full rounded-xl border border-white/10 bg-surface pl-9 pr-3 text-sm outline-none focus:border-violet-500"
+          />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-1.5 mt-3 max-h-[320px] overflow-auto pr-1">
+        {visible.length === 0 ? (
+          <p className="py-6 text-center text-sm text-zinc-500">
+            {t("playlist.noMatches")}
+          </p>
+        ) : (
+          visible.map((entry, i) => (
+            <div
+              key={entry.id}
+              role="checkbox"
+              aria-checked={selected.has(entry.id)}
+              tabIndex={0}
+              onClick={(e) => clickEntry(entry, i, e.shiftKey)}
+              onKeyDown={(e) => {
+                if (e.key === " " || e.key === "Enter") {
+                  e.preventDefault();
+                  clickEntry(entry, i, e.shiftKey);
+                }
+              }}
+              className="flex select-none items-center gap-3 rounded-xl border border-white/10 bg-surface/60 p-2.5 transition hover:bg-surface-hover cursor-pointer focus-visible:!outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/70"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(entry.id)}
+                readOnly
+                tabIndex={-1}
+                aria-hidden="true"
+                className="size-4 accent-violet-500 shrink-0 pointer-events-none"
+              />
+              <div className="w-14 h-9 rounded-md bg-gradient-to-br from-violet-500/40 to-blue-500/40 overflow-hidden flex items-center justify-center shrink-0">
+                {entry.thumbnail_url ? (
+                  <Thumbnail
+                    src={entry.thumbnail_url}
+                    alt={entry.title}
+                    referer={entry.url}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                    fallback={
+                      kind === "audio" ? <Music4 size={14} /> : <Video size={14} />
+                    }
+                  />
+                ) : kind === "audio" ? (
+                  <Music4 size={14} />
+                ) : (
+                  <Video size={14} />
+                )}
+              </div>
+              <span className="flex-1 min-w-0 text-sm truncate">{entry.title}</span>
+              {entry.duration_string && (
+                <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
+                  <Clock3 size={12} />
+                  {entry.duration_string}
+                </span>
               )}
             </div>
-            <span className="flex-1 min-w-0 text-sm truncate">{entry.title}</span>
-            {entry.duration_string && (
-              <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
-                <Clock3 size={12} />
-                {entry.duration_string}
-              </span>
-            )}
-          </label>
-        ))}
+          ))
+        )}
       </div>
     </GlassPanel>
   );

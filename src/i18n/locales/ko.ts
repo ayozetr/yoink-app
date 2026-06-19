@@ -63,6 +63,8 @@ export const ko = {
     download: "다운로드",
   },
   playlist: {
+    filter: "트랙 필터…",
+    noMatches: "일치하는 트랙이 없습니다。",
     label: "재생목록",
     selectAll: "모두 선택",
     deselectAll: "선택 해제",
@@ -85,6 +87,7 @@ export const ko = {
     dismiss: "닫기",
   },
   panel: {
+    retryFailed: "실패 재시도 ({{count}})",
     resumeTitle: "완료되지 않은 다운로드 {{count}}개",
     resume: "재개",
     resumeDismiss: "무시",

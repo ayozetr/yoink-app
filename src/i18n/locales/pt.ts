@@ -63,6 +63,8 @@ export const pt = {
     download: "Baixar",
   },
   playlist: {
+    filter: "Filtrar faixas…",
+    noMatches: "Nenhuma faixa correspondente.",
     label: "Playlist",
     selectAll: "Selecionar tudo",
     deselectAll: "Desmarcar tudo",
@@ -85,6 +87,7 @@ export const pt = {
     dismiss: "Dispensar",
   },
   panel: {
+    retryFailed: "Repetir as que falharam ({{count}})",
     resumeTitle: "{{count}} downloads não concluídos",
     resume: "Retomar",
     resumeDismiss: "Descartar",

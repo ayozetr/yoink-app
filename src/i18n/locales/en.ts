@@ -63,6 +63,8 @@ export const en = {
     download: "Download",
   },
   playlist: {
+    filter: "Filter tracks…",
+    noMatches: "No matching tracks.",
     label: "Playlist",
     selectAll: "Select all",
     deselectAll: "Deselect all",
@@ -85,6 +87,7 @@ export const en = {
     dismiss: "Dismiss",
   },
   panel: {
+    retryFailed: "Retry failed ({{count}})",
     resumeTitle: "{{count}} downloads left unfinished",
     resume: "Resume",
     resumeDismiss: "Discard",

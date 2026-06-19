@@ -63,6 +63,8 @@ export const uk = {
     download: "Завантажити",
   },
   playlist: {
+    filter: "Фільтр треків…",
+    noMatches: "Немає відповідних треків.",
     label: "Плейлист",
     selectAll: "Вибрати все",
     deselectAll: "Зняти вибір",
@@ -85,6 +87,7 @@ export const uk = {
     dismiss: "Сховати",
   },
   panel: {
+    retryFailed: "Повторити невдалі ({{count}})",
     resumeTitle: "{{count}} незавершених завантажень",
     resume: "Відновити",
     resumeDismiss: "Відхилити",

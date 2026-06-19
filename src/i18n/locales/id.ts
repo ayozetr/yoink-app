@@ -63,6 +63,8 @@ export const id = {
     download: "Unduh",
   },
   playlist: {
+    filter: "Filter trek…",
+    noMatches: "Tidak ada trek yang cocok.",
     label: "Playlist",
     selectAll: "Pilih semua",
     deselectAll: "Batalkan semua pilihan",
@@ -85,6 +87,7 @@ export const id = {
     dismiss: "Tutup",
   },
   panel: {
+    retryFailed: "Ulangi yang gagal ({{count}})",
     resumeTitle: "{{count}} unduhan belum selesai",
     resume: "Lanjutkan",
     resumeDismiss: "Buang",

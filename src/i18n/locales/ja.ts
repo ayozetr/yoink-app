@@ -63,6 +63,8 @@ export const ja = {
     download: "ダウンロード",
   },
   playlist: {
+    filter: "トラックを絞り込み…",
+    noMatches: "一致するトラックがありません。",
     label: "プレイリスト",
     selectAll: "すべて選択",
     deselectAll: "選択をすべて解除",
@@ -85,6 +87,7 @@ export const ja = {
     dismiss: "閉じる",
   },
   panel: {
+    retryFailed: "失敗を再試行 ({{count}})",
     resumeTitle: "未完了のダウンロードが {{count}} 件",
     resume: "再開",
     resumeDismiss: "破棄",

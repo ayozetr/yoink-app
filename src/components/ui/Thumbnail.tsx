@@ -16,6 +16,8 @@ interface ThumbnailProps {
    * by Referer and 403 the proxy without it.
    */
   referer?: string | null;
+  /** Native `<img>` loading hint — "lazy" defers offscreen loads in long lists. */
+  loading?: "lazy" | "eager";
 }
 
 /**
@@ -32,6 +34,7 @@ export function Thumbnail({
   className,
   fallback,
   referer,
+  loading,
 }: ThumbnailProps) {
   const [stage, setStage] = useState<Stage>("direct");
   const [prevSrc, setPrevSrc] = useState(src);
@@ -53,6 +56,7 @@ export function Thumbnail({
       src={stage === "direct" ? src : thumbnailProxyUrl(src, referer)}
       alt={alt}
       className={className}
+      loading={loading}
       referrerPolicy="no-referrer"
       onError={() => setStage(stage === "direct" ? "proxy" : "failed")}
     />

@@ -63,6 +63,8 @@ export const hi = {
     download: "डाउनलोड करें",
   },
   playlist: {
+    filter: "ट्रैक फ़िल्टर करें…",
+    noMatches: "कोई मिलान वाला ट्रैक नहीं।",
     label: "प्लेलिस्ट",
     selectAll: "सभी चुनें",
     deselectAll: "सभी अचयनित करें",
@@ -85,6 +87,7 @@ export const hi = {
     dismiss: "खारिज करें",
   },
   panel: {
+    retryFailed: "विफल पुनः प्रयास ({{count}})",
     resumeTitle: "{{count}} डाउनलोड अधूरे रह गए",
     resume: "फिर से शुरू करें",
     resumeDismiss: "खारिज करें",

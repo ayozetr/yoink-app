@@ -63,6 +63,8 @@ export const ru = {
     download: "Скачать",
   },
   playlist: {
+    filter: "Фильтр треков…",
+    noMatches: "Нет совпадающих треков.",
     label: "Плейлист",
     selectAll: "Выбрать всё",
     deselectAll: "Снять выделение",
@@ -85,6 +87,7 @@ export const ru = {
     dismiss: "Скрыть",
   },
   panel: {
+    retryFailed: "Повторить неудачные ({{count}})",
     resumeTitle: "{{count}} незавершённых загрузок",
     resume: "Возобновить",
     resumeDismiss: "Отклонить",
