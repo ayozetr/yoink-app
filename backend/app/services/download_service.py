@@ -433,7 +433,9 @@ def friendly_download_error(raw: str) -> str:
             return message
     text = re.sub(r"^ERROR:\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"^\[[^\]]+\]\s*", "", text)  # drop a "[youtube]" extractor tag
-    text = re.sub(r"^[\w-]{6,}:\s*", "", text)  # drop a leading video id, "dQw4…:"
+    # Drop a leading media id like "dQw4w9WgXcQ:". Require a digit in the token so
+    # a legit word prefix ("Postprocessing:", "ffmpeg:") is left intact.
+    text = re.sub(r"^(?=[\w-]*\d)[\w-]{6,}:\s*", "", text)
     lines = text.splitlines()
     first = lines[0].strip() if lines else text
     return first[:300] or raw.strip()

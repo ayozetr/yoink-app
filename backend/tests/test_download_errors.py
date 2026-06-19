@@ -37,3 +37,11 @@ def test_maps_known_failures():
 def test_fallback_is_a_clean_first_line():
     out = friendly_download_error("ERROR: [generic] something weird\nsecond line")
     assert out == "something weird"
+
+
+def test_keeps_a_word_prefix_without_a_digit():
+    # Only id-shaped tokens (with a digit) are dropped; a legit "Word:" survives.
+    assert (
+        friendly_download_error("ERROR: Postprocessing: conversion failed")
+        == "Postprocessing: conversion failed"
+    )
