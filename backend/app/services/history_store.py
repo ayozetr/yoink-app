@@ -49,15 +49,34 @@ def _add_column_if_missing(
         connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
 
 
+# Ordered schema migrations. Each step upgrades the DB *to* its 1-based index;
+# on startup every step past the DB's `user_version` runs in order, then the
+# version is bumped. Append-only — never edit or reorder a shipped step. Steps
+# must be idempotent (they may re-run on a DB whose version wasn't recorded).
+def _v1_base_table(connection: sqlite3.Connection) -> None:
+    connection.execute(_SCHEMA)
+
+
+def _v2_extra_columns(connection: sqlite3.Connection) -> None:
+    _add_column_if_missing(connection, "downloads", "quality", "TEXT")
+    _add_column_if_missing(connection, "downloads", "error_message", "TEXT")
+
+
+_MIGRATIONS = [_v1_base_table, _v2_extra_columns]
+
+
 def init_db() -> None:
-    """Create the history table if needed; add newer columns to pre-existing DBs."""
+    """Create / migrate the history DB, tracked by ``PRAGMA user_version``."""
     with _connect() as connection:
         # WAL lets a reader and a writer coexist (the queue writes bursts of
         # history rows); it's a persistent DB property, set once here.
         connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute(_SCHEMA)
-        _add_column_if_missing(connection, "downloads", "quality", "TEXT")
-        _add_column_if_missing(connection, "downloads", "error_message", "TEXT")
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        # Pre-versioning DBs report 0, so every (idempotent) step re-runs and
+        # brings them up to date without touching existing rows.
+        for target, migrate in enumerate(_MIGRATIONS[version:], start=version + 1):
+            migrate(connection)
+            connection.execute(f"PRAGMA user_version = {target}")
 
 
 def _row_to_entry(row: sqlite3.Row) -> HistoryEntry:

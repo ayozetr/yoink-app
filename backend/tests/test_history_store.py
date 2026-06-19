@@ -87,3 +87,43 @@ def test_migration_adds_quality_column_to_old_db(temp_dirs):
     history_store.init_db()  # idempotent migration adds the new column
     entry = history_store.list_entries()[0]
     assert entry.title == "old" and entry.quality is None
+
+
+def _user_version() -> int:
+    with history_store._connect() as c:
+        return int(c.execute("PRAGMA user_version").fetchone()[0])
+
+
+def _columns() -> set[str]:
+    with history_store._connect() as c:
+        return {r["name"] for r in c.execute("PRAGMA table_info(downloads)")}
+
+
+def test_init_db_records_schema_version(history_db):
+    assert _user_version() == len(history_store._MIGRATIONS)
+    assert {"quality", "error_message"} <= _columns()
+
+
+def test_init_db_is_idempotent(history_db):
+    history_store.init_db()
+    history_store.init_db()
+    assert _user_version() == len(history_store._MIGRATIONS)
+
+
+def test_init_db_migrates_a_legacy_db(temp_dirs):
+    import sqlite3
+
+    from app.core.config import settings
+
+    # A pre-versioning DB: the base table only, no later columns, user_version 0.
+    settings.ensure_data_dir()
+    with sqlite3.connect(settings.db_path) as c:
+        c.execute(
+            "CREATE TABLE downloads (id INTEGER PRIMARY KEY, title TEXT, url TEXT,"
+            " kind TEXT, status TEXT, created_at TEXT)"
+        )
+    assert _user_version() == 0
+
+    history_store.init_db()  # should migrate without touching the (empty) data
+    assert {"quality", "error_message"} <= _columns()
+    assert _user_version() == len(history_store._MIGRATIONS)
