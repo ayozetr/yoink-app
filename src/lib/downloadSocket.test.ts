@@ -43,6 +43,19 @@ describe("startDownload", () => {
     expect(events[0]).toMatchObject({ type: "completed" });
   });
 
+  it("emits an error if the handshake never opens", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("WebSocket", MockWebSocket);
+    const events: { type: string }[] = [];
+
+    startDownload(REQUEST, { onEvent: (e) => events.push(e) });
+    // Never call onopen — advance past the open timeout.
+    vi.advanceTimersByTime(15_000);
+
+    expect(events[0]).toMatchObject({ type: "error" });
+    vi.useRealTimers();
+  });
+
   it("calls onClose on a server close but not on a client cancel", () => {
     vi.stubGlobal("WebSocket", MockWebSocket);
 

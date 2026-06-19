@@ -14,6 +14,9 @@ function wsUrl(path: string): string {
   return `${getApiBase().replace(/^http/, "ws")}${path}`;
 }
 
+/** How long to wait for the WS handshake before giving up (ms). */
+const OPEN_TIMEOUT_MS = 15_000;
+
 export interface DownloadHandlers {
   /** Called for each event (progress / completed / error). */
   onEvent: (event: DownloadEvent) => void;
@@ -34,8 +37,25 @@ export function startDownload(
   const socket = new WebSocket(wsUrl("/ws/download"));
   let closed = false;
   let cancelled = false;
+  let opened = false;
 
-  socket.onopen = () => socket.send(JSON.stringify(request));
+  // Fail fast if the handshake never completes (backend still starting or
+  // unreachable) instead of hanging on "downloading 0%" with no feedback.
+  const openTimer = setTimeout(() => {
+    if (opened || closed || cancelled) return;
+    handlers.onEvent({
+      type: "error",
+      message: i18n.t("errors.downloadConnectionLost"),
+    });
+    closed = true;
+    socket.close();
+  }, OPEN_TIMEOUT_MS);
+
+  socket.onopen = () => {
+    opened = true;
+    clearTimeout(openTimer);
+    socket.send(JSON.stringify(request));
+  };
 
   socket.onmessage = (message) => {
     // After a client-initiated cancel() the socket is closing but the browser
@@ -60,6 +80,7 @@ export function startDownload(
 
   socket.onclose = () => {
     closed = true;
+    clearTimeout(openTimer);
     // A client-initiated cancel() is intentional; only report server-side
     // closes so the caller can react to an unexpected drop (and not stall).
     if (!cancelled) handlers.onClose?.();
@@ -69,6 +90,7 @@ export function startDownload(
     cancel: () => {
       cancelled = true;
       closed = true;
+      clearTimeout(openTimer);
       socket.close();
     },
   };
