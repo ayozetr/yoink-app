@@ -9,16 +9,32 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.core.config import settings
 
 # TikTok photo/slideshow posts are served by the video extractor under /video/.
 _TIKTOK_PHOTO = re.compile(r"(tiktok\.com/@[^/]+)/photo/", re.IGNORECASE)
 
+# YouTube autoplay/radio flags. With ``playnext=1`` a playlist resolves in
+# "continue the radio from this video" mode, which drops the playlist's own
+# thumbnails — so its cover wrongly falls back to the first track. They never
+# identify the content, so strip them before extraction.
+_YT_NOISE_PARAMS = frozenset({"playnext", "start_radio"})
+
 
 def normalize_url(url: str) -> str:
     """Rewrite known URL quirks into a form yt-dlp's extractors accept."""
-    return _TIKTOK_PHOTO.sub(r"\1/video/", url)
+    url = _TIKTOK_PHOTO.sub(r"\1/video/", url)
+    parts = urlsplit(url)
+    if parts.query and any(p in parts.query for p in _YT_NOISE_PARAMS):
+        kept = [
+            (k, v)
+            for k, v in parse_qsl(parts.query, keep_blank_values=True)
+            if k not in _YT_NOISE_PARAMS
+        ]
+        url = urlunsplit(parts._replace(query=urlencode(kept)))
+    return url
 
 
 @lru_cache(maxsize=1)

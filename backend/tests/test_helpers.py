@@ -92,6 +92,21 @@ def test_normalize_url_tiktok_photo():
     assert normalize_url(url) == url
 
 
+def test_normalize_url_strips_youtube_autoplay_flags():
+    # ``playnext=1`` makes a playlist resolve as a radio continuation (dropping
+    # its own thumbnails), so it's stripped — while ``list``/``si`` are kept.
+    out = normalize_url(
+        "https://music.youtube.com/playlist?list=RD123&playnext=1&si=xyz"
+    )
+    assert "playnext" not in out
+    assert "list=RD123" in out and "si=xyz" in out
+    # A plain video URL (no such flags) is untouched.
+    assert (
+        normalize_url("https://youtube.com/watch?v=abc&t=10")
+        == "https://youtube.com/watch?v=abc&t=10"
+    )
+
+
 def test_network_options(monkeypatch):
     from app.core import ytdlp_options
     from app.core.config import settings

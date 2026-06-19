@@ -192,6 +192,38 @@ def _best_thumbnail(raw: dict[str, Any]) -> str | None:
     return None
 
 
+def _playlist_cover(info: dict[str, Any]) -> str | None:
+    """The playlist's own cover, robust to YouTube's 404-ing bare maxresdefault.
+
+    yt-dlp lists playlist ("s_p") thumbnails ascending by size, but the largest
+    (``maxresdefault.jpg``) is *unsigned* and 404s, while the signed ``sd``/``mq``
+    variants (with a ``?sqp=`` query) load. So prefer the highest-resolution
+    *signed* thumbnail; fall back to the plain best / singular ``thumbnail``.
+    """
+    thumbnails = info.get("thumbnails")
+    if isinstance(thumbnails, list):
+        usable = [
+            t
+            for t in thumbnails
+            if isinstance(t, dict) and isinstance(t.get("url"), str) and t["url"]
+        ]
+        signed = [t for t in usable if "?" in t["url"]]
+        pool = signed or usable
+        if pool:
+            # Highest resolution; ties broken toward the later entry (yt-dlp's
+            # ascending order), so an equal-size pair still picks the "best".
+            best = max(
+                range(len(pool)),
+                key=lambda i: (
+                    (pool[i].get("width") or 0) * (pool[i].get("height") or 0),
+                    i,
+                ),
+            )
+            return str(pool[best]["url"])
+    direct = info.get("thumbnail")
+    return direct if isinstance(direct, str) and direct else None
+
+
 def _audio_langs(info: dict[str, Any]) -> list[str]:
     """Distinct, sorted languages of the available audio tracks.
 
@@ -331,7 +363,7 @@ def _build_playlist(
 
     # Playlist cover: the playlist's own thumbnail when present (YT Music mixes
     # carry one), else the first listed entry's thumbnail.
-    cover = _best_thumbnail(info) or (entries[0].thumbnail_url if entries else None)
+    cover = _playlist_cover(info) or (entries[0].thumbnail_url if entries else None)
 
     return PlaylistInfo(
         id=str(info.get("id", "")),
