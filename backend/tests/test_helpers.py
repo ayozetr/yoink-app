@@ -271,12 +271,15 @@ def test_build_options_audio_format(
     )
     assert options["format"] == expected_format
     assert "merge_output_format" not in options
-    (pp,) = options["postprocessors"]
-    assert pp["key"] == "FFmpegExtractAudio"
-    assert pp["preferredcodec"] == expected_codec
-    assert ("preferredquality" in pp) is has_quality
+    pps = options["postprocessors"]
+    extract = next(pp for pp in pps if pp["key"] == "FFmpegExtractAudio")
+    assert extract["preferredcodec"] == expected_codec
+    assert ("preferredquality" in extract) is has_quality
     if has_quality:
-        assert pp["preferredquality"] == "192"
+        assert extract["preferredquality"] == "192"
+    # Cover-capable formats also embed the source thumbnail as a fallback cover.
+    keys = [pp["key"] for pp in pps]
+    assert ("EmbedThumbnail" in keys) is (audio_format in ("mp3", "m4a", "flac"))
 
 
 def test_audio_bitrate_best_drops_target(temp_dirs):
@@ -285,8 +288,10 @@ def test_audio_bitrate_best_drops_target(temp_dirs):
         DownloadRequest(url="http://x/a", kind="audio", audio_format="mp3"),
         hook=lambda raw: None,
     )
-    (pp,) = options["postprocessors"]
-    assert "preferredquality" not in pp
+    extract = next(
+        pp for pp in options["postprocessors"] if pp["key"] == "FFmpegExtractAudio"
+    )
+    assert "preferredquality" not in extract
 
 
 def test_video_codec_sets_format_sort(temp_dirs):
@@ -552,7 +557,10 @@ def test_build_options_sponsorblock_off_by_default(temp_dirs):
         DownloadRequest(url="http://x/a", kind="audio", audio_format="mp3"),
         hook=lambda raw: None,
     )
-    assert [pp["key"] for pp in options["postprocessors"]] == ["FFmpegExtractAudio"]
+    assert [pp["key"] for pp in options["postprocessors"]] == [
+        "FFmpegExtractAudio",
+        "EmbedThumbnail",
+    ]
 
 
 def test_build_options_sponsorblock_remove_audio(temp_dirs, monkeypatch):
@@ -564,7 +572,12 @@ def test_build_options_sponsorblock_remove_audio(temp_dirs, monkeypatch):
     )
     keys = [pp["key"] for pp in options["postprocessors"]]
     # SponsorBlock fetch + chapter modify run before the audio extraction.
-    assert keys == ["SponsorBlock", "ModifyChapters", "FFmpegExtractAudio"]
+    assert keys == [
+        "SponsorBlock",
+        "ModifyChapters",
+        "FFmpegExtractAudio",
+        "EmbedThumbnail",
+    ]
     assert options["postprocessors"][1]["remove_sponsor_segments"]
 
 

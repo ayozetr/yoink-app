@@ -286,6 +286,13 @@ def _build_options(
         audio_pps = [*sponsorblock, _audio_postprocessor(request.audio_format)]
         if mark_chapters:
             audio_pps.append(chapters_pp)
+        # Embed the source thumbnail as a *fallback* cover (formats that can hold
+        # cover art; WAV can't). Auto-tagging later overrides it when it finds
+        # real album art and preserves it when it doesn't, so the thumbnail only
+        # ever shows when nothing better is available. Runs after extraction.
+        if request.audio_format in ("mp3", "m4a", "flac"):
+            options["writethumbnail"] = True
+            audio_pps.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
         options["postprocessors"] = audio_pps
     else:
         height = _parse_height(request.quality)
