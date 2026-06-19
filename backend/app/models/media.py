@@ -126,6 +126,9 @@ class PlaylistInfo(BaseModel):
     id: str = Field(..., description="Playlist id.")
     title: str = Field(..., description="Playlist title.")
     uploader: str | None = Field(default=None, description="Playlist owner.")
+    thumbnail_url: str | None = Field(
+        default=None, description="Playlist cover (or the first entry's thumbnail)."
+    )
     entry_count: int = Field(..., description="Total items reported by yt-dlp.")
     entries: list[PlaylistEntry] = Field(
         default_factory=list, description="Listed items (may be capped)."

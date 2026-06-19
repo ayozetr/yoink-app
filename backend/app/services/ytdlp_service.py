@@ -329,10 +329,15 @@ def _build_playlist(
     # lets the user confirm or correct it.
     is_vr, vr_layout = detect_vr(info)
 
+    # Playlist cover: the playlist's own thumbnail when present (YT Music mixes
+    # carry one), else the first listed entry's thumbnail.
+    cover = _best_thumbnail(info) or (entries[0].thumbnail_url if entries else None)
+
     return PlaylistInfo(
         id=str(info.get("id", "")),
         title=str(info.get("title") or "Playlist"),
         uploader=info.get("uploader") or info.get("channel"),
+        thumbnail_url=cover,
         entry_count=total,
         entries=entries,
         # True if the listing is shorter than the reported total — whether from

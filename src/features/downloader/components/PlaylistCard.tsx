@@ -225,21 +225,35 @@ export function PlaylistCard({
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <h2 className="text-xl font-semibold truncate">{playlist.title}</h2>
-        {playlist.is_vr && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
-            <Glasses size={14} />
-            {t("preview.vrBadge")}
-          </span>
+      <div className="flex items-center gap-4">
+        {playlist.thumbnail_url && (
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-violet-500/40 to-blue-500/40">
+            <Thumbnail
+              src={playlist.thumbnail_url}
+              alt={playlist.title}
+              className="h-full w-full object-cover"
+              fallback={<ListVideo size={22} className="text-white/70" />}
+            />
+          </div>
         )}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold truncate">{playlist.title}</h2>
+            {playlist.is_vr && (
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
+                <Glasses size={14} />
+                {t("preview.vrBadge")}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-zinc-400 mt-1">
+            {playlist.uploader ? `${playlist.uploader} • ` : ""}
+            {t("playlist.videos", { count: playlist.entry_count })}
+            {playlist.truncated &&
+              ` ${t("playlist.showingFirst", { count: playlist.entries.length })}`}
+          </p>
+        </div>
       </div>
-      <p className="text-sm text-zinc-400 mt-1">
-        {playlist.uploader ? `${playlist.uploader} • ` : ""}
-        {t("playlist.videos", { count: playlist.entry_count })}
-        {playlist.truncated &&
-          ` ${t("playlist.showingFirst", { count: playlist.entries.length })}`}
-      </p>
 
       {/* Controls */}
       <div className="mt-4 flex flex-col gap-3">

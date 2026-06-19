@@ -226,6 +226,33 @@ def test_build_entry_and_playlist():
     assert playlist.truncated is True
 
 
+def test_playlist_thumbnail_prefers_own_then_first_entry():
+    # The playlist's own thumbnail wins (highest-preference one).
+    with_cover = _build_playlist(
+        {
+            "id": "PL1",
+            "title": "Mix",
+            "thumbnails": [{"url": "http://x/small.jpg"}, {"url": "http://x/big.jpg"}],
+            "entries": [
+                {"id": "a", "title": "A", "url": "http://x/a", "thumbnails": [{"url": "http://x/a.jpg"}]},
+            ],
+        }
+    )
+    assert with_cover.thumbnail_url == "http://x/big.jpg"
+
+    # No playlist thumbnail → fall back to the first listed entry's.
+    no_cover = _build_playlist(
+        {
+            "id": "PL2",
+            "title": "No Cover",
+            "entries": [
+                {"id": "b", "title": "B", "url": "http://x/b", "thumbnails": [{"url": "http://x/b.jpg"}]},
+            ],
+        }
+    )
+    assert no_cover.thumbnail_url == "http://x/b.jpg"
+
+
 @pytest.mark.parametrize("container", ["mp4", "mov", "mkv"])
 def test_build_options_video_container(temp_dirs, container):
     options = _build_options(

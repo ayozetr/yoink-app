@@ -127,6 +127,8 @@ export interface PlaylistInfo {
   id: string;
   title: string;
   uploader: string | null;
+  /** Playlist cover (or the first entry's thumbnail). */
+  thumbnail_url: string | null;
   entry_count: number;
   entries: PlaylistEntry[];
   truncated: boolean;

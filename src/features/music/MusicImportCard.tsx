@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
   Download,
   Loader2,
   Music4,
+  Search,
   SkipForward,
   Square,
 } from "lucide-react";
@@ -93,7 +94,24 @@ export function MusicImportCard({
     [],
   );
 
-  const allSelected = selected.size === info.tracks.length;
+  // Free-text filter over the track list (title + artist); selection persists.
+  const [filter, setFilter] = useState("");
+  const query = filter.trim().toLowerCase();
+  const visible = useMemo(
+    () =>
+      info.tracks
+        .map((track, i) => ({ track, i }))
+        .filter(
+          ({ track }) =>
+            !query ||
+            track.title.toLowerCase().includes(query) ||
+            (track.artists ?? "").toLowerCase().includes(query),
+        ),
+    [info.tracks, query],
+  );
+  const allVisibleSelected =
+    visible.length > 0 && visible.every(({ i }) => selected.has(i));
+
   const setRow = (i: number, status: RowStatus) =>
     setRows((prev) => ({ ...prev, [i]: status }));
   const setRowError = (i: number, message: string) => {
@@ -109,7 +127,12 @@ export function MusicImportCard({
       return next;
     });
   const toggleAll = () =>
-    setSelected(allSelected ? new Set() : new Set(info.tracks.map((_, i) => i)));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visible.forEach(({ i }) => next.delete(i));
+      else visible.forEach(({ i }) => next.add(i));
+      return next;
+    });
 
   const finish = () => {
     runningRef.current = false;
@@ -296,7 +319,9 @@ export function MusicImportCard({
                   onClick={toggleAll}
                   className="mt-1 shrink-0 text-xs text-zinc-400 hover:text-white transition"
                 >
-                  {allSelected ? t("playlist.deselectAll") : t("playlist.selectAll")}
+                  {allVisibleSelected
+                    ? t("playlist.deselectAll")
+                    : t("playlist.selectAll")}
                 </button>
               )}
             </div>
@@ -394,12 +419,35 @@ export function MusicImportCard({
         </div>
       </div>
 
-      {/* Track selection — albums/playlists only */}
+      {/* Track selection — albums/playlists only, with a filter for long lists. */}
       {info.tracks.length > 1 && (
-        <div className="flex flex-col gap-1.5 mt-5 max-h-[320px] overflow-auto pr-1">
-          {info.tracks.map((track, i) => {
-            const status = rows[i];
-            return (
+        <>
+          {info.tracks.length > 8 && (
+            <div className="relative mt-5">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+              />
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={t("playlist.filter")}
+                aria-label={t("playlist.filter")}
+                disabled={running}
+                className="h-10 w-full rounded-xl border border-white/10 bg-surface pl-9 pr-3 text-sm outline-none focus:border-violet-500 disabled:opacity-50"
+              />
+            </div>
+          )}
+          <div className="mt-3 flex max-h-[320px] flex-col gap-1.5 overflow-auto pr-1">
+            {visible.length === 0 ? (
+              <p className="py-6 text-center text-sm text-zinc-500">
+                {t("playlist.noMatches")}
+              </p>
+            ) : (
+              visible.map(({ track, i }) => {
+                const status = rows[i];
+                return (
               <label
                 key={`${track.source_url}-${i}`}
                 role="checkbox"
@@ -452,9 +500,11 @@ export function MusicImportCard({
                   </span>
                 )}
               </label>
-            );
-          })}
-        </div>
+                );
+              })
+            )}
+          </div>
+        </>
       )}
     </GlassPanel>
   );
