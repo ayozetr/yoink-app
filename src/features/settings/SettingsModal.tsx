@@ -857,11 +857,17 @@ function SponsorBlockHelp() {
 /** "?" help for the .nfo sidecars option — what an NFO file is for. */
 function NfoHelp() {
   const { t } = useTranslation();
-  return <HelpPopover>{t("settings.nfoSidecarsHelp")}</HelpPopover>;
+  return (
+    <HelpPopover label={t("settings.nfoSidecars")}>
+      {t("settings.nfoSidecarsHelp")}
+    </HelpPopover>
+  );
 }
 
 /** "?" help for the proxy field. */
 function ProxyHelp() {
   const { t } = useTranslation();
-  return <HelpPopover>{t("settings.proxyHelp")}</HelpPopover>;
+  return (
+    <HelpPopover label={t("settings.proxy")}>{t("settings.proxyHelp")}</HelpPopover>
+  );
 }
