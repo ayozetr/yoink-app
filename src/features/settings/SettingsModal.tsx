@@ -427,6 +427,14 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             )}
           </div>
 
+          <Toggle
+            checked={form.nfo_sidecars}
+            onChange={(v) => set("nfo_sidecars", v)}
+            label={t("settings.nfoSidecars")}
+            help={<NfoHelp />}
+            className="w-full"
+          />
+
           <SectionHeader label={t("settings.secNetwork")} />
 
           <Field label={t("settings.rateLimit")}>
@@ -844,6 +852,12 @@ function SponsorBlockHelp() {
       {t("settings.sponsorblockHelp")}
     </HelpPopover>
   );
+}
+
+/** "?" help for the .nfo sidecars option — what an NFO file is for. */
+function NfoHelp() {
+  const { t } = useTranslation();
+  return <HelpPopover>{t("settings.nfoSidecarsHelp")}</HelpPopover>;
 }
 
 /** "?" help for the proxy field. */

@@ -320,6 +320,10 @@ class AppSettings(BaseModel):
     default_embed_chapters: bool = Field(
         default=False, description="Seed new video downloads to embed chapter markers."
     )
+    nfo_sidecars: bool = Field(
+        default=False,
+        description="Write a Kodi/Jellyfin-style .nfo metadata file per download.",
+    )
     cookies_from_browser: str | None = Field(
         default=None, description="Browser to read cookies from (e.g. 'firefox')."
     )

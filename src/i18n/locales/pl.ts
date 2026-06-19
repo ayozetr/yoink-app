@@ -165,6 +165,8 @@ export const pl = {
     transferred: "Przesłano",
   },
   settings: {
+    nfoSidecars: "Twórz pliki .nfo",
+    nfoSidecarsHelp: "Tworzy plik metadanych .nfo (styl Kodi/Jellyfin) obok każdego pobrania, aby serwery multimediów czytały dokładne dane.",
     defaultEmbedSubs: "Domyślnie osadzaj napisy",
     defaultEmbedChapters: "Domyślnie osadzaj rozdziały",
     secDownloads: "Pobieranie",

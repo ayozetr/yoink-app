@@ -165,6 +165,8 @@ export const ru = {
     transferred: "Передано",
   },
   settings: {
+    nfoSidecars: "Создавать файлы .nfo",
+    nfoSidecarsHelp: "Создаёт рядом с каждой загрузкой файл метаданных .nfo (в стиле Kodi/Jellyfin), чтобы медиасерверы читали ваши точные данные.",
     defaultEmbedSubs: "Встраивать субтитры по умолчанию",
     defaultEmbedChapters: "Встраивать главы по умолчанию",
     secDownloads: "Загрузки",

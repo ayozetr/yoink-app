@@ -233,6 +233,8 @@ export interface AppSettings {
   default_embed_subs: boolean;
   /** Seed new video downloads to embed chapter markers by default. */
   default_embed_chapters: boolean;
+  /** Write a Kodi/Jellyfin-style .nfo metadata file next to each download. */
+  nfo_sidecars: boolean;
   cookies_from_browser: string | null;
   cookies_file: string | null;
   /** Proxy URL (http/https/socks) for metadata + downloads; null = none. */

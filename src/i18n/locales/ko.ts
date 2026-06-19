@@ -165,6 +165,8 @@ export const ko = {
     transferred: "전송량",
   },
   settings: {
+    nfoSidecars: ".nfo 파일 생성",
+    nfoSidecarsHelp: "각 다운로드 옆에 Kodi/Jellyfin 형식의 .nfo 메타데이터 파일을 생성해 미디어 서버가 정확한 정보를 읽도록 합니다.",
     defaultEmbedSubs: "기본적으로 자막 포함",
     defaultEmbedChapters: "기본적으로 챕터 포함",
     secDownloads: "다운로드",

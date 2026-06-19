@@ -165,6 +165,8 @@ export const de = {
     transferred: "Übertragen",
   },
   settings: {
+    nfoSidecars: ".nfo-Dateien erstellen",
+    nfoSidecarsHelp: "Legt neben jedem Download eine .nfo-Metadatendatei (Kodi/Jellyfin) an, damit Medienserver deine genauen Angaben lesen statt zu raten.",
     defaultEmbedSubs: "Untertitel standardmäßig einbetten",
     defaultEmbedChapters: "Kapitel standardmäßig einbetten",
     secDownloads: "Downloads",

@@ -165,6 +165,8 @@ export const hi = {
     transferred: "स्थानांतरित",
   },
   settings: {
+    nfoSidecars: ".nfo फ़ाइलें बनाएँ",
+    nfoSidecarsHelp: "हर डाउनलोड के साथ एक .nfo मेटाडेटा फ़ाइल (Kodi/Jellyfin शैली) बनाता है, ताकि मीडिया सर्वर आपके सटीक डेटा को पढ़ें।",
     defaultEmbedSubs: "डिफ़ॉल्ट रूप से उपशीर्षक एम्बेड करें",
     defaultEmbedChapters: "डिफ़ॉल्ट रूप से अध्याय एम्बेड करें",
     secDownloads: "डाउनलोड",

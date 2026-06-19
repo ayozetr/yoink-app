@@ -165,6 +165,8 @@ export const ja = {
     transferred: "転送量",
   },
   settings: {
+    nfoSidecars: ".nfo ファイルを作成",
+    nfoSidecarsHelp: "ダウンロードごとに Kodi/Jellyfin 形式の .nfo メタデータファイルを作成し、メディアサーバーが正確な情報を読み取れるようにします。",
     defaultEmbedSubs: "デフォルトで字幕を埋め込む",
     defaultEmbedChapters: "デフォルトでチャプターを埋め込む",
     secDownloads: "ダウンロード",

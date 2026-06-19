@@ -165,6 +165,8 @@ export const fr = {
     transferred: "Transféré",
   },
   settings: {
+    nfoSidecars: "Créer des fichiers .nfo",
+    nfoSidecarsHelp: "Crée un fichier de métadonnées .nfo (façon Kodi/Jellyfin) à côté de chaque téléchargement, pour que les serveurs multimédias lisent vos données exactes.",
     defaultEmbedSubs: "Intégrer les sous-titres par défaut",
     defaultEmbedChapters: "Intégrer les chapitres par défaut",
     secDownloads: "Téléchargements",

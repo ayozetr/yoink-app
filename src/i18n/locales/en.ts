@@ -165,6 +165,8 @@ export const en = {
     transferred: "Transferred",
   },
   settings: {
+    nfoSidecars: "Write .nfo sidecar files",
+    nfoSidecarsHelp: "Write a Kodi/Jellyfin-style .nfo metadata file next to each download, so media servers read your exact title/artist/date instead of guessing.",
     defaultEmbedSubs: "Embed subtitles by default",
     defaultEmbedChapters: "Embed chapters by default",
     secDownloads: "Downloads",

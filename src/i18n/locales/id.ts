@@ -165,6 +165,8 @@ export const id = {
     transferred: "Terkirim",
   },
   settings: {
+    nfoSidecars: "Buat berkas .nfo",
+    nfoSidecarsHelp: "Membuat berkas metadata .nfo (gaya Kodi/Jellyfin) di samping setiap unduhan, agar server media membaca data Anda yang tepat.",
     defaultEmbedSubs: "Sematkan subtitle secara default",
     defaultEmbedChapters: "Sematkan bab secara default",
     secDownloads: "Unduhan",
