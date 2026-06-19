@@ -62,6 +62,13 @@ export const pt = {
       "Marca o arquivo como imersivo: adiciona um sufixo de projeção ao nome e incorpora metadados esféricos para que os players VR o exibam em 3D.",
     download: "Baixar",
   },
+  preset: {
+    saveCurrent: "Guardar predefinição",
+    namePlaceholder: "Nome da predefinição",
+    save: "Guardar",
+    cancel: "Cancelar",
+    delete: "Eliminar predefinição",
+  },
   playlist: {
     filter: "Filtrar faixas…",
     noMatches: "Nenhuma faixa correspondente.",

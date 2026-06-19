@@ -62,6 +62,13 @@ export const ko = {
       "파일을 몰입형으로 태그합니다: 이름에 프로젝션 접미사를 붙이고 구면 메타데이터를 삽입해 VR 플레이어가 3D로 표시하도록 합니다.",
     download: "다운로드",
   },
+  preset: {
+    saveCurrent: "프리셋 저장",
+    namePlaceholder: "프리셋 이름",
+    save: "저장",
+    cancel: "취소",
+    delete: "프리셋 삭제",
+  },
   playlist: {
     filter: "트랙 필터…",
     noMatches: "일치하는 트랙이 없습니다。",

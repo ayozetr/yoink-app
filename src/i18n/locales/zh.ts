@@ -62,6 +62,13 @@ export const zh = {
       "将文件标记为沉浸式：在文件名中添加投影后缀并嵌入球面元数据，让 VR 播放器以 3D 方式显示。",
     download: "下载",
   },
+  preset: {
+    saveCurrent: "保存预设",
+    namePlaceholder: "预设名称",
+    save: "保存",
+    cancel: "取消",
+    delete: "删除预设",
+  },
   playlist: {
     filter: "筛选曲目…",
     noMatches: "没有匹配的曲目。",

@@ -62,6 +62,13 @@ export const ja = {
       "ファイルを没入型としてタグ付けします：名前に投影方式のサフィックスを追加し、球面メタデータを埋め込んで VR プレーヤーが 3D で表示できるようにします。",
     download: "ダウンロード",
   },
+  preset: {
+    saveCurrent: "プリセットを保存",
+    namePlaceholder: "プリセット名",
+    save: "保存",
+    cancel: "キャンセル",
+    delete: "プリセットを削除",
+  },
   playlist: {
     filter: "トラックを絞り込み…",
     noMatches: "一致するトラックがありません。",

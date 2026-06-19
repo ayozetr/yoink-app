@@ -62,6 +62,13 @@ export const es = {
       "Etiqueta el archivo como inmersivo: añade un sufijo de proyección al nombre e incrusta metadatos esféricos para que los visores VR lo muestren en 3D.",
     download: "Descargar",
   },
+  preset: {
+    saveCurrent: "Guardar preset",
+    namePlaceholder: "Nombre del preset",
+    save: "Guardar",
+    cancel: "Cancelar",
+    delete: "Eliminar preset",
+  },
   playlist: {
     filter: "Filtrar pistas…",
     noMatches: "No hay pistas que coincidan.",

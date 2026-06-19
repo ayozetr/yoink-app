@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
+  BookmarkPlus,
   ChevronDown,
   Clock3,
   Download,
@@ -10,6 +11,7 @@ import {
   SlidersHorizontal,
   User,
   Video,
+  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
@@ -36,6 +38,12 @@ import {
 } from "../formatOptions";
 import { formatBytes } from "../../../lib/format";
 import { rememberLayout, rememberedLayout } from "../../../lib/vrPrefs";
+import {
+  loadPresets,
+  newPresetId,
+  savePresets,
+  type DownloadPreset,
+} from "../../../lib/presets";
 
 export interface DownloadSelection {
   kind: MediaKind;
@@ -138,6 +146,10 @@ export function PreviewCard({
   const [vrLayout, setVrLayout] = useState<VRLayout>(
     () => rememberedLayout(info.uploader) ?? info.vr_layout,
   );
+  // Saved format presets (local), applied to the selectors in one click.
+  const [presets, setPresets] = useState<DownloadPreset[]>(loadPresets);
+  const [namingPreset, setNamingPreset] = useState(false);
+  const [presetName, setPresetName] = useState("");
 
   const isVideo = kind === "video";
   const hasSubtitles =
@@ -185,6 +197,45 @@ export function PreviewCard({
   // lone end of 0, which would otherwise be an empty (0,0) range. Computed from
   // the values, not panel state, so the range is validated even when collapsed.
   const trimError = trimEndSec != null && trimEndSec <= (trimStartSec ?? 0);
+
+  // Apply a saved preset to the selectors (best-effort: quality/kind are only
+  // set when this media can offer them).
+  const applyPreset = (p: DownloadPreset) => {
+    if (kinds.some((k) => k.kind === p.kind)) setKind(p.kind);
+    if (p.quality && qualities.includes(p.quality)) setQuality(p.quality);
+    if (p.container) setContainer(p.container);
+    if (p.audioFormat) setAudioFormat(p.audioFormat);
+    setSubtitle(p.embedSubs ? "all" : SUBS_NONE);
+    setEmbedChapters(!!p.embedChapters);
+  };
+
+  const saveCurrentPreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    const next = [
+      ...presets,
+      {
+        id: newPresetId(),
+        name,
+        kind,
+        quality: isVideo ? quality : undefined,
+        container: isVideo ? container : undefined,
+        audioFormat: isVideo ? undefined : audioFormat,
+        embedSubs,
+        embedChapters,
+      },
+    ];
+    setPresets(next);
+    savePresets(next);
+    setNamingPreset(false);
+    setPresetName("");
+  };
+
+  const deletePreset = (id: string) => {
+    const next = presets.filter((p) => p.id !== id);
+    setPresets(next);
+    savePresets(next);
+  };
 
   return (
     <GlassPanel className="p-5">
@@ -235,6 +286,83 @@ export function PreviewCard({
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
+            {/* Saved presets: apply with a click, or save the current selection. */}
+            <div className="flex flex-wrap items-center gap-2">
+              {presets.map((p) => (
+                <span
+                  key={p.id}
+                  className="flex items-center gap-1 rounded-lg border border-white/10 bg-surface py-1 pl-2.5 pr-1 text-xs"
+                >
+                  <button
+                    type="button"
+                    onClick={() => applyPreset(p)}
+                    className="text-zinc-200 transition hover:text-white"
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePreset(p.id)}
+                    aria-label={t("preset.delete")}
+                    className="text-zinc-500 transition hover:text-red-400"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              {namingPreset ? (
+                <span className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveCurrentPreset();
+                      if (e.key === "Escape") {
+                        setNamingPreset(false);
+                        setPresetName("");
+                      }
+                    }}
+                    placeholder={t("preset.namePlaceholder")}
+                    aria-label={t("preset.namePlaceholder")}
+                    className="h-7 w-32 rounded-lg border border-white/10 bg-surface px-2 text-xs outline-none focus:border-violet-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={saveCurrentPreset}
+                    disabled={!presetName.trim()}
+                    className="rounded-lg border border-violet-500/40 bg-violet-600/10 px-2 py-1 text-xs text-white transition hover:bg-violet-600/20 disabled:opacity-40"
+                  >
+                    {t("preset.save")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNamingPreset(false);
+                      setPresetName("");
+                    }}
+                    aria-label={t("preset.cancel")}
+                    className="text-zinc-500 transition hover:text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNamingPreset(true);
+                    setPresetName("");
+                  }}
+                  className="flex items-center gap-1 rounded-lg border border-dashed border-white/15 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-white/30 hover:text-white"
+                >
+                  <BookmarkPlus size={13} />
+                  {t("preset.saveCurrent")}
+                </button>
+              )}
+            </div>
+
             <div className="grid md:grid-cols-3 gap-3">
               <Select
                 ariaLabel={t("preview.format")}

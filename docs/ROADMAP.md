@@ -16,7 +16,8 @@
   lazy thumbnails / retry-failed, VR follow-ups (**Spherical V1** for 360°,
   **MKV StereoMode**, **post-tag ffprobe validation**), **friendlier yt-dlp error
   messages**, **non-Western title parsing** (K-pop quotes / Bollywood pipes), a
-  **source-thumbnail fallback cover** on audio, and optional **`.nfo` sidecars**.
+  **source-thumbnail fallback cover** on audio, **download presets**, and optional
+  **`.nfo` sidecars**.
 - **Current release:** **v2.1.0** — a process-wide **single-download lock** (no two
   engines collide on the same `.part`), a **dynamic backend port** (falls back when
   8756 is taken), **persisted subtitle/chapter defaults**, a collapsible **"Advanced
@@ -160,7 +161,9 @@ Not committed and not release-ordered — picked from as capacity allows.
 - ⬜ **Clip → GIF/WebP** (M) — export a trimmed range (ffmpeg palette).
 - ⬜ **Loudness normalization** (M) — ffmpeg `loudnorm` (EBU R128).
 - ⬜ **Capture frame / embed poster** (S).
-- ⬜ **Download presets/profiles** (M) — named option bundles, one click.
+- ✅ **Download presets/profiles** *(next)* — save the preview's format selection
+  as a named preset (`lib/presets`, localStorage) and apply it in one click; chips
+  to apply/delete and an inline "save current" in the preview card.
 - ⬜ **Library subfolders** (M) — path templates (`%(uploader)s/%(title)s`).
 
 ### 📋 Playlists

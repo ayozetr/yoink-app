@@ -62,6 +62,13 @@ export const it = {
       "Contrassegna il file come immersivo: aggiunge un suffisso di proiezione al nome e incorpora i metadati sferici affinché i visori VR lo mostrino in 3D.",
     download: "Scarica",
   },
+  preset: {
+    saveCurrent: "Salva preset",
+    namePlaceholder: "Nome preset",
+    save: "Salva",
+    cancel: "Annulla",
+    delete: "Elimina preset",
+  },
   playlist: {
     filter: "Filtra i brani…",
     noMatches: "Nessun brano corrispondente.",

@@ -62,6 +62,13 @@ export const pl = {
       "Oznacza plik jako immersyjny: dodaje sufiks projekcji do nazwy i osadza metadane sferyczne, aby odtwarzacze VR wyświetlały go w 3D.",
     download: "Pobierz",
   },
+  preset: {
+    saveCurrent: "Zapisz ustawienie",
+    namePlaceholder: "Nazwa ustawienia",
+    save: "Zapisz",
+    cancel: "Anuluj",
+    delete: "Usuń ustawienie",
+  },
   playlist: {
     filter: "Filtruj utwory…",
     noMatches: "Brak pasujących utworów.",

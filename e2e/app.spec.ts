@@ -105,6 +105,22 @@ test("analyzes a single video into a preview", async ({ page }) => {
   await expect(page.getByText("Test Channel")).toBeVisible();
 });
 
+test("saves and shows a download preset", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: VIDEO_INFO }));
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://x.com/v");
+  await page.getByRole("button", { name: "Analizar" }).click();
+  await expect(page.getByRole("heading", { name: "My Test Video" })).toBeVisible();
+
+  // Save the current selection as a named preset → a chip appears for it.
+  await page.getByRole("button", { name: "Guardar preset" }).click();
+  await page.getByPlaceholder("Nombre del preset").fill("My Preset");
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "My Preset" })).toBeVisible();
+});
+
 test("collapses secondary controls under Advanced options", async ({ page }) => {
   await mockBase(page);
   await page.route("**/api/info", (route) => route.fulfill({ json: VIDEO_INFO }));

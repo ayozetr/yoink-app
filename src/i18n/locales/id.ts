@@ -62,6 +62,13 @@ export const id = {
       "Menandai berkas sebagai imersif: menambahkan akhiran proyeksi pada nama dan menyematkan metadata bola sehingga pemutar VR menampilkannya dalam 3D.",
     download: "Unduh",
   },
+  preset: {
+    saveCurrent: "Simpan preset",
+    namePlaceholder: "Nama preset",
+    save: "Simpan",
+    cancel: "Batal",
+    delete: "Hapus preset",
+  },
   playlist: {
     filter: "Filter trek…",
     noMatches: "Tidak ada trek yang cocok.",

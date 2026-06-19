@@ -62,6 +62,13 @@ export const de = {
       "Markiert die Datei als immersiv: fügt dem Namen ein Projektions-Suffix hinzu und bettet sphärische Metadaten ein, damit VR-Player sie in 3D anzeigen.",
     download: "Herunterladen",
   },
+  preset: {
+    saveCurrent: "Preset speichern",
+    namePlaceholder: "Preset-Name",
+    save: "Speichern",
+    cancel: "Abbrechen",
+    delete: "Preset löschen",
+  },
   playlist: {
     filter: "Titel filtern…",
     noMatches: "Keine passenden Titel.",

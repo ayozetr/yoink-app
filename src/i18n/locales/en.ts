@@ -62,6 +62,13 @@ export const en = {
       "Tags the file as immersive: adds a projection suffix to the name and embeds spherical metadata so VR players show it in 3D.",
     download: "Download",
   },
+  preset: {
+    saveCurrent: "Save preset",
+    namePlaceholder: "Preset name",
+    save: "Save",
+    cancel: "Cancel",
+    delete: "Delete preset",
+  },
   playlist: {
     filter: "Filter tracks…",
     noMatches: "No matching tracks.",

@@ -62,6 +62,13 @@ export const fr = {
       "Marque le fichier comme immersif : ajoute un suffixe de projection au nom et intègre des métadonnées sphériques afin que les lecteurs VR l'affichent en 3D.",
     download: "Télécharger",
   },
+  preset: {
+    saveCurrent: "Enregistrer le préréglage",
+    namePlaceholder: "Nom du préréglage",
+    save: "Enregistrer",
+    cancel: "Annuler",
+    delete: "Supprimer le préréglage",
+  },
   playlist: {
     filter: "Filtrer les titres…",
     noMatches: "Aucun titre correspondant.",
