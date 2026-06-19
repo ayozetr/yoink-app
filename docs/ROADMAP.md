@@ -12,10 +12,11 @@
 ## 📍 Status
 
 - **Unreleased (next):** **resumable playlist downloads** (the panel batch
-  persists + offers resume on relaunch), VR follow-ups (**Spherical V1** for 360°,
+  persists + offers resume on relaunch), **playlist** filter / shift-click range /
+  lazy thumbnails / retry-failed, VR follow-ups (**Spherical V1** for 360°,
   **MKV StereoMode**, **post-tag ffprobe validation**), **friendlier yt-dlp error
-  messages**, and **non-Western title parsing** for auto-tag (K-pop quotes /
-  Bollywood pipes).
+  messages**, **non-Western title parsing** (K-pop quotes / Bollywood pipes), a
+  **source-thumbnail fallback cover** on audio, and optional **`.nfo` sidecars**.
 - **Current release:** **v2.1.0** — a process-wide **single-download lock** (no two
   engines collide on the same `.part`), a **dynamic backend port** (falls back when
   8756 is taken), **persisted subtitle/chapter defaults**, a collapsible **"Advanced
@@ -172,10 +173,11 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   loses a multi-item playlist. On the next launch a banner offers to resume the
   pending items through the same flow (keeping the rich preview + batch
   auto-tagging that routing into the queue would have lost).
-- ⬜ **Filter/search within the entry list** (S) — up to 200 items scroll in a fixed
-  `max-h` box with no filter; add a "filter tracks…" input to narrow the list.
-- ⬜ **Range + smarter selection** (S) — only select-all/none today; add shift-click
-  range selection (and maybe "select first N").
+- ✅ **Filter/search within the entry list** *(next)* — a "filter tracks…" input
+  (shown for lists > 8) narrows the entries; selection persists across it and
+  select-all acts on the filtered view.
+- ✅ **Range + smarter selection** *(next)* — Shift+click a row to extend/clear the
+  selection range from the last click (rows are keyboard-operable too).
 - ✅ **Batch totals** *(v2.0.0)* — the playlist card
   shows the current selection's count + **total duration** ("23 selected · 1h 18m").
   A rough **size** estimate is still pending (flat entries carry no per-item
@@ -183,10 +185,11 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ✅ **Audio-first for music playlists** *(v2.0.0)* — YT Music mixes (`RD…`)
   and album lists (`OLAK…`) are music-intent, so the playlist card now defaults
   `kind` to **audio** for them (detected from the playlist id) instead of video.
-- ⬜ **Lazy-load / virtualize the entry thumbnails** (S/M) — up to 200 `<Thumbnail>`
-  fire ~200 proxy requests at once on render; `loading="lazy"` or virtualize.
-- ⬜ **Per-item retry in the batch summary** (S) — when some tracks fail, retry just
-  those (the single-job retry exists; extend it per failed playlist item).
+- ✅ **Lazy-load the entry thumbnails** *(next)* — `Thumbnail` gained a `loading`
+  prop and the playlist list uses `loading="lazy"`, so a 200-item playlist no
+  longer fires ~200 proxy requests at once on render.
+- ✅ **Per-item retry in the batch summary** *(next)* — the panel keeps the jobs
+  that failed (results are in job order) and the summary offers "Retry failed (N)".
 
 ### 🎵 Audio library
 - ✅ **Auto-tag title parsing for non-Western formats** *(next)* — on top of the
@@ -196,10 +199,13 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   `Title | Movie | Cast | …` (≥3 pipe segments → take the leading song). The
   manual edit/search in the tag card still covers the rest; fingerprint-based
   identify remains a possible future upgrade.
-- ⬜ **Embed source thumbnail as cover** on audio (S).
+- ✅ **Embed source thumbnail as cover** on audio *(next)* — a *fallback* cover
+  (yt-dlp `EmbedThumbnail` for mp3/m4a/flac); auto-tagging overrides it with real
+  album art when found and preserves an existing cover when it has none.
 - ⬜ **Lyrics in auto-tagging** (L) — LRCLIB (free, no key).
 - ⬜ **Media-server naming presets** (S) — Jellyfin/Plex/Navidrome layouts.
-- ⬜ **NFO sidecars** (M).
+- ✅ **NFO sidecars** *(next)* — an optional Settings toggle writes a Kodi/Jellyfin
+  `.nfo` (`<movie>`/`<musicvideo>`) next to each download with the source metadata.
 
 ### 🖥️ UX / UI
 - ⬜ **Drag-and-drop a link** onto the window (M).
