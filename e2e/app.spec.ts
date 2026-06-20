@@ -170,6 +170,54 @@ test("analyzes a playlist with per-item selection", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Descargar \(1\)/ })).toBeVisible();
 });
 
+const MUSIC_INFO = {
+  source: "spotify",
+  type: "playlist",
+  name: "My Mix",
+  subtitle: "Some Owner",
+  cover_url: null,
+  truncated: false,
+  tracks: Array.from({ length: 10 }, (_, i) => ({
+    title: `Track ${i + 1}`,
+    artists: "Artist",
+    duration_ms: 200000,
+    is_explicit: false,
+    album: "Album",
+    year: "2024",
+    cover_url: null,
+    source_url: `https://open.spotify.com/track/${i}`,
+  })),
+};
+
+test("imports a music playlist with shift-click range selection", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/music/resolve", (route) =>
+    route.fulfill({ json: MUSIC_INFO }),
+  );
+
+  await page.goto("/");
+  await page
+    .getByPlaceholder(/Pega aquí la URL/)
+    .fill("https://open.spotify.com/playlist/abc");
+  await page.getByRole("button", { name: "Analizar" }).click();
+
+  await expect(page.getByText("Importar de Spotify")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My Mix" })).toBeVisible();
+  // All 10 selected by default → the duration summary and the import count.
+  await expect(page.getByText("10 seleccionados")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Importar 10 como audio" }),
+  ).toBeVisible();
+
+  // Plain-click a row to deselect it, then Shift+click 3 rows down to clear the
+  // whole range (tracks 3-6) at once.
+  await page.getByText("Track 3", { exact: true }).click();
+  await page.getByText("Track 6", { exact: true }).click({ modifiers: ["Shift"] });
+  await expect(
+    page.getByRole("button", { name: "Importar 6 como audio" }),
+  ).toBeVisible();
+});
+
 test("opens the settings modal", async ({ page }) => {
   await mockBase(page);
   await page.goto("/");

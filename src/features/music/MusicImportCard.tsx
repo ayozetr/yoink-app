@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  Clock3,
   Download,
   Loader2,
   Music4,
@@ -33,6 +34,15 @@ interface MusicImportCardProps {
   defaultAudioFormat?: AudioFormat;
   /** Refresh history/stats as tracks complete. */
   onDownloadFinished?: () => void;
+}
+
+/** Render a seconds total as a compact "1h 18m" / "18m" / "45s". */
+function formatTotal(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours) return `${hours}h ${minutes}m`;
+  if (minutes) return `${minutes}m`;
+  return `${seconds}s`;
 }
 
 /** Import a music-service URL: resolve → match each track on YouTube → download + tag.
@@ -111,6 +121,14 @@ export function MusicImportCard({
   );
   const allVisibleSelected =
     visible.length > 0 && visible.every(({ i }) => selected.has(i));
+  // Total duration of the current selection (some tracks may lack one).
+  const selectedMs = info.tracks.reduce(
+    (acc, track, i) =>
+      selected.has(i) && track.duration_ms ? acc + track.duration_ms : acc,
+    0,
+  );
+  // Last row toggled, for shift-click range selection (by original index).
+  const lastIdxRef = useRef<number | null>(null);
 
   const setRow = (i: number, status: RowStatus) =>
     setRows((prev) => ({ ...prev, [i]: status }));
@@ -133,6 +151,32 @@ export function MusicImportCard({
       else visible.forEach(({ i }) => next.add(i));
       return next;
     });
+
+  // Click a row: a plain click toggles it; Shift+click extends/clears the range
+  // from the last-clicked row over the currently-visible list.
+  const clickTrack = (index: number, pos: number, shiftKey: boolean) => {
+    if (running) return;
+    const lastPos =
+      lastIdxRef.current != null
+        ? visible.findIndex((v) => v.i === lastIdxRef.current)
+        : -1;
+    if (shiftKey && lastPos >= 0 && lastPos !== pos) {
+      const lo = Math.min(lastPos, pos);
+      const hi = Math.max(lastPos, pos);
+      const target = !selected.has(index);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (let p = lo; p <= hi; p++) {
+          if (target) next.add(visible[p].i);
+          else next.delete(visible[p].i);
+        }
+        return next;
+      });
+    } else {
+      toggle(index);
+    }
+    lastIdxRef.current = index;
+  };
 
   const finish = () => {
     runningRef.current = false;
@@ -336,6 +380,17 @@ export function MusicImportCard({
           </div>
 
           <div className="flex flex-col gap-3">
+            {!isSingle && !running && selected.size > 0 && (
+              <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <Clock3 size={12} className="shrink-0" />
+                {selectedMs > 0
+                  ? t("playlist.selectionSummary", {
+                      count: selected.size,
+                      duration: formatTotal(Math.round(selectedMs / 1000)),
+                    })
+                  : t("playlist.selectionCount", { count: selected.size })}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <Select
                 ariaLabel={t("preview.audioFormat")}
@@ -445,61 +500,78 @@ export function MusicImportCard({
                 {t("playlist.noMatches")}
               </p>
             ) : (
-              visible.map(({ track, i }) => {
+              visible.map(({ track, i }, pos) => {
                 const status = rows[i];
                 return (
-              <label
-                key={`${track.source_url}-${i}`}
-                role="checkbox"
-                aria-checked={selected.has(i)}
-                tabIndex={running ? -1 : 0}
-                onKeyDown={(e) => {
-                  if ((e.key === " " || e.key === "Enter") && !running) {
-                    e.preventDefault();
-                    toggle(i);
-                  }
-                }}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-visible:!outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/70"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(i)}
-                  disabled={running}
-                  onChange={() => toggle(i)}
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  className="size-4 accent-violet-500 shrink-0 outline-none disabled:opacity-40"
-                />
-                <span className="flex-1 min-w-0">
-                  <span className="block truncate text-sm">{track.title}</span>
-                  {status === "error" && rowErrors[i] ? (
-                    <span className="block truncate text-xs text-red-300">
-                      {rowErrors[i]}
+                  <div
+                    key={`${track.source_url}-${i}`}
+                    role="checkbox"
+                    aria-checked={selected.has(i)}
+                    tabIndex={running ? -1 : 0}
+                    onClick={(e) => clickTrack(i, pos, e.shiftKey)}
+                    onKeyDown={(e) => {
+                      if ((e.key === " " || e.key === "Enter") && !running) {
+                        e.preventDefault();
+                        clickTrack(i, pos, e.shiftKey);
+                      }
+                    }}
+                    className="flex select-none items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-visible:!outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/70"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(i)}
+                      readOnly
+                      disabled={running}
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      className="size-4 accent-violet-500 shrink-0 pointer-events-none disabled:opacity-40"
+                    />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-violet-500/40 to-blue-500/40">
+                      {track.cover_url ? (
+                        <Thumbnail
+                          src={track.cover_url}
+                          alt={track.title}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                          fallback={<Music4 size={14} className="text-white/70" />}
+                        />
+                      ) : (
+                        <Music4 size={14} className="text-white/70" />
+                      )}
+                    </div>
+                    <span className="flex-1 min-w-0">
+                      <span className="block truncate text-sm">{track.title}</span>
+                      {status === "error" && rowErrors[i] ? (
+                        <span className="block truncate text-xs text-red-300">
+                          {rowErrors[i]}
+                        </span>
+                      ) : (
+                        <span className="block truncate text-xs text-zinc-400">
+                          {track.artists}
+                        </span>
+                      )}
                     </span>
-                  ) : (
-                    <span className="block truncate text-xs text-zinc-400">
-                      {track.artists}
-                    </span>
-                  )}
-                </span>
-                {status === "active" && (
-                  <Loader2 size={15} className="shrink-0 animate-spin text-violet-400" />
-                )}
-                {status === "done" && (
-                  <CheckCircle2 size={15} className="shrink-0 text-violet-400" />
-                )}
-                {status === "error" && (
-                  <AlertCircle size={15} className="shrink-0 text-red-400" />
-                )}
-                {status === "skipped" && (
-                  <SkipForward size={15} className="shrink-0 text-zinc-500" />
-                )}
-                {!status && track.duration_ms && (
-                  <span className="shrink-0 text-xs text-zinc-400">
-                    {fmtMs(track.duration_ms)}
-                  </span>
-                )}
-              </label>
+                    {status === "active" && (
+                      <Loader2
+                        size={15}
+                        className="shrink-0 animate-spin text-violet-400"
+                      />
+                    )}
+                    {status === "done" && (
+                      <CheckCircle2 size={15} className="shrink-0 text-violet-400" />
+                    )}
+                    {status === "error" && (
+                      <AlertCircle size={15} className="shrink-0 text-red-400" />
+                    )}
+                    {status === "skipped" && (
+                      <SkipForward size={15} className="shrink-0 text-zinc-500" />
+                    )}
+                    {!status && track.duration_ms && (
+                      <span className="shrink-0 text-xs text-zinc-400">
+                        {fmtMs(track.duration_ms)}
+                      </span>
+                    )}
+                  </div>
                 );
               })
             )}
