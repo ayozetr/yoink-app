@@ -293,6 +293,9 @@ def _build_options(
         # ever shows when nothing better is available. Runs after extraction.
         if request.audio_format in ("mp3", "m4a", "flac"):
             options["writethumbnail"] = True
+            # YouTube thumbnails are WebP; Windows/most players can't display
+            # WebP as embedded cover art (only JPEG/PNG). Convert before embed.
+            audio_pps.append({"key": "FFmpegThumbnailsConvertor", "format": "jpg"})
             audio_pps.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
         options["postprocessors"] = audio_pps
     else:

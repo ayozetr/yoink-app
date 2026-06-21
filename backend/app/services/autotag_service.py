@@ -14,7 +14,9 @@ releases the iTunes Search API hasn't indexed yet; MusicBrainz is rate-limited t
 from __future__ import annotations
 
 import json
+import logging
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -28,6 +30,7 @@ from mutagen.mp4 import MP4, MP4Cover
 from mutagen.wave import WAVE
 
 from app.core.config import settings
+from app.core.ffmpeg import ffmpeg_location
 from app.core.safe_http import SafeHTTPError, fetch_public
 from app.models.autotag import (
     ApplyRequest,
@@ -429,6 +432,31 @@ def extract_cover(path: Path) -> tuple[bytes, str] | None:
     return None
 
 
+def _webp_to_jpeg(data: bytes) -> bytes | None:
+    """Convert WebP image bytes to JPEG via ffmpeg (best-effort).
+
+    Returns the JPEG bytes, or None if ffmpeg is unavailable or the conversion
+    fails. Uses stdin/stdout pipes — no temp files touch disk.
+    """
+    import shutil
+    ffmpeg_dir = ffmpeg_location()
+    ffmpeg = f"{ffmpeg_dir}/ffmpeg" if ffmpeg_dir else shutil.which("ffmpeg")
+    if not ffmpeg:
+        return None
+    try:
+        result = subprocess.run(  # noqa: S603 — trusted binary path
+            [ffmpeg, "-hide_banner", "-loglevel", "error",
+             "-i", "pipe:0",
+             "-f", "mjpeg", "-q:v", "2", "pipe:1"],
+            input=data, capture_output=True, timeout=10,
+        )
+        if result.returncode == 0 and result.stdout:
+            return result.stdout
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
 def _fetch_cover(url: str) -> tuple[bytes, str] | None:
     """Download cover art bytes + content-type (None on any failure).
 
@@ -443,7 +471,17 @@ def _fetch_cover(url: str) -> tuple[bytes, str] | None:
     except SafeHTTPError:
         return None
     # Tag writers want an image mime; fall back to jpeg if the server was vague.
-    return data, content_type if content_type.startswith("image/") else "image/jpeg"
+    mime = content_type if content_type.startswith("image/") else "image/jpeg"
+    # WebP is unsupported as embedded cover art by Windows and most players;
+    # detect by magic bytes (RIFF....WEBP) and convert to JPEG via ffmpeg.
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        converted = _webp_to_jpeg(data)
+        if converted is not None:
+            return converted, "image/jpeg"
+        logging.getLogger(__name__).warning(
+            "WebP cover from %s could not be converted; embedding as-is", url
+        )
+    return data, mime
 
 
 def _write_tags(

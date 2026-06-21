@@ -319,9 +319,11 @@ def test_build_options_audio_format(
     assert ("preferredquality" in extract) is has_quality
     if has_quality:
         assert extract["preferredquality"] == "192"
-    # Cover-capable formats also embed the source thumbnail as a fallback cover.
+    # Cover-capable formats also embed the source thumbnail as a fallback cover
+    # (WebP → JPEG conversion + embed).
     keys = [pp["key"] for pp in pps]
     assert ("EmbedThumbnail" in keys) is (audio_format in ("mp3", "m4a", "flac"))
+    assert ("FFmpegThumbnailsConvertor" in keys) is (audio_format in ("mp3", "m4a", "flac"))
 
 
 def test_audio_bitrate_best_drops_target(temp_dirs):
@@ -601,6 +603,7 @@ def test_build_options_sponsorblock_off_by_default(temp_dirs):
     )
     assert [pp["key"] for pp in options["postprocessors"]] == [
         "FFmpegExtractAudio",
+        "FFmpegThumbnailsConvertor",
         "EmbedThumbnail",
     ]
 
@@ -618,6 +621,7 @@ def test_build_options_sponsorblock_remove_audio(temp_dirs, monkeypatch):
         "SponsorBlock",
         "ModifyChapters",
         "FFmpegExtractAudio",
+        "FFmpegThumbnailsConvertor",
         "EmbedThumbnail",
     ]
     assert options["postprocessors"][1]["remove_sponsor_segments"]

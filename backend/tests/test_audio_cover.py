@@ -16,8 +16,11 @@ def test_audio_embeds_thumbnail_for_cover_formats():
         opts = _build_options(req, _noop)
         assert opts.get("writethumbnail") is True
         keys = [pp.get("key") for pp in opts.get("postprocessors", [])]
+        assert "FFmpegThumbnailsConvertor" in keys
         assert "EmbedThumbnail" in keys
-        # It must run after the audio is extracted.
+        # Thumbnails must be converted (WebP → JPEG) before embedding.
+        assert keys.index("FFmpegThumbnailsConvertor") < keys.index("EmbedThumbnail")
+        # Both must run after the audio is extracted.
         assert keys.index("EmbedThumbnail") > keys.index("FFmpegExtractAudio")
 
 
