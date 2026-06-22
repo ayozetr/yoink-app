@@ -1,7 +1,7 @@
 {
   "name": "yoink",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Local desktop app for downloading high-fidelity video and audio — yt-dlp powered, ffmpeg bundled.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
