@@ -22,6 +22,19 @@ def ffmpeg_location() -> str | None:
     return base if (Path(base) / exe).exists() else None
 
 
+def ffmpeg_path() -> str:
+    """Path to the ffmpeg binary: bundled one when packaged, else "ffmpeg" on PATH.
+
+    Unlike ``ffmpeg_location`` (a directory, for yt-dlp), this is the executable
+    itself — with the ``.exe`` suffix on Windows — for direct subprocess calls.
+    """
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    base = getattr(sys, "_MEIPASS", None)
+    if base and (Path(base) / exe).exists():
+        return str(Path(base) / exe)
+    return exe
+
+
 def ffprobe_path() -> str:
     """Path to ffprobe: the bundled one when packaged, else "ffprobe" on PATH."""
     exe = "ffprobe.exe" if os.name == "nt" else "ffprobe"

@@ -30,7 +30,7 @@ from mutagen.mp4 import MP4, MP4Cover
 from mutagen.wave import WAVE
 
 from app.core.config import settings
-from app.core.ffmpeg import ffmpeg_location
+from app.core.ffmpeg import ffmpeg_path
 from app.core.safe_http import SafeHTTPError, fetch_public
 from app.models.autotag import (
     ApplyRequest,
@@ -38,6 +38,8 @@ from app.models.autotag import (
     CandidateList,
     TagCandidate,
 )
+
+logger = logging.getLogger(__name__)
 
 _USER_AGENT = f"Yoink/{settings.app_version} (https://github.com/ayozetr/yoink-app)"
 _ITUNES_URL = "https://itunes.apple.com/search"
@@ -438,14 +440,11 @@ def _webp_to_jpeg(data: bytes) -> bytes | None:
     Returns the JPEG bytes, or None if ffmpeg is unavailable or the conversion
     fails. Uses stdin/stdout pipes — no temp files touch disk.
     """
-    import shutil
-    ffmpeg_dir = ffmpeg_location()
-    ffmpeg = f"{ffmpeg_dir}/ffmpeg" if ffmpeg_dir else shutil.which("ffmpeg")
-    if not ffmpeg:
-        return None
+    # ffmpeg_path() resolves the bundled binary (with .exe on Windows) or the
+    # one on PATH — a bare "ffmpeg"/"ffmpeg.exe" that subprocess finds via PATH.
     try:
         result = subprocess.run(  # noqa: S603 — trusted binary path
-            [ffmpeg, "-hide_banner", "-loglevel", "error",
+            [ffmpeg_path(), "-hide_banner", "-loglevel", "error",
              "-i", "pipe:0",
              "-f", "mjpeg", "-q:v", "2", "pipe:1"],
             input=data, capture_output=True, timeout=10,
@@ -478,7 +477,7 @@ def _fetch_cover(url: str) -> tuple[bytes, str] | None:
         converted = _webp_to_jpeg(data)
         if converted is not None:
             return converted, "image/jpeg"
-        logging.getLogger(__name__).warning(
+        logger.warning(
             "WebP cover from %s could not be converted; embedding as-is", url
         )
     return data, mime

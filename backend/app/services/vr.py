@@ -29,7 +29,7 @@ import subprocess
 from pathlib import Path
 from typing import Literal
 
-from app.core.ffmpeg import ffmpeg_location, ffprobe_path
+from app.core.ffmpeg import ffmpeg_path, ffprobe_path
 
 logger = logging.getLogger(__name__)
 
@@ -609,13 +609,6 @@ _MKV_STEREO_MODE: dict[int, str] = {
 }
 
 
-def _ffmpeg_exe() -> str:
-    """Path to ffmpeg: the bundled one when packaged, else 'ffmpeg' on PATH."""
-    loc = ffmpeg_location()
-    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
-    return str(Path(loc) / exe) if loc else exe
-
-
 def has_spherical_metadata(path: Path) -> bool | None:
     """Whether ffprobe reads spherical / stereo-3D side data off the video.
 
@@ -663,7 +656,7 @@ def set_mkv_stereo_mode(path: Path, layout: str) -> bool:
     try:
         result = subprocess.run(
             [
-                _ffmpeg_exe(), "-y", "-loglevel", "error", "-i", str(path),
+                ffmpeg_path(), "-y", "-loglevel", "error", "-i", str(path),
                 "-map", "0", "-c", "copy",
                 "-metadata:s:v:0", f"stereo_mode={mode}", str(tmp),
             ],

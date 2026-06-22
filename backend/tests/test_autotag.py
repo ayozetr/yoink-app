@@ -412,9 +412,8 @@ def test_webp_to_jpeg_converts():
 
 
 def test_webp_to_jpeg_returns_none_without_ffmpeg(monkeypatch):
-    monkeypatch.setattr(svc, "ffmpeg_location", lambda: None)
-    import shutil
-    monkeypatch.setattr(shutil, "which", lambda cmd: None)
+    # Point at a binary that doesn't exist → subprocess fails → None (no raise).
+    monkeypatch.setattr(svc, "ffmpeg_path", lambda: "/nonexistent/ffmpeg-binary")
     assert svc._webp_to_jpeg(_WEBP_1x1) is None
 
 
