@@ -23,7 +23,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 from app.core.safe_http import OPENER, SafeHTTPError, fetch_public, host_is_blocked
-from app.core.ytdlp_options import network_options
+from app.core.ytdlp_options import with_cookie_fallback
 from app.models.music import MusicImportInfo, MusicKind, MusicSource, MusicTrack
 from app.services.matching import best_match
 
@@ -170,16 +170,19 @@ def resolve(url: str) -> MusicImportInfo:
 
 def _youtube_candidates(query: str, count: int) -> list[dict[str, Any]]:
     """Flat-search YouTube and shape the hits into ranking candidates."""
-    options: dict[str, Any] = {
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-        "extract_flat": True,
-        **network_options(),
-    }
-    try:
+    def _search(net: dict[str, Any]) -> dict[str, Any] | None:
+        options: dict[str, Any] = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "extract_flat": True,
+            **net,
+        }
         with YoutubeDL(options) as ydl:
-            info = ydl.extract_info(f"ytsearch{count}:{query}", download=False)
+            return ydl.extract_info(f"ytsearch{count}:{query}", download=False)
+
+    try:
+        info = with_cookie_fallback(_search)
     except DownloadError:
         return []
     return [

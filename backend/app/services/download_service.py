@@ -23,7 +23,11 @@ from yt_dlp.utils import DownloadError, download_range_func
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
-from app.core.ytdlp_options import network_options, normalize_url
+from app.core.ytdlp_options import (
+    network_options,
+    normalize_url,
+    with_cookie_fallback,
+)
 from app.services.threads_extractor import register as register_threads_ie
 from app.services.vr import apply_vr, detect_vr
 from app.models.media import (
@@ -214,9 +218,17 @@ def _parse_rate_limit(value: str | None) -> float | None:
 
 
 def _build_options(
-    request: DownloadRequest, hook: Any, pp_hook: Any = None
+    request: DownloadRequest,
+    hook: Any,
+    pp_hook: Any = None,
+    *,
+    net: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Assemble yt-dlp options for the requested kind/quality."""
+    """Assemble yt-dlp options for the requested kind/quality.
+
+    ``net`` overrides the network options (cookies/proxy/impersonation) — used by
+    the cookie fallback to rebuild without the browser.
+    """
     download_dir = settings.ensure_download_dir()
     # Filename template: the user-configured name part + the real extension.
     # Strip first (so a whitespace-only value falls back) and neutralise path
@@ -248,7 +260,7 @@ def _build_options(
         "progress_hooks": [hook],
         # Cancel is also honoured between post-processing steps (ffmpeg, …).
         "postprocessor_hooks": [pp_hook] if pp_hook else [],
-        **network_options(),
+        **(network_options() if net is None else net),
     }
 
     # Optional download speed cap (yt-dlp expects bytes/s).
@@ -542,8 +554,8 @@ async def download_events(
         if cancel_event is not None and cancel_event.is_set():
             raise _DownloadCancelled
 
-    def blocking() -> str | None:
-        options = _build_options(request, hook, pp_hook)
+    def _run(net: dict[str, Any]) -> str | None:
+        options = _build_options(request, hook, pp_hook, net=net)
         with YoutubeDL(options) as ydl:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
@@ -571,6 +583,11 @@ async def download_events(
             if path and settings.nfo_sidecars:
                 _write_nfo_sidecar(Path(path), info, request.kind)
             return path
+
+    def blocking() -> str | None:
+        # A locked/unreadable browser cookie store fails at the start (before any
+        # bytes), so retry without the browser — cookies file or none.
+        return with_cookie_fallback(_run)
 
     # Hold the process-wide lock for the whole job so a second download can't run
     # concurrently. Acquired before the worker thread starts (yt-dlp writes

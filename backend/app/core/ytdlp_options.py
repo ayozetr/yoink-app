@@ -6,12 +6,16 @@ services behave identically.
 
 from __future__ import annotations
 
+import logging
 import re
 from functools import lru_cache
-from typing import Any
+from typing import Any, Callable, TypeVar
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+_T = TypeVar("_T")
 
 # TikTok photo/slideshow posts are served by the video extractor under /video/.
 _TIKTOK_PHOTO = re.compile(r"(tiktok\.com/@[^/]+)/photo/", re.IGNORECASE)
@@ -66,17 +70,20 @@ def _impersonate_target() -> Any | None:
         return None
 
 
-def network_options() -> dict[str, Any]:
+def network_options(*, use_browser: bool = True) -> dict[str, Any]:
     """yt-dlp network options from settings: impersonation + cookies + proxy.
 
     Shared by the metadata and download services so both behave identically.
-    `cookies_from_browser` wins over `cookies_file` when both are set.
+    `cookies_from_browser` wins over `cookies_file` when both are set. With
+    ``use_browser=False`` the browser is skipped (used by the cookie fallback
+    when reading the browser's cookie DB fails) — falling back to the cookies
+    file if set, else no cookies.
     """
     options: dict[str, Any] = {}
     target = _impersonate_target()
     if target is not None:
         options["impersonate"] = target
-    if settings.cookies_from_browser:
+    if use_browser and settings.cookies_from_browser:
         # Tuple form: (browser, profile, keyring, container) — only browser here.
         options["cookiesfrombrowser"] = (settings.cookies_from_browser,)
     elif settings.cookies_file:
@@ -84,3 +91,45 @@ def network_options() -> dict[str, Any]:
     if settings.proxy:
         options["proxy"] = settings.proxy
     return options
+
+
+def is_browser_cookie_error(message: str) -> bool:
+    """Whether an error is yt-dlp failing to read the *browser's* cookie store.
+
+    On Windows a running Chromium browser locks its cookie DB (and newer ones
+    encrypt it), so extraction fails with "Could not copy ... cookie database" /
+    a decrypt error — which shouldn't sink the whole request when a cookies file
+    (or plain impersonation) would work.
+    """
+    low = message.lower()
+    if "cookie" not in low:
+        return False
+    return any(
+        s in low
+        for s in (
+            "could not copy",
+            "could not find",
+            "could not open",
+            "unable to read",
+            "permission denied",
+            "decrypt",
+        )
+    )
+
+
+def with_cookie_fallback(run: Callable[[dict[str, Any]], _T]) -> _T:
+    """Run ``run(network_options())``; if it fails because the *browser* cookie
+    store couldn't be read, retry once with the browser dropped (cookies file or
+    none). Non-cookie errors propagate unchanged.
+    """
+    try:
+        return run(network_options())
+    except Exception as exc:  # noqa: BLE001 — re-raised unless it's a cookie error
+        if settings.cookies_from_browser and is_browser_cookie_error(str(exc)):
+            logger.warning(
+                "Could not read %s cookies (%s); retrying without the browser.",
+                settings.cookies_from_browser,
+                type(exc).__name__,
+            )
+            return run(network_options(use_browser=False))
+        raise

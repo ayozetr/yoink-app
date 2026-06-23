@@ -13,7 +13,10 @@ from typing import Any, cast
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
-from app.core.ytdlp_options import network_options, normalize_url
+from app.core.ytdlp_options import (
+    normalize_url,
+    with_cookie_fallback,
+)
 from app.services.threads_extractor import register as register_threads_ie
 from app.services.vr import detect_vr
 from app.models.media import (
@@ -401,18 +404,21 @@ def _probe_first_entry_audio(info: dict[str, Any]) -> tuple[bool, float | None]:
     if not isinstance(first_url, str):
         return False, None
 
-    options: dict[str, Any] = {
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-        "noplaylist": True,
-        **network_options(),
-    }
-    try:
+    def _probe(net: dict[str, Any]) -> dict[str, Any]:
+        options: dict[str, Any] = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "noplaylist": True,
+            **net,
+        }
         with YoutubeDL(options) as ydl:
             register_threads_ie(ydl)
             raw = ydl.extract_info(normalize_url(first_url), download=False)
-            entry = cast(dict[str, Any], ydl.sanitize_info(raw))
+            return cast(dict[str, Any], ydl.sanitize_info(raw))
+
+    try:
+        entry = with_cookie_fallback(_probe)
     except DownloadError:
         return False, None
     return _audio_summary(entry.get("formats"))
@@ -427,13 +433,12 @@ def extract_info(url: str) -> InfoResponse:
     Raises:
         MediaExtractionError: if yt-dlp fails or returns no data.
     """
-    options: dict[str, Any] = {
+    base: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
         # Flatten items *inside* a playlist, but fully resolve a single video.
         "extract_flat": "in_playlist",
-        **network_options(),
     }
 
     def _extract(opts: dict[str, Any]) -> dict[str, Any]:
@@ -443,8 +448,9 @@ def extract_info(url: str) -> InfoResponse:
             # sanitize_info makes the dict JSON-serializable and stable.
             return cast(dict[str, Any], ydl.sanitize_info(raw_info))
 
-    def _attempt() -> dict[str, Any]:
+    def _attempt(net: dict[str, Any]) -> dict[str, Any]:
         """One full extraction attempt: primary + tolerant fallback."""
+        options = {**base, **net}
         try:
             return _extract(options)
         except DownloadError as exc:
@@ -481,7 +487,7 @@ def extract_info(url: str) -> InfoResponse:
     info: dict[str, Any] = {}
     for attempt in range(_INFO_MAX_ATTEMPTS):
         try:
-            info = _attempt()
+            info = with_cookie_fallback(_attempt)
             break
         except MediaExtractionError as exc:
             if not exc.transient or attempt == _INFO_MAX_ATTEMPTS - 1:
@@ -546,20 +552,26 @@ def search_youtube(
         return []
 
     prefix = _SEARCH_PREFIXES.get(source, "ytsearch")
-    options: dict[str, Any] = {
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-        "extract_flat": True,
-        "socket_timeout": 8,  # fail fast — this feeds a typeahead
-        **network_options(),
-    }
-    try:
-        with YoutubeDL(options) as ydl:
-            raw_info = ydl.extract_info(f"{prefix}{limit}:{query}", download=False)
-            info = cast(dict[str, Any], ydl.sanitize_info(raw_info))
-    except DownloadError as exc:
-        raise MediaExtractionError(str(exc)) from exc
+
+    def _search(net: dict[str, Any]) -> dict[str, Any]:
+        options: dict[str, Any] = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "extract_flat": True,
+            "socket_timeout": 8,  # fail fast — this feeds a typeahead
+            **net,
+        }
+        try:
+            with YoutubeDL(options) as ydl:
+                raw_info = ydl.extract_info(f"{prefix}{limit}:{query}", download=False)
+                return cast(dict[str, Any], ydl.sanitize_info(raw_info))
+        except DownloadError as exc:
+            raise MediaExtractionError(str(exc)) from exc
+
+    # A locked/unreadable browser cookie store shouldn't sink search — fall back
+    # to the cookies file (or none); impersonation alone usually suffices.
+    info = with_cookie_fallback(_search)
 
     if not info:
         return []
