@@ -243,6 +243,9 @@ export function MusicImportCard({
           settled = true;
           handleRef.current = null;
           if (event.type === "completed") {
+            // The backend already wrote the history row on completion — surface
+            // it now instead of waiting for the async auto-tagging to finish.
+            onDownloadFinished?.();
             void applyAudioTags({
               path: event.filepath,
               title: track.title,
