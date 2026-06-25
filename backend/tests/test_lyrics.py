@@ -61,3 +61,20 @@ def test_empty_title_short_circuits(monkeypatch):
     monkeypatch.setattr(lyr, "_get_json", fake)
     assert lyr.fetch_lyrics("", "Artist") is None
     assert called is False  # no network for an empty title
+
+
+def test_falls_back_to_free_text_query(monkeypatch):
+    # Structured track+artist search misses (e.g. multi-artist), but the fuzzy
+    # free-text `q` search finds it.
+    def fake(url: str):
+        if "/get?" in url:
+            return None
+        if "track_name=" in url and "q=" not in url:
+            return []  # strict search misses
+        if "q=" in url:
+            return [{"plainLyrics": "found via q", "instrumental": False}]
+        return None
+
+    monkeypatch.setattr(lyr, "_get_json", fake)
+    r = lyr.fetch_lyrics("Qué Cruel", "Daniela Garsal, Cruz Cafuné")
+    assert r is not None and r.plain == "found via q"

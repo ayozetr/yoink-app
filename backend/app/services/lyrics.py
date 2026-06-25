@@ -50,6 +50,17 @@ def _to_lyrics(record: dict[str, Any]) -> Lyrics | None:
     return Lyrics(plain=plain, synced=synced, instrumental=instrumental)
 
 
+def _first_usable(hits: Any) -> Lyrics | None:
+    """The first search hit that carries usable lyrics, or None."""
+    if isinstance(hits, list):
+        for hit in hits:
+            if isinstance(hit, dict):
+                found = _to_lyrics(hit)
+                if found is not None:
+                    return found
+    return None
+
+
 def fetch_lyrics(
     title: str,
     artist: str,
@@ -67,6 +78,7 @@ def fetch_lyrics(
     if not title:
         return None
 
+    # 1. Exact metadata match (needs duration) — the most precise.
     if duration:
         params: dict[str, str] = {"track_name": title, "artist_name": artist}
         if album:
@@ -78,12 +90,17 @@ def fetch_lyrics(
             if found is not None:
                 return found
 
+    # 2. Structured search by track + artist.
     query = urllib.parse.urlencode({"track_name": title, "artist_name": artist})
-    hits = _get_json(f"{_BASE}/search?{query}")
-    if isinstance(hits, list):
-        for hit in hits:
-            if isinstance(hit, dict):
-                found = _to_lyrics(hit)
-                if found is not None:
-                    return found
+    found = _first_usable(_get_json(f"{_BASE}/search?{query}"))
+    if found is not None:
+        return found
+
+    # 3. Fuzzy free-text search — catches multi-artist ("A, B"), accents and
+    #    "feat."/noise that the structured artist match is too strict for.
+    if artist:
+        q = urllib.parse.urlencode({"q": f"{artist} {title}"})
+        found = _first_usable(_get_json(f"{_BASE}/search?{q}"))
+        if found is not None:
+            return found
     return None
