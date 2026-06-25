@@ -6,10 +6,22 @@ fixture points `settings.data_dir` (and `download_dir`) at a tmp_path.
 
 from __future__ import annotations
 
+import os
+import tempfile
+
 import pytest
 
-from app.core.config import settings
-from app.services import history_store
+# Isolate the WHOLE session from real user data (~/.yoink) BEFORE importing the
+# app: `settings` is built at import and `settings_store.load_overrides()` runs
+# at app import, so without this the developer's real settings.json (cookies,
+# sponsorblock, download_dir, …) leaks into the global `settings` and pollutes
+# tests. Point data_dir/download_dir at throwaway temp locations via env first.
+_TEST_ROOT = tempfile.mkdtemp(prefix="yoink-tests-")
+os.environ.setdefault("YOINK_DATA_DIR", os.path.join(_TEST_ROOT, "data"))
+os.environ.setdefault("YOINK_DOWNLOAD_DIR", os.path.join(_TEST_ROOT, "downloads"))
+
+from app.core.config import settings  # noqa: E402
+from app.services import history_store  # noqa: E402
 
 
 @pytest.fixture
