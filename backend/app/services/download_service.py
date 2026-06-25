@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import shutil
 import threading
 from pathlib import Path
 from typing import Any, AsyncIterator
@@ -39,6 +40,9 @@ from app.models.media import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Refuse a download when less than this is free on the target disk (~500 MB).
+_MIN_FREE_DISK_BYTES = 500 * 1024 * 1024
 
 # Serializes downloads across the whole backend process. Yoink downloads one
 # file at a time (concurrent downloads are an explicit non-goal); two jobs share
@@ -467,6 +471,18 @@ async def download_events(
     ``cancel_event`` is set mid-flight, the download aborts and the iterator
     ends silently (no terminal event).
     """
+    # Don't start a download that can't fit: surface low disk space up front
+    # instead of failing mid-write with a cryptic yt-dlp/ffmpeg error.
+    try:
+        free = shutil.disk_usage(settings.ensure_download_dir()).free
+    except OSError:
+        free = None
+    if free is not None and free < _MIN_FREE_DISK_BYTES:
+        yield ErrorEvent(
+            message=f"Not enough free disk space — only {humanize_bytes(free)} left."
+        )
+        return
+
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[ProgressEvent] = asyncio.Queue()
     last_percent = 0.0

@@ -45,3 +45,27 @@ def test_keeps_a_word_prefix_without_a_digit():
         friendly_download_error("ERROR: Postprocessing: conversion failed")
         == "Postprocessing: conversion failed"
     )
+
+
+def test_low_disk_space_aborts_before_download(temp_dirs, monkeypatch):
+    """A near-full disk yields an error event up front, no download attempted."""
+    import asyncio
+    from collections import namedtuple
+
+    from app.models.media import DownloadRequest
+    from app.services import download_service as ds
+
+    usage = namedtuple("usage", "total used free")
+    # ~1 KB free — well under the threshold.
+    monkeypatch.setattr(ds.shutil, "disk_usage", lambda p: usage(100, 99, 1024))
+
+    async def first_event():
+        async for event in ds.download_events(
+            DownloadRequest(url="http://x/v", kind="audio")
+        ):
+            return event
+        return None
+
+    event = asyncio.run(first_event())
+    assert event is not None and event.type == "error"
+    assert "disk space" in event.message.lower()
