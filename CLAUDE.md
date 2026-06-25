@@ -54,7 +54,9 @@ Two layers communicating asynchronously:
   file up in the Apple Music, Deezer or MusicBrainz catalogue — or `auto`, which
   cascades through them (Settings, `autotag_source`) — and writes tags + cover
   art via `POST /api/autotag/{identify,search,apply}`; nothing is written until
-  `apply`.
+  `apply`. When `fetch_lyrics` is on, `POST /api/autotag/lyrics` previews the
+  LRCLIB match in the card and `apply` embeds the lyrics (plus an optional synced
+  `.lrc` sidecar); `apply` also rewrites the `.nfo` from the tagged metadata.
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` (and `src/types/autotag.ts` ↔
@@ -94,13 +96,13 @@ literal OpenAPI types on demand.
         ├── models/autotag.py  # auto-tagging models (TagCandidate, CandidateList, …)
         ├── models/music.py    # music-import models (MusicTrack, MusicImportInfo, …)
         ├── core/humanize.py   # shared byte/size formatting
-        ├── core/ytdlp_options.py      # shared URL normalize + cookie options
+        ├── core/ytdlp_options.py      # shared URL normalize + cookies (browser→file fallback)
         ├── core/safe_http.py  # SSRF-safe fetch (public-host pinning) for client URLs
         ├── routers/info.py    # POST /api/info (video or playlist), GET /api/search (YouTube/SoundCloud)
         ├── routers/download.py        # WS /api/ws/download (live progress)
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
         ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
-        ├── routers/autotag.py         # POST /api/autotag/{identify,search,apply}
+        ├── routers/autotag.py         # POST /api/autotag/{identify,search,lyrics,apply}
         ├── routers/music.py           # POST /api/music/{resolve,match} (keyless import)
         ├── routers/media.py           # GET /api/thumbnail (host-guarded proxy) + /api/cover (embedded art)
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
@@ -108,7 +110,9 @@ literal OpenAPI types on demand.
         ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor
         ├── services/music_import.py    # keyless resolvers (5 services) + YouTube match
         ├── services/matching.py        # spotDL-ported YouTube match ranking
-        ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing
+        ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing (+ lyrics + .nfo)
+        ├── services/lyrics.py          # LRCLIB lyrics lookup (plain + synced .lrc)
+        ├── services/nfo.py             # Kodi/Jellyfin .nfo sidecars (movie / musicvideo)
         ├── services/vr.py              # VR detection + Spherical Video V2 (st3d/sv3d) tagging
         ├── services/history_store.py  # SQLite persistence (history + stats)
         ├── services/settings_store.py # persisted user settings overrides

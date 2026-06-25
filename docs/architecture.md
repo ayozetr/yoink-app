@@ -97,9 +97,16 @@ apply**; nothing is written to the file until **Apply**.
    matching releases (single/EP/album, each with cover art).
 2. `POST /api/autotag/search` — `{ "artist", "title" }`. Manual catalogue
    search, returning the same `CandidateList`.
-3. `POST /api/autotag/apply` — the (possibly user-edited) `TagCandidate` fields
-   + `path`. The backend writes tags and cover art with `mutagen` (full tags for
-   mp3/m4a/flac; text-only for opus/ogg/wav) and returns an `ApplyResponse`.
+3. `POST /api/autotag/lyrics` — `{ "title", "artist", … }`. When the **lyrics**
+   setting is on, the card previews the LRCLIB match (`services/lyrics.py`:
+   exact `/get` → structured search → fuzzy `q` → primary-artist retry) so it can
+   show a found/synced/instrumental indicator + a "view lyrics" popup.
+4. `POST /api/autotag/apply` — the (possibly user-edited) `TagCandidate` fields
+   + `path` (+ a per-track `embed_lyrics` override). The backend writes tags and
+   cover art with `mutagen` (full tags for mp3/m4a/flac; text-only for
+   opus/ogg/wav), embeds the lyrics (and an optional synced `.lrc` sidecar),
+   rewrites the `.nfo` from the tagged metadata (`services/nfo.py`), and returns
+   an `ApplyResponse`.
 
 All file paths are confined to the download directory (path guard). Models live
 in `backend/app/models/autotag.py`, mirrored in `src/types/autotag.ts`.

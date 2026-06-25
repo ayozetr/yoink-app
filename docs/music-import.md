@@ -96,7 +96,7 @@ Spotify URL
   → per track: "artist title" → yt-dlp ytsearch1/ytmsearch → best match   [reuse]
   → download via the queue   (sequential, resumable)                      [reuse]
   → auto-tag with the Spotify fields (title/artist/album/cover/#/year)    [reuse]
-  → (optional) synced lyrics via LRCLIB (already a roadmap item)          [reuse]
+  → (optional) lyrics via LRCLIB — embedded + a synced .lrc (shipped)     [reuse]
 ```
 
 The only **new** backend code is the Spotify tracklist extractor + the match

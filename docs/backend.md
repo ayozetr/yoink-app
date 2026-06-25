@@ -12,19 +12,19 @@ backend/
 │   │   ├── config.py           # typed Settings (CORS origins, download dir, ~/.yoink data dir)
 │   │   ├── logging_config.py   # rotating file log at ~/.yoink/logs/yoink.log + console
 │   │   ├── humanize.py         # shared byte/size formatting
-│   │   ├── ytdlp_options.py    # shared URL normalize + cookie options
+│   │   ├── ytdlp_options.py    # shared URL normalize + cookies (browser → file fallback)
 │   │   └── safe_http.py        # SSRF-safe fetch (public-host pinning) for client-supplied URLs
 │   ├── models/
 │   │   ├── media.py            # Pydantic models (JSON contract): InfoResponse, VideoInfo,
 │   │   │                       #   PlaylistInfo, DownloadRequest, progress/terminal events, …
 │   │   ├── music.py            # music-import models: MusicTrack, MusicImportInfo, …
-│   │   └── autotag.py          # auto-tag models: TagCandidate, CandidateList, request/response
+│   │   └── autotag.py          # auto-tag models: TagCandidate, CandidateList, LyricsRequest/Result, …
 │   ├── routers/
 │   │   ├── info.py             # POST /api/info (video or playlist), GET /api/search (YouTube/SoundCloud)
 │   │   ├── download.py         # WS /api/ws/download (live progress)
 │   │   ├── history.py          # GET/DELETE /api/history(/stats), POST /api/open
 │   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
-│   │   ├── autotag.py          # POST /api/autotag/{identify,search,apply}
+│   │   ├── autotag.py          # POST /api/autotag/{identify,search,lyrics,apply}
 │   │   ├── music.py            # POST /api/music/{resolve,match} (keyless music import)
 │   │   └── media.py            # GET /api/thumbnail (host-guarded image proxy)
 │   └── services/
@@ -32,7 +32,9 @@ backend/
 │       ├── download_service.py # yt-dlp download + typed progress stream (one job at a time via a process-wide asyncio lock)
 │       ├── music_import.py     # keyless resolvers (Spotify/Deezer/Apple/Tidal/Amazon) + YouTube match
 │       ├── matching.py         # spotDL-ported YouTube match ranking (pure, no network)
-│       ├── autotag_service.py  # Apple Music (iTunes) / Deezer / MusicBrainz lookup + mutagen tag/cover writing
+│       ├── autotag_service.py  # Apple Music (iTunes) / Deezer / MusicBrainz lookup + mutagen tag/cover/lyrics writing
+│       ├── lyrics.py           # LRCLIB lyrics lookup (plain + synced .lrc), SSRF-safe
+│       ├── nfo.py              # Kodi/Jellyfin .nfo sidecars (movie / musicvideo)
 │       ├── vr.py               # VR detection + Spherical Video V2 (st3d/sv3d) tagging
 │       ├── history_store.py    # SQLite persistence (history + stats; error_message column)
 │       ├── settings_store.py   # persisted user settings overrides

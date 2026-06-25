@@ -66,12 +66,15 @@ Response (abridged):
 For a playlist URL the response is a flat listing; the backend resolves the
 first entry to set `source_lossless` / `best_audio_abr` on it.
 
-### `POST /api/autotag/{identify,search,apply}`
+### `POST /api/autotag/{identify,search,lyrics,apply}`
 
-Audio auto-tagging against the Apple Music (iTunes) catalogue. `identify`
-matches a downloaded file, `search` queries by artist/title, and `apply` writes
-the chosen tags + cover art with `mutagen` (mp3/m4a/flac native, opus/ogg/wav
-text-only). Paths are confined to the download directory.
+Audio auto-tagging against the Apple Music (iTunes) / Deezer / MusicBrainz
+catalogue. `identify` matches a downloaded file, `search` queries by
+artist/title, `lyrics` previews the LRCLIB match (when the lyrics setting is on),
+and `apply` writes the chosen tags + cover art with `mutagen` (mp3/m4a/flac
+native, opus/ogg/wav text-only) — optionally embedding lyrics (+ a synced `.lrc`)
+and rewriting the `.nfo` from the tagged metadata. Paths are confined to the
+download directory.
 
 ## Configuration
 
@@ -81,7 +84,7 @@ Settings are read from `YOINK_`-prefixed environment variables (or a local
 | Variable               | Default                  | Description                          |
 | ---------------------- | ------------------------ | ------------------------------------ |
 | `YOINK_CORS_ORIGINS`   | Vite dev server origins  | JSON list of allowed origins         |
-| `YOINK_DOWNLOAD_DIR`   | `~/Downloads/Yoink`      | Where downloaded media is written    |
+| `YOINK_DOWNLOAD_DIR`   | `<OS Downloads>/Yoink`   | Where downloaded media is written (the OS Downloads folder, localized) |
 
 ## Structure
 
@@ -92,7 +95,7 @@ backend/
 │   ├── core/               # typed settings, humanize, shared yt-dlp options
 │   ├── models/            # Pydantic models (JSON contract): media, autotag
 │   ├── routers/            # info, download (WS), history, settings, autotag
-│   └── services/           # yt-dlp metadata + download, history/settings stores, updates, autotag
+│   └── services/           # yt-dlp metadata + download, history/settings stores, updates, autotag (+ lyrics, nfo)
 └── requirements.txt
 ```
 

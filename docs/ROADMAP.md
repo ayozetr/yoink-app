@@ -11,25 +11,26 @@
 
 ## 📍 Status
 
-- **Unreleased (next):** **resumable playlist downloads** (the panel batch
-  persists + offers resume on relaunch), **playlist** filter / shift-click range /
-  lazy thumbnails / retry-failed, VR follow-ups (**Spherical V1** for 360°,
-  **MKV StereoMode**, **post-tag ffprobe validation**), **friendlier yt-dlp error
-  messages**, **non-Western title parsing** (K-pop quotes / Bollywood pipes), a
-  **source-thumbnail fallback cover** on audio, **download presets**, and optional
-  **`.nfo` sidecars**.
-- **Current release:** **v2.1.0** — a process-wide **single-download lock** (no two
-  engines collide on the same `.part`), a **dynamic backend port** (falls back when
-  8756 is taken), **persisted subtitle/chapter defaults**, a collapsible **"Advanced
-  options"** in the preview, **full progress detail** (percent · speed · ETA) on
-  music and queue downloads, **SSRF-hardened** music-import fetches, plus
-  accessibility/perf polish (accessible re-tag dialog, `Select`
-  `aria-activedescendant`, lazy-loaded modals, cancel during post-processing).
-- **Previously (v2.0.0):** keyless **music import from five services**
-  (Spotify/Deezer/Apple/Tidal/Amazon) with a spotDL-ported YouTube matcher at
-  **~99.5%** over 2,300+ real tracks, **SoundCloud search**, **14 UI languages**,
-  **backend logging**, **resumable downloads**. (v1.9.x: immersive VR, the queue,
-  hardening.)
+- **Unreleased (next — v2.3.0):** **lyrics in auto-tagging** (LRCLIB: embedded
+  plain lyrics + an optional synced **`.lrc`**, an in-card indicator / preview /
+  popup, and robust matching), a **cookies browser→file fallback** (a locked
+  browser store no longer breaks search/downloads), the **`.nfo` rewritten from
+  the tagged metadata**, a **localized default download dir** (the OS Downloads
+  folder, e.g. `~/Descargas`), **music-import parity** (filter / range / duration
+  summary) + history-as-it-downloads, and quick wins (**copy-error** button,
+  **paste-and-analyze** `Ctrl/Cmd+Shift+V`, **low-disk-space guard**).
+- **Current release:** **v2.2.0** — **resumable playlist downloads**, **playlist**
+  filter / shift-click range / lazy thumbnails / retry-failed + a cover, VR
+  follow-ups (**Spherical V1** for 360°, **MKV StereoMode**, **post-tag ffprobe
+  validation**), **friendlier yt-dlp error messages**, **non-Western title
+  parsing**, a **source-thumbnail fallback cover** on audio, **download presets**,
+  and optional **`.nfo` sidecars**.
+- **Previously (v2.1.0):** a process-wide **single-download lock**, a **dynamic
+  backend port**, persisted subtitle/chapter defaults, a collapsible **"Advanced
+  options"**, full progress detail on music/queue, SSRF-hardened music-import, and
+  a11y/perf polish. (v2.0.0: keyless **music import from five services**
+  ~**99.5%**, SoundCloud search, **14 UI languages**, backend logging, resumable
+  downloads. v1.9.x: immersive VR, the queue, hardening.)
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
 - **Health:** backend (pytest) + frontend (vitest) green · `npm audit` 0 · strict TS.

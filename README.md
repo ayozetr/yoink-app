@@ -46,13 +46,17 @@ It is split into two layers that communicate asynchronously:
     the source is genuinely lossless (no fake upscaling).
 - **Trim / clip** — a scissors button to download only a time range (e.g.
   `0:30 → 2:10`) of a video or audio.
+- **Download presets** — save a format/quality/container/subtitles combo as a
+  named preset and apply it to any video in one click.
 - **Immersive / VR video** — detects 180°/360° clips (SBS · TB · mono ·
   fisheye / MKX / RF5.2) and tags the file so VR players (Quest / DeoVR /
   Heresphere) show it in 3D: a projection name suffix **plus injected Spherical
   Video V2 metadata** (`st3d`/`sv3d`). Shown only when detected; you confirm or
   fix the layout, and it's remembered per channel.
-- **Playlists** — pick which items to download with checkboxes; they download
-  sequentially with "X of N" progress (VR tagging applies to the whole batch).
+- **Playlists** — pick which items to download (a cover, a **filter** for long
+  lists, **Shift+click** range selection); they download sequentially with
+  "X of N" progress, **resume** if interrupted, and offer **retry-failed** when
+  some items don't finish (VR tagging applies to the whole batch).
 - **Download queue** — paste many links to download one after another; the
   queue **persists across restarts** and **resumes** interrupted items.
 - **Audio auto-tagging** — after an audio download, an inline card tags the file
@@ -60,17 +64,24 @@ It is split into two layers that communicate asynchronously:
   Deezer or MusicBrainz** (free, no account; pick one — or Automatic — in
   Settings); you review, edit or search before anything is written. Works per
   song and across whole playlists.
+- **Lyrics** (optional, off by default) — during auto-tagging, look the song up
+  on **LRCLIB** (free, keyless) and embed its lyrics in the file, with an
+  in-card indicator + a "view lyrics" popup and an optional synced **`.lrc`
+  sidecar** for karaoke-capable players.
 - **SponsorBlock** (optional, off by default) — strip or just mark sponsor /
   intro / outro segments on YouTube downloads, chosen in Settings.
 - **History & stats** persisted locally (SQLite), with quality (resolution /
   bitrate), re-tagging, and **cover art** for tagged
   audio, open file / folder, and clear.
-- **Settings** — download folder, default format/quality (up to **4K / best**),
-  **default subtitles/chapters embedding**, **filename template**, **video codec** &
-  **audio bitrate**, **bandwidth limit**, **proxy** (http/socks), **language**, and
-  cookies (browser — with icons — or `cookies.txt`).
+- **Settings** — download folder (defaults to your OS Downloads folder, whatever
+  its localized name), default format/quality (up to **4K / best**), **default
+  subtitles/chapters embedding**, **lyrics** and **`.nfo` sidecars**, **filename
+  template**, **video codec** & **audio bitrate**, **bandwidth limit**, **proxy**
+  (http/socks), **language**, and cookies (browser — with icons — or
+  `cookies.txt`; the browser store falls back to the file if it can't be read).
 - **Desktop notifications** when a download finishes, **taskbar/title progress**,
-  and keyboard shortcuts (Ctrl/Cmd+L focus URL, Ctrl/Cmd+, settings).
+  and keyboard shortcuts (Ctrl/Cmd+L focus URL, Ctrl/Cmd+Shift+V paste-and-analyze,
+  Ctrl/Cmd+, settings).
 - **14 UI languages** (react-i18next: EN/ES/FR/DE/IT/PT-BR/RU/PL/UK/ID/HI/ZH/JA/KO), auto-detected from your system
   language and switchable in Settings.
 - **Update check** against the latest GitHub release; Settings also shows the

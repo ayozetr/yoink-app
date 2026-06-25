@@ -34,13 +34,13 @@ src/
 │   ├── queue/                   # persistent sequential download queue (opened from the header)
 │   │   └── QueuePanel.tsx
 │   ├── autotag/                 # audio auto-tagging (Apple Music / Deezer / MusicBrainz), wired into DownloaderPanel
-│   │   ├── AutoTagPanel.tsx     # inline "Tag audio" card after a single audio download
+│   │   ├── AutoTagPanel.tsx     # inline "Tag audio" card (+ a lyrics indicator/preview/popup) after a single audio download
 │   │   ├── AutoTagBatchPanel.tsx # per-track tagging list after an audio playlist
 │   │   └── filename.ts          # "Artist - Title" filename parser (seeds catalogue search)
-│   ├── history/                 # sidebar (failed rows show the captured error message)
+│   ├── history/                 # sidebar (failed rows show the captured error + a copy button)
 │   │   ├── HistorySidebar.tsx
 │   │   └── components/
-│   └── settings/                # settings modal (dir, defaults, cookies, language, version)
+│   └── settings/                # settings modal (dir, defaults, cookies, lyrics, .nfo, language, version)
 │       └── SettingsModal.tsx
 ├── i18n/                        # react-i18next setup + 14 locale files (lazy-loaded)
 │   ├── index.ts
