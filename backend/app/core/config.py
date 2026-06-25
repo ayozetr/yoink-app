@@ -7,6 +7,9 @@ both Linux and Windows.
 
 from __future__ import annotations
 
+import os
+import re
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -14,9 +17,56 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _xdg_download_dir() -> Path | None:
+    """The user's Downloads dir from XDG user-dirs (Linux) — localized, e.g.
+    ``Descargas`` / ``Téléchargements``. None if unset (macOS/Windows have no
+    such file, so they fall through to ~/Downloads)."""
+    home = Path.home()
+    config = Path(os.environ.get("XDG_CONFIG_HOME") or str(home / ".config"))
+    try:
+        text = (config / "user-dirs.dirs").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    # e.g.  XDG_DOWNLOAD_DIR="$HOME/Descargas"
+    match = re.search(
+        r'^\s*XDG_DOWNLOAD_DIR\s*=\s*"?(.*?)"?\s*$', text, flags=re.MULTILINE
+    )
+    if not match:
+        return None
+    value = match.group(1).replace("$HOME", str(home))
+    path = Path(os.path.expandvars(value)).expanduser()
+    return path if path.is_absolute() else None
+
+
+def _windows_download_dir() -> Path | None:
+    """The user's Downloads known folder on Windows (honours a relocated one)."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+        ) as key:
+            value, _ = winreg.QueryValueEx(
+                key, "{374DE290-123F-4565-9164-39C4925E467B}"
+            )
+    except OSError:
+        return None
+    path = Path(os.path.expandvars(str(value)))
+    return path if path.is_absolute() else None
+
+
+def _downloads_dir() -> Path:
+    """The OS user's real Downloads folder, regardless of UI language — localized
+    on Linux (XDG) or relocated on Windows — falling back to ``~/Downloads``."""
+    return _windows_download_dir() or _xdg_download_dir() or (Path.home() / "Downloads")
+
+
 def _default_download_dir() -> Path:
-    """Cross-platform default download location (`~/Downloads/Yoink`)."""
-    return Path.home() / "Downloads" / "Yoink"
+    """Default download location: the user's Downloads folder + ``/Yoink``."""
+    return _downloads_dir() / "Yoink"
 
 
 def _default_data_dir() -> Path:
