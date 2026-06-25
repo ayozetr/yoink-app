@@ -205,10 +205,25 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ✅ **Embed source thumbnail as cover** on audio *(next)* — a *fallback* cover
   (yt-dlp `EmbedThumbnail` for mp3/m4a/flac); auto-tagging overrides it with real
   album art when found and preserves an existing cover when it has none.
-- ⬜ **Lyrics in auto-tagging** (L) — LRCLIB (free, no key).
+- ✅ **Lyrics in auto-tagging** *(next)* — LRCLIB (free, keyless): embeds the plain
+  lyrics (USLT / ©lyr / LYRICS), an optional synced **`.lrc` sidecar**, and an
+  in-card **indicator + preview + per-track toggle**, with a fuzzy free-text
+  fallback so multi-artist / accented titles still match.
 - ⬜ **Media-server naming presets** (S) — Jellyfin/Plex/Navidrome layouts.
 - ✅ **NFO sidecars** *(next)* — an optional Settings toggle writes a Kodi/Jellyfin
-  `.nfo` (`<movie>`/`<musicvideo>`) next to each download with the source metadata.
+  `.nfo` (`<movie>`/`<musicvideo>`) next to each download with the source metadata;
+  audio auto-tagging **rewrites** it from the tagged title/artist/album/cover.
+- ⬜ **Folder-level music `.nfo` (`album.nfo` / `artist.nfo`)** (M) — the audio
+  `.nfo` we write today is a *per-track* Kodi-style `<musicvideo>` file, but
+  Jellyfin (and Kodi) read a **song's** metadata from its **embedded tags**, not a
+  per-track `.nfo`. For music, `.nfo` only exists at the **album** (`album.nfo`)
+  and **artist** (`artist.nfo`) *folder* level — so the per-track audio `.nfo` is
+  effectively **ignored** by a Jellyfin music library (the embedded tags, which we
+  already write, do the work). To make a sidecar actually useful for music,
+  generate `album.nfo`/`artist.nfo` in the correct folders per the Jellyfin/Kodi
+  music convention — which first needs downloads organised into `Artist/Album/`
+  folders (a library-layout feature, hence the M). Until then the per-track `.nfo`
+  stays, since Kodi music-video libraries and other tools still read it.
 
 ### 🖥️ UX / UI
 - ⬜ **Drag-and-drop a link** onto the window (M).
