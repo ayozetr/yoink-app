@@ -534,14 +534,16 @@ export function AutoTagPanel({
         createPortal(
           <div
             className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4"
-            role="dialog"
-            aria-modal="true"
             onClick={() => setShowLyrics(false)}
           >
             <div
               ref={lyricsModalRef}
+              tabIndex={-1}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("autotag.lyrics")}
               onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl"
+              className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl outline-none"
             >
               <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                 <h3 className="truncate text-sm font-semibold text-zinc-100">
@@ -556,9 +558,13 @@ export function AutoTagPanel({
                   <X size={16} />
                 </button>
               </div>
-              <pre className="overflow-auto whitespace-pre-wrap px-4 py-3 text-sm leading-relaxed text-zinc-200">
+              <div
+                tabIndex={0}
+                aria-label={t("autotag.lyrics")}
+                className="overflow-auto whitespace-pre-wrap px-6 py-5 text-center font-sans text-[15px] leading-8 tracking-[0.01em] text-zinc-200 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/40"
+              >
                 {lyrics.plain}
-              </pre>
+              </div>
             </div>
           </div>,
           document.body,
