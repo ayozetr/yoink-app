@@ -42,6 +42,7 @@ from mutagen.wave import WAVE
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_path
 from app.core.safe_http import SafeHTTPError, fetch_public
+from app.services import nfo
 from app.services.lyrics import Lyrics, fetch_lyrics
 from app.models.autotag import (
     ApplyRequest,
@@ -450,6 +451,20 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         # Corrupt / mistyped / partial audio file, or a format mutagen can't tag
         # cleanly: surface as a clean 422 rather than an unhandled 500.
         raise AutotagError(f"Could not write tags to the file: {exc}") from exc
+    # Rewrite the .nfo (if enabled) with the *tagged* metadata, so it matches the
+    # file's tags instead of the raw YouTube uploader the download-time one had.
+    if settings.nfo_sidecars:
+        nfo.write(
+            path,
+            nfo.build(
+                kind="audio",
+                title=request.title or "",
+                artist=request.artist or "",
+                album=request.album or "",
+                year=request.year or "",
+                thumb=request.cover_url or "",
+            ),
+        )
     return ApplyResponse(ok=True, embedded_cover=embedded)
 
 

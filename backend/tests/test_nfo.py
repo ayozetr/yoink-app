@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from app.services.download_service import _nfo_xml, _write_nfo_sidecar
+from app.services import nfo
 
 
-def test_nfo_xml_video_is_movie_and_escapes():
+def test_from_info_video_is_movie_and_escapes():
     info = {
         "title": "Cool & Clip",
         "uploader": "Chan",
@@ -16,7 +16,7 @@ def test_nfo_xml_video_is_movie_and_escapes():
         "webpage_url": "http://x/v",
         "thumbnail": "http://x/t.jpg",
     }
-    xml = _nfo_xml(info, "video")
+    xml = nfo.from_info(info, "video")
     assert xml.startswith("<?xml")
     assert "<movie>" in xml and "</movie>" in xml
     assert "<title>Cool &amp; Clip</title>" in xml  # & escaped
@@ -28,18 +28,31 @@ def test_nfo_xml_video_is_movie_and_escapes():
     assert '<uniqueid type="yoink">abc</uniqueid>' in xml
 
 
-def test_nfo_xml_audio_is_musicvideo_no_empty_tags():
-    xml = _nfo_xml({"title": "Song", "uploader": "Artist", "id": "x"}, "audio")
+def test_from_info_audio_is_musicvideo_no_empty_tags():
+    xml = nfo.from_info({"title": "Song", "uploader": "Artist", "id": "x"}, "audio")
     assert "<musicvideo>" in xml
     assert "<artist>Artist</artist>" in xml
     # Missing fields must not emit empty tags.
     assert "<plot>" not in xml and "<year>" not in xml
 
 
-def test_write_nfo_sidecar(tmp_path):
+def test_build_audio_uses_tagged_fields():
+    # The auto-tag path builds from explicit (tagged) fields, incl. <album>.
+    xml = nfo.build(
+        kind="audio", title="Danza Kuduro", artist="Don Omar",
+        album="Meet the Orphans", year="2010", thumb="http://x/cover.jpg",
+    )
+    assert "<musicvideo>" in xml
+    assert "<artist>Don Omar</artist>" in xml
+    assert "<album>Meet the Orphans</album>" in xml
+    assert "<year>2010</year>" in xml
+    assert "<thumb>http://x/cover.jpg</thumb>" in xml
+
+
+def test_write_sidecar(tmp_path):
     media = tmp_path / "Song.mp3"
     media.write_bytes(b"x")
-    _write_nfo_sidecar(media, {"title": "Song", "id": "1"}, "audio")
-    nfo = tmp_path / "Song.nfo"
-    assert nfo.exists()
-    assert "<title>Song</title>" in nfo.read_text(encoding="utf-8")
+    nfo.write(media, nfo.build(kind="audio", title="Song", artist="A"))
+    out = tmp_path / "Song.nfo"
+    assert out.exists()
+    assert "<title>Song</title>" in out.read_text(encoding="utf-8")

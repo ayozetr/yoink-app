@@ -15,7 +15,6 @@ import re
 import threading
 from pathlib import Path
 from typing import Any, AsyncIterator
-from xml.sax.saxutils import escape
 
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError, download_range_func
@@ -29,6 +28,7 @@ from app.core.ytdlp_options import (
     with_cookie_fallback,
 )
 from app.services.threads_extractor import register as register_threads_ie
+from app.services import nfo
 from app.services.vr import apply_vr, detect_vr
 from app.models.media import (
     AudioFormat,
@@ -456,57 +456,6 @@ def friendly_download_error(raw: str) -> str:
     return first[:300] or raw.strip()
 
 
-def _nfo_xml(info: dict[str, Any], kind: str) -> str:
-    """A Kodi/Jellyfin-style .nfo body from yt-dlp's info (``movie``/``musicvideo``)."""
-    title = str(info.get("title") or "")
-    uploader = str(info.get("uploader") or "")
-    plot = str(info.get("description") or "")
-    upload_date = str(info.get("upload_date") or "")  # YYYYMMDD
-    year = upload_date[:4] if len(upload_date) >= 4 else ""
-    premiered = (
-        f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:8]}"
-        if len(upload_date) == 8
-        else ""
-    )
-    thumb = str(info.get("thumbnail") or "")
-    source = str(info.get("webpage_url") or "")
-    source_id = str(info.get("id") or "")
-    duration = info.get("duration")
-    runtime = (
-        str(int(duration // 60))
-        if isinstance(duration, (int, float)) and duration > 0
-        else ""
-    )
-    root = "musicvideo" if kind == "audio" else "movie"
-
-    def tag(name: str, value: str) -> str:
-        return f"  <{name}>{escape(value)}</{name}>\n" if value else ""
-
-    body = [f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<{root}>\n']
-    body.append(tag("title", title))
-    body.append(tag("artist" if kind == "audio" else "studio", uploader))
-    body.append(tag("plot", plot))
-    body.append(tag("year", year))
-    body.append(tag("premiered", premiered))
-    body.append(tag("runtime", runtime))
-    body.append(tag("thumb", thumb))
-    body.append(tag("source", source))
-    if source_id:
-        body.append(f'  <uniqueid type="yoink">{escape(source_id)}</uniqueid>\n')
-    body.append(f"</{root}>\n")
-    return "".join(body)
-
-
-def _write_nfo_sidecar(media_path: Path, info: dict[str, Any], kind: str) -> None:
-    """Write ``<name>.nfo`` next to the download (best-effort; never fatal)."""
-    try:
-        media_path.with_suffix(".nfo").write_text(
-            _nfo_xml(info, kind), encoding="utf-8"
-        )
-    except OSError as exc:
-        logger.warning("Could not write .nfo for %s: %s", media_path.name, exc)
-
-
 async def download_events(
     request: DownloadRequest,
     cancel_event: threading.Event | None = None,
@@ -579,9 +528,10 @@ async def download_events(
                     file = Path(path)
                     if file.exists():
                         path = str(apply_vr(file, layout))
-            # Optional Kodi/Jellyfin .nfo sidecar, next to the final file.
+            # Optional Kodi/Jellyfin .nfo sidecar, next to the final file. Audio
+            # auto-tagging rewrites it later with the tagged metadata.
             if path and settings.nfo_sidecars:
-                _write_nfo_sidecar(Path(path), info, request.kind)
+                nfo.write(Path(path), nfo.from_info(info, request.kind))
             return path
 
     def blocking() -> str | None:
