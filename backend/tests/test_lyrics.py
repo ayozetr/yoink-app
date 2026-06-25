@@ -78,3 +78,19 @@ def test_falls_back_to_free_text_query(monkeypatch):
     monkeypatch.setattr(lyr, "_get_json", fake)
     r = lyr.fetch_lyrics("Qué Cruel", "Daniela Garsal, Cruz Cafuné")
     assert r is not None and r.plain == "found via q"
+
+
+def test_retries_with_primary_artist(monkeypatch):
+    # Apple Music's "& Cruzzi" misses on LRCLIB; the primary "Daniela Garsal" hits.
+    def fake(url: str):
+        if "/get?" in url:
+            return None
+        if "track_name=" in url and "q=" not in url:
+            return []
+        if "q=" in url:
+            return [] if "Cruzzi" in url else [{"plainLyrics": "ok", "instrumental": False}]
+        return None
+
+    monkeypatch.setattr(lyr, "_get_json", fake)
+    r = lyr.fetch_lyrics("QUÉ CRUEL", "Daniela Garsal & Cruzzi")
+    assert r is not None and r.plain == "ok"

@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import urllib.parse
 from dataclasses import dataclass
 from typing import Any
+
+# Split a credit ("A & B", "A, B", "A feat. B") down to its primary artist.
+_PRIMARY_ARTIST = re.compile(r"\s*(?:,|&|/|\bfeat\.?\b|\bft\.?\b)\s*", re.IGNORECASE)
 
 from app.core.safe_http import SafeHTTPError, fetch_public
 
@@ -103,4 +107,12 @@ def fetch_lyrics(
         found = _first_usable(_get_json(f"{_BASE}/search?{q}"))
         if found is not None:
             return found
+        # 3b. Retry with just the primary artist — a secondary credit can differ
+        #     from LRCLIB's (e.g. an Apple Music "& Cruzzi" vs "Cruz Cafuné").
+        primary = _PRIMARY_ARTIST.split(artist, maxsplit=1)[0].strip()
+        if primary and primary != artist:
+            q = urllib.parse.urlencode({"q": f"{primary} {title}"})
+            found = _first_usable(_get_json(f"{_BASE}/search?{q}"))
+            if found is not None:
+                return found
     return None
