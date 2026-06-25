@@ -432,12 +432,11 @@ def lyrics_preview(request: LyricsRequest) -> LyricsResult:
     found = fetch_lyrics(request.title, request.artist, request.album, duration)
     if not found:
         return LyricsResult(found=False)
-    preview = "\n".join(found.plain.splitlines()[:6]) if found.plain else None
     return LyricsResult(
         found=bool(found.plain or found.instrumental),
         instrumental=found.instrumental,
         has_synced=bool(found.synced),
-        preview=preview,
+        plain=found.plain,
     )
 
 

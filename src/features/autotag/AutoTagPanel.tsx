@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
@@ -7,6 +8,7 @@ import {
   Loader2,
   Music4,
   Search,
+  X,
 } from "lucide-react";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
@@ -18,6 +20,7 @@ import {
   previewLyrics,
   searchAudio,
 } from "../../lib/api";
+import { useFocusTrap } from "../../lib/useFocusTrap";
 import type { LyricsResult, TagCandidate } from "../../types/autotag";
 import { guessFromFilename } from "./filename";
 
@@ -86,6 +89,19 @@ export function AutoTagPanel({
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [embedLyrics, setEmbedLyrics] = useState(true);
   const [showLyrics, setShowLyrics] = useState(false);
+  // Focus-trap the "view lyrics" popup + close it on Escape.
+  const lyricsModalRef = useFocusTrap<HTMLDivElement>(showLyrics);
+  useEffect(() => {
+    if (!showLyrics) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setShowLyrics(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [showLyrics]);
 
   // Manual catalogue search.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -470,23 +486,14 @@ export function AutoTagPanel({
                           : t("autotag.lyricsFound")}
                     </span>
                   </label>
-                  {lyrics.preview && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setShowLyrics((v) => !v)}
-                        className="mt-1 text-xs text-zinc-400 transition hover:text-white"
-                      >
-                        {showLyrics
-                          ? t("autotag.lyricsHide")
-                          : t("autotag.lyricsShow")}
-                      </button>
-                      {showLyrics && (
-                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs text-zinc-300">
-                          {lyrics.preview}
-                        </pre>
-                      )}
-                    </>
+                  {lyrics.plain && (
+                    <button
+                      type="button"
+                      onClick={() => setShowLyrics(true)}
+                      className="mt-1 text-xs text-zinc-400 transition hover:text-white"
+                    >
+                      {t("autotag.lyricsShow")}
+                    </button>
                   )}
                 </>
               ) : (
@@ -522,6 +529,40 @@ export function AutoTagPanel({
       )}
         </div>
       )}
+      {showLyrics &&
+        lyrics?.plain &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setShowLyrics(false)}
+          >
+            <div
+              ref={lyricsModalRef}
+              onClick={(e) => e.stopPropagation()}
+              className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                <h3 className="truncate text-sm font-semibold text-zinc-100">
+                  {title.trim() || t("autotag.lyrics")}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowLyrics(false)}
+                  aria-label={t("autotag.close")}
+                  className="rounded-md p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <pre className="overflow-auto whitespace-pre-wrap px-4 py-3 text-sm leading-relaxed text-zinc-200">
+                {lyrics.plain}
+              </pre>
+            </div>
+          </div>,
+          document.body,
+        )}
     </GlassPanel>
   );
 }

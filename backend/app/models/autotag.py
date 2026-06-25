@@ -78,4 +78,4 @@ class LyricsResult(BaseModel):
     found: bool = Field(..., description="Whether any lyrics were found.")
     instrumental: bool = Field(default=False)
     has_synced: bool = Field(default=False, description="A timed .lrc is available.")
-    preview: str | None = Field(default=None, description="First lines of the lyrics.")
+    plain: str | None = Field(default=None, description="The full plain lyrics.")

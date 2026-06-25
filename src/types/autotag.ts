@@ -44,5 +44,6 @@ export interface LyricsResult {
   found: boolean;
   instrumental: boolean;
   has_synced: boolean;
-  preview: string | null;
+  /** The full plain lyrics (shown in the "view lyrics" popup). */
+  plain: string | null;
 }
