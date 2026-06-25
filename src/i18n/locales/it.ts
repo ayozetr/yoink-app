@@ -172,6 +172,8 @@ export const it = {
     transferred: "Trasferiti",
   },
   settings: {
+    fetchLyrics: "Scarica i testi",
+    fetchLyricsHelp: "Durante l'auto-tagging audio, cerca il brano su LRCLIB (gratis, senza account) e incorpora il testo nel file, così i player che li leggono possono mostrarlo.",
     nfoSidecars: "Crea file .nfo",
     nfoSidecarsHelp: "Crea un file .nfo di metadati (stile Kodi/Jellyfin) accanto a ogni download, così i media server leggono i tuoi dati esatti.",
     defaultEmbedSubs: "Incorpora i sottotitoli per impostazione predefinita",

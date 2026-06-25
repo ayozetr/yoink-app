@@ -356,6 +356,32 @@ def test_write_and_reread_tags(tmp_path, ext):
 
 
 @pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
+@pytest.mark.parametrize("ext", ["mp3", "m4a", "flac"])
+def test_write_embeds_lyrics(tmp_path, ext):
+    path = tmp_path / f"track.{ext}"
+    subprocess.run(
+        [FFMPEG, "-loglevel", "error", "-f", "lavfi",
+         "-i", "anullsrc=r=44100:cl=mono", "-t", "1", str(path)],
+        check=True,
+    )
+    svc._write_tags(path, {"title": "T", "lyrics": "line one\nline two"}, None)
+
+    if ext == "mp3":
+        from mutagen.id3 import ID3
+
+        text = ID3(str(path)).getall("USLT")[0].text
+    elif ext == "m4a":
+        from mutagen.mp4 import MP4
+
+        text = MP4(str(path))["\xa9lyr"][0]
+    else:
+        from mutagen.flac import FLAC
+
+        text = FLAC(str(path))["lyrics"][0]
+    assert "line one" in text and "line two" in text
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
 def test_write_without_cover(tmp_path):
     path = tmp_path / "track.mp3"
     subprocess.run(

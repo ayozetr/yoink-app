@@ -172,6 +172,8 @@ export const id = {
     transferred: "Terkirim",
   },
   settings: {
+    fetchLyrics: "Ambil lirik lagu",
+    fetchLyricsHelp: "Saat auto-tag audio, cari lagu di LRCLIB (gratis, tanpa akun) dan sematkan liriknya ke berkas, agar pemutar yang membacanya bisa menampilkannya.",
     nfoSidecars: "Buat berkas .nfo",
     nfoSidecarsHelp: "Membuat berkas metadata .nfo (gaya Kodi/Jellyfin) di samping setiap unduhan, agar server media membaca data Anda yang tepat.",
     defaultEmbedSubs: "Sematkan subtitle secara default",

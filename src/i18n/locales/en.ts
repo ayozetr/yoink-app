@@ -172,6 +172,8 @@ export const en = {
     transferred: "Transferred",
   },
   settings: {
+    fetchLyrics: "Fetch song lyrics",
+    fetchLyricsHelp: "During audio auto-tagging, look the song up on LRCLIB (free, no account) and embed its lyrics in the file, so players that read lyrics can show them.",
     nfoSidecars: "Write .nfo sidecar files",
     nfoSidecarsHelp: "Write a Kodi/Jellyfin-style .nfo metadata file next to each download, so media servers read your exact title/artist/date instead of guessing.",
     defaultEmbedSubs: "Embed subtitles by default",

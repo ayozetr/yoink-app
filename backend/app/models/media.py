@@ -327,6 +327,10 @@ class AppSettings(BaseModel):
         default=False,
         description="Write a Kodi/Jellyfin-style .nfo metadata file per download.",
     )
+    fetch_lyrics: bool = Field(
+        default=False,
+        description="Fetch + embed song lyrics (LRCLIB) during audio auto-tagging.",
+    )
     cookies_from_browser: str | None = Field(
         default=None, description="Browser to read cookies from (e.g. 'firefox')."
     )

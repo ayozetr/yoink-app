@@ -25,13 +25,24 @@ from urllib.request import Request, urlopen
 
 import mutagen
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import APIC, ID3, ID3NoHeaderError, TALB, TDRC, TIT2, TPE1, TRCK
+from mutagen.id3 import (
+    APIC,
+    ID3,
+    ID3NoHeaderError,
+    TALB,
+    TDRC,
+    TIT2,
+    TPE1,
+    TRCK,
+    USLT,
+)
 from mutagen.mp4 import MP4, MP4Cover
 from mutagen.wave import WAVE
 
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_path
 from app.core.safe_http import SafeHTTPError, fetch_public
+from app.services.lyrics import fetch_lyrics
 from app.models.autotag import (
     ApplyRequest,
     ApplyResponse,
@@ -381,6 +392,24 @@ def guess_from_filename(name: str) -> tuple[str, str]:
 
 # --- apply -----------------------------------------------------------------
 
+def _lookup_lyrics(path: Path, request: ApplyRequest) -> str | None:
+    """Plain lyrics for the track from LRCLIB, or None (best-effort, never fatal).
+
+    Probes the file's duration (mutagen) so LRCLIB's exact ``/get`` match can be
+    used before falling back to its search.
+    """
+    try:
+        probed = mutagen.File(str(path))
+        duration = getattr(probed.info, "length", None) if probed else None
+        found = fetch_lyrics(
+            request.title or "", request.artist or "", request.album, duration
+        )
+        return found.plain if found else None
+    except Exception as exc:  # noqa: BLE001 — lyrics are best-effort
+        logger.warning("Lyrics lookup failed for %s: %s", path.name, exc)
+        return None
+
+
 def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
     """Write the chosen tags + cover art into the file."""
     cover_url = request.cover_url
@@ -400,6 +429,10 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         "date": request.year,
         "tracknumber": request.track_number,
     }
+    if settings.fetch_lyrics and request.title:
+        lyrics = _lookup_lyrics(path, request)
+        if lyrics:
+            tags["lyrics"] = lyrics
     try:
         embedded = _write_tags(path, tags, cover)
     except (mutagen.MutagenError, ValueError, KeyError, TypeError) as exc:
@@ -510,6 +543,10 @@ def _write_mp3(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
             audio.setall(frame.__name__, [frame(encoding=3, text=str(tags[key]))])
     if tags.get("tracknumber"):
         audio.setall("TRCK", [TRCK(encoding=3, text=str(tags["tracknumber"]))])
+    if tags.get("lyrics"):
+        audio.setall(
+            "USLT", [USLT(encoding=3, lang="eng", desc="", text=str(tags["lyrics"]))]
+        )
     embedded = False
     if cover:
         data, ctype = cover
@@ -528,6 +565,8 @@ def _write_mp4(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
             audio[atom] = [str(tags[key])]
     if tags.get("tracknumber"):
         audio["trkn"] = [(int(tags["tracknumber"]), 0)]
+    if tags.get("lyrics"):
+        audio["\xa9lyr"] = [str(tags["lyrics"])]
     embedded = False
     if cover:
         data, ctype = cover
@@ -543,6 +582,8 @@ def _write_flac(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | Non
     for key in ("title", "artist", "album", "date", "tracknumber"):
         if tags.get(key):
             audio[key] = str(tags[key])
+    if tags.get("lyrics"):
+        audio["lyrics"] = str(tags["lyrics"])
     embedded = False
     if cover:
         data, ctype = cover
@@ -573,6 +614,10 @@ def _write_wav(path: Path, tags: dict[str, Any]) -> bool:
             audio.tags.setall(frame.__name__, [frame(encoding=3, text=str(tags[key]))])
     if tags.get("tracknumber"):
         audio.tags.setall("TRCK", [TRCK(encoding=3, text=str(tags["tracknumber"]))])
+    if tags.get("lyrics"):
+        audio.tags.setall(
+            "USLT", [USLT(encoding=3, lang="eng", desc="", text=str(tags["lyrics"]))]
+        )
     audio.save()
     return False
 

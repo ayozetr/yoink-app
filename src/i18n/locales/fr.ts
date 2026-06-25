@@ -172,6 +172,8 @@ export const fr = {
     transferred: "Transféré",
   },
   settings: {
+    fetchLyrics: "Récupérer les paroles",
+    fetchLyricsHelp: "Lors de l'auto-étiquetage audio, recherche le titre sur LRCLIB (gratuit, sans compte) et intègre ses paroles dans le fichier, pour les lecteurs qui les affichent.",
     nfoSidecars: "Créer des fichiers .nfo",
     nfoSidecarsHelp: "Crée un fichier de métadonnées .nfo (façon Kodi/Jellyfin) à côté de chaque téléchargement, pour que les serveurs multimédias lisent vos données exactes.",
     defaultEmbedSubs: "Intégrer les sous-titres par défaut",

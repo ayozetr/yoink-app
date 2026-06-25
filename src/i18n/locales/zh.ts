@@ -172,6 +172,8 @@ export const zh = {
     transferred: "已传输",
   },
   settings: {
+    fetchLyrics: "获取歌词",
+    fetchLyricsHelp: "在音频自动标记时，从 LRCLIB（免费、无需账号）查找歌曲并将歌词嵌入文件，支持歌词的播放器即可显示。",
     nfoSidecars: "生成 .nfo 文件",
     nfoSidecarsHelp: "在每个下载文件旁生成 Kodi/Jellyfin 风格的 .nfo 元数据文件，让媒体服务器读取你的准确信息。",
     defaultEmbedSubs: "默认嵌入字幕",

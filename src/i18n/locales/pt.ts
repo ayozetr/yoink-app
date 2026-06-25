@@ -172,6 +172,8 @@ export const pt = {
     transferred: "Transferido",
   },
   settings: {
+    fetchLyrics: "Obter letras",
+    fetchLyricsHelp: "Ao auto-etiquetar áudio, procura a música no LRCLIB (grátis, sem conta) e incorpora a letra no ficheiro, para os leitores que as mostram.",
     nfoSidecars: "Criar ficheiros .nfo",
     nfoSidecarsHelp: "Cria um ficheiro .nfo de metadados (estilo Kodi/Jellyfin) junto a cada transferência, para os servidores de média lerem os teus dados exatos.",
     defaultEmbedSubs: "Incorporar legendas por padrão",

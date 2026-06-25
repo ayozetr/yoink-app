@@ -435,6 +435,14 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             className="w-full"
           />
 
+          <Toggle
+            checked={form.fetch_lyrics}
+            onChange={(v) => set("fetch_lyrics", v)}
+            label={t("settings.fetchLyrics")}
+            help={<LyricsHelp />}
+            className="w-full"
+          />
+
           <SectionHeader label={t("settings.secNetwork")} />
 
           <Field label={t("settings.rateLimit")}>
@@ -860,6 +868,16 @@ function NfoHelp() {
   return (
     <HelpPopover label={t("settings.nfoSidecars")}>
       {t("settings.nfoSidecarsHelp")}
+    </HelpPopover>
+  );
+}
+
+/** "?" help for the lyrics option — where lyrics come from + how they're stored. */
+function LyricsHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.fetchLyrics")}>
+      {t("settings.fetchLyricsHelp")}
     </HelpPopover>
   );
 }

@@ -135,6 +135,9 @@ class Settings(BaseSettings):
     # Write a Kodi/Jellyfin-style ".nfo" metadata file next to each download.
     nfo_sidecars: bool = False
 
+    # Fetch + embed song lyrics (from LRCLIB) during audio auto-tagging.
+    fetch_lyrics: bool = False
+
     # Filename template (the name part; ".%(ext)s" is appended at download time).
     # yt-dlp outtmpl fields, e.g. "%(title)s" or "%(uploader)s - %(title)s".
     filename_template: str = "%(title)s"

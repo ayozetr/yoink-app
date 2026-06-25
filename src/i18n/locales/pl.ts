@@ -172,6 +172,8 @@ export const pl = {
     transferred: "Przesłano",
   },
   settings: {
+    fetchLyrics: "Pobieraj teksty",
+    fetchLyricsHelp: "Podczas auto-tagowania audio wyszukuje utwór w LRCLIB (za darmo, bez konta) i osadza tekst w pliku, by odtwarzacze mogły go pokazać.",
     nfoSidecars: "Twórz pliki .nfo",
     nfoSidecarsHelp: "Tworzy plik metadanych .nfo (styl Kodi/Jellyfin) obok każdego pobrania, aby serwery multimediów czytały dokładne dane.",
     defaultEmbedSubs: "Domyślnie osadzaj napisy",

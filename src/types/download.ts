@@ -237,6 +237,8 @@ export interface AppSettings {
   default_embed_chapters: boolean;
   /** Write a Kodi/Jellyfin-style .nfo metadata file next to each download. */
   nfo_sidecars: boolean;
+  /** Fetch + embed song lyrics (LRCLIB) during audio auto-tagging. */
+  fetch_lyrics: boolean;
   cookies_from_browser: string | null;
   cookies_file: string | null;
   /** Proxy URL (http/https/socks) for metadata + downloads; null = none. */

@@ -172,6 +172,8 @@ export const ko = {
     transferred: "전송량",
   },
   settings: {
+    fetchLyrics: "가사 가져오기",
+    fetchLyricsHelp: "오디오 자동 태깅 시 LRCLIB(무료, 계정 불필요)에서 곡을 찾아 가사를 파일에 삽입해, 가사를 읽는 플레이어에서 표시할 수 있습니다.",
     nfoSidecars: ".nfo 파일 생성",
     nfoSidecarsHelp: "각 다운로드 옆에 Kodi/Jellyfin 형식의 .nfo 메타데이터 파일을 생성해 미디어 서버가 정확한 정보를 읽도록 합니다.",
     defaultEmbedSubs: "기본적으로 자막 포함",

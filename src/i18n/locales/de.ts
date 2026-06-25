@@ -172,6 +172,8 @@ export const de = {
     transferred: "Übertragen",
   },
   settings: {
+    fetchLyrics: "Songtexte abrufen",
+    fetchLyricsHelp: "Beim Audio-Auto-Tagging den Titel über LRCLIB (kostenlos, ohne Konto) suchen und den Songtext in die Datei einbetten, damit Player ihn anzeigen können.",
     nfoSidecars: ".nfo-Dateien erstellen",
     nfoSidecarsHelp: "Legt neben jedem Download eine .nfo-Metadatendatei (Kodi/Jellyfin) an, damit Medienserver deine genauen Angaben lesen statt zu raten.",
     defaultEmbedSubs: "Untertitel standardmäßig einbetten",
