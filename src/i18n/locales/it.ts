@@ -270,6 +270,7 @@ export const it = {
     preparing: "Preparazione di tutto…",
   },
   common: {
+    copyError: "Copia errore",
     busy: "È in corso un altro download",
     cut: "Taglia",
     copy: "Copia",

@@ -270,6 +270,7 @@ export const ja = {
     preparing: "準備しています…",
   },
   common: {
+    copyError: "エラーをコピー",
     busy: "別のダウンロードが進行中です",
     cut: "切り取り",
     copy: "コピー",

@@ -270,6 +270,7 @@ export const fr = {
     preparing: "Préparation en cours…",
   },
   common: {
+    copyError: "Copier l'erreur",
     busy: "Un autre téléchargement est en cours",
     cut: "Couper",
     copy: "Copier",

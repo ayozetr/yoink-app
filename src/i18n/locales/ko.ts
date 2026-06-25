@@ -270,6 +270,7 @@ export const ko = {
     preparing: "모든 준비를 마치는 중…",
   },
   common: {
+    copyError: "오류 복사",
     busy: "다른 다운로드가 진행 중입니다",
     cut: "잘라내기",
     copy: "복사",

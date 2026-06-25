@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CopyButton } from "../../../components/ui/CopyButton";
 import { coverUrl } from "../../../lib/api";
 import type { HistoryEntry } from "../../../types/download";
 
@@ -129,12 +130,18 @@ export function HistoryItemCard({
           </div>
 
           {!isCompleted && item.error_message && (
-            <p
-              className="mt-1 line-clamp-2 text-xs text-red-300/80"
-              title={item.error_message}
-            >
-              {item.error_message}
-            </p>
+            <div className="mt-1 flex items-start gap-1">
+              <p
+                className="line-clamp-2 min-w-0 flex-1 text-xs text-red-300/80"
+                title={item.error_message}
+              >
+                {item.error_message}
+              </p>
+              <CopyButton
+                text={item.error_message}
+                label={t("common.copyError")}
+              />
+            </div>
           )}
         </div>
 

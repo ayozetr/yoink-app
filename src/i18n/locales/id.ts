@@ -270,6 +270,7 @@ export const id = {
     preparing: "Menyiapkan semuanya…",
   },
   common: {
+    copyError: "Salin galat",
     busy: "Unduhan lain sedang berlangsung",
     cut: "Potong",
     copy: "Salin",

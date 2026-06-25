@@ -270,6 +270,7 @@ export const zh = {
     preparing: "正在准备一切…",
   },
   common: {
+    copyError: "复制错误",
     busy: "已有一个下载正在进行",
     cut: "剪切",
     copy: "复制",

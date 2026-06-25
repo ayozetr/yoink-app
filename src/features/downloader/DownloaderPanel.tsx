@@ -14,6 +14,7 @@ const AutoTagBatchPanel = lazy(() =>
     default: m.AutoTagBatchPanel,
   })),
 );
+import { CopyButton } from "../../components/ui/CopyButton";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import {
   fetchInfo,
@@ -328,6 +329,33 @@ export function DownloaderPanel({
     }
   };
 
+  // Paste-and-analyze: Ctrl/Cmd+Shift+V grabs a URL from the clipboard and
+  // analyzes it in one go (a keyboard gesture lets the clipboard read through).
+  const analyzeRef = useRef(handleAnalyze);
+  useEffect(() => {
+    analyzeRef.current = handleAnalyze;
+  });
+  useEffect(() => {
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        void (async () => {
+          try {
+            const text = (await navigator.clipboard.readText()).trim();
+            if (text) {
+              setUrl(text);
+              void analyzeRef.current(text);
+            }
+          } catch {
+            // Clipboard unavailable / blocked — ignore.
+          }
+        })();
+      }
+    };
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, []);
+
   const handleDownload = (selection: DownloadSelection) => {
     const target = url.trim();
     setLastKind(selection.kind);
@@ -594,14 +622,17 @@ export function DownloaderPanel({
               <AlertCircle size={18} className="shrink-0" />
               <span className="text-sm truncate">{downloadError}</span>
             </div>
-            <button
-              type="button"
-              onClick={handleRetry}
-              className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition shrink-0"
-            >
-              <RotateCw size={15} />
-              {t("panel.retry")}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <CopyButton text={downloadError} label={t("common.copyError")} />
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition"
+              >
+                <RotateCw size={15} />
+                {t("panel.retry")}
+              </button>
+            </div>
           </div>
           {/forbidden|\b403\b/i.test(downloadError) && (
             <p className="mt-2 pl-[30px] text-xs text-zinc-400">
