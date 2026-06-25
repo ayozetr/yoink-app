@@ -172,6 +172,8 @@ export const pl = {
     transferred: "Przesłano",
   },
   settings: {
+    lyricsLrc: "Zsynchronizowany plik .lrc",
+    lyricsLrcHelp: "Zapisuje też zsynchronizowany plik .lrc obok audio (gdy LRCLIB ma wersję z czasami), dla odtwarzaczy z tekstem w stylu karaoke.",
     fetchLyrics: "Pobieraj teksty",
     fetchLyricsHelp: "Podczas auto-tagowania audio wyszukuje utwór w LRCLIB (za darmo, bez konta) i osadza tekst w pliku, by odtwarzacze mogły go pokazać.",
     nfoSidecars: "Twórz pliki .nfo",

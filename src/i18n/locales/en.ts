@@ -172,6 +172,8 @@ export const en = {
     transferred: "Transferred",
   },
   settings: {
+    lyricsLrc: "Synced .lrc file",
+    lyricsLrcHelp: "Also save a synced .lrc file next to the audio (when LRCLIB has a timed version), for players that do karaoke-style scrolling lyrics.",
     fetchLyrics: "Fetch song lyrics",
     fetchLyricsHelp: "During audio auto-tagging, look the song up on LRCLIB (free, no account) and embed its lyrics in the file, so players that read lyrics can show them.",
     nfoSidecars: "Write .nfo sidecar files",

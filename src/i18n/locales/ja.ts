@@ -172,6 +172,8 @@ export const ja = {
     transferred: "転送量",
   },
   settings: {
+    lyricsLrc: "同期 .lrc ファイル",
+    lyricsLrcHelp: "音声の隣に同期 .lrc ファイルも保存します（LRCLIB にタイミング付き版がある場合）。カラオケ風に歌詞が流れるプレーヤー向けです。",
     fetchLyrics: "歌詞を取得",
     fetchLyricsHelp: "オーディオの自動タグ付け時に LRCLIB（無料・アカウント不要）で曲を検索し、歌詞をファイルに埋め込みます。歌詞対応プレーヤーで表示できます。",
     nfoSidecars: ".nfo ファイルを作成",

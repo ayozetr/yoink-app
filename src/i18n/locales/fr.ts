@@ -172,6 +172,8 @@ export const fr = {
     transferred: "Transféré",
   },
   settings: {
+    lyricsLrc: "Fichier .lrc synchronisé",
+    lyricsLrcHelp: "Enregistre aussi un fichier .lrc synchronisé à côté de l'audio (si LRCLIB a une version horodatée), pour les lecteurs à paroles de type karaoké.",
     fetchLyrics: "Récupérer les paroles",
     fetchLyricsHelp: "Lors de l'auto-étiquetage audio, recherche le titre sur LRCLIB (gratuit, sans compte) et intègre ses paroles dans le fichier, pour les lecteurs qui les affichent.",
     nfoSidecars: "Créer des fichiers .nfo",

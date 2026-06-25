@@ -435,13 +435,26 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
             className="w-full"
           />
 
-          <Toggle
-            checked={form.fetch_lyrics}
-            onChange={(v) => set("fetch_lyrics", v)}
-            label={t("settings.fetchLyrics")}
-            help={<LyricsHelp />}
-            className="w-full"
-          />
+          <div className="flex flex-col gap-2">
+            <Toggle
+              checked={form.fetch_lyrics}
+              onChange={(v) => set("fetch_lyrics", v)}
+              label={t("settings.fetchLyrics")}
+              help={<LyricsHelp />}
+              className="w-full"
+            />
+            {form.fetch_lyrics && (
+              <div className="border-l border-white/10 pl-3">
+                <Toggle
+                  checked={form.lyrics_lrc}
+                  onChange={(v) => set("lyrics_lrc", v)}
+                  label={t("settings.lyricsLrc")}
+                  help={<LyricsLrcHelp />}
+                  className="w-full"
+                />
+              </div>
+            )}
+          </div>
 
           <SectionHeader label={t("settings.secNetwork")} />
 
@@ -878,6 +891,16 @@ function LyricsHelp() {
   return (
     <HelpPopover label={t("settings.fetchLyrics")}>
       {t("settings.fetchLyricsHelp")}
+    </HelpPopover>
+  );
+}
+
+/** "?" help for the synced .lrc sidecar sub-option. */
+function LyricsLrcHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.lyricsLrc")}>
+      {t("settings.lyricsLrcHelp")}
     </HelpPopover>
   );
 }

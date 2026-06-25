@@ -331,6 +331,10 @@ class AppSettings(BaseModel):
         default=False,
         description="Fetch + embed song lyrics (LRCLIB) during audio auto-tagging.",
     )
+    lyrics_lrc: bool = Field(
+        default=False,
+        description="Also write a synced .lrc sidecar next to the audio.",
+    )
     cookies_from_browser: str | None = Field(
         default=None, description="Browser to read cookies from (e.g. 'firefox')."
     )

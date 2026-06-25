@@ -172,6 +172,8 @@ export const ko = {
     transferred: "전송량",
   },
   settings: {
+    lyricsLrc: "동기화된 .lrc 파일",
+    lyricsLrcHelp: "오디오 옆에 동기화된 .lrc 파일도 저장합니다(LRCLIB에 타이밍 버전이 있을 때). 가라오케식 가사 스크롤을 지원하는 플레이어용입니다.",
     fetchLyrics: "가사 가져오기",
     fetchLyricsHelp: "오디오 자동 태깅 시 LRCLIB(무료, 계정 불필요)에서 곡을 찾아 가사를 파일에 삽입해, 가사를 읽는 플레이어에서 표시할 수 있습니다.",
     nfoSidecars: ".nfo 파일 생성",

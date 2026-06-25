@@ -239,6 +239,8 @@ export interface AppSettings {
   nfo_sidecars: boolean;
   /** Fetch + embed song lyrics (LRCLIB) during audio auto-tagging. */
   fetch_lyrics: boolean;
+  /** Also write a synced .lrc sidecar next to the audio. */
+  lyrics_lrc: boolean;
   cookies_from_browser: string | null;
   cookies_file: string | null;
   /** Proxy URL (http/https/socks) for metadata + downloads; null = none. */

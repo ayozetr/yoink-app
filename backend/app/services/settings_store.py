@@ -40,6 +40,8 @@ def _apply(data: dict[str, Any]) -> None:
         settings.nfo_sidecars = data["nfo_sidecars"]
     if isinstance(data.get("fetch_lyrics"), bool):
         settings.fetch_lyrics = data["fetch_lyrics"]
+    if isinstance(data.get("lyrics_lrc"), bool):
+        settings.lyrics_lrc = data["lyrics_lrc"]
 
     settings.cookies_from_browser = data.get("cookies_from_browser") or None
     cookies_file = data.get("cookies_file")
@@ -88,6 +90,7 @@ def get_current() -> AppSettings:
         default_embed_chapters=settings.default_embed_chapters,
         nfo_sidecars=settings.nfo_sidecars,
         fetch_lyrics=settings.fetch_lyrics,
+        lyrics_lrc=settings.lyrics_lrc,
         cookies_from_browser=settings.cookies_from_browser,
         cookies_file=str(settings.cookies_file) if settings.cookies_file else None,
         proxy=settings.proxy,

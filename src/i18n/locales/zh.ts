@@ -172,6 +172,8 @@ export const zh = {
     transferred: "已传输",
   },
   settings: {
+    lyricsLrc: "同步 .lrc 文件",
+    lyricsLrcHelp: "在音频旁同时保存同步的 .lrc 文件（当 LRCLIB 有带时间轴的版本时），供支持卡拉OK滚动歌词的播放器使用。",
     fetchLyrics: "获取歌词",
     fetchLyricsHelp: "在音频自动标记时，从 LRCLIB（免费、无需账号）查找歌曲并将歌词嵌入文件，支持歌词的播放器即可显示。",
     nfoSidecars: "生成 .nfo 文件",

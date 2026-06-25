@@ -172,6 +172,8 @@ export const de = {
     transferred: "Übertragen",
   },
   settings: {
+    lyricsLrc: "Synchronisierte .lrc-Datei",
+    lyricsLrcHelp: "Speichert zusätzlich eine synchronisierte .lrc-Datei neben dem Audio (wenn LRCLIB eine zeitcodierte Version hat), für Player mit Karaoke-Laufschrift.",
     fetchLyrics: "Songtexte abrufen",
     fetchLyricsHelp: "Beim Audio-Auto-Tagging den Titel über LRCLIB (kostenlos, ohne Konto) suchen und den Songtext in die Datei einbetten, damit Player ihn anzeigen können.",
     nfoSidecars: ".nfo-Dateien erstellen",

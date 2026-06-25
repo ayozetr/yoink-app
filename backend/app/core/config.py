@@ -138,6 +138,9 @@ class Settings(BaseSettings):
     # Fetch + embed song lyrics (from LRCLIB) during audio auto-tagging.
     fetch_lyrics: bool = False
 
+    # Also write a synced ".lrc" sidecar next to the audio (needs fetch_lyrics).
+    lyrics_lrc: bool = False
+
     # Filename template (the name part; ".%(ext)s" is appended at download time).
     # yt-dlp outtmpl fields, e.g. "%(title)s" or "%(uploader)s - %(title)s".
     filename_template: str = "%(title)s"

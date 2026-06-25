@@ -172,6 +172,8 @@ export const es = {
     transferred: "Transferidos",
   },
   settings: {
+    lyricsLrc: "Fichero .lrc sincronizado",
+    lyricsLrcHelp: "Guarda además un fichero .lrc sincronizado junto al audio (cuando LRCLIB tiene versión temporizada), para reproductores con letra estilo karaoke.",
     fetchLyrics: "Buscar letras",
     fetchLyricsHelp: "Al auto-etiquetar un audio, busca la canción en LRCLIB (gratis, sin cuenta) y embebe su letra en el fichero, para que los reproductores que leen letras puedan mostrarla.",
     nfoSidecars: "Crear ficheros .nfo",

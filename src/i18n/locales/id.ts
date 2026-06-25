@@ -172,6 +172,8 @@ export const id = {
     transferred: "Terkirim",
   },
   settings: {
+    lyricsLrc: "Berkas .lrc tersinkron",
+    lyricsLrcHelp: "Juga menyimpan berkas .lrc tersinkron di samping audio (jika LRCLIB punya versi berwaktu), untuk pemutar dengan lirik gaya karaoke.",
     fetchLyrics: "Ambil lirik lagu",
     fetchLyricsHelp: "Saat auto-tag audio, cari lagu di LRCLIB (gratis, tanpa akun) dan sematkan liriknya ke berkas, agar pemutar yang membacanya bisa menampilkannya.",
     nfoSidecars: "Buat berkas .nfo",

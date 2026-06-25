@@ -381,6 +381,63 @@ def test_write_embeds_lyrics(tmp_path, ext):
     assert "line one" in text and "line two" in text
 
 
+def test_write_lrc_sidecar(tmp_path):
+    media = tmp_path / "song.mp3"
+    media.write_bytes(b"x")
+    svc._write_lrc_sidecar(media, "[00:01.00] line one\n[00:03.50] line two")
+    lrc = tmp_path / "song.lrc"
+    assert lrc.exists()
+    assert lrc.read_text(encoding="utf-8").startswith("[00:01.00] line one")
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
+def test_apply_writes_lrc_when_enabled(tmp_path, monkeypatch):
+    from app.core.config import settings as cfg
+    from app.services.lyrics import Lyrics
+
+    path = tmp_path / "track.mp3"
+    subprocess.run(
+        [FFMPEG, "-loglevel", "error", "-f", "lavfi",
+         "-i", "anullsrc=r=44100:cl=mono", "-t", "1", str(path)],
+        check=True,
+    )
+    monkeypatch.setattr(cfg, "fetch_lyrics", True)
+    monkeypatch.setattr(cfg, "lyrics_lrc", True)
+    monkeypatch.setattr(
+        svc,
+        "_lookup_lyrics",
+        lambda p, r: Lyrics(plain="hello", synced="[00:01.00] hello", instrumental=False),
+    )
+    svc.apply(ApplyRequest(path=str(path), title="T", artist="A"), path)
+
+    lrc = tmp_path / "track.lrc"
+    assert lrc.exists() and lrc.read_text(encoding="utf-8") == "[00:01.00] hello"
+    from mutagen.id3 import ID3  # plain still embedded in the tag
+
+    assert ID3(str(path)).getall("USLT")[0].text == "hello"
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
+def test_apply_no_lrc_when_subtoggle_off(tmp_path, monkeypatch):
+    from app.core.config import settings as cfg
+    from app.services.lyrics import Lyrics
+
+    path = tmp_path / "track.mp3"
+    subprocess.run(
+        [FFMPEG, "-loglevel", "error", "-f", "lavfi",
+         "-i", "anullsrc=r=44100:cl=mono", "-t", "1", str(path)],
+        check=True,
+    )
+    monkeypatch.setattr(cfg, "fetch_lyrics", True)
+    monkeypatch.setattr(cfg, "lyrics_lrc", False)  # sub-toggle off
+    monkeypatch.setattr(
+        svc, "_lookup_lyrics",
+        lambda p, r: Lyrics(plain="hi", synced="[00:01.00] hi", instrumental=False),
+    )
+    svc.apply(ApplyRequest(path=str(path), title="T", artist="A"), path)
+    assert not (tmp_path / "track.lrc").exists()  # no sidecar
+
+
 @pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
 def test_write_without_cover(tmp_path):
     path = tmp_path / "track.mp3"

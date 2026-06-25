@@ -42,7 +42,7 @@ from mutagen.wave import WAVE
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_path
 from app.core.safe_http import SafeHTTPError, fetch_public
-from app.services.lyrics import fetch_lyrics
+from app.services.lyrics import Lyrics, fetch_lyrics
 from app.models.autotag import (
     ApplyRequest,
     ApplyResponse,
@@ -392,8 +392,8 @@ def guess_from_filename(name: str) -> tuple[str, str]:
 
 # --- apply -----------------------------------------------------------------
 
-def _lookup_lyrics(path: Path, request: ApplyRequest) -> str | None:
-    """Plain lyrics for the track from LRCLIB, or None (best-effort, never fatal).
+def _lookup_lyrics(path: Path, request: ApplyRequest) -> Lyrics | None:
+    """Lyrics for the track from LRCLIB, or None (best-effort, never fatal).
 
     Probes the file's duration (mutagen) so LRCLIB's exact ``/get`` match can be
     used before falling back to its search.
@@ -401,13 +401,20 @@ def _lookup_lyrics(path: Path, request: ApplyRequest) -> str | None:
     try:
         probed = mutagen.File(str(path))
         duration = getattr(probed.info, "length", None) if probed else None
-        found = fetch_lyrics(
+        return fetch_lyrics(
             request.title or "", request.artist or "", request.album, duration
         )
-        return found.plain if found else None
     except Exception as exc:  # noqa: BLE001 — lyrics are best-effort
         logger.warning("Lyrics lookup failed for %s: %s", path.name, exc)
         return None
+
+
+def _write_lrc_sidecar(media_path: Path, synced: str) -> None:
+    """Write a synced ``<name>.lrc`` next to the audio (best-effort)."""
+    try:
+        media_path.with_suffix(".lrc").write_text(synced, encoding="utf-8")
+    except OSError as exc:
+        logger.warning("Could not write .lrc for %s: %s", media_path.name, exc)
 
 
 def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
@@ -430,9 +437,13 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         "tracknumber": request.track_number,
     }
     if settings.fetch_lyrics and request.title:
-        lyrics = _lookup_lyrics(path, request)
-        if lyrics:
-            tags["lyrics"] = lyrics
+        found = _lookup_lyrics(path, request)
+        if found:
+            if found.plain:
+                tags["lyrics"] = found.plain
+            # Synced .lrc sidecar (opt-in) for karaoke-capable players.
+            if settings.lyrics_lrc and found.synced:
+                _write_lrc_sidecar(path, found.synced)
     try:
         embedded = _write_tags(path, tags, cover)
     except (mutagen.MutagenError, ValueError, KeyError, TypeError) as exc:
