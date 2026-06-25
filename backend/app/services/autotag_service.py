@@ -48,6 +48,8 @@ from app.models.autotag import (
     ApplyRequest,
     ApplyResponse,
     CandidateList,
+    LyricsRequest,
+    LyricsResult,
     TagCandidate,
 )
 
@@ -418,6 +420,27 @@ def _write_lrc_sidecar(media_path: Path, synced: str) -> None:
         logger.warning("Could not write .lrc for %s: %s", media_path.name, exc)
 
 
+def lyrics_preview(request: LyricsRequest) -> LyricsResult:
+    """Preview-time lyrics availability for the auto-tag card (no writing)."""
+    duration: float | None = None
+    if request.path:
+        try:
+            probed = mutagen.File(request.path)
+            duration = getattr(probed.info, "length", None) if probed else None
+        except Exception:  # noqa: BLE001 — duration is just a hint
+            duration = None
+    found = fetch_lyrics(request.title, request.artist, request.album, duration)
+    if not found:
+        return LyricsResult(found=False)
+    preview = "\n".join(found.plain.splitlines()[:6]) if found.plain else None
+    return LyricsResult(
+        found=bool(found.plain or found.instrumental),
+        instrumental=found.instrumental,
+        has_synced=bool(found.synced),
+        preview=preview,
+    )
+
+
 def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
     """Write the chosen tags + cover art into the file."""
     cover_url = request.cover_url
@@ -437,7 +460,13 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         "date": request.year,
         "tracknumber": request.track_number,
     }
-    if settings.fetch_lyrics and request.title:
+    # The card's checkbox (embed_lyrics) overrides the global setting per track.
+    want_lyrics = (
+        request.embed_lyrics
+        if request.embed_lyrics is not None
+        else settings.fetch_lyrics
+    )
+    if want_lyrics and request.title:
         found = _lookup_lyrics(path, request)
         if found:
             if found.plain:

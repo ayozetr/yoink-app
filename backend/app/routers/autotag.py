@@ -18,10 +18,18 @@ from app.models.autotag import (
     ApplyResponse,
     CandidateList,
     IdentifyRequest,
+    LyricsRequest,
+    LyricsResult,
     SearchRequest,
 )
 from app.services import history_store
-from app.services.autotag_service import AutotagError, apply, identify, search
+from app.services.autotag_service import (
+    AutotagError,
+    apply,
+    identify,
+    lyrics_preview,
+    search,
+)
 
 router = APIRouter(prefix="/autotag", tags=["autotag"])
 
@@ -66,6 +74,14 @@ def search_endpoint(request: SearchRequest) -> CandidateList:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
+
+
+@router.post("/lyrics", response_model=LyricsResult, summary="Preview lyrics")
+def lyrics_endpoint(request: LyricsRequest) -> LyricsResult:
+    # Best-effort lookup; an empty result is a normal (not error) response.
+    if request.path:
+        _validate_audio_path(request.path)  # confine the duration-probe path
+    return lyrics_preview(request)
 
 
 @router.post("/apply", response_model=ApplyResponse, summary="Write tags + cover art")

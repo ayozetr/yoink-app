@@ -50,6 +50,10 @@ class ApplyRequest(BaseModel):
     year: str | None = Field(default=None)
     track_number: int | None = Field(default=None)
     cover_url: str | None = Field(default=None, description="Cover art to embed.")
+    embed_lyrics: bool | None = Field(
+        default=None,
+        description="Embed lyrics for this track (None = use the global setting).",
+    )
 
 
 class ApplyResponse(BaseModel):
@@ -57,3 +61,21 @@ class ApplyResponse(BaseModel):
     embedded_cover: bool = Field(
         default=False, description="Whether cover art was embedded."
     )
+
+
+class LyricsRequest(BaseModel):
+    """Preview-time lyrics lookup for the auto-tag card."""
+
+    title: str = Field(..., description="Track title.")
+    artist: str = Field(default="", description="Track artist(s).")
+    album: str | None = Field(default=None)
+    path: str | None = Field(
+        default=None, description="Audio file, to probe its duration for a match."
+    )
+
+
+class LyricsResult(BaseModel):
+    found: bool = Field(..., description="Whether any lyrics were found.")
+    instrumental: bool = Field(default=False)
+    has_synced: bool = Field(default=False, description="A timed .lrc is available.")
+    preview: str | None = Field(default=None, description="First lines of the lyrics.")

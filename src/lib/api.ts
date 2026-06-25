@@ -19,6 +19,7 @@ import type {
   ApplyRequest,
   ApplyResponse,
   CandidateList,
+  LyricsResult,
 } from "../types/autotag";
 import type { MusicImportInfo, MusicTrack } from "../types/music";
 import { getApiBase } from "./apiBase";
@@ -312,4 +313,22 @@ export async function applyAudioTags(
     throw new ApiError(await readErrorDetail(response), response.status);
   }
   return (await response.json()) as ApplyResponse;
+}
+
+/** Preview lyrics availability for a track via `POST /api/autotag/lyrics`. */
+export async function previewLyrics(request: {
+  title: string;
+  artist?: string;
+  album?: string | null;
+  path?: string;
+}): Promise<LyricsResult> {
+  const response = await fetch(`${getApiBase()}/autotag/lyrics`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+  return (await response.json()) as LyricsResult;
 }

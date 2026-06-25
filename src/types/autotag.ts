@@ -30,9 +30,19 @@ export interface ApplyRequest {
   year?: string | null;
   track_number?: number | null;
   cover_url?: string | null;
+  /** Embed lyrics for this track (omitted = use the global setting). */
+  embed_lyrics?: boolean | null;
 }
 
 export interface ApplyResponse {
   ok: boolean;
   embedded_cover: boolean;
+}
+
+/** Preview-time lyrics availability for the auto-tag card. */
+export interface LyricsResult {
+  found: boolean;
+  instrumental: boolean;
+  has_synced: boolean;
+  preview: string | null;
 }

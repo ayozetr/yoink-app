@@ -15,9 +15,10 @@ import {
   ApiError,
   applyAudioTags,
   identifyAudio,
+  previewLyrics,
   searchAudio,
 } from "../../lib/api";
-import type { TagCandidate } from "../../types/autotag";
+import type { LyricsResult, TagCandidate } from "../../types/autotag";
 import { guessFromFilename } from "./filename";
 
 interface AutoTagPanelProps {
@@ -79,6 +80,12 @@ export function AutoTagPanel({
   const [album, setAlbum] = useState("");
   const [year, setYear] = useState("");
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+
+  // Lyrics preview (LRCLIB) for the reviewed track + per-track embed toggle.
+  const [lyrics, setLyrics] = useState<LyricsResult | null>(null);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [embedLyrics, setEmbedLyrics] = useState(true);
+  const [showLyrics, setShowLyrics] = useState(false);
 
   // Manual catalogue search.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -176,6 +183,39 @@ export function AutoTagPanel({
     }
   };
 
+  // Look the track's lyrics up (debounced) while reviewing, for the indicator
+  // + preview; the checkbox defaults to whatever LRCLIB returned.
+  useEffect(() => {
+    if (stage !== "review" || !title.trim()) return;
+    let cancelled = false;
+    const id = window.setTimeout(() => {
+      setLyrics(null);
+      setLyricsLoading(true);
+      previewLyrics({
+        title: title.trim(),
+        artist: artist.trim(),
+        album: album.trim() || null,
+        path,
+      })
+        .then((r) => {
+          if (cancelled) return;
+          setLyrics(r);
+          setEmbedLyrics(r.found);
+          setShowLyrics(false);
+        })
+        .catch(() => {
+          if (!cancelled) setLyrics(null);
+        })
+        .finally(() => {
+          if (!cancelled) setLyricsLoading(false);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [stage, title, artist, album, path]);
+
   const onApply = async () => {
     setStage("applying");
     const sel = selected >= 0 ? results[selected] : null;
@@ -188,6 +228,7 @@ export function AutoTagPanel({
         year: year.trim() || null,
         track_number: sel?.track_number ?? null,
         cover_url: coverUrl,
+        embed_lyrics: lyrics?.found ? embedLyrics : false,
       });
       setStage("done");
       onApplied?.();
@@ -401,6 +442,56 @@ export function AutoTagPanel({
                   <Search size={16} />
                 )}
               </button>
+            </div>
+          )}
+
+          {reviewing && (lyricsLoading || lyrics) && (
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              {lyricsLoading ? (
+                <p className="flex items-center gap-2 text-xs text-zinc-400">
+                  <Loader2 size={13} className="animate-spin" />
+                  {t("autotag.lyricsSearching")}
+                </p>
+              ) : lyrics?.found ? (
+                <>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={embedLyrics}
+                      onChange={(e) => setEmbedLyrics(e.target.checked)}
+                      className="size-4 shrink-0 accent-violet-500"
+                    />
+                    <span>{t("autotag.lyrics")}</span>
+                    <span className="text-xs text-emerald-400">
+                      {lyrics.instrumental
+                        ? t("autotag.lyricsInstrumental")
+                        : lyrics.has_synced
+                          ? t("autotag.lyricsFoundSynced")
+                          : t("autotag.lyricsFound")}
+                    </span>
+                  </label>
+                  {lyrics.preview && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowLyrics((v) => !v)}
+                        className="mt-1 text-xs text-zinc-400 transition hover:text-white"
+                      >
+                        {showLyrics
+                          ? t("autotag.lyricsHide")
+                          : t("autotag.lyricsShow")}
+                      </button>
+                      {showLyrics && (
+                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap text-xs text-zinc-300">
+                          {lyrics.preview}
+                        </pre>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-zinc-500">{t("autotag.lyricsNone")}</p>
+              )}
             </div>
           )}
 
