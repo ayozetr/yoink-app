@@ -235,10 +235,11 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Reorder the queue** (drag up/down) (M).
 - ⬜ **Auto-fill a clipboard URL on window focus** (M) — when the field is empty and
   the clipboard holds a link, pre-fill it (non-destructive) so a paste→analyze is one step.
-- ⬜ **Paste-and-analyze keyboard gesture** (S) — `Ctrl/Cmd+Shift+V` to paste a link and
-  analyze it in one shot, from anywhere in the window.
-- ⬜ **"Copy error" button** (S) — on a failed download and on history error rows, so the
-  raw failure text is one click away (pairs with friendlier error messages below).
+  *(Tried in v2.3.0 but skipped: a gesture-less clipboard read is blocked by browsers.)*
+- ✅ **Paste-and-analyze keyboard gesture** *(v2.3.0)* — `Ctrl/Cmd+Shift+V` pastes a
+  link from the clipboard and analyzes it in one shot, from anywhere in the window.
+- ✅ **"Copy error" button** *(v2.3.0)* — on a failed download and on history error
+  rows, so the raw failure text is one click away.
 
 ### 🔌 OS & integrations
 - ⬜ **`yoink://` deep link** (M · **high**) — enables "send to Yoink" from anywhere,
@@ -274,8 +275,9 @@ also in *Next up* are the urgent ones.)
   noise and maps the common cases (bot-check/403/429 → cookies hint, private/
   members-only, unavailable, geo-block, unsupported URL, bad format) before the
   message reaches the WS / history (the full text is still logged).
-- ⬜ **Pre-flight free-disk-space check** (S) — `shutil.disk_usage` before a download
-  starts; fail early with a clear message instead of mid-download.
+- ✅ **Pre-flight free-disk-space check** *(v2.3.0)* — `shutil.disk_usage` before a
+  download starts; fails early with a clear message (under ~500 MB free) instead of
+  mid-write.
 - ✅ **Route music-import fetches through `safe_http`** *(v2.1.0)* — `_get`/`_get_json`/
   `_final_url` now use `core/safe_http` (`fetch_public` + the pinned `OPENER`): the
   resolved public IP is pinned and every redirect hop re-validated, on top of the
