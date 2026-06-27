@@ -270,6 +270,14 @@ also in *Next up* are the urgent ones.)
 - ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
   frontend `estimatedSizeBytes`/`formatBytes`.
 - ⬜ **PyInstaller `--onedir`** (M) — faster cold start (no per-launch re-extraction).
+- ⬜ **Slow `.rpm` bundling at release time** (M · build) — Tauri 2.11's rpm bundler
+  takes ~10–12 min to package the ~180 MB ffmpeg sidecar (the `Bundling …rpm` step
+  is CPU-bound *regardless of compression* — forcing `gzip` was no faster than the
+  default, so the compressor isn't the bottleneck). The `.deb` and AppImage of the
+  same payload bundle in seconds. v2.3.1 shipped the rpm by letting it grind in the
+  background after publishing the other assets. Investigate:
+  `bundle.linux.rpm.compression: { "type": "none" }`, converting the `.deb` with
+  `alien`/`fpm`, or an upstream tauri-bundler issue — so a release isn't gated on it.
 - ✅ **Friendlier download/extraction error messages** *(next)* —
   `friendly_download_error()` strips the `ERROR:`/`[extractor]`/"report this issue"
   noise and maps the common cases (bot-check/403/429 → cookies hint, private/
