@@ -93,43 +93,26 @@ def network_options(*, use_browser: bool = True) -> dict[str, Any]:
     return options
 
 
-def is_browser_cookie_error(message: str) -> bool:
-    """Whether an error is yt-dlp failing to read the *browser's* cookie store.
-
-    On Windows a running Chromium browser locks its cookie DB (and newer ones
-    encrypt it), so extraction fails with "Could not copy ... cookie database" /
-    a decrypt error — which shouldn't sink the whole request when a cookies file
-    (or plain impersonation) would work.
-    """
-    low = message.lower()
-    if "cookie" not in low:
-        return False
-    return any(
-        s in low
-        for s in (
-            "could not copy",
-            "could not find",
-            "could not open",
-            "unable to read",
-            "permission denied",
-            "decrypt",
-        )
-    )
-
-
 def with_cookie_fallback(run: Callable[[dict[str, Any]], _T]) -> _T:
-    """Run ``run(network_options())``; if it fails because the *browser* cookie
-    store couldn't be read, retry once with the browser dropped (cookies file or
-    none). Non-cookie errors propagate unchanged.
+    """Run ``run(network_options())``; if a **browser** cookie store is configured
+    and the attempt fails, retry once with the browser dropped (cookies file, or
+    none — impersonation already passes most anti-bot checks).
+
+    Reading a browser's cookie store is by far the most fragile part of a request
+    and its failure modes vary wildly by OS/browser/version (locked DB, DPAPI /
+    app-bound decryption, a missing profile, …), with error strings we can't
+    enumerate. So when a browser is set we retry on *any* first-attempt failure
+    rather than trying to pattern-match the error — a genuinely unrelated failure
+    simply fails again and propagates. No browser set → nothing to fall back from.
     """
     try:
         return run(network_options())
-    except Exception as exc:  # noqa: BLE001 — re-raised unless it's a cookie error
-        if settings.cookies_from_browser and is_browser_cookie_error(str(exc)):
-            logger.warning(
-                "Could not read %s cookies (%s); retrying without the browser.",
-                settings.cookies_from_browser,
-                type(exc).__name__,
-            )
-            return run(network_options(use_browser=False))
-        raise
+    except Exception as exc:  # noqa: BLE001 — retried (browser set) or re-raised
+        if not settings.cookies_from_browser:
+            raise
+        logger.warning(
+            "Request failed with %s cookies (%s); retrying without the browser.",
+            settings.cookies_from_browser,
+            type(exc).__name__,
+        )
+        return run(network_options(use_browser=False))
