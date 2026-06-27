@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 
 from app.core.config import settings
+from app.core.safe_http import SSL_CONTEXT
 from app.models.media import VersionInfo
 
 
@@ -43,7 +44,7 @@ def check_for_updates(timeout: float = 8.0) -> VersionInfo:
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout, context=SSL_CONTEXT) as response:
             data = json.load(response)
     except urllib.error.HTTPError as exc:
         if exc.code == 403:
@@ -101,7 +102,7 @@ def check_ytdlp_update(timeout: float = 8.0) -> VersionInfo:
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout, context=SSL_CONTEXT) as response:
             data = json.load(response)
     except urllib.error.HTTPError as exc:
         message = (

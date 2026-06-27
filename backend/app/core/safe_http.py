@@ -14,6 +14,7 @@ from __future__ import annotations
 import http.client
 import ipaddress
 import socket
+import ssl
 import urllib.error
 import urllib.request
 from typing import Any
@@ -22,6 +23,30 @@ from urllib.parse import urlparse
 # Cap any read so a huge/streaming response can't exhaust local memory.
 DEFAULT_MAX_BYTES = 16 * 1024 * 1024
 DEFAULT_TIMEOUT = 10.0
+
+
+def _ca_context() -> ssl.SSLContext:
+    """A verifying TLS context backed by certifi's CA bundle.
+
+    The stdlib default leans on the OS trust store, which is unreliable on
+    Windows: a freshly-installed or locked-down machine can lack common
+    intermediate/root CAs, so verification fails with "unable to get local issuer
+    certificate" and every HTTPS fetch (cover art, music import, lyrics,
+    thumbnails) breaks. certifi ships a complete, current bundle and is already
+    present (a yt-dlp dependency, bundled into the PyInstaller app), so pin to it
+    for identical verification on every platform.
+    """
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001 — certifi missing/unreadable: fall back to OS trust
+        return ssl.create_default_context()
+
+
+# Shared so the pinned opener and the fixed-host clients (auto-tag catalogue
+# lookups, the update check) all verify against the same reliable CA bundle.
+SSL_CONTEXT = _ca_context()
 
 
 class SafeHTTPError(Exception):
@@ -106,7 +131,9 @@ class _PinnedHTTPHandler(urllib.request.HTTPHandler):
 
 class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
     def https_open(self, req: urllib.request.Request) -> Any:
-        return self.do_open(_PinnedHTTPSConnection, req)
+        # Pass the certifi-backed context explicitly — otherwise the connection
+        # builds a default one off the (unreliable on Windows) OS trust store.
+        return self.do_open(_PinnedHTTPSConnection, req, context=SSL_CONTEXT)
 
 
 class _SafeRedirects(urllib.request.HTTPRedirectHandler):

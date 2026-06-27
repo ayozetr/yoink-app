@@ -41,7 +41,7 @@ from mutagen.wave import WAVE
 
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_path
-from app.core.safe_http import SafeHTTPError, fetch_public
+from app.core.safe_http import SSL_CONTEXT, SafeHTTPError, fetch_public
 from app.services import nfo
 from app.services.lyrics import Lyrics, fetch_lyrics
 from app.models.autotag import (
@@ -166,7 +166,7 @@ def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate
         request = Request(  # noqa: S310 — fixed https host
             f"{_ITUNES_URL}?{query}", headers={"User-Agent": _USER_AGENT}
         )
-        with urlopen(request, timeout=15) as response:  # noqa: S310
+        with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310
             data = json.loads(response.read())
     except (URLError, OSError, ValueError) as exc:
         raise AutotagError(f"Apple Music search failed: {exc}") from exc
@@ -198,7 +198,7 @@ def _deezer_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate
         request = Request(  # noqa: S310 — fixed https host
             f"{_DEEZER_URL}?{query}", headers={"User-Agent": _USER_AGENT}
         )
-        with urlopen(request, timeout=15) as response:  # noqa: S310
+        with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310
             data = json.loads(response.read())
     except (URLError, OSError, ValueError) as exc:
         raise AutotagError(f"Deezer search failed: {exc}") from exc
@@ -238,7 +238,7 @@ def _musicbrainz_search(artist: str, title: str, limit: int = 8) -> list[TagCand
         request = Request(  # noqa: S310 — fixed https host
             f"{_MUSICBRAINZ_URL}?{query}", headers={"User-Agent": _USER_AGENT}
         )
-        with urlopen(request, timeout=15) as response:  # noqa: S310
+        with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310
             data = json.loads(response.read())
     except (URLError, OSError, ValueError) as exc:
         raise AutotagError(f"MusicBrainz search failed: {exc}") from exc
