@@ -353,9 +353,26 @@ def _build_playlist(
     if not isinstance(total, int):
         total = len(raw_entries)
 
+    # Dynamic mixes (YouTube radio, RD…) repeat videos heavily — the same id can
+    # appear several times in one listing (here ~200 entries, ~half unique). The
+    # frontend selects by id, so a repeated pick would queue every copy ("1 of 2"
+    # for a single selection, the same file downloaded twice) and React would see
+    # duplicate keys. Dedupe by id (first occurrence wins) before capping, so the
+    # list holds distinct videos and one pick is one download. Entries with no id
+    # are kept as-is (an empty id isn't a real duplicate).
+    seen: set[str] = set()
+    unique_entries: list[dict[str, Any]] = []
+    for entry in raw_entries:
+        entry_id = str(entry.get("id") or "")
+        if entry_id and entry_id in seen:
+            continue
+        if entry_id:
+            seen.add(entry_id)
+        unique_entries.append(entry)
+
     entries = [
         entry
-        for entry in (_build_entry(e) for e in raw_entries[:_ENTRY_CAP])
+        for entry in (_build_entry(e) for e in unique_entries[:_ENTRY_CAP])
         if entry is not None
     ]
 

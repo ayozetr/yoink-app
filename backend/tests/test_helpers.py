@@ -241,6 +241,29 @@ def test_build_entry_and_playlist():
     assert playlist.truncated is True
 
 
+def test_build_playlist_dedupes_repeated_ids():
+    # YouTube radio mixes (RD…) repeat the same video many times in one listing.
+    # The frontend selects by id, so duplicates would queue every copy of a pick
+    # (and collide React keys) — the listing must hold each video once, in order.
+    playlist = _build_playlist(
+        {
+            "_type": "playlist",
+            "id": "RDseed",
+            "title": "Mix",
+            "playlist_count": 5,
+            "entries": [
+                {"id": "a", "title": "A", "url": "http://x/a"},
+                {"id": "b", "title": "B", "url": "http://x/b"},
+                {"id": "a", "title": "A again", "url": "http://x/a"},  # dup → dropped
+                {"id": "c", "title": "C", "url": "http://x/c"},
+                {"id": "b", "title": "B again", "url": "http://x/b"},  # dup → dropped
+            ],
+        }
+    )
+    assert [e.id for e in playlist.entries] == ["a", "b", "c"]
+    assert playlist.entry_count == 5  # yt-dlp's reported total is untouched
+
+
 def test_playlist_thumbnail_prefers_own_then_first_entry():
     # The playlist's own thumbnail wins (highest-preference one).
     with_cover = _build_playlist(
