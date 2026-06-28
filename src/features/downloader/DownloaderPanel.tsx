@@ -106,6 +106,10 @@ export function DownloaderPanel({
   const lockOwner = useDownloadLock();
   const lockedByOther = lockOwner !== null && lockOwner !== "downloader";
   const [url, setUrl] = useState("");
+  // The URL we actually analyzed (the field text at analyze time). Downloads and
+  // the music card key off this, not the live field — the user may edit the field
+  // after analysis without re-analyzing.
+  const [analyzedUrl, setAnalyzedUrl] = useState("");
   const [info, setInfo] = useState<InfoResponse | null>(null);
   const [musicInfo, setMusicInfo] = useState<MusicImportInfo | null>(null);
   // Search platform for the URL-field typeahead; the toggle lives in the header.
@@ -310,6 +314,9 @@ export function DownloaderPanel({
         setMusicInfo(null);
         setInfo(await fetchInfo(trimmed, controller.signal));
       }
+      // Remember exactly what we analyzed, so downloads / the music-card key
+      // target the analyzed source even if the user edits the field after.
+      setAnalyzedUrl(trimmed);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
       setInfo(null);
@@ -357,7 +364,9 @@ export function DownloaderPanel({
   }, []);
 
   const handleDownload = (selection: DownloadSelection) => {
-    const target = url.trim();
+    // The analyzed source URL, not the live field (which the user may have
+    // edited since analyzing — that would download the wrong thing / 422).
+    const target = analyzedUrl || url.trim();
     setLastKind(selection.kind);
     startQueue([
       {
@@ -540,7 +549,7 @@ export function DownloaderPanel({
 
       {musicInfo && (
         <MusicImportCard
-          key={musicInfo.name}
+          key={analyzedUrl}
           info={musicInfo}
           defaultAudioFormat={defaultAudioFormat}
           onDownloadFinished={onDownloadFinished}

@@ -97,12 +97,13 @@ export default function App() {
           setReady(true);
           return;
         } catch {
-          if (attempt >= 60) {
-            // Give up after ~30s; drop the splash so the UI is usable anyway.
-            if (!cancelled) setReady(true);
-            return;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          // After ~30s of refused connections, drop the splash so the UI is
+          // usable anyway — but keep retrying (at a slower cadence) instead of
+          // giving up. Otherwise a backend that comes up late leaves the app
+          // permanently settings-less and the Settings modal unopenable.
+          if (attempt === 60 && !cancelled) setReady(true);
+          const delay = attempt < 60 ? 500 : 2000;
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     };
