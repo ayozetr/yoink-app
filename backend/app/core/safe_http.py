@@ -98,6 +98,22 @@ def _resolve_pinned(host: str, port: int | None) -> list[Any]:
     return infos
 
 
+def _connect_any(infos: list[Any], timeout: Any, source_address: Any) -> socket.socket:
+    """Connect to the first reachable validated address (dual-stack fallback).
+
+    A host with several validated public addresses (e.g. an IPv6 + IPv4 pair)
+    mustn't fail just because the first one is unreachable, so try each in turn.
+    Every address was already validated public by ``_resolve_pinned``.
+    """
+    last_err: Exception | None = None
+    for info in infos:
+        try:
+            return socket.create_connection(info[4][:2], timeout, source_address)
+        except OSError as exc:
+            last_err = exc
+    raise last_err if last_err is not None else OSError("no address to connect to")
+
+
 # Connections that resolve, re-validate, and connect to the validated IP in one
 # step — closing the TOCTOU/DNS-rebinding window between the up-front host check
 # and the actual socket connect (a host whose DNS flips to 127.0.0.1 mid-request
@@ -107,9 +123,7 @@ class _PinnedHTTPConnection(http.client.HTTPConnection):
         infos = _resolve_pinned(self.host, self.port)
         if not infos:
             raise OSError("host resolves to a disallowed address")
-        self.sock = socket.create_connection(
-            infos[0][4][:2], self.timeout, self.source_address
-        )
+        self.sock = _connect_any(infos, self.timeout, self.source_address)
 
 
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
@@ -117,9 +131,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         infos = _resolve_pinned(self.host, self.port)
         if not infos:
             raise OSError("host resolves to a disallowed address")
-        sock = socket.create_connection(
-            infos[0][4][:2], self.timeout, self.source_address
-        )
+        sock = _connect_any(infos, self.timeout, self.source_address)
         # Keep SNI/cert validation against the real hostname, not the IP.
         self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
 
