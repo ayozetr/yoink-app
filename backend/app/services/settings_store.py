@@ -8,11 +8,15 @@ automatically sees any changes made through the settings UI — no restart.
 from __future__ import annotations
 
 import json
+import logging
+import os
 from pathlib import Path
 from typing import Any
 
 from app.core.config import settings
 from app.models.media import AppSettings
+
+logger = logging.getLogger(__name__)
 
 
 def _settings_path() -> Path:
@@ -75,7 +79,12 @@ def load_overrides() -> None:
     except (OSError, json.JSONDecodeError):
         return
     if isinstance(data, dict):
-        _apply(data)
+        # A corrupt / wrong-typed file (e.g. download_dir not a string) must not
+        # break startup: applying overrides is best-effort, never fatal.
+        try:
+            _apply(data)
+        except Exception as exc:  # noqa: BLE001 — load is a no-op on bad data
+            logger.warning("Ignoring invalid settings.json: %s", exc)
 
 
 def get_current() -> AppSettings:
@@ -109,5 +118,10 @@ def update(payload: AppSettings) -> AppSettings:
     data = payload.model_dump()
     _apply(data)
     settings.ensure_data_dir()
-    _settings_path().write_text(json.dumps(data, indent=2), encoding="utf-8")
+    # Write atomically (temp file + os.replace) so an interrupted write can't
+    # truncate settings.json and lose every override.
+    path = _settings_path()
+    tmp_path = path.with_name(path.name + ".tmp")
+    tmp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp_path, path)
     return get_current()

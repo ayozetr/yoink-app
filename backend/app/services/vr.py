@@ -310,9 +310,16 @@ class _SphericalInjectError(Exception):
     """Raised internally when the MP4 can't be safely tagged (caller swallows)."""
 
 
-def _read_header(buf: bytes, pos: int) -> tuple[str, int, int]:
-    """Return (type, total_size, header_size) for the box starting at ``pos``."""
-    if pos + 8 > len(buf):
+def _read_header(buf: bytes, pos: int, end: int | None = None) -> tuple[str, int, int]:
+    """Return (type, total_size, header_size) for the box starting at ``pos``.
+
+    ``end`` bounds the enclosing box: a child whose declared size runs past it is
+    rejected. Validating against the whole buffer (the default when ``end`` is
+    omitted) would let an overlong child slip through and risk damaging odd MP4s.
+    """
+    if end is None:
+        end = len(buf)
+    if pos + 8 > end:
         raise _SphericalInjectError("truncated box header")
     size = int.from_bytes(buf[pos : pos + 4], "big")
     box_type = buf[pos + 4 : pos + 8].decode("latin1")
@@ -321,8 +328,8 @@ def _read_header(buf: bytes, pos: int) -> tuple[str, int, int]:
         size = int.from_bytes(buf[pos + 8 : pos + 16], "big")
         header = 16
     elif size == 0:
-        size = len(buf) - pos
-    if size < header or pos + size > len(buf):
+        size = end - pos
+    if size < header or pos + size > end:
         raise _SphericalInjectError("box size out of range")
     return box_type, size, header
 

@@ -8,6 +8,7 @@ loop without sharing a connection across threads.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 
 from app.core.config import settings
@@ -67,7 +68,7 @@ _MIGRATIONS = [_v1_base_table, _v2_extra_columns]
 
 def init_db() -> None:
     """Create / migrate the history DB, tracked by ``PRAGMA user_version``."""
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         # WAL lets a reader and a writer coexist (the queue writes bursts of
         # history rows); it's a persistent DB property, set once here.
         connection.execute("PRAGMA journal_mode=WAL")
@@ -109,7 +110,7 @@ def add_entry(
 ) -> HistoryEntry:
     """Insert a download record and return it (with its generated id)."""
     created_at = datetime.now(timezone.utc).isoformat()
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         cursor = connection.execute(
             """
             INSERT INTO downloads
@@ -144,7 +145,7 @@ def update_title(filepath: str, title: str) -> None:
     row, and tagging one shouldn't relabel old, unrelated entries that reused the
     path.
     """
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         connection.execute(
             "UPDATE downloads SET title = ? "
             "WHERE id = (SELECT MAX(id) FROM downloads WHERE filepath = ?)",
@@ -154,7 +155,7 @@ def update_title(filepath: str, title: str) -> None:
 
 def list_entries(limit: int = 50) -> list[HistoryEntry]:
     """Return the most recent entries, newest first."""
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         rows = connection.execute(
             "SELECT * FROM downloads ORDER BY id DESC LIMIT ?",
             (limit,),
@@ -164,7 +165,7 @@ def list_entries(limit: int = 50) -> list[HistoryEntry]:
 
 def get_entry(entry_id: int) -> HistoryEntry | None:
     """Return a single entry by id, or None."""
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         row = connection.execute(
             "SELECT * FROM downloads WHERE id = ?", (entry_id,)
         ).fetchone()
@@ -173,14 +174,14 @@ def get_entry(entry_id: int) -> HistoryEntry | None:
 
 def clear() -> int:
     """Delete all history records; returns the number removed."""
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         cursor = connection.execute("DELETE FROM downloads")
         return cursor.rowcount
 
 
 def get_stats() -> HistoryStats:
     """Aggregate count and total bytes across successful downloads."""
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         row = connection.execute(
             """
             SELECT COUNT(*) AS count, COALESCE(SUM(filesize), 0) AS total

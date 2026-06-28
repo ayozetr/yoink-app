@@ -10,7 +10,7 @@ from __future__ import annotations
 import urllib.error
 import urllib.request
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
@@ -56,8 +56,9 @@ def proxy_thumbnail(
     only) as an SSRF guard — re-checked on every redirect — and caps the read
     size. Any failure becomes a 4xx/5xx so the frontend's `onError` fallback runs.
     """
-    # The frontend url-encodes the value, but be tolerant of double-decoding.
-    target = unquote(url)
+    # FastAPI already percent-decodes the query value once; decoding it again
+    # would corrupt URLs that legitimately contain %-encoded characters.
+    target = url
     parsed = urlparse(target)
     if parsed.scheme not in ("http", "https") or host_is_blocked(parsed.hostname):
         raise HTTPException(
@@ -67,7 +68,7 @@ def proxy_thumbnail(
 
     headers = {"User-Agent": _USER_AGENT}
     if referer:
-        referer_value = unquote(referer)
+        referer_value = referer
         if urlparse(referer_value).scheme in ("http", "https"):
             headers["Referer"] = referer_value
 
@@ -94,10 +95,18 @@ def proxy_thumbnail(
             detail="Thumbnail exceeds the size limit.",
         )
 
+    # Never let an upstream serve non-image bytes as HTML/script from our origin:
+    # clamp anything that isn't image/* and tell the browser not to sniff.
+    if not content_type.startswith("image/"):
+        content_type = "application/octet-stream"
+
     return Response(
         content=data,
         media_type=content_type,
-        headers={"Cache-Control": _CACHE_CONTROL},
+        headers={
+            "Cache-Control": _CACHE_CONTROL,
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
@@ -127,8 +136,15 @@ def get_cover(
             status_code=status.HTTP_404_NOT_FOUND, detail="No cover art."
         )
     data, mime = cover
+    # Don't trust the embedded mime to be an image; clamp + no-sniff so a crafted
+    # file can't have its cover served as HTML/script from our origin.
+    if not mime.startswith("image/"):
+        mime = "application/octet-stream"
     return Response(
         content=data,
         media_type=mime,
-        headers={"Cache-Control": "private, max-age=3600"},
+        headers={
+            "Cache-Control": "private, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+        },
     )

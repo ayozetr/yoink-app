@@ -10,7 +10,10 @@ the history store.
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import re
+import sqlite3
 import subprocess
 import threading
 from pathlib import Path
@@ -25,6 +28,11 @@ from app.services import history_store
 from app.services.download_service import download_events
 
 router = APIRouter(tags=["download"])
+logger = logging.getLogger(__name__)
+
+# Precompiled once. fullmatch (not match) mirrors how CORS validates origins and
+# rejects a trailing newline that the regex's `$` would otherwise let slip past.
+_origin_pattern = re.compile(settings.cors_origin_regex)
 
 
 async def _watch_for_cancel(websocket: WebSocket, cancel_event: threading.Event) -> None:
@@ -96,7 +104,7 @@ async def download_ws(websocket: WebSocket) -> None:
     # WebSockets, so reject a cross-origin page trying to force downloads. A
     # missing Origin (non-browser client) is allowed — it isn't the web vector.
     origin = websocket.headers.get("origin")
-    if origin is not None and not re.match(settings.cors_origin_regex, origin):
+    if origin is not None and not _origin_pattern.fullmatch(origin):
         await websocket.close(code=1008)  # policy violation
         return
     await websocket.accept()
@@ -104,6 +112,14 @@ async def download_ws(websocket: WebSocket) -> None:
     try:
         payload = await websocket.receive_json()
     except WebSocketDisconnect:
+        return
+    except json.JSONDecodeError as exc:
+        # Mirror the ValidationError path below: a malformed first frame gets a
+        # graceful ErrorEvent + close rather than a bare 1011 protocol error.
+        await websocket.send_json(
+            ErrorEvent(message=f"Invalid download request: {exc}").model_dump()
+        )
+        await websocket.close()
         return
 
     try:
@@ -121,33 +137,46 @@ async def download_ws(websocket: WebSocket) -> None:
 
     try:
         async for event in download_events(request, cancel_event):
-            await websocket.send_json(event.model_dump())
-
             if event.type == "completed":
+                # Persist the history row *before* announcing completion: the
+                # client refreshes its history on `completed`, so the finished
+                # item must already be stored or it briefly flashes as missing.
                 # ffprobe (for audio bitrate) runs off the event loop.
                 quality = await asyncio.to_thread(
                     _quality_label, request, event.filepath
                 )
-                await asyncio.to_thread(
-                    history_store.add_entry,
-                    title=Path(event.filename).stem,
-                    url=url,
-                    kind=request.kind,
-                    status="completed",
-                    filename=event.filename,
-                    filepath=event.filepath,
-                    filesize=event.total_bytes,
-                    quality=quality,
-                )
-            elif event.type == "error":
-                await asyncio.to_thread(
-                    history_store.add_entry,
-                    title=_title_from_url(url),
-                    url=url,
-                    kind=request.kind,
-                    status="error",
-                    error_message=event.message,
-                )
+                try:
+                    await asyncio.to_thread(
+                        history_store.add_entry,
+                        title=Path(event.filename).stem,
+                        url=url,
+                        kind=request.kind,
+                        status="completed",
+                        filename=event.filename,
+                        filepath=event.filepath,
+                        filesize=event.total_bytes,
+                        quality=quality,
+                    )
+                except sqlite3.Error:
+                    # best-effort: the file is downloaded even if history can't write
+                    logger.exception("Failed to persist completed download to history")
+                await websocket.send_json(event.model_dump())
+                continue
+
+            await websocket.send_json(event.model_dump())
+
+            if event.type == "error":
+                try:
+                    await asyncio.to_thread(
+                        history_store.add_entry,
+                        title=_title_from_url(url),
+                        url=url,
+                        kind=request.kind,
+                        status="error",
+                        error_message=event.message,
+                    )
+                except sqlite3.Error:
+                    logger.exception("Failed to persist failed download to history")
     except WebSocketDisconnect:
         cancel_event.set()
         return
