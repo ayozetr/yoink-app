@@ -87,6 +87,15 @@ export function PlaylistCard({
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(playlist.entries.map((entry) => entry.id)),
   );
+  // Re-analyzing a mutable playlist (radio mixes RD…, Watch Later) reuses this
+  // component (the id key is unchanged), so reset the selection to all entries
+  // whenever the entry list itself changes — React's "adjust state during
+  // render" pattern (track the entries we've seen), not an effect.
+  const [seenEntries, setSeenEntries] = useState(playlist.entries);
+  if (seenEntries !== playlist.entries) {
+    setSeenEntries(playlist.entries);
+    setSelected(new Set(playlist.entries.map((entry) => entry.id)));
+  }
   // Free-text filter over the entry list (titles); selection persists across it.
   const [filter, setFilter] = useState("");
   // Last checkbox toggled, for shift-click range selection (by id, so it survives
