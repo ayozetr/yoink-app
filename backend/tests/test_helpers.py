@@ -122,11 +122,15 @@ def test_network_options(monkeypatch):
     assert network_options() == {}
 
     monkeypatch.setattr(settings, "cookies_from_browser", "firefox")
-    assert network_options() == {"cookiesfrombrowser": ("firefox",)}
+    assert network_options() == {
+        "cookiesfrombrowser": ("firefox", None, None, None)
+    }
 
     # browser wins over file
     monkeypatch.setattr(settings, "cookies_file", "/tmp/c.txt")
-    assert network_options() == {"cookiesfrombrowser": ("firefox",)}
+    assert network_options() == {
+        "cookiesfrombrowser": ("firefox", None, None, None)
+    }
 
     monkeypatch.setattr(settings, "cookies_from_browser", None)
     assert network_options() == {"cookiefile": "/tmp/c.txt"}
@@ -233,12 +237,13 @@ def test_build_entry_and_playlist():
             ],
         }
     )
-    assert playlist.entry_count == 3  # total reported (incl. the dropped one)
+    # 2 usable distinct entries (no playlist_count given; "c" dropped for a
+    # missing URL): we show every usable item we have, so the count reflects the
+    # built entries and the listing isn't flagged truncated.
+    assert playlist.entry_count == 2
     assert [e.id for e in playlist.entries] == ["a", "b"]
     assert playlist.entries[0].duration_string == "1:01"
-    # 2 listed < 3 reported (entry "c" was dropped for missing a URL), so the
-    # listing is flagged truncated rather than silently short.
-    assert playlist.truncated is True
+    assert playlist.truncated is False
 
 
 def test_build_playlist_dedupes_repeated_ids():
@@ -261,7 +266,10 @@ def test_build_playlist_dedupes_repeated_ids():
         }
     )
     assert [e.id for e in playlist.entries] == ["a", "b", "c"]
-    assert playlist.entry_count == 5  # yt-dlp's reported total is untouched
+    # 3 distinct videos fully fetched (5 listed with repeats), nothing capped:
+    # the count reflects the deduped set and the list isn't flagged truncated.
+    assert playlist.entry_count == 3
+    assert playlist.truncated is False
 
 
 def test_playlist_thumbnail_prefers_own_then_first_entry():

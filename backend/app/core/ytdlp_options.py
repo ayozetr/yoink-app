@@ -31,13 +31,13 @@ def normalize_url(url: str) -> str:
     """Rewrite known URL quirks into a form yt-dlp's extractors accept."""
     url = _TIKTOK_PHOTO.sub(r"\1/video/", url)
     parts = urlsplit(url)
-    if parts.query and any(p in parts.query for p in _YT_NOISE_PARAMS):
-        kept = [
-            (k, v)
-            for k, v in parse_qsl(parts.query, keep_blank_values=True)
-            if k not in _YT_NOISE_PARAMS
-        ]
-        url = urlunsplit(parts._replace(query=urlencode(kept)))
+    if parts.query:
+        pairs = parse_qsl(parts.query, keep_blank_values=True)
+        kept = [(k, v) for k, v in pairs if k not in _YT_NOISE_PARAMS]
+        # Only rewrite when a noise param was actually present as a query *key*
+        # (not merely a substring of some value), to avoid needless re-encoding.
+        if len(kept) != len(pairs):
+            url = urlunsplit(parts._replace(query=urlencode(kept)))
     return url
 
 
@@ -70,6 +70,29 @@ def _impersonate_target() -> Any | None:
         return None
 
 
+def _parse_cookiesfrombrowser(spec: str) -> tuple[str, str | None, str | None, str | None]:
+    """Parse a ``--cookies-from-browser`` spec into yt-dlp's 4-tuple.
+
+    Accepts yt-dlp's CLI syntax ``BROWSER[+KEYRING][:PROFILE][::CONTAINER]`` and
+    returns ``(browser, profile, keyring, container)`` — browser lowercased,
+    keyring uppercased, the rest ``None`` when absent. A bare browser name yields
+    ``(browser, None, None, None)``. Passing the raw spec as a 1-tuple instead
+    would make yt-dlp raise ``ValueError`` on anything but a plain browser name.
+    """
+    rest = spec.strip()
+    # ``::`` (container) before ``:`` (profile) so the container's double colon
+    # isn't mistaken for a profile separator.
+    rest, _, container = rest.partition("::")
+    rest, _, profile = rest.partition(":")
+    rest, _, keyring = rest.partition("+")
+    return (
+        rest.strip().lower(),
+        profile.strip() or None,
+        keyring.strip().upper() or None,
+        container.strip() or None,
+    )
+
+
 def network_options(*, use_browser: bool = True) -> dict[str, Any]:
     """yt-dlp network options from settings: impersonation + cookies + proxy.
 
@@ -84,8 +107,10 @@ def network_options(*, use_browser: bool = True) -> dict[str, Any]:
     if target is not None:
         options["impersonate"] = target
     if use_browser and settings.cookies_from_browser:
-        # Tuple form: (browser, profile, keyring, container) — only browser here.
-        options["cookiesfrombrowser"] = (settings.cookies_from_browser,)
+        # 4-tuple (browser, profile, keyring, container) parsed from the spec.
+        options["cookiesfrombrowser"] = _parse_cookiesfrombrowser(
+            settings.cookies_from_browser
+        )
     elif settings.cookies_file:
         options["cookiefile"] = str(settings.cookies_file)
     if settings.proxy:
@@ -93,7 +118,11 @@ def network_options(*, use_browser: bool = True) -> dict[str, Any]:
     return options
 
 
-def with_cookie_fallback(run: Callable[[dict[str, Any]], _T]) -> _T:
+def with_cookie_fallback(
+    run: Callable[[dict[str, Any]], _T],
+    *,
+    should_retry: Callable[[], bool] | None = None,
+) -> _T:
     """Run ``run(network_options())``; if a **browser** cookie store is configured
     and the attempt fails, retry once with the browser dropped (cookies file, or
     none — impersonation already passes most anti-bot checks).
@@ -104,11 +133,19 @@ def with_cookie_fallback(run: Callable[[dict[str, Any]], _T]) -> _T:
     enumerate. So when a browser is set we retry on *any* first-attempt failure
     rather than trying to pattern-match the error — a genuinely unrelated failure
     simply fails again and propagates. No browser set → nothing to fall back from.
+
+    ``should_retry`` is an optional guard the caller can use to veto the retry
+    after the fact: the download worker passes one that returns ``False`` once
+    bytes are on disk, so a mid-stream failure doesn't re-run the whole download
+    without the cookies it needs (the browser-read failure happens before any
+    bytes, so this never blocks the case the fallback is meant for).
     """
     try:
         return run(network_options())
     except Exception as exc:  # noqa: BLE001 — retried (browser set) or re-raised
         if not settings.cookies_from_browser:
+            raise
+        if should_retry is not None and not should_retry():
             raise
         logger.warning(
             "Request failed with %s cookies (%s); retrying without the browser.",

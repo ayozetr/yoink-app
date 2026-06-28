@@ -349,9 +349,9 @@ def _build_playlist(
 ) -> PlaylistInfo:
     """Build a (possibly capped) PlaylistInfo from a flat yt-dlp playlist dict."""
     raw_entries = [e for e in (info.get("entries") or []) if isinstance(e, dict)]
-    total = info.get("playlist_count")
-    if not isinstance(total, int):
-        total = len(raw_entries)
+    reported_total = info.get("playlist_count")
+    if not isinstance(reported_total, int):
+        reported_total = None
 
     # Dynamic mixes (YouTube radio, RD…) repeat videos heavily — the same id can
     # appear several times in one listing (here ~200 entries, ~half unique). The
@@ -360,14 +360,22 @@ def _build_playlist(
     # duplicate keys. Dedupe by id (first occurrence wins) before capping, so the
     # list holds distinct videos and one pick is one download. Entries with no id
     # are kept as-is (an empty id isn't a real duplicate).
-    seen: set[str] = set()
+    seen: dict[str, int] = {}  # id -> its index in unique_entries
     unique_entries: list[dict[str, Any]] = []
     for entry in raw_entries:
         entry_id = str(entry.get("id") or "")
         if entry_id and entry_id in seen:
+            # Prefer a usable duplicate: if the copy we kept has no URL (so
+            # _build_entry would drop it, losing the video) but this later one
+            # does, swap it in rather than keeping the unusable first occurrence.
+            kept = unique_entries[seen[entry_id]]
+            if not (kept.get("url") or kept.get("webpage_url")) and (
+                entry.get("url") or entry.get("webpage_url")
+            ):
+                unique_entries[seen[entry_id]] = entry
             continue
         if entry_id:
-            seen.add(entry_id)
+            seen[entry_id] = len(unique_entries)
         unique_entries.append(entry)
 
     entries = [
@@ -385,16 +393,27 @@ def _build_playlist(
     # carry one), else the first listed entry's thumbnail.
     cover = _playlist_cover(info) or (entries[0].thumbnail_url if entries else None)
 
+    # Count / "truncated" computed on the DEDUPED set: a deduped list isn't
+    # "truncated" just because duplicate ids were dropped — only when the display
+    # cap was actually hit, or the source holds more than this fetched window.
+    capped = len(unique_entries) > _ENTRY_CAP
+    fetched_all = reported_total is None or len(raw_entries) >= reported_total
+    truncated = capped or not fetched_all
+    if fetched_all and not capped:
+        entry_count = len(entries)  # we have every distinct, usable item
+    else:
+        entry_count = (
+            reported_total if reported_total is not None else len(unique_entries)
+        )
+
     return PlaylistInfo(
         id=str(info.get("id", "")),
         title=str(info.get("title") or "Playlist"),
         uploader=info.get("uploader") or info.get("channel"),
         thumbnail_url=cover,
-        entry_count=total,
+        entry_count=entry_count,
         entries=entries,
-        # True if the listing is shorter than the reported total — whether from
-        # the _ENTRY_CAP cap or entries dropped for missing a usable URL.
-        truncated=len(entries) < total,
+        truncated=truncated,
         source_lossless=source_lossless,
         best_audio_abr=best_audio_abr,
         is_vr=is_vr,
@@ -436,7 +455,9 @@ def _probe_first_entry_audio(info: dict[str, Any]) -> tuple[bool, float | None]:
 
     try:
         entry = with_cookie_fallback(_probe)
-    except DownloadError:
+    except Exception:  # noqa: BLE001 — best-effort probe; any failure just skips the hint
+        return False, None
+    if not isinstance(entry, dict):
         return False, None
     return _audio_summary(entry.get("formats"))
 

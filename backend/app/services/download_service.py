@@ -85,8 +85,13 @@ def _audio_postprocessor(audio_format: AudioFormat) -> dict[str, str]:
     return pp
 
 
-class _DownloadCancelled(Exception):
-    """Raised from the progress hook to abort an in-flight yt-dlp download."""
+class _DownloadCancelled(BaseException):
+    """Raised from the progress hook to abort an in-flight yt-dlp download.
+
+    Subclasses ``BaseException`` (not ``Exception``) so the cookie fallback's
+    ``except Exception`` retry can't swallow a cancel and re-download the file;
+    the explicit ``except _DownloadCancelled`` below still catches it.
+    """
 
 
 def _format_speed(bytes_per_second: float | None) -> str | None:
@@ -349,15 +354,17 @@ def _build_options(
         postprocessors: list[dict[str, Any]] = list(sponsorblock)
 
         if request.embed_subs:
-            # Fetch subtitles (auto-captions as a fallback) and embed them.
-            # A null/"all" language requests every available track.
+            # Fetch subtitles and embed them. A null/"all" language requests
+            # every available real track; we deliberately skip auto-captions
+            # there, since "all" would pull an auto-generated copy of every
+            # language and bloat the output. For a specific language, include
+            # its auto-captions as a fallback when no real track exists.
             options["writesubtitles"] = True
-            options["writeautomaticsub"] = True
-            options["subtitleslangs"] = (
-                ["all"]
-                if request.subtitle_lang in (None, "all")
-                else [request.subtitle_lang]
-            )
+            if request.subtitle_lang in (None, "all"):
+                options["subtitleslangs"] = ["all"]
+            else:
+                options["writeautomaticsub"] = True
+                options["subtitleslangs"] = [request.subtitle_lang]
             postprocessors.append({"key": "FFmpegEmbedSubtitle"})
 
         if request.embed_chapters or mark_chapters:
@@ -486,6 +493,10 @@ async def download_events(
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[ProgressEvent] = asyncio.Queue()
     last_percent = 0.0
+    # Set once the download is past extraction/auth and bytes are flowing. The
+    # browser-cookie store is read before that point, so a fired progress hook
+    # means the cookies were fine — the cookie fallback must not then re-download.
+    started = threading.Event()
 
     def hook(raw: dict[str, Any]) -> None:
         nonlocal last_percent
@@ -495,6 +506,7 @@ async def download_events(
         event = _map_progress(raw)
         if event is None:
             return
+        started.set()
         # total_bytes can flip from estimate to real mid-download, making percent
         # jump backward; clamp it so the progress bar never goes down.
         if event.status == "downloading":
@@ -552,8 +564,11 @@ async def download_events(
 
     def blocking() -> str | None:
         # A locked/unreadable browser cookie store fails at the start (before any
-        # bytes), so retry without the browser — cookies file or none.
-        return with_cookie_fallback(_run)
+        # bytes), so retry without the browser — cookies file or none. But only
+        # at start-of-job: once bytes are on disk, a mid-stream/transient error
+        # must not silently re-run the whole download (now without the cookies it
+        # needs), so skip the retry once the first progress hook has fired.
+        return with_cookie_fallback(_run, should_retry=lambda: not started.is_set())
 
     # Hold the process-wide lock for the whole job so a second download can't run
     # concurrently. Acquired before the worker thread starts (yt-dlp writes
