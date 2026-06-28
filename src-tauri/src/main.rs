@@ -35,6 +35,10 @@ fn pick_backend_port() -> u16 {
             return addr.port();
         }
     }
+    // Both the canonical port and an OS-assigned one failed to bind — something
+    // is badly wrong with the loopback stack. Fall back to the default and warn,
+    // so the inevitable bind failure downstream isn't a silent mystery.
+    eprintln!("[yoink] could not bind any backend port; falling back to {DEFAULT_PORT}");
     DEFAULT_PORT
 }
 
