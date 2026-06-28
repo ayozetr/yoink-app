@@ -87,7 +87,7 @@ def _get_json(url: str, headers: dict[str, str] | None = None) -> Any:
 
 def _mmss_to_ms(text: str) -> int | None:
     parts = text.strip().split(":")
-    if not all(p.isdigit() for p in parts):
+    if not all(p.isdecimal() for p in parts):  # isdecimal() rejects superscripts int() can't parse
         return None
     secs = 0
     for p in parts:
@@ -125,7 +125,7 @@ _TIDAL_RE = re.compile(
     re.IGNORECASE,
 )
 _AMAZON_RE = re.compile(
-    r"^(?:https?://)?music\.amazon\.[a-z.]+/(albums|tracks|playlists|user-playlists)/([A-Z0-9.]+)",
+    r"^(?:https?://)?music\.amazon\.[a-z]{2,3}(?:\.[a-z]{2})?/(albums|tracks|playlists|user-playlists)/([A-Z0-9.]+)",
     re.IGNORECASE,
 )
 
@@ -345,7 +345,7 @@ def _resolve_spotify(url: str) -> MusicImportInfo:
     api_items = _sp_api_tracks(kind, sid, token) if token else None
     if api_items:
         tracks = [t for t in (_sp_track_from_api(it, kind, entity) for it in api_items) if t]
-        truncated = False
+        truncated = len(api_items) >= 2000  # hit the paging cap — more tracks exist
     else:
         album_name = entity.get("name") if kind == "album" else None
         album_year = _sp_year(entity) if kind == "album" else None
@@ -422,8 +422,9 @@ def _resolve_deezer(url: str) -> MusicImportInfo:
         items += page.get("data") or []
         nxt = page.get("next")
     tracks = [t for t in (_deezer_track(it, album_name, album_year, cover) for it in items) if t]
+    truncated = bool(nxt)  # a next page remained past the cap — more tracks exist
     return MusicImportInfo(source="deezer", type=kind, name=name, subtitle=subtitle,
-                           cover_url=cover, tracks=tracks)
+                           cover_url=cover, tracks=tracks, truncated=truncated)
 
 
 # --- Apple Music (iTunes Lookup API, keyless; albums/tracks only) ----------
@@ -540,7 +541,14 @@ def _resolve_apple(url: str) -> MusicImportInfo:
         f"https://itunes.apple.com/lookup?id={apple_id}&country={country}&entity=song"
     )
     results = data.get("results") or []
-    collection = next((r for r in results if r.get("wrapperType") == "collection"), {})
+    collection = next((r for r in results if r.get("wrapperType") == "collection"), None)
+    if not collection:  # a bare /song/<id> URL resolves to a track, not an album
+        song = next((r for r in results if r.get("wrapperType") == "track"), None)
+        track = _apple_track(song, None) if song else None
+        if not track:
+            raise MusicImportError("Apple Music returned no track.")
+        return MusicImportInfo(source="apple", type="track", name=track.title,
+                               subtitle=track.artists, cover_url=track.cover_url, tracks=[track])
     name = collection.get("collectionName", "")
     artist = collection.get("artistName")
     cover = (collection.get("artworkUrl100") or "").replace("100x100bb", "600x600bb") or None
@@ -699,7 +707,7 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
         else "album"
     )
     # The embed lives at music.amazon.<tld>/embed/<asin>; reuse the URL's tld.
-    tld_m = re.search(r"music\.amazon\.([a-z.]+)/", url)
+    tld_m = re.search(r"music\.amazon\.([a-z]{2,3}(?:\.[a-z]{2})?)/", url)
     tld = tld_m.group(1) if tld_m else "com"
     # Collapse inter-tag whitespace so titles/artists sit flush after their tags.
     html = re.sub(r">\s+<", "><", _get(f"https://music.amazon.{tld}/embed/{asin}"))
@@ -756,7 +764,7 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
         raise MusicImportError("Could not read the Amazon Music tracklist.")
 
     # The embed carries no cover/durations; backfill them from Deezer's keyless API.
-    if cover is None and kind in ("album", "track"):
+    if cover is None and kind == "album":  # the track branch already returned above
         enriched = _deezer_enrich(set_name, tracks[0].artists, tracks)
         if enriched:
             cover = enriched

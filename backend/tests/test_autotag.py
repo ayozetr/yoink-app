@@ -27,7 +27,8 @@ class _FakeResponse:
     def __init__(self, payload: dict) -> None:
         self._payload = payload
 
-    def read(self) -> bytes:
+    def read(self, *args: object) -> bytes:
+        # Accept urlopen's read(size) cap argument (ignored — the fake is small).
         return json.dumps(self._payload).encode()
 
     def __enter__(self) -> "_FakeResponse":

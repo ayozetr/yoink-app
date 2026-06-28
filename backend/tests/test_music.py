@@ -7,6 +7,17 @@ import pytest
 from app.services import music_import as mi
 
 
+def test_feat_regex_strips_credits_not_inner_letters():
+    # A real "(feat. X)"/" ft. X" credit is dropped before scoring...
+    from app.services.matching import _FEAT_RE
+    assert _FEAT_RE.sub("", "Song feat. X") == "Song"
+    assert _FEAT_RE.sub("", "Song ft. X") == "Song"
+    assert _FEAT_RE.sub("", "Song (feat. X)") == "Song"
+    # ...but "ft"/"feat" *inside* a word must not truncate it (word boundary).
+    assert _FEAT_RE.sub("", "Daft Punk") == "Daft Punk"
+    assert _FEAT_RE.sub("", "Drift Away") == "Drift Away"
+
+
 def test_detect_source():
     assert mi.detect_source("https://open.spotify.com/album/abc") == "spotify"
     assert mi.detect_source("https://www.deezer.com/en/album/123") == "deezer"

@@ -112,7 +112,7 @@ def name_match(track_title: str, cand_title: str) -> float:
 # "feat. X" / "ft. X" / "featuring X" — a *secondary* artist that the source
 # tacks onto the main credit but the YouTube channel/title usually omits, so it
 # only drags the coverage down. Drop it before matching.
-_FEAT_RE = re.compile(r"\s*[\(\[]?\s*(?:feat\.?|ft\.?|featuring)\s.+$", re.IGNORECASE)
+_FEAT_RE = re.compile(r"\s*[\(\[]?\s*\b(?:feat\.?|ft\.?|featuring)\s.+$", re.IGNORECASE)
 # Credit separators between collaborating artists ("A, B & C" / "A x B").
 _ARTIST_SPLIT_RE = re.compile(r"\s*(?:,|&|/|\bx\b)\s*", re.IGNORECASE)
 

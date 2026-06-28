@@ -60,6 +60,8 @@ _ITUNES_URL = "https://itunes.apple.com/search"
 _DEEZER_URL = "https://api.deezer.com/search"
 _MUSICBRAINZ_URL = "https://musicbrainz.org/ws/2/recording"
 _COVERART_URL = "https://coverartarchive.org/release"
+# Cap catalogue JSON reads so a huge/streamed body can't exhaust memory.
+_MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
 
 class AutotagError(RuntimeError):
@@ -167,7 +169,7 @@ def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate
             f"{_ITUNES_URL}?{query}", headers={"User-Agent": _USER_AGENT}
         )
         with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310
-            data = json.loads(response.read())
+            data = json.loads(response.read(_MAX_RESPONSE_BYTES))
     except (URLError, OSError, ValueError) as exc:
         raise AutotagError(f"Apple Music search failed: {exc}") from exc
 
@@ -199,7 +201,7 @@ def _deezer_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate
             f"{_DEEZER_URL}?{query}", headers={"User-Agent": _USER_AGENT}
         )
         with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310
-            data = json.loads(response.read())
+            data = json.loads(response.read(_MAX_RESPONSE_BYTES))
     except (URLError, OSError, ValueError) as exc:
         raise AutotagError(f"Deezer search failed: {exc}") from exc
 
@@ -239,7 +241,7 @@ def _musicbrainz_search(artist: str, title: str, limit: int = 8) -> list[TagCand
             f"{_MUSICBRAINZ_URL}?{query}", headers={"User-Agent": _USER_AGENT}
         )
         with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310
-            data = json.loads(response.read())
+            data = json.loads(response.read(_MAX_RESPONSE_BYTES))
     except (URLError, OSError, ValueError) as exc:
         raise AutotagError(f"MusicBrainz search failed: {exc}") from exc
 
@@ -433,7 +435,7 @@ def lyrics_preview(request: LyricsRequest) -> LyricsResult:
     if not found:
         return LyricsResult(found=False)
     return LyricsResult(
-        found=bool(found.plain or found.instrumental),
+        found=bool(found.plain or found.synced or found.instrumental),
         instrumental=found.instrumental,
         has_synced=bool(found.synced),
         plain=found.plain,
@@ -465,6 +467,7 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         if request.embed_lyrics is not None
         else settings.fetch_lyrics
     )
+    synced_lyrics: str | None = None
     if want_lyrics and request.title:
         found = _lookup_lyrics(path, request)
         if found:
@@ -472,13 +475,17 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
                 tags["lyrics"] = found.plain
             # Synced .lrc sidecar (opt-in) for karaoke-capable players.
             if settings.lyrics_lrc and found.synced:
-                _write_lrc_sidecar(path, found.synced)
+                synced_lyrics = found.synced
     try:
         embedded = _write_tags(path, tags, cover)
     except (mutagen.MutagenError, ValueError, KeyError, TypeError) as exc:
         # Corrupt / mistyped / partial audio file, or a format mutagen can't tag
         # cleanly: surface as a clean 422 rather than an unhandled 500.
         raise AutotagError(f"Could not write tags to the file: {exc}") from exc
+    # Only now the tags are written — write the .lrc next to the tagged file so a
+    # failed tag-write doesn't leave an orphaned sidecar by an untagged file.
+    if synced_lyrics:
+        _write_lrc_sidecar(path, synced_lyrics)
     # Rewrite the .nfo (if enabled) with the *tagged* metadata, so it matches the
     # file's tags instead of the raw YouTube uploader the download-time one had.
     if settings.nfo_sidecars:
@@ -490,7 +497,7 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
                 artist=request.artist or "",
                 album=request.album or "",
                 year=request.year or "",
-                thumb=request.cover_url or "",
+                thumb=cover_url or "",
             ),
         )
     return ApplyResponse(ok=True, embedded_cover=embedded)
@@ -555,6 +562,10 @@ def _fetch_cover(url: str) -> tuple[bytes, str] | None:
     try:
         data, content_type = fetch_public(url, headers={"User-Agent": _USER_AGENT})
     except SafeHTTPError:
+        return None
+    # An empty body would embed as a zero-byte "cover" (embedded_cover=True) — a
+    # broken image; treat it as no cover at all.
+    if not data:
         return None
     # Tag writers want an image mime; fall back to jpeg if the server was vague.
     mime = content_type if content_type.startswith("image/") else "image/jpeg"
@@ -684,5 +695,7 @@ def _write_generic(path: Path, tags: dict[str, Any]) -> bool:
     for key in ("title", "artist", "album", "date", "tracknumber"):
         if tags.get(key):
             audio[key] = str(tags[key])
+    if tags.get("lyrics"):
+        audio["lyrics"] = str(tags["lyrics"])
     audio.save()
     return False

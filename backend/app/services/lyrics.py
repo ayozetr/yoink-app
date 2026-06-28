@@ -14,10 +14,10 @@ import urllib.parse
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.safe_http import SafeHTTPError, fetch_public
+
 # Split a credit ("A & B", "A, B", "A feat. B") down to its primary artist.
 _PRIMARY_ARTIST = re.compile(r"\s*(?:,|&|/|\bfeat\.?\b|\bft\.?\b)\s*", re.IGNORECASE)
-
-from app.core.safe_http import SafeHTTPError, fetch_public
 
 logger = logging.getLogger(__name__)
 
