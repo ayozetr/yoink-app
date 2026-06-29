@@ -245,6 +245,7 @@ export function AutoTagBatchPanel({
                 <button
                   type="button"
                   onClick={() => setExpanded(expanded === i ? -1 : i)}
+                  aria-expanded={expanded === i}
                   className="flex flex-1 items-center gap-2 min-w-0 text-left"
                 >
                   <div className="relative w-9 h-9 rounded bg-white/5 overflow-hidden shrink-0 flex items-center justify-center">

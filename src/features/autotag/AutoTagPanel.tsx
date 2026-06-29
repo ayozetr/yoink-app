@@ -66,6 +66,16 @@ export function AutoTagPanel({
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const searchingRef = useRef(false);
+  const dismissTimerRef = useRef<number | null>(null);
+  // Clear the post-apply auto-dismiss timer on unmount, so it can't fire later
+  // and dismiss the next download's tag panel.
+  useEffect(
+    () => () => {
+      if (dismissTimerRef.current) window.clearTimeout(dismissTimerRef.current);
+    },
+    [],
+  );
 
   // One controller for the panel's lifetime; cancels in-flight lookups on unmount.
   useEffect(() => {
@@ -176,7 +186,8 @@ export function AutoTagPanel({
   };
 
   const runSearch = async () => {
-    if (!searchTitle.trim()) return;
+    if (!searchTitle.trim() || searchingRef.current) return;
+    searchingRef.current = true;
     setSearching(true);
     try {
       const data = await searchAudio(
@@ -196,6 +207,7 @@ export function AutoTagPanel({
       setError(cause instanceof ApiError ? cause.message : t("autotag.error"));
     } finally {
       setSearching(false);
+      searchingRef.current = false;
     }
   };
 
@@ -248,7 +260,7 @@ export function AutoTagPanel({
       });
       setStage("done");
       onApplied?.();
-      window.setTimeout(onDismiss, 1500);
+      dismissTimerRef.current = window.setTimeout(onDismiss, 1500);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : t("autotag.error"));
       setStage("review");
