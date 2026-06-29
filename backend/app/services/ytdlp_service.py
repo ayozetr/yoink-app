@@ -17,6 +17,7 @@ from app.core.ytdlp_options import (
     normalize_url,
     with_cookie_fallback,
 )
+from app.services.embedded_vr_extractor import register as register_embedded_vr
 from app.services.threads_extractor import register as register_threads_ie
 from app.services.vr import detect_vr
 from app.models.media import (
@@ -464,6 +465,7 @@ def _probe_first_entry_audio(info: dict[str, Any]) -> tuple[bool, float | None]:
         }
         with YoutubeDL(options) as ydl:
             register_threads_ie(ydl)
+            register_embedded_vr(ydl)
             raw = ydl.extract_info(normalize_url(first_url), download=False)
             return cast(dict[str, Any], ydl.sanitize_info(raw))
 
@@ -497,6 +499,7 @@ def extract_info(url: str) -> InfoResponse:
     def _extract(opts: dict[str, Any]) -> dict[str, Any]:
         with YoutubeDL(opts) as ydl:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
+            register_embedded_vr(ydl)  # player-config sources (overrides stale ones)
             raw_info = ydl.extract_info(normalize_url(url), download=False)
             # sanitize_info makes the dict JSON-serializable and stable.
             return cast(dict[str, Any], ydl.sanitize_info(raw_info))

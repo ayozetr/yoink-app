@@ -54,6 +54,7 @@ def test_concurrent_downloads_are_serialized(temp_dirs, monkeypatch):
 
     monkeypatch.setattr(download_service, "YoutubeDL", FakeYDL)
     monkeypatch.setattr(download_service, "register_threads_ie", lambda ydl: None)
+    monkeypatch.setattr(download_service, "register_embedded_vr", lambda ydl: None)
 
     async def drive():
         async def consume(req):

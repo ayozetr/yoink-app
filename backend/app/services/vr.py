@@ -271,6 +271,12 @@ def detect_vr(info: dict, strict: bool = False) -> tuple[bool, VRLayout]:
     signal than a bare "VR" mention, so a flat video isn't irreversibly relabelled
     without the user ever confirming via the preview toggle.
     """
+    # An extractor that resolved the media from a player's dedicated VR block can
+    # hand us the exact layout — trust that over the textual heuristics.
+    hint = info.get("vr_layout_hint")
+    if hint:
+        return True, normalize_layout(str(hint))
+
     blob = _text_blob(info)
     is_vr = _studio_hit(info) or _is_vr_text(blob, strict)
     return is_vr, _infer_layout(blob, _best_video_aspect(info))

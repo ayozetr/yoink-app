@@ -51,6 +51,7 @@ def _patch_failing_ydl(monkeypatch, message: str):
 
     monkeypatch.setattr(svc, "YoutubeDL", FakeYDL)
     monkeypatch.setattr(svc, "register_threads_ie", lambda _ydl: None)
+    monkeypatch.setattr(svc, "register_embedded_vr", lambda _ydl: None)
     monkeypatch.setattr(svc.time, "sleep", lambda _s: None)  # no real backoff delay
     return calls
 
