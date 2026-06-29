@@ -164,11 +164,13 @@ export function DownloaderPanel({
     [],
   );
 
-  const resetDownload = () => {
+  const resetDownload = (opts?: { keepBatch?: boolean }) => {
     downloadRef.current?.cancel();
     downloadRef.current = null;
     releaseDownloadLock("downloader");
-    clearBatch();
+    // Analyzing a new URL mid-download cancels the active job; keep the persisted
+    // batch so the in-progress run stays resumable instead of being silently lost.
+    if (!opts?.keepBatch) clearBatch();
     setResumeJobs(null);
     setRetryJobs([]);
     queueRef.current = [];
@@ -304,7 +306,9 @@ export function DownloaderPanel({
 
     setLoading(true);
     setError(null);
-    resetDownload();
+    // Keep the resumable batch if a download is in progress — analyzing a new URL
+    // cancels the active job but shouldn't wipe its resume record.
+    resetDownload({ keepBatch: downloading });
 
     try {
       if (isMusicUrl(trimmed)) {
@@ -394,6 +398,9 @@ export function DownloaderPanel({
     entries: PlaylistEntry[],
     selection: DownloadSelection,
   ) => {
+    // Remember the kind so a finished single-entry audio playlist still offers
+    // the auto-tag card (the single-download path already sets this).
+    setLastKind(selection.kind);
     startQueue(
       entries.map((entry) => ({
         request: {
