@@ -27,6 +27,7 @@ import {
   AUDIO_FORMATS,
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_CONTAINER,
+  formatDuration,
   VIDEO_CONTAINERS,
   VR_LAYOUTS,
 } from "../formatOptions";
@@ -60,15 +61,6 @@ function clockToSeconds(clock: string | null | undefined): number {
   return parts.reduce((acc, n) => acc * 60 + n, 0);
 }
 
-/** Render a seconds total as a compact "1h 18m" / "18m" / "45s". */
-function formatTotal(total: number): string {
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  if (hours) return `${hours}h ${minutes}m`;
-  if (minutes) return `${minutes}m`;
-  return `${total}s`;
-}
-
 /** YouTube's auto-generated music lists — radio mixes (RD…) and album playlists
  * (OLAK…) — are music-intent, so they default to an audio download. */
 function isMusicPlaylist(playlist: PlaylistInfo): boolean {
@@ -83,7 +75,7 @@ export function PlaylistCard({
   defaultKind,
   defaultQuality,
 }: PlaylistCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(playlist.entries.map((entry) => entry.url)),
   );
@@ -399,7 +391,7 @@ export function PlaylistCard({
             {selectedDuration > 0
               ? t("playlist.selectionSummary", {
                   count: selected.size,
-                  duration: formatTotal(selectedDuration),
+                  duration: formatDuration(selectedDuration, i18n.language),
                 })
               : t("playlist.selectionCount", { count: selected.size })}
           </p>

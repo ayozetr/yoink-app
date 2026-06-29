@@ -148,3 +148,19 @@ export function estimatedSizeBytes(
   const audio = bestAudioOnlyBytes(info);
   return audio != null ? videoBytes + audio : videoBytes;
 }
+
+/** A compact, locale-formatted duration: "1h 18m" / "18m" / "45s" (units via
+ * Intl, so they read correctly in every language instead of hardcoded h/m/s). */
+export function formatDuration(totalSeconds: number, lang: string): string {
+  const unit = (value: number, u: "hour" | "minute" | "second") =>
+    new Intl.NumberFormat(lang, {
+      style: "unit",
+      unit: u,
+      unitDisplay: "narrow",
+    }).format(value);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours) return `${unit(hours, "hour")} ${unit(minutes, "minute")}`;
+  if (minutes) return unit(minutes, "minute");
+  return unit(totalSeconds, "second");
+}

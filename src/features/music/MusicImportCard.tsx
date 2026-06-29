@@ -23,7 +23,11 @@ import {
   releaseDownloadLock,
   useDownloadLock,
 } from "../../lib/downloadLock";
-import { AUDIO_FORMATS, DEFAULT_AUDIO_FORMAT } from "../downloader/formatOptions";
+import {
+  AUDIO_FORMATS,
+  DEFAULT_AUDIO_FORMAT,
+  formatDuration,
+} from "../downloader/formatOptions";
 import type { AudioFormat, DownloadProgressEvent } from "../../types/download";
 import { MUSIC_SOURCE_NAMES, type MusicImportInfo } from "../../types/music";
 
@@ -36,15 +40,6 @@ interface MusicImportCardProps {
   onDownloadFinished?: () => void;
 }
 
-/** Render a seconds total as a compact "1h 18m" / "18m" / "45s". */
-function formatTotal(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours) return `${hours}h ${minutes}m`;
-  if (minutes) return `${minutes}m`;
-  return `${seconds}s`;
-}
-
 /** Import a music-service URL: resolve → match each track on YouTube → download + tag.
  *
  * The audio is never taken from the source — only its metadata. Each track is
@@ -55,7 +50,7 @@ export function MusicImportCard({
   defaultAudioFormat,
   onDownloadFinished,
 }: MusicImportCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selected, setSelected] = useState<Set<number>>(
     () => new Set(info.tracks.map((_, i) => i)),
   );
@@ -402,7 +397,7 @@ export function MusicImportCard({
                 {selectedMs > 0
                   ? t("playlist.selectionSummary", {
                       count: selected.size,
-                      duration: formatTotal(Math.round(selectedMs / 1000)),
+                      duration: formatDuration(Math.round(selectedMs / 1000), i18n.language),
                     })
                   : t("playlist.selectionCount", { count: selected.size })}
               </p>
