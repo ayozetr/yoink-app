@@ -484,7 +484,10 @@ async def download_events(
         free = shutil.disk_usage(settings.ensure_download_dir()).free
     except OSError:
         free = None
-    if free is not None and free < _MIN_FREE_DISK_BYTES:
+    # The fixed floor, or 1.2x the client's size estimate when that's bigger — a
+    # multi-GB 4K/VR capture that clears the floor would otherwise fail mid-write.
+    needed = max(_MIN_FREE_DISK_BYTES, int((request.estimated_size or 0) * 1.2))
+    if free is not None and free < needed:
         yield ErrorEvent(
             message=f"Not enough free disk space — only {humanize_bytes(free)} left."
         )

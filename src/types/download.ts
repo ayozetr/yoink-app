@@ -176,6 +176,8 @@ export interface DownloadRequest {
   vr_layout?: VRLayout;
   /** Auto-detect + tag VR during the download (used by the queue, no preview). */
   auto_vr?: boolean;
+  /** Client-estimated final size (bytes), for the pre-flight disk check. */
+  estimated_size?: number;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */

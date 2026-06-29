@@ -388,6 +388,7 @@ export function DownloaderPanel({
           trim_end: selection.trim_end,
           is_vr: selection.is_vr,
           vr_layout: selection.vr_layout,
+          estimated_size: selection.estimated_size,
         },
         title: info?.video?.title ?? target,
       },

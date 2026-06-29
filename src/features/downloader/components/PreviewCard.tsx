@@ -68,6 +68,8 @@ export interface DownloadSelection {
   is_vr?: boolean;
   /** Stereo/projection layout to tag with when is_vr is set. */
   vr_layout?: VRLayout;
+  /** Estimated final size in bytes (for the backend pre-flight disk check). */
+  estimated_size?: number;
 }
 
 /** Sentinel value for the "no subtitles" entry in the language picker. */
@@ -174,18 +176,17 @@ export function PreviewCard({
   const showLosslessWarning = !isVideo && !losslessAllowed;
 
   // Rough download-size estimate for the current selection (null if unknown).
-  const estimatedSize = useMemo(
+  const estimatedBytes = useMemo(
     () =>
-      formatBytes(
-        estimatedSizeBytes(
-          info,
-          kind,
-          isVideo ? quality : undefined,
-          isVideo ? undefined : effectiveAudioFormat,
-        ),
+      estimatedSizeBytes(
+        info,
+        kind,
+        isVideo ? quality : undefined,
+        isVideo ? undefined : effectiveAudioFormat,
       ),
     [info, kind, isVideo, quality, effectiveAudioFormat],
   );
+  const estimatedSize = formatBytes(estimatedBytes);
 
   const trimStartSec = parseTime(trimStart);
   const trimEndSec = parseTime(trimEnd);
@@ -632,6 +633,12 @@ export function PreviewCard({
                   trim_end: !trimError ? trimEndSec : undefined,
                   is_vr: isVideo ? isVr : undefined,
                   vr_layout: isVideo && isVr ? vrLayout : undefined,
+                  // Only when not trimming — the estimate is for the full video,
+                  // so a small clip of a big video shouldn't be blocked on size.
+                  estimated_size:
+                    trimStartSec == null && trimEndSec == null
+                      ? (estimatedBytes ?? undefined)
+                      : undefined,
                 });
               }}
               className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"

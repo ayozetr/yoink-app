@@ -226,6 +226,15 @@ class DownloadRequest(BaseModel):
             "explicitly instead). Ignored when is_vr is already set."
         ),
     )
+    estimated_size: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Client-estimated final size in bytes (from the preview). Scales the "
+            "pre-flight free-disk check beyond the fixed floor; ignored when "
+            "absent (e.g. queue/playlist items)."
+        ),
+    )
 
     @model_validator(mode="after")
     def _check_trim_range(self) -> "DownloadRequest":
