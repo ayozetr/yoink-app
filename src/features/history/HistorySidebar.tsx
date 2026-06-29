@@ -9,7 +9,6 @@ import type { DownloadStats, HistoryEntry } from "../../types/download";
 interface HistorySidebarProps {
   items: HistoryEntry[];
   stats: DownloadStats;
-  historyVersion?: number;
   onOpenFolder?: (entry: HistoryEntry) => void;
   onOpenFile?: (entry: HistoryEntry) => void;
   onRetag?: (entry: HistoryEntry) => void;
@@ -20,7 +19,6 @@ interface HistorySidebarProps {
 export function HistorySidebar({
   items,
   stats,
-  historyVersion,
   onOpenFolder,
   onOpenFile,
   onRetag,
@@ -76,7 +74,6 @@ export function HistorySidebar({
             <HistoryItemCard
               key={item.id}
               item={item}
-              historyVersion={historyVersion}
               onOpenFolder={onOpenFolder}
               onOpenFile={onOpenFile}
               onRetag={onRetag}

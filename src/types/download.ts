@@ -51,6 +51,8 @@ export interface HistoryEntry {
   /** Failure reason when status is "error". */
   error_message: string | null;
   created_at: string;
+  /** Output file's last-modified time (epoch seconds), for per-row cover cache-busting. */
+  mtime: number | null;
 }
 
 /**

@@ -15,8 +15,6 @@ import type { HistoryEntry } from "../../../types/download";
 
 interface HistoryItemCardProps {
   item: HistoryEntry;
-  /** Bumped on each history refresh — re-checks the cover (e.g. after tagging). */
-  historyVersion?: number;
   onOpenFolder?: (item: HistoryEntry) => void;
   onOpenFile?: (item: HistoryEntry) => void;
   onRetag?: (item: HistoryEntry) => void;
@@ -64,18 +62,18 @@ function relativeTime(iso: string, lang: string): string | null {
 /** One row in the download history list. */
 export function HistoryItemCard({
   item,
-  historyVersion,
   onOpenFolder,
   onOpenFile,
   onRetag,
 }: HistoryItemCardProps) {
   const { t, i18n } = useTranslation();
   const [coverFailed, setCoverFailed] = useState(false);
-  const [coverNonce, setCoverNonce] = useState(historyVersion);
-  // Re-check the cover on each history refresh: a file tagged after the row
-  // first rendered would otherwise stay stuck on the icon fallback.
-  if (historyVersion !== coverNonce) {
-    setCoverNonce(historyVersion);
+  const [coverNonce, setCoverNonce] = useState(item.mtime);
+  // Re-check the cover only when THIS file changed (its mtime bumped, e.g. after
+  // tagging), not on every global history refresh — so the other rows' covers
+  // stay cached instead of all refetching (and re-404ing the cover-less ones).
+  if (item.mtime !== coverNonce) {
+    setCoverNonce(item.mtime);
     setCoverFailed(false);
   }
   const isCompleted = item.status === "completed";
@@ -99,7 +97,7 @@ export function HistoryItemCard({
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500/40 to-blue-500/40 flex items-center justify-center shrink-0 overflow-hidden">
           {showCover && item.filepath ? (
             <img
-              src={coverUrl(item.filepath, historyVersion)}
+              src={coverUrl(item.filepath, item.mtime ?? undefined)}
               alt=""
               className="h-full w-full object-cover"
               onError={() => setCoverFailed(true)}

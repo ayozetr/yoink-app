@@ -7,6 +7,7 @@ loop without sharing a connection across threads.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
@@ -81,6 +82,14 @@ def init_db() -> None:
 
 
 def _row_to_entry(row: sqlite3.Row) -> HistoryEntry:
+    # The file's mtime bumps when auto-tagging rewrites it, so the UI can refetch
+    # only that row's cover instead of busting every cover on each refresh.
+    mtime: float | None = None
+    if row["filepath"]:
+        try:
+            mtime = os.stat(row["filepath"]).st_mtime
+        except OSError:
+            mtime = None
     return HistoryEntry(
         id=row["id"],
         title=row["title"],
@@ -93,6 +102,7 @@ def _row_to_entry(row: sqlite3.Row) -> HistoryEntry:
         quality=row["quality"],
         error_message=row["error_message"],
         created_at=row["created_at"],
+        mtime=mtime,
     )
 
 

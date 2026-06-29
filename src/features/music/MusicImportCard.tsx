@@ -248,9 +248,9 @@ export function MusicImportCard({
           settled = true;
           handleRef.current = null;
           if (event.type === "completed") {
-            // The backend already wrote the history row on completion — surface
-            // it now instead of waiting for the async auto-tagging to finish.
-            onDownloadFinished?.();
+            // History is refreshed once in advance() after tagging settles (which
+            // also rewrites the row's title to the source metadata), so don't
+            // double-refresh here just to show the soon-to-be-replaced title.
             void applyAudioTags({
               path: event.filepath,
               title: track.title,

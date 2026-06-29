@@ -55,9 +55,6 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ready, setReady] = useState(false);
-  // Bumped on every history refresh so rows can re-check their cover art (a file
-  // tagged after download gains a cover the row didn't see on first render).
-  const [historyVersion, setHistoryVersion] = useState(0);
   const [retagItem, setRetagItem] = useState<HistoryEntry | null>(null);
   // Download queue: opened from the header button; keeps running while hidden.
   const [queueOpen, setQueueOpen] = useState(false);
@@ -74,7 +71,6 @@ export default function App() {
       ]);
       setHistory(entries);
       setStats(aggregate);
-      setHistoryVersion((v) => v + 1);
     } catch {
       // Backend not reachable yet — keep the current view rather than crash.
     }
@@ -193,7 +189,6 @@ export default function App() {
           <HistorySidebar
             items={history}
             stats={stats}
-            historyVersion={historyVersion}
             onOpenFolder={handleOpenFolder}
             onOpenFile={handleOpenFile}
             onRetag={setRetagItem}

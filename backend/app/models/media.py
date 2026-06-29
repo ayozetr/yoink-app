@@ -301,6 +301,14 @@ class HistoryEntry(BaseModel):
         default=None, description="Failure reason when status is 'error'."
     )
     created_at: str = Field(..., description="ISO-8601 UTC creation timestamp.")
+    mtime: float | None = Field(
+        default=None,
+        description=(
+            "Output file's last-modified time (epoch seconds), or None if the file "
+            "is gone. Bumps when auto-tagging rewrites the file, so the UI can "
+            "cache-bust the cover per row instead of refetching all of them."
+        ),
+    )
 
 
 class HistoryStats(BaseModel):
