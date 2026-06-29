@@ -322,6 +322,26 @@ def test_build_options_video_quality_selector(temp_dirs):
     )
 
 
+def test_build_options_trim_force_keyframes_except_vr(temp_dirs):
+    # A normal trim is frame-accurate (re-encode at the cut marks).
+    normal = _build_options(
+        DownloadRequest(url="http://x/v", kind="video", trim_start=10, trim_end=20),
+        hook=lambda raw: None,
+    )
+    assert "download_ranges" in normal
+    assert normal["force_keyframes_at_cuts"] is True
+    # VR trims fall back to a keyframe-accurate stream copy: forcing keyframes
+    # re-encodes the VP9 stream into mp4 and ffmpeg exits 234.
+    for kw in ({"is_vr": True}, {"auto_vr": True}):
+        vr = _build_options(
+            DownloadRequest(
+                url="http://x/v", kind="video", trim_start=10, trim_end=20, **kw
+            ),
+            hook=lambda raw: None,
+        )
+        assert vr["force_keyframes_at_cuts"] is False
+
+
 @pytest.mark.parametrize(
     ("audio_format", "expected_codec", "has_quality"),
     [

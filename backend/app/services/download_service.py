@@ -386,8 +386,7 @@ def _build_options(
 
     # Trim / clip: download only the requested time range (audio and video).
     # Treat a non-positive or inverted trim_end as "no end" so a stray 0 (or a UI
-    # reset to 0) can't request a zero-length range that yields an empty file;
-    # force_keyframes_at_cuts re-encodes cleanly at the marks.
+    # reset to 0) can't request a zero-length range that yields an empty file.
     start = request.trim_start or 0.0
     end = (
         request.trim_end
@@ -396,7 +395,12 @@ def _build_options(
     )
     if start > 0 or end != float("inf"):
         options["download_ranges"] = download_range_func(None, [(start, end)])
-        options["force_keyframes_at_cuts"] = True
+        # force_keyframes_at_cuts re-encodes at the marks for a frame-accurate cut,
+        # but that re-encode fails for the VP9 streams VR videos ship (ffmpeg exits
+        # 234 muxing VP9 into mp4 at a forced keyframe). VR is tagged as mp4 with
+        # injected spherical boxes, so fall back to a keyframe-accurate stream-copy
+        # cut there instead of failing the whole download.
+        options["force_keyframes_at_cuts"] = not (request.is_vr or request.auto_vr)
 
     return options
 
