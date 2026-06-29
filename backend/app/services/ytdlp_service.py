@@ -68,30 +68,37 @@ def _audio_summary(raw_formats: Any) -> tuple[bool, bool, float | None]:
     lossless, and reports the maximum `abr` (kbps) seen, or None if no audio
     bitrate is known. Defensive against missing or malformed entries.
 
-    `has_audio` defaults to True when the format list is absent/empty (unknown —
-    don't warn); it is only False when formats exist and none of them carry audio
-    (e.g. some VR clips), which is the signal the preview surfaces.
+    `has_audio` is conservative: it is only False when yt-dlp *confirms* the
+    source has no audio (a format whose `acodec` is the literal string "none")
+    and nothing carries audio. A missing/`None` `acodec` means yt-dlp never
+    characterised the stream (e.g. a muxed mp4 it didn't probe) — that file most
+    likely *does* carry audio, so we assume it does rather than warn. Likewise an
+    absent/empty format list is unknown -> assume audio.
     """
     if not isinstance(raw_formats, list) or not raw_formats:
         return True, False, None
 
-    has_audio = False
+    has_real_audio = False
+    explicit_silent = False  # a format yt-dlp confirmed carries no audio
     lossless = False
     best_abr: float | None = None
     for fmt in raw_formats:
         if not isinstance(fmt, dict):
             continue
         acodec = fmt.get("acodec")
-        if not isinstance(acodec, str) or not acodec or acodec == "none":
-            continue
-        has_audio = True
-        if _is_lossless_acodec(acodec):
-            lossless = True
-        abr = fmt.get("abr")
-        if isinstance(abr, (int, float)):
-            abr_value = float(abr)
-            if best_abr is None or abr_value > best_abr:
-                best_abr = abr_value
+        if isinstance(acodec, str) and acodec and acodec != "none":
+            has_real_audio = True
+            if _is_lossless_acodec(acodec):
+                lossless = True
+            abr = fmt.get("abr")
+            if isinstance(abr, (int, float)):
+                abr_value = float(abr)
+                if best_abr is None or abr_value > best_abr:
+                    best_abr = abr_value
+        elif acodec == "none":
+            explicit_silent = True
+        # acodec None / missing -> unknown, not a no-audio signal.
+    has_audio = has_real_audio or not explicit_silent
     return has_audio, lossless, best_abr
 
 

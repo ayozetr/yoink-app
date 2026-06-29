@@ -453,11 +453,14 @@ def test_audio_summary_lossy_only():
     assert best_abr == 320.0
 
 
-def test_audio_summary_no_audio_or_unknown():
-    # Formats present but none carry audio -> has_audio is False (the "video-only"
-    # signal the preview warns on).
+def test_audio_summary_audio_detection():
+    # yt-dlp *confirms* no audio (acodec is the literal string "none") -> warn.
     assert _audio_summary([{"acodec": "none", "abr": 0}]) == (False, False, None)
-    # Unknown (no/empty format list) -> assume audio so we don't warn falsely.
+    # acodec None/missing = unknown (e.g. a muxed mp4 yt-dlp never probed, like
+    # such a host) -> assume audio rather than false-warn on a file that has it.
+    assert _audio_summary([{"acodec": None, "vcodec": "h264"}]) == (True, False, None)
+    assert _audio_summary([{"vcodec": "h264"}]) == (True, False, None)
+    # No/empty format list is also unknown -> assume audio.
     assert _audio_summary(None) == (True, False, None)
     assert _audio_summary([]) == (True, False, None)
 
