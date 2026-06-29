@@ -462,6 +462,53 @@ def test_audio_summary_no_audio_or_unknown():
     assert _audio_summary([]) == (True, False, None)
 
 
+def test_with_transient_retry():
+    from yt_dlp.utils import DownloadError
+
+    from app.services.download_service import _with_transient_retry
+
+    # A transient ffmpeg exit is retried, then succeeds.
+    calls = {"n": 0}
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise DownloadError("ERROR: ffmpeg exited with code 8")
+        return "ok"
+
+    assert _with_transient_retry(flaky, should_retry=lambda: True) == "ok"
+    assert calls["n"] == 2
+
+    # A non-ffmpeg error propagates immediately (no retry).
+    def forbidden():
+        raise DownloadError("ERROR: HTTP Error 403: Forbidden")
+
+    with pytest.raises(DownloadError):
+        _with_transient_retry(forbidden, should_retry=lambda: True)
+
+    # should_retry() False (bytes already on disk) -> no retry.
+    seen = {"n": 0}
+
+    def mid_stream():
+        seen["n"] += 1
+        raise DownloadError("ffmpeg exited with code 8")
+
+    with pytest.raises(DownloadError):
+        _with_transient_retry(mid_stream, should_retry=lambda: False)
+    assert seen["n"] == 1
+
+    # Persistent failure exhausts the attempts and propagates.
+    tries = {"n": 0}
+
+    def always():
+        tries["n"] += 1
+        raise DownloadError("ffmpeg exited with code 8")
+
+    with pytest.raises(DownloadError):
+        _with_transient_retry(always, should_retry=lambda: True, attempts=3)
+    assert tries["n"] == 3
+
+
 def _pp_keys(options):
     """Postprocessor `key` values present on a built options dict."""
     return [pp["key"] for pp in options.get("postprocessors", [])]

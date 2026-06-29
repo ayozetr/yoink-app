@@ -15,7 +15,7 @@ import re
 import shutil
 import threading
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Callable
 
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError, download_range_func
@@ -92,6 +92,45 @@ class _DownloadCancelled(BaseException):
     ``except Exception`` retry can't swallow a cancel and re-download the file;
     the explicit ``except _DownloadCancelled`` below still catches it.
     """
+
+
+# yt-dlp's range/HLS downloader shells out to ffmpeg, which can exit non-zero on a
+# transient network blip (most often "ffmpeg exited with code 8"). Unlike an HTTP
+# fetch, yt-dlp's own `retries` don't cover an ffmpeg subprocess exit, so retry the
+# whole job a couple of times when that's the failure.
+_TRANSIENT_FFMPEG_RE = re.compile(r"ffmpeg exited with code", re.IGNORECASE)
+
+
+def _with_transient_retry(
+    run: Callable[[], str | None],
+    *,
+    should_retry: Callable[[], bool],
+    attempts: int = 3,
+) -> str | None:
+    """Run ``run()``; retry on a transient ffmpeg exit, up to ``attempts`` times.
+
+    Retries only while ``should_retry()`` is true — the worker passes the same
+    "no bytes on disk yet" guard the cookie fallback uses, so a mid-stream blip
+    never silently re-downloads. A non-ffmpeg error (or a repeat on the retry)
+    propagates immediately.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            return run()
+        except DownloadError as exc:
+            if (
+                attempt >= attempts
+                or not _TRANSIENT_FFMPEG_RE.search(str(exc))
+                or not should_retry()
+            ):
+                raise
+            logger.warning(
+                "Transient ffmpeg failure (%s); retrying (%d/%d).",
+                exc,
+                attempt,
+                attempts - 1,
+            )
+    raise AssertionError("unreachable")  # pragma: no cover
 
 
 def _format_speed(bytes_per_second: float | None) -> str | None:
@@ -583,8 +622,13 @@ async def download_events(
         # bytes), so retry without the browser — cookies file or none. But only
         # at start-of-job: once bytes are on disk, a mid-stream/transient error
         # must not silently re-run the whole download (now without the cookies it
-        # needs), so skip the retry once the first progress hook has fired.
-        return with_cookie_fallback(_run, should_retry=lambda: not started.is_set())
+        # needs), so skip the retry once the first progress hook has fired. The
+        # outer wrapper retries the same way on a transient ffmpeg exit.
+        not_started = lambda: not started.is_set()  # noqa: E731
+        return _with_transient_retry(
+            lambda: with_cookie_fallback(_run, should_retry=not_started),
+            should_retry=not_started,
+        )
 
     # Hold the process-wide lock for the whole job so a second download can't run
     # concurrently. Acquired before the worker thread starts (yt-dlp writes
