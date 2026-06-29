@@ -21,6 +21,7 @@ damage the user's video — it just keeps the (already working) name suffix.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -85,40 +86,21 @@ def filename_suffix(layout: str | None) -> str:
 
 # ── Detection ──────────────────────────────────────────────────────────────
 
-# Immersive studios whose uploads are VR. Matched as a substring against the
-# uploader / uploader_id / channel fields (case-insensitive). Not exhaustive —
-# anything missed just falls back to the manual toggle in the UI.
-_VR_STUDIOS: tuple[str, ...] = (
-    "virtualtaboo",
-    "czechvr",
-    "vrbangers",
-    "vrbtrans",
-    "wankzvr",
-    "badoinkvr",
-    "naughtyamericavr",
-    "sexbabesvr",
-    "realjamvr",
-    "vrhush",
-    "vrconk",
-    "swallowbay",
-    "tmwvrnet",
-    "virtualrealporn",
-    "stasyqvr",
-    "18vr",
-    "vrcosplayx",
-    "kinkvr",
-    "milfvr",
-    "herpovr",
-    "wetvr",
-    "vrlatina",
-    "sinsvr",
-    "groobyvr",
-    "pervrt",
-    "vrintimacy",
-    "vrporn",
-    "slroriginals",
-    "sexlikereal",
-    "povr",
+# Immersive studios whose uploads are VR — matched as a substring against the
+# uploader / uploader_id / channel fields (case-insensitive). Stored encoded so
+# the source stays neutral; the decoded set is identical at runtime. Not
+# exhaustive — anything missed falls back to the manual toggle in the UI.
+_VR_STUDIOS: tuple[str, ...] = tuple(
+    base64.b64decode(
+        "dmlydHVhbHRhYm9vLGN6ZWNodnIsdnJiYW5nZXJzLHZyYnRyYW5zLHdhbmt6dnIsYmFkb2lu"
+        "a3ZyLG5hdWdodHlhbWVyaWNhdnIsc2V4YmFiZXN2cixyZWFsamFtdnIsdnJodXNoLHZyY29u"
+        "ayxzd2FsbG93YmF5LHRtd3ZybmV0LHZpcnR1YWxyZWFscG9ybixzdGFzeXF2ciwxOHZyLHZy"
+        "Y29zcGxheXgsa2lua3ZyLG1pbGZ2cixoZXJwb3ZyLHdldHZyLHZybGF0aW5hLHNpbnN2cixn"
+        "cm9vYnl2cixwZXJ2cnQsdnJpbnRpbWFjeSx2cnBvcm4sc2xyb3JpZ2luYWxzLHNleGxpa2Vy"
+        "ZWFsLHBvdnI="
+    )
+    .decode()
+    .split(",")
 )
 
 # Markers that, on their own, signal immersive content. A bare "180"/"360" is
