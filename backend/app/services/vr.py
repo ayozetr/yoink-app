@@ -341,7 +341,7 @@ def _iter_children(
     out: list[tuple[str, int, int, int]] = []
     pos = start + skip
     while pos + 8 <= end:
-        box_type, size, header = _read_header(buf, pos)
+        box_type, size, header = _read_header(buf, pos, end)
         out.append((box_type, pos, size, header))
         pos += size
     return out
@@ -442,7 +442,7 @@ def _locate_video_sample_entry(
             # entry's child boxes), which would corrupt stsd — skip safely.
             raise _SphericalInjectError("stsd has multiple sample entries")
         se_off = stsd_off + stsd_hdr + 8
-        _, se_size, se_hdr = _read_header(buf, se_off)
+        _, se_size, se_hdr = _read_header(buf, se_off, stsd_off + stsd[2])
         insert = se_off + se_size
         ancestors = [
             (se_off, se_size, se_hdr),
