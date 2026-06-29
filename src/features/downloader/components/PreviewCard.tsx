@@ -286,6 +286,13 @@ export function PreviewCard({
             </div>
           </div>
 
+          {!info.has_audio && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300 ring-1 ring-amber-500/25">
+              <AlertCircle size={16} className="shrink-0" />
+              {t("preview.noAudio")}
+            </div>
+          )}
+
           <div className="mt-6 flex flex-col gap-3">
             {/* Saved presets: apply with a click, or save the current selection. */}
             <div className="flex flex-wrap items-center gap-2">

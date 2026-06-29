@@ -94,6 +94,8 @@ export interface VideoInfo {
   source_lossless: boolean;
   /** Highest audio bitrate available, in kbps. */
   best_audio_abr: number | null;
+  /** False when the source exposes no audio at all (video-only — silent). */
+  has_audio: boolean;
   /** Published (manual) subtitle language codes. */
   subtitle_langs: string[];
   /** Auto-generated caption codes (not already in subtitle_langs). */

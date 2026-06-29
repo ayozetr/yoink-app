@@ -60,17 +60,22 @@ def _is_lossless_acodec(acodec: Any) -> bool:
     return normalized.startswith(_LOSSLESS_ACODEC_PREFIXES)
 
 
-def _audio_summary(raw_formats: Any) -> tuple[bool, float | None]:
-    """Compute (source_lossless, best_audio_abr) across all audio-bearing formats.
+def _audio_summary(raw_formats: Any) -> tuple[bool, bool, float | None]:
+    """Compute (has_audio, source_lossless, best_audio_abr) across all formats.
 
     A format "has audio" when its `acodec` is present and not "none". The result
-    flags whether any such format is lossless and reports the maximum `abr`
-    (kbps) seen, or None if no audio bitrate is known. Defensive against missing
-    or malformed entries.
-    """
-    if not isinstance(raw_formats, list):
-        return False, None
+    flags whether any format carries audio at all, whether any such format is
+    lossless, and reports the maximum `abr` (kbps) seen, or None if no audio
+    bitrate is known. Defensive against missing or malformed entries.
 
+    `has_audio` defaults to True when the format list is absent/empty (unknown —
+    don't warn); it is only False when formats exist and none of them carry audio
+    (e.g. some VR clips), which is the signal the preview surfaces.
+    """
+    if not isinstance(raw_formats, list) or not raw_formats:
+        return True, False, None
+
+    has_audio = False
     lossless = False
     best_abr: float | None = None
     for fmt in raw_formats:
@@ -79,6 +84,7 @@ def _audio_summary(raw_formats: Any) -> tuple[bool, float | None]:
         acodec = fmt.get("acodec")
         if not isinstance(acodec, str) or not acodec or acodec == "none":
             continue
+        has_audio = True
         if _is_lossless_acodec(acodec):
             lossless = True
         abr = fmt.get("abr")
@@ -86,7 +92,7 @@ def _audio_summary(raw_formats: Any) -> tuple[bool, float | None]:
             abr_value = float(abr)
             if best_abr is None or abr_value > best_abr:
                 best_abr = abr_value
-    return lossless, best_abr
+    return has_audio, lossless, best_abr
 
 
 class MediaExtractionError(RuntimeError):
@@ -296,7 +302,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         float(duration) if isinstance(duration, (int, float)) else None
     )
 
-    source_lossless, best_audio_abr = _audio_summary(raw_formats)
+    has_audio, source_lossless, best_audio_abr = _audio_summary(raw_formats)
     manual_subs = _subtitle_langs(info)
     is_vr, vr_layout = detect_vr(info)
 
@@ -312,6 +318,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         formats=formats,
         source_lossless=source_lossless,
         best_audio_abr=best_audio_abr,
+        has_audio=has_audio,
         subtitle_langs=manual_subs,
         auto_caption_langs=_auto_caption_langs(info, manual_subs),
         has_chapters=bool(info.get("chapters")),
@@ -459,7 +466,8 @@ def _probe_first_entry_audio(info: dict[str, Any]) -> tuple[bool, float | None]:
         return False, None
     if not isinstance(entry, dict):
         return False, None
-    return _audio_summary(entry.get("formats"))
+    _has_audio, lossless, abr = _audio_summary(entry.get("formats"))
+    return lossless, abr
 
 
 def extract_info(url: str) -> InfoResponse:

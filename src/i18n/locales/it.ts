@@ -42,6 +42,7 @@ export const it = {
       "Questo contenuto non ha audio lossless — FLAC/WAV non disponibili.",
     wavCoverWarning:
       "WAV non può contenere la copertina — l'auto-tagging aggiungerà i metadati ma non la copertina dell'album.",
+    noAudio: "Nessun audio rilevato per questo video: il download sarà muto.",
     subtitles: "Sottotitoli",
     subtitlesNone: "Nessun sottotitolo",
     subtitlesAll: "Tutti i sottotitoli",

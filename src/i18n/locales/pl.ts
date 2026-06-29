@@ -42,6 +42,7 @@ export const pl = {
       "Ta treść nie ma bezstratnego audio — FLAC/WAV niedostępne.",
     wavCoverWarning:
       "WAV nie obsługuje okładki — automatyczne tagowanie doda metadane, ale bez okładki albumu.",
+    noAudio: "Nie wykryto dźwięku dla tego filmu — pobrany plik będzie niemy.",
     subtitles: "Napisy",
     subtitlesNone: "Bez napisów",
     subtitlesAll: "Wszystkie napisy",

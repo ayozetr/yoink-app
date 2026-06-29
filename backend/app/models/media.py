@@ -83,6 +83,11 @@ class VideoInfo(BaseModel):
     best_audio_abr: float | None = Field(
         default=None, description="Highest audio bitrate available, in kbps."
     )
+    has_audio: bool = Field(
+        default=True,
+        description="False when the source exposes no audio at all (video-only — "
+        "the download will be silent).",
+    )
     subtitle_langs: list[str] = Field(
         default_factory=list,
         description="Published (manual) subtitle language codes.",

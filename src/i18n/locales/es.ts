@@ -42,6 +42,7 @@ export const es = {
       "El contenido no tiene audio sin pérdida — FLAC/WAV no disponibles.",
     wavCoverWarning:
       "WAV no admite carátula — el auto-etiquetado añadirá los datos pero no la portada.",
+    noAudio: "Audio no detectado para este vídeo: la descarga será muda.",
     subtitles: "Subtítulos",
     subtitlesNone: "Ningún subtítulo",
     subtitlesAll: "Todos los subtítulos",

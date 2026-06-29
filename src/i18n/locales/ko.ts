@@ -42,6 +42,7 @@ export const ko = {
       "이 콘텐츠에는 무손실 오디오가 없습니다 — FLAC/WAV를 사용할 수 없습니다.",
     wavCoverWarning:
       "WAV는 커버 아트를 저장할 수 없습니다 — 자동 태그 지정 시 메타데이터는 추가되지만 앨범 커버는 추가되지 않습니다.",
+    noAudio: "이 동영상에서 오디오가 감지되지 않았습니다 — 다운로드에 소리가 없습니다.",
     subtitles: "자막",
     subtitlesNone: "자막 없음",
     subtitlesAll: "모든 자막",

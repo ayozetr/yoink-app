@@ -42,6 +42,7 @@ export const id = {
       "Konten ini tidak memiliki audio lossless — FLAC/WAV tidak tersedia.",
     wavCoverWarning:
       "WAV tidak dapat menyimpan sampul album — pemberian tag otomatis akan menambahkan metadata tetapi tanpa sampul album.",
+    noAudio: "Tidak ada audio terdeteksi untuk video ini — unduhan akan senyap.",
     subtitles: "Subtitle",
     subtitlesNone: "Tanpa subtitle",
     subtitlesAll: "Semua subtitle",

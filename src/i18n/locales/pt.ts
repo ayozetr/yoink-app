@@ -42,6 +42,7 @@ export const pt = {
       "Este conteúdo não tem áudio sem perdas — FLAC/WAV indisponíveis.",
     wavCoverWarning:
       "WAV não armazena capa — a marcação automática adicionará os metadados, mas não a capa do álbum.",
+    noAudio: "Nenhum áudio detetado para este vídeo — a transferência ficará muda.",
     subtitles: "Legendas",
     subtitlesNone: "Nenhuma legenda",
     subtitlesAll: "Todas as legendas",

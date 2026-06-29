@@ -42,6 +42,7 @@ export const de = {
       "Dieser Inhalt hat kein verlustfreies Audio — FLAC/WAV nicht verfügbar.",
     wavCoverWarning:
       "WAV kann kein Cover speichern — das automatische Taggen fügt die Metadaten hinzu, aber kein Albumcover.",
+    noAudio: "Kein Audio für dieses Video erkannt – der Download ist stumm.",
     subtitles: "Untertitel",
     subtitlesNone: "Keine Untertitel",
     subtitlesAll: "Alle Untertitel",

@@ -307,8 +307,8 @@ def test_build_options_video_container(temp_dirs, container):
     )
     assert options["merge_output_format"] == container
     assert "postprocessors" not in options
-    # Height-based selector logic is unchanged.
-    assert options["format"] == "bestvideo+bestaudio/best"
+    # The `/bv*/b*` tail lets audio-less sources still resolve a format.
+    assert options["format"] == "bestvideo+bestaudio/best/bv*/b*"
 
 
 def test_build_options_video_quality_selector(temp_dirs):
@@ -317,7 +317,8 @@ def test_build_options_video_quality_selector(temp_dirs):
         hook=lambda raw: None,
     )
     assert options["format"] == (
-        "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
+        "bestvideo[height<=720]+bestaudio/best[height<=720]/best/"
+        "bv*[height<=720]/bv*/b*"
     )
 
 
@@ -414,7 +415,8 @@ def test_audio_summary_lossless_and_best_abr():
         {"acodec": "opus", "abr": 160},
         {"acodec": "flac", "abr": 1411.2},  # lossless, highest abr
     ]
-    lossless, best_abr = _audio_summary(formats)
+    has_audio, lossless, best_abr = _audio_summary(formats)
+    assert has_audio is True
     assert lossless is True
     assert best_abr == 1411.2
 
@@ -425,15 +427,19 @@ def test_audio_summary_lossy_only():
         {"acodec": "mp3", "abr": 320},
         {"acodec": "opus"},  # no abr
     ]
-    lossless, best_abr = _audio_summary(formats)
+    has_audio, lossless, best_abr = _audio_summary(formats)
+    assert has_audio is True
     assert lossless is False
     assert best_abr == 320.0
 
 
 def test_audio_summary_no_audio_or_unknown():
-    assert _audio_summary([{"acodec": "none", "abr": 0}]) == (False, None)
-    assert _audio_summary(None) == (False, None)
-    assert _audio_summary([]) == (False, None)
+    # Formats present but none carry audio -> has_audio is False (the "video-only"
+    # signal the preview warns on).
+    assert _audio_summary([{"acodec": "none", "abr": 0}]) == (False, False, None)
+    # Unknown (no/empty format list) -> assume audio so we don't warn falsely.
+    assert _audio_summary(None) == (True, False, None)
+    assert _audio_summary([]) == (True, False, None)
 
 
 def _pp_keys(options):
@@ -563,7 +569,7 @@ def test_build_options_audio_multistreams_no_cap(temp_dirs):
         hook=lambda raw: None,
     )
     assert options["allow_multiple_audio_streams"] is True
-    assert options["format"] == "bv*+mergeall[vcodec=none]"
+    assert options["format"] == "bv*+mergeall[vcodec=none]/bv*"
     assert options["merge_output_format"] == "mkv"
 
 
@@ -574,7 +580,9 @@ def test_build_options_audio_multistreams_with_cap(temp_dirs):
         hook=lambda raw: None,
     )
     assert options["allow_multiple_audio_streams"] is True
-    assert options["format"] == "bv*[height<=1080]+mergeall[vcodec=none]"
+    assert options["format"] == (
+        "bv*[height<=1080]+mergeall[vcodec=none]/bv*[height<=1080]/bv*"
+    )
 
 
 def test_build_options_no_audio_multistreams_by_default(temp_dirs):
@@ -585,7 +593,7 @@ def test_build_options_no_audio_multistreams_by_default(temp_dirs):
     )
     assert "allow_multiple_audio_streams" not in options
     assert "mergeall" not in options["format"]
-    assert options["format"] == "bestvideo+bestaudio/best"
+    assert options["format"] == "bestvideo+bestaudio/best/bv*/b*"
 
 
 def test_audio_langs_distinct_sorted_non_null():

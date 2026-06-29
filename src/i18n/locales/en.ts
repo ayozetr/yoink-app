@@ -42,6 +42,7 @@ export const en = {
       "This content has no lossless audio — FLAC/WAV unavailable.",
     wavCoverWarning:
       "WAV can't store cover art — auto-tagging will add the metadata but no album cover.",
+    noAudio: "No audio detected for this video — the download will be silent.",
     subtitles: "Subtitles",
     subtitlesNone: "No subtitles",
     subtitlesAll: "All subtitles",

@@ -42,6 +42,7 @@ export const zh = {
       "此内容没有无损音频——无法使用 FLAC/WAV。",
     wavCoverWarning:
       "WAV 无法存储封面——自动标记会写入元数据，但不会有专辑封面。",
+    noAudio: "未检测到此视频的音频——下载将没有声音。",
     subtitles: "字幕",
     subtitlesNone: "无字幕",
     subtitlesAll: "全部字幕",

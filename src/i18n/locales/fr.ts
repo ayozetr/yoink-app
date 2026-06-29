@@ -42,6 +42,7 @@ export const fr = {
       "Ce contenu n'a pas d'audio sans perte — FLAC/WAV indisponibles.",
     wavCoverWarning:
       "Le WAV ne peut pas stocker de pochette — l'étiquetage automatique ajoutera les métadonnées mais pas la pochette de l'album.",
+    noAudio: "Aucun audio détecté pour cette vidéo — le téléchargement sera muet.",
     subtitles: "Sous-titres",
     subtitlesNone: "Aucun sous-titre",
     subtitlesAll: "Tous les sous-titres",

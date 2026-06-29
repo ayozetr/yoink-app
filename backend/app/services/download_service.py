@@ -329,16 +329,25 @@ def _build_options(
             # already carry one audio track of its own).
             options["allow_multiple_audio_streams"] = True
             if height:
-                options["format"] = f"bv*[height<={height}]+mergeall[vcodec=none]"
+                options["format"] = (
+                    f"bv*[height<={height}]+mergeall[vcodec=none]/"
+                    f"bv*[height<={height}]/bv*"
+                )
             else:
-                options["format"] = "bv*+mergeall[vcodec=none]"
+                options["format"] = "bv*+mergeall[vcodec=none]/bv*"
         elif height:
+            # The `/bv*…/b*` tail keeps the download from failing format selection
+            # when the source has no separate audio: some clips expose only a muxed
+            # h264 whose `acodec` is "unknown" (neither `bestvideo` nor `best` match
+            # those), or are genuinely video-only. The preview warns when no audio
+            # was detected.
             options["format"] = (
                 f"bestvideo[height<={height}]+bestaudio/"
-                f"best[height<={height}]/best"
+                f"best[height<={height}]/best/"
+                f"bv*[height<={height}]/bv*/b*"
             )
         else:
-            options["format"] = "bestvideo+bestaudio/best"
+            options["format"] = "bestvideo+bestaudio/best/bv*/b*"
         # Merge separate video+audio streams into the requested container via
         # ffmpeg (mp4 by default; multi-audio is offered only for mkv, which can
         # hold multiple audio tracks).

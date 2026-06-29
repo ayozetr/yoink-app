@@ -42,6 +42,7 @@ export const ja = {
       "このコンテンツにはロスレス音声がありません — FLAC/WAV は利用できません。",
     wavCoverWarning:
       "WAV はカバーアートを保存できません — 自動タグ付けはメタデータを追加しますが、アルバムカバーは付きません。",
+    noAudio: "この動画では音声が検出されませんでした。ダウンロードは無音になります。",
     subtitles: "字幕",
     subtitlesNone: "字幕なし",
     subtitlesAll: "すべての字幕",
