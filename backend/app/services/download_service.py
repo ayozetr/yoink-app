@@ -477,7 +477,8 @@ _ERROR_HINTS: tuple[tuple[str, str], ...] = (
     ),
     (
         "requested format is not available",
-        "The chosen quality/format isn't available for this video — try another.",
+        "Couldn't get a downloadable format. Some videos are protected by the "
+        "source and can't be downloaded — try another quality or video.",
     ),
     (
         "private video",
