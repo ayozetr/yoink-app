@@ -11,29 +11,31 @@
 
 ## 📍 Status
 
-- **Unreleased (next — v2.3.0):** **lyrics in auto-tagging** (LRCLIB: embedded
-  plain lyrics + an optional synced **`.lrc`**, an in-card indicator / preview /
-  popup, and robust matching), a **cookies browser→file fallback** (a locked
-  browser store no longer breaks search/downloads), the **`.nfo` rewritten from
-  the tagged metadata**, a **localized default download dir** (the OS Downloads
-  folder, e.g. `~/Descargas`), **music-import parity** (filter / range / duration
-  summary) + history-as-it-downloads, and quick wins (**copy-error** button,
-  **paste-and-analyze** `Ctrl/Cmd+Shift+V`, **low-disk-space guard**).
-- **Current release:** **v2.2.0** — **resumable playlist downloads**, **playlist**
-  filter / shift-click range / lazy thumbnails / retry-failed + a cover, VR
-  follow-ups (**Spherical V1** for 360°, **MKV StereoMode**, **post-tag ffprobe
-  validation**), **friendlier yt-dlp error messages**, **non-Western title
-  parsing**, a **source-thumbnail fallback cover** on audio, **download presets**,
-  and optional **`.nfo` sidecars**.
-- **Previously (v2.1.0):** a process-wide **single-download lock**, a **dynamic
-  backend port**, persisted subtitle/chapter defaults, a collapsible **"Advanced
-  options"**, full progress detail on music/queue, SSRF-hardened music-import, and
-  a11y/perf polish. (v2.0.0: keyless **music import from five services**
-  ~**99.5%**, SoundCloud search, **14 UI languages**, backend logging, resumable
-  downloads. v1.9.x: immersive VR, the queue, hardening.)
+- **Current release:** **v2.4.0** — **broader source support** (resolves videos
+  whose media is served through the page's own player config), **immersive (VR)
+  clips: trimming fixed** + an **audio-less source warning** shown before the
+  download, **steadier downloads** (auto-retry of a transient ffmpeg hiccup;
+  cancelling mid-merge no longer wedges the next download), **complete Amazon
+  playlist import** (per-track cover art + duration), and a **fully localized
+  interface** (pluralized counts + per-locale durations across the 14 languages).
+- **Previously (v2.3.1):** Windows reliability — **certifi** TLS for every
+  non-yt-dlp HTTPS call (cover art / music import / lyrics), a sturdier **cookie
+  fallback**, and **playlist de-duplication**.
+- **(v2.3.0):** **lyrics in auto-tagging** (LRCLIB plain + an optional synced
+  **`.lrc`**), a **cookies browser→file fallback**, the **`.nfo` rewritten from
+  the tagged metadata**, a **localized default download dir**, **music-import
+  parity** (filter / range / duration summary) + history-as-it-downloads, and
+  quick wins (copy-error, paste-and-analyze, low-disk-space guard).
+- **(v2.2.0):** **resumable playlist downloads**, playlist filter / shift-click
+  range / lazy thumbnails / retry-failed, VR follow-ups, **friendlier yt-dlp
+  error messages**, **download presets**, and optional **`.nfo` sidecars**.
+- **Earlier (v2.1.0 / v2.0.0):** a **single-download lock**, a **dynamic backend
+  port**, the **Advanced options** panel, SSRF-hardened keyless **music import
+  from five services**, SoundCloud search, **14 UI languages**. (v1.9.x:
+  immersive VR, the queue, hardening.)
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
-- **Health:** backend (pytest) + frontend (vitest) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 314) green · frontend build + e2e green · `npm audit` 0 · strict TS.
 
 ---
 

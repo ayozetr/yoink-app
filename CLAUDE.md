@@ -24,8 +24,8 @@ Two layers communicating asynchronously:
 - **Metadata (REST):** when the user pastes a URL, the frontend calls FastAPI.
   The backend runs yt-dlp with `download=False` and returns an `InfoResponse`
   that is **either** a single video (title, thumbnail, formats, plus
-  `source_lossless`/`best_audio_abr`/`subtitle_langs`/`has_chapters`, and an
-  `is_vr`/`vr_layout` immersive-video heuristic) **or** a flat playlist listing
+  `source_lossless`/`best_audio_abr`/`has_audio`/`subtitle_langs`/`has_chapters`,
+  and an `is_vr`/`vr_layout` immersive-video heuristic) **or** a flat playlist listing
   (entries with title/duration/url). Endpoint: `POST /api/info` — a transient
   extraction failure (anti-bot 403 / network blip) is retried before surfacing as
   503 (retryable) vs 422 (a genuinely unsupported URL).
@@ -108,6 +108,7 @@ literal OpenAPI types on demand.
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
         ├── services/download_service.py  # yt-dlp download + progress stream
         ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor
+        ├── services/embedded_vr_extractor.py  # player-config extractor (overrides stale bundled ones)
         ├── services/music_import.py    # keyless resolvers (5 services) + YouTube match
         ├── services/matching.py        # spotDL-ported YouTube match ranking
         ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing (+ lyrics + .nfo)
