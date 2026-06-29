@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from app.models import media, music
+from app.models import autotag, media, music
 
 _TYPES_DIR = Path(__file__).resolve().parents[2] / "src" / "types"
 
@@ -41,6 +41,16 @@ _PAIRS: list[tuple[type[BaseModel], str, str]] = [
     (media.VersionInfo, "VersionInfo", "download.ts"),
     (music.MusicTrack, "MusicTrack", "music.ts"),
     (music.MusicImportInfo, "MusicImportInfo", "music.ts"),
+    # WS download events (TS prefixes them with "Download").
+    (media.ProgressEvent, "DownloadProgressEvent", "download.ts"),
+    (media.CompletedEvent, "DownloadCompletedEvent", "download.ts"),
+    (media.ErrorEvent, "DownloadErrorEvent", "download.ts"),
+    # Auto-tagging.
+    (autotag.TagCandidate, "TagCandidate", "autotag.ts"),
+    (autotag.CandidateList, "CandidateList", "autotag.ts"),
+    (autotag.ApplyRequest, "ApplyRequest", "autotag.ts"),
+    (autotag.ApplyResponse, "ApplyResponse", "autotag.ts"),
+    (autotag.LyricsResult, "LyricsResult", "autotag.ts"),
 ]
 
 

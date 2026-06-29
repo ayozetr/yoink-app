@@ -151,7 +151,8 @@ export interface InfoResponse {
 /** What the frontend asks to download (mirrors backend `DownloadRequest`). */
 export interface DownloadRequest {
   url: string;
-  kind: MediaKind;
+  /** Video or audio. Defaults to "video" on the backend when omitted. */
+  kind?: MediaKind;
   /** Target video quality, e.g. "1080p". Omitted for audio. */
   quality?: string;
   /** Output container when kind=video (merge target). Defaults to "mp4". */
