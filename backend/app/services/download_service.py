@@ -653,6 +653,11 @@ async def download_events(
             cancel_event.set()
         if getter is not None and not getter.done():
             getter.cancel()
-        await asyncio.gather(worker, return_exceptions=True)
+        # Release the lock *before* reaping the worker: on a cancel mid-merge the
+        # worker stays blocked until the running ffmpeg finishes (it can't be
+        # interrupted), so don't make the next download wait on a job we no longer
+        # care about — a cancelled job writes its own output file and can't collide.
         if lock_held:
             _download_lock.release()
+            lock_held = False
+        await asyncio.gather(worker, return_exceptions=True)
