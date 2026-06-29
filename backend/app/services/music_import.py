@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 from html import unescape
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from urllib.error import URLError
 from urllib.parse import quote, urlparse
@@ -696,6 +697,50 @@ def _deezer_enrich(name: str, artist: str, tracks: list[MusicTrack]) -> str | No
         return None
 
 
+def _deezer_track_meta(title: str, artist: str) -> tuple[str | None, int | None]:
+    """One keyless Deezer track lookup -> (cover_url, duration_ms). Best-effort:
+    returns (None, None) on any miss or error."""
+    if not title:
+        return None, None
+    try:
+        for query in (f'artist:"{artist}" track:"{title}"', f"{artist} {title}".strip()):
+            found = _get_json(
+                "https://api.deezer.com/search/track?limit=1&q=" + quote(query)
+            )
+            data = found.get("data") if isinstance(found, dict) else None
+            if data:
+                hit = data[0]
+                album = hit.get("album") or {}
+                cover = album.get("cover_xl") or album.get("cover_big")
+                dur = hit.get("duration")
+                return cover, (int(dur) * 1000 if dur else None)
+    except (MusicImportError, KeyError, ValueError, TypeError):
+        pass
+    return None, None
+
+
+def _deezer_enrich_each(tracks: list[MusicTrack]) -> str | None:
+    """Fill each track's missing cover/duration via its own Deezer lookup and
+    return the first cover found (for the import header). A playlist's tracks
+    span many albums, so a single album lookup won't do — each is looked up on
+    its own, concurrently and best-effort (a miss just leaves that track as-is)."""
+
+    def fill(track: MusicTrack) -> None:
+        if track.cover_url and track.duration_ms:
+            return
+        cover, dur = _deezer_track_meta(track.title, track.artists)
+        if cover and not track.cover_url:
+            track.cover_url = cover
+        if dur and not track.duration_ms:
+            track.duration_ms = dur
+
+    # Modest concurrency keeps a 50-track playlist quick without hammering
+    # Deezer's keyless endpoint into rate-limiting every lookup.
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        list(pool.map(fill, tracks))
+    return next((t.cover_url for t in tracks if t.cover_url), None)
+
+
 def _resolve_amazon(url: str) -> MusicImportInfo:
     match = _AMAZON_RE.search(url)
     if not match:
@@ -763,11 +808,14 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
     if not tracks:
         raise MusicImportError("Could not read the Amazon Music tracklist.")
 
-    # The embed carries no cover/durations; backfill them from Deezer's keyless API.
-    if cover is None and kind == "album":  # the track branch already returned above
-        enriched = _deezer_enrich(set_name, tracks[0].artists, tracks)
-        if enriched:
-            cover = enriched
+    # The embed carries no per-track cover/durations; backfill them from Deezer's
+    # keyless API (the track branch already returned above). Always enrich so the
+    # tracks get durations even when og:image gave us a cover.
+    if kind == "album":
+        # One album lookup fills every track's duration and a shared cover.
+        cover = cover or _deezer_enrich(set_name, tracks[0].artists, tracks)
+    else:  # playlist — tracks span many albums, so look each one up on its own.
+        cover = cover or _deezer_enrich_each(tracks)
 
     if kind == "track":
         return MusicImportInfo(source="amazon", type="track", name=tracks[0].title,

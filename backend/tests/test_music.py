@@ -202,6 +202,38 @@ def test_resolve_amazon_single_track(monkeypatch):
     assert info.cover_url == "http://dz/cover_xl"  # enriched from Deezer
 
 
+# A playlist's tracks span many albums, so a single album lookup won't do — each
+# track is enriched on its own via a Deezer *track* search.
+_AMAZON_PLAYLIST_HTML = """
+<title>Amazon Music - Playlist Road Trip</title>
+<ul>
+  <li class="trackItem albumTrackItem" data-asin="ASIN1">
+    <div class="trackListTitle truncate"><a href="#" class="refLink">Song One</a></div>
+    <div class="trackListArtist"><a href="#">Artist One</a></div>
+  </li>
+  <li class="trackItem albumTrackItem" data-asin="ASIN2">
+    <div class="trackListTitle truncate"><a href="#" class="refLink">Song Two</a></div>
+    <div class="trackListArtist"><a href="#">Artist Two</a></div>
+  </li>
+</ul>
+"""
+_DEEZER_TRACK_SEARCH = {
+    "data": [{"album": {"cover_xl": "http://dz/track_cover"}, "duration": 210}]
+}
+
+
+def test_resolve_amazon_playlist_enriches_per_track(monkeypatch):
+    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_PLAYLIST_HTML)
+    monkeypatch.setattr(mi, "_get_json", lambda url, headers=None: _DEEZER_TRACK_SEARCH)
+    info = mi.resolve("https://music.amazon.es/playlists/B0EXAMPLE1")
+    assert info.type == "playlist"
+    assert [t.title for t in info.tracks] == ["Song One", "Song Two"]
+    # Each track is backfilled from its own Deezer track lookup (cover + duration).
+    assert all(t.cover_url == "http://dz/track_cover" for t in info.tracks)
+    assert all(t.duration_ms == 210000 for t in info.tracks)
+    assert info.cover_url == "http://dz/track_cover"  # import header cover
+
+
 # Tidal single track: the embed has no <list-item>, so it's built from the
 # regular page's og:title ("Artist - Title") + og:image.
 _TIDAL_TRACK_EMBED = '<div class="player">no list items here</div>'
