@@ -248,9 +248,11 @@ export function MusicImportCard({
           settled = true;
           handleRef.current = null;
           if (event.type === "completed") {
-            // History is refreshed once in advance() after tagging settles (which
-            // also rewrites the row's title to the source metadata), so don't
-            // double-refresh here just to show the soon-to-be-replaced title.
+            // Surface the row now, not after tagging: the download already
+            // embedded the source thumbnail as a cover (EmbedThumbnail), so it
+            // shows with art immediately. The later advance() refresh then
+            // upgrades it to the tagged album art + source title.
+            onDownloadFinished?.();
             void applyAudioTags({
               path: event.filepath,
               title: track.title,
