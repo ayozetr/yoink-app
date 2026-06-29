@@ -85,7 +85,7 @@ export function PlaylistCard({
 }: PlaylistCardProps) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(playlist.entries.map((entry) => entry.id)),
+    () => new Set(playlist.entries.map((entry) => entry.url)),
   );
   // Re-analyzing a mutable playlist (radio mixes RD…, Watch Later) reuses this
   // component (the id key is unchanged), so reset the selection to all entries
@@ -94,7 +94,7 @@ export function PlaylistCard({
   const [seenEntries, setSeenEntries] = useState(playlist.entries);
   if (seenEntries !== playlist.entries) {
     setSeenEntries(playlist.entries);
-    setSelected(new Set(playlist.entries.map((entry) => entry.id)));
+    setSelected(new Set(playlist.entries.map((entry) => entry.url)));
   }
   // Free-text filter over the entry list (titles); selection persists across it.
   const [filter, setFilter] = useState("");
@@ -148,11 +148,11 @@ export function PlaylistCard({
     [playlist.entries, query],
   );
   const allVisibleSelected =
-    visible.length > 0 && visible.every((e) => selected.has(e.id));
+    visible.length > 0 && visible.every((e) => selected.has(e.url));
   // Total duration of the current selection (some flat entries may lack one).
   const selectedDuration = playlist.entries.reduce(
     (acc, entry) =>
-      selected.has(entry.id) ? acc + clockToSeconds(entry.duration_string) : acc,
+      selected.has(entry.url) ? acc + clockToSeconds(entry.duration_string) : acc,
     0,
   );
 
@@ -166,7 +166,7 @@ export function PlaylistCard({
   };
 
   const toggleAll = () => {
-    const ids = visible.map((e) => e.id);
+    const ids = visible.map((e) => e.url);
     setSelected((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) ids.forEach((id) => next.delete(id));
@@ -179,28 +179,28 @@ export function PlaylistCard({
   // from the last-clicked row (over the currently-visible list).
   const clickEntry = (entry: PlaylistEntry, index: number, shiftKey: boolean) => {
     const lastIdx = lastIdRef.current
-      ? visible.findIndex((e) => e.id === lastIdRef.current)
+      ? visible.findIndex((e) => e.url === lastIdRef.current)
       : -1;
     if (shiftKey && lastIdx >= 0 && lastIdx !== index) {
       const lo = Math.min(lastIdx, index);
       const hi = Math.max(lastIdx, index);
-      const target = !selected.has(entry.id); // match the clicked item's new state
+      const target = !selected.has(entry.url); // match the clicked item's new state
       setSelected((prev) => {
         const next = new Set(prev);
         for (let i = lo; i <= hi; i++) {
-          if (target) next.add(visible[i].id);
-          else next.delete(visible[i].id);
+          if (target) next.add(visible[i].url);
+          else next.delete(visible[i].url);
         }
         return next;
       });
     } else {
-      toggle(entry.id);
+      toggle(entry.url);
     }
-    lastIdRef.current = entry.id;
+    lastIdRef.current = entry.url;
   };
 
   const handleDownload = () => {
-    const chosen = playlist.entries.filter((entry) => selected.has(entry.id));
+    const chosen = playlist.entries.filter((entry) => selected.has(entry.url));
     if (chosen.length === 0) return;
     const tagVr = isVideo && playlist.is_vr && isVr;
     if (tagVr) rememberLayout(playlist.uploader, vrLayout);
@@ -443,9 +443,9 @@ export function PlaylistCard({
         ) : (
           visible.map((entry, i) => (
             <div
-              key={entry.id}
+              key={entry.url}
               role="checkbox"
-              aria-checked={selected.has(entry.id)}
+              aria-checked={selected.has(entry.url)}
               tabIndex={0}
               onClick={(e) => clickEntry(entry, i, e.shiftKey)}
               onKeyDown={(e) => {
@@ -458,7 +458,7 @@ export function PlaylistCard({
             >
               <input
                 type="checkbox"
-                checked={selected.has(entry.id)}
+                checked={selected.has(entry.url)}
                 readOnly
                 tabIndex={-1}
                 aria-hidden="true"

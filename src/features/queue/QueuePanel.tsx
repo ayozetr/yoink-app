@@ -61,6 +61,13 @@ export function QueuePanel({
   onPendingChange,
 }: QueuePanelProps) {
   const { t } = useTranslation();
+  // Keep the latest `t` for the long-running drain loop / download callbacks,
+  // which are created once and would otherwise use a stale translator after a
+  // mid-run language change.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  });
   const [items, setItems] = useState<QueueItem[]>(() => loadQueue());
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
@@ -147,8 +154,8 @@ export function QueuePanel({
         const done = itemsRef.current.filter((i) => i.status === "done").length;
         const failed = itemsRef.current.filter((i) => i.status === "error").length;
         void notify(
-          t("notify.queueDone"),
-          t("notify.queueSummary", { completed: done, failed }),
+          tRef.current("notify.queueDone"),
+          tRef.current("notify.queueSummary", { completed: done, failed }),
         );
       }
       return;
@@ -193,7 +200,7 @@ export function QueuePanel({
           handleRef.current = null;
           update(next.id, {
             status: "error",
-            error: t("errors.downloadConnectionLost"),
+            error: tRef.current("errors.downloadConnectionLost"),
           });
           if (runningRef.current) processNext();
         },
