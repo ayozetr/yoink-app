@@ -790,11 +790,22 @@ function HelpPopover({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
+    // A scroll/resize moves the anchor button, so the fixed popover would float
+    // at a stale spot — dismiss it (scrolling inside the popover itself is fine).
+    const onScroll = (event: Event) => {
+      if (popRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    const dismiss = () => setOpen(false);
     // Capture phase: the modal panel calls stopPropagation() on click.
     window.addEventListener("click", onPointer, true);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", dismiss);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("click", onPointer, true);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", dismiss);
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);

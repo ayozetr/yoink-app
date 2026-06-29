@@ -13,7 +13,7 @@ export function SearchSourceToggle({ value, onChange }: SearchSourceToggleProps)
   const { t } = useTranslation();
   return (
     <div
-      role="radiogroup"
+      role="group"
       aria-label={t("url.searchSource")}
       className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.06] p-1"
     >
@@ -25,8 +25,7 @@ export function SearchSourceToggle({ value, onChange }: SearchSourceToggleProps)
         <button
           key={source}
           type="button"
-          role="radio"
-          aria-checked={value === source}
+          aria-pressed={value === source}
           onClick={() => onChange(source)}
           className={`rounded-lg px-3 py-1 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 ${
             value === source
