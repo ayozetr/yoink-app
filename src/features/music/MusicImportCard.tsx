@@ -77,6 +77,10 @@ export function MusicImportCard({
   const [progress, setProgress] = useState<DownloadProgressEvent | null>(null);
 
   const runningRef = useRef(false);
+  // Monotonic run token: each start() bumps it; every async continuation captures
+  // its run's id and bails if the token moved on (Stop, unmount, or a restart),
+  // so a stale run can't corrupt a newer one or open a second socket.
+  const runIdRef = useRef(0);
   const handleRef = useRef<DownloadHandle | null>(null);
   const orderRef = useRef<number[]>([]);
   const posRef = useRef(0);
@@ -98,6 +102,7 @@ export function MusicImportCard({
   useEffect(
     () => () => {
       runningRef.current = false;
+      runIdRef.current += 1;
       handleRef.current?.cancel();
       releaseDownloadLock("music");
     },
@@ -197,14 +202,14 @@ export function MusicImportCard({
     onDownloadFinished?.();
   };
 
-  const advance = () => {
+  const advance = (runId: number) => {
     posRef.current += 1;
     onDownloadFinished?.();
-    if (runningRef.current) void processNext();
+    if (runIdRef.current === runId) void processNext(runId);
   };
 
-  const processNext = async () => {
-    if (!runningRef.current) return;
+  const processNext = async (runId: number) => {
+    if (runIdRef.current !== runId) return;
     if (posRef.current >= orderRef.current.length) {
       finish();
       return;
@@ -222,10 +227,10 @@ export function MusicImportCard({
     } catch {
       url = null;
     }
-    if (!runningRef.current) return;
+    if (runIdRef.current !== runId) return; // a Stop/restart invalidated this run
     if (!url) {
       setRow(idx, "skipped"); // nothing cleared the match thresholds
-      advance();
+      advance(runId);
       return;
     }
 
@@ -235,7 +240,7 @@ export function MusicImportCard({
       { url, kind: "audio", audio_format: fmtRef.current },
       {
         onEvent: (event) => {
-          if (settled) return;
+          if (settled || runIdRef.current !== runId) return;
           if (event.type === "progress") {
             setProgress(event);
             return;
@@ -256,20 +261,21 @@ export function MusicImportCard({
             })
               .catch(() => undefined) // tagging is best-effort
               .finally(() => {
+                if (runIdRef.current !== runId) return;
                 setRow(idx, "done");
-                advance();
+                advance(runId);
               });
           } else {
             setRowError(idx, event.message);
-            advance();
+            advance(runId);
           }
         },
         onClose: () => {
-          if (settled) return;
+          if (settled || runIdRef.current !== runId) return;
           settled = true;
           handleRef.current = null;
           setRowError(idx, t("errors.downloadConnectionLost"));
-          advance();
+          advance(runId);
         },
       },
     );
@@ -286,12 +292,17 @@ export function MusicImportCard({
     setRowErrors({});
     setRunTotal(orderRef.current.length);
     runningRef.current = true;
+    // New generation token: invalidates any continuation still pending from a
+    // previous run, so a Stop→Start cycle can't leave run #1's awaited match/tag
+    // callbacks corrupting run #2 or opening a second socket.
+    const runId = (runIdRef.current += 1);
     setRunning(true);
-    void processNext();
+    void processNext(runId);
   };
 
   const stop = () => {
     runningRef.current = false;
+    runIdRef.current += 1; // invalidate the active run's pending continuations
     handleRef.current?.cancel();
     finish();
   };
