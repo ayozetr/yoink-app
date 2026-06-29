@@ -574,6 +574,7 @@ async def download_events(
     # concurrently. Acquired before the worker thread starts (yt-dlp writes
     # immediately) and released in the finally below.
     await _download_lock.acquire()
+    lock_held = True
     worker = asyncio.create_task(asyncio.to_thread(blocking))
 
     # Drain progress events until the worker finishes, then flush the queue.
@@ -612,6 +613,13 @@ async def download_events(
             yield ErrorEvent(message=f"Unexpected download error: {exc}")
             return
 
+        # The worker finished and the file is written — release the lock before
+        # the remaining checks and the completed yield, so the consumer's
+        # post-completion work (ffprobe + history write, while the generator is
+        # suspended at the yield) doesn't hold up the next queued download.
+        _download_lock.release()
+        lock_held = False
+
         if not path_str:
             logger.error("Download for %s produced no output file", request.url)
             yield ErrorEvent(message="Download finished but no output file was produced.")
@@ -643,4 +651,5 @@ async def download_events(
         if getter is not None and not getter.done():
             getter.cancel()
         await asyncio.gather(worker, return_exceptions=True)
-        _download_lock.release()
+        if lock_held:
+            _download_lock.release()

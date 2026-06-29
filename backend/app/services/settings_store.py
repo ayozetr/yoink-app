@@ -115,13 +115,17 @@ def get_current() -> AppSettings:
 
 def update(payload: AppSettings) -> AppSettings:
     """Apply and persist new settings, returning the effective snapshot."""
-    data = payload.model_dump()
-    _apply(data)
+    _apply(payload.model_dump())
     settings.ensure_data_dir()
+    # Persist the *effective* snapshot, not the raw payload: `_apply` ignores
+    # empty/invalid values (a blank `default_quality`/`download_dir` keeps the
+    # current one), so writing the raw payload would drift settings.json from the
+    # in-memory state and re-apply the ignored blank on the next startup.
+    effective = get_current()
     # Write atomically (temp file + os.replace) so an interrupted write can't
     # truncate settings.json and lose every override.
     path = _settings_path()
     tmp_path = path.with_name(path.name + ".tmp")
-    tmp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp_path.write_text(json.dumps(effective.model_dump(), indent=2), encoding="utf-8")
     os.replace(tmp_path, path)
-    return get_current()
+    return effective
