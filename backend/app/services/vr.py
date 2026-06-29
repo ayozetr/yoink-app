@@ -128,6 +128,13 @@ _VR_STRONG = re.compile(
     r"\b(vr180|vr|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b|virtual reality",
     re.IGNORECASE,
 )
+# Like _VR_STRONG but WITHOUT the bare "vr" alternative: a plain "VR" mention is
+# too weak to act on without the user confirming, so the no-preview (queue)
+# auto-tag path uses this stricter set (see detect_vr's `strict`).
+_VR_STRONG_STRICT = re.compile(
+    r"\b(vr180|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b|virtual reality",
+    re.IGNORECASE,
+)
 # A degree marker (180/360) plus one of these cues is the weaker combined signal.
 _VR_DEGREE = re.compile(r"\b(180|360)\b", re.IGNORECASE)
 _VR_CUE = re.compile(
@@ -136,9 +143,15 @@ _VR_CUE = re.compile(
 )
 
 
-def _is_vr_text(blob: str) -> bool:
-    """True if the text signals VR: a strong marker, or a 180/360 with a cue."""
-    if _VR_STRONG.search(blob):
+def _is_vr_text(blob: str, strict: bool = False) -> bool:
+    """True if the text signals VR: a strong marker, or a 180/360 with a cue.
+
+    ``strict`` drops the bare-"vr" marker — a plain "VR" mention shouldn't, on its
+    own, relabel a flat video on the no-preview path (vr180/mkx/fisheye and the
+    180/360-with-a-cue combo still count).
+    """
+    strong = _VR_STRONG_STRICT if strict else _VR_STRONG
+    if strong.search(blob):
         return True
     return bool(_VR_DEGREE.search(blob) and _VR_CUE.search(blob))
 _DEG360 = re.compile(r"\b360\b", re.IGNORECASE)
@@ -245,7 +258,7 @@ def _infer_layout(blob: str, aspect: float | None = None) -> VRLayout:
     return "180_tb" if tb else "180_sbs"
 
 
-def detect_vr(info: dict) -> tuple[bool, VRLayout]:
+def detect_vr(info: dict, strict: bool = False) -> tuple[bool, VRLayout]:
     """Heuristically decide whether a media item is VR and guess its layout.
 
     Returns ``(is_vr, layout)``. ``layout`` is always a valid suggestion (used
@@ -253,9 +266,13 @@ def detect_vr(info: dict) -> tuple[bool, VRLayout]:
     has a sensible default. Detection leans on studio + textual signals (not
     resolution, which would false-positive on plain 4K); the frame aspect ratio
     only refines the *layout* guess, never the is-VR decision.
+
+    ``strict`` (used by the no-preview queue auto-tag) requires a stronger textual
+    signal than a bare "VR" mention, so a flat video isn't irreversibly relabelled
+    without the user ever confirming via the preview toggle.
     """
     blob = _text_blob(info)
-    is_vr = _studio_hit(info) or _is_vr_text(blob)
+    is_vr = _studio_hit(info) or _is_vr_text(blob, strict)
     return is_vr, _infer_layout(blob, _best_video_aspect(info))
 
 
@@ -603,7 +620,13 @@ def inject_spherical_metadata(path: Path, layout: str) -> bool:
         except (OSError, _SphericalInjectError):
             tmp.unlink(missing_ok=True)
             return False
-    os.replace(tmp, path)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        # The atomic swap itself failed — clean up the temp and leave the
+        # already-valid download untouched, rather than orphaning the temp.
+        tmp.unlink(missing_ok=True)
+        return False
     return True
 
 
@@ -676,7 +699,13 @@ def set_mkv_stereo_mode(path: Path, layout: str) -> bool:
     except (OSError, subprocess.SubprocessError):
         tmp.unlink(missing_ok=True)
         return False
-    os.replace(tmp, path)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        # The atomic swap itself failed — clean up the temp and leave the
+        # already-valid download untouched, rather than orphaning the temp.
+        tmp.unlink(missing_ok=True)
+        return False
     return True
 
 
@@ -762,7 +791,13 @@ def inject_spherical_v1(path: Path, layout: str) -> bool:
         except (OSError, _SphericalInjectError):
             tmp.unlink(missing_ok=True)
             return False
-    os.replace(tmp, path)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        # The atomic swap itself failed — clean up the temp and leave the
+        # already-valid download untouched, rather than orphaning the temp.
+        tmp.unlink(missing_ok=True)
+        return False
     return True
 
 
@@ -770,22 +805,30 @@ def apply_vr(path: Path, layout: str) -> Path:
     """Tag a finished video as VR: add the projection suffix + spherical boxes.
 
     The name suffix is the robust, 180-aware signal every major VR player reads;
-    the box injection is an extra for box-reading players and is best-effort. If
-    a file with the target name already exists it is left as-is (no clobber).
-    Returns the (possibly renamed) path.
+    the box injection is an extra for box-reading players and is best-effort. On
+    a target-name collision the suffix is disambiguated with a counter (never
+    clobbers an existing file). Returns the (possibly renamed) path.
     """
     layout = normalize_layout(layout)
     suffix = filename_suffix(layout)
 
     final = path
     if suffix and suffix not in path.stem:
+        # The name suffix is the primary VR signal every player reads — on a name
+        # collision, disambiguate with a counter rather than silently dropping it.
         target = path.with_name(path.stem + suffix + path.suffix)
-        if not target.exists():
+        n = 2
+        while target.exists() and n <= 999:
+            target = path.with_name(f"{path.stem}{suffix}_{n}{path.suffix}")
+            n += 1
+        if target.exists():
+            logger.warning("VR suffix collision for %s; kept the original name", path.name)
+        else:
             try:
                 path.rename(target)
                 final = target
             except OSError:
-                final = path
+                logger.warning("Could not rename %s to add the VR suffix", path.name)
 
     # Box metadata is ISO-BMFF (MP4/MOV share the structure): Spherical Video V2
     # (st3d/sv3d) plus the legacy V1 uuid/XML for 360° (older players / YouTube

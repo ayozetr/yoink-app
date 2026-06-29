@@ -62,6 +62,20 @@ def test_detect_vr_negative():
     assert layout == "180_sbs"
 
 
+def test_detect_vr_strict_ignores_bare_vr():
+    # A bare "VR" mention flags VR for the *preview* (the user can untick it), but
+    # the no-preview queue path (strict) must NOT relabel a flat video on it alone.
+    info = {"title": "My VR reaction video", "uploader": "x"}
+    assert vr.detect_vr(info)[0] is True  # preview pre-checks the toggle
+    assert vr.detect_vr(info, strict=True)[0] is False  # auto path doesn't act
+
+    # Stronger signals still count under strict.
+    assert vr.detect_vr({"title": "360 VR scene"}, strict=True)[0] is True  # degree+cue
+    assert vr.detect_vr({"title": "scene MKX200"}, strict=True)[0] is True  # camera marker
+    # A known studio is always confident, strict or not.
+    assert vr.detect_vr({"uploader_id": "virtualtaboo"}, strict=True)[0] is True
+
+
 def test_infer_layout_aspect_square_is_top_bottom():
     # ~1:1 frame with no stereo marker in the text → inferred as top-bottom.
     info = {"uploader": "czechvr", "title": "clip", "formats": [{"width": 4096, "height": 4096}]}

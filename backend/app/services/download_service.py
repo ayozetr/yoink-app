@@ -549,7 +549,7 @@ async def download_events(
                 if request.is_vr:
                     layout = request.vr_layout
                 elif request.auto_vr:
-                    detected, detected_layout = detect_vr(info)
+                    detected, detected_layout = detect_vr(info, strict=True)
                     if detected:
                         layout = detected_layout
                 if layout is not None:
