@@ -47,9 +47,10 @@ export function Select({
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{
-    top: number;
     left: number;
     width: number;
+    top?: number;
+    bottom?: number;
   } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -66,11 +67,18 @@ export function Select({
   const selectable = () =>
     options.map((o, i) => (o.header || o.disabled ? -1 : i)).filter((i) => i >= 0);
 
-  // Anchor the floating list to the trigger each time it opens.
+  // Anchor the floating list to the trigger each time it opens — below by
+  // default, flipped above (anchored by its bottom edge, so no height measurement
+  // is needed) when there isn't enough room below and there's more room above.
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
-    setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    const spaceBelow = window.innerHeight - r.bottom;
+    if (spaceBelow < 260 && r.top > spaceBelow) {
+      setRect({ left: r.left, width: r.width, bottom: window.innerHeight - r.top + 4 });
+    } else {
+      setRect({ left: r.left, width: r.width, top: r.bottom + 4 });
+    }
   }, [open]);
 
   useEffect(() => {
@@ -95,11 +103,24 @@ export function Select({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
+    // Close when focus leaves the trigger + list (e.g. Tab to the next field).
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target as Node;
+      if (
+        triggerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+    window.addEventListener("focusin", onFocusIn);
     window.addEventListener("click", onPointer, true);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", dismiss);
     window.addEventListener("keydown", onKey);
     return () => {
+      window.removeEventListener("focusin", onFocusIn);
       window.removeEventListener("click", onPointer, true);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", dismiss);
@@ -177,7 +198,7 @@ export function Select({
               {selected.icon}
             </span>
           )}
-          <span className="truncate">{selected?.label ?? ""}</span>
+          <span className="truncate">{selected?.label ?? value}</span>
         </span>
         <ChevronDown
           size={16}
@@ -194,6 +215,7 @@ export function Select({
           style={{
             position: "fixed",
             top: rect.top,
+            bottom: rect.bottom,
             left: rect.left,
             width: rect.width,
           }}
