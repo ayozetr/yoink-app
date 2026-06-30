@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://lrclib.net/api"
 _HEADERS = {"User-Agent": "Yoink (https://github.com/ayozetr/yoink-app)"}
+# A source's reported duration and LRCLIB's can differ by a second or two; the
+# title+duration fallback accepts a same-title hit within this many seconds.
+_DURATION_TOLERANCE = 2.0
 
 
 @dataclass
@@ -99,6 +102,24 @@ def fetch_lyrics(
     found = _first_usable(_get_json(f"{_BASE}/search?{query}"))
     if found is not None:
         return found
+
+    # 2b. Title + duration match. The artist a source reports can differ from
+    #     LRCLIB's — a renamed act (Cruz Cafuné → "Cruzzi"), or a YouTube channel
+    #     name standing in for the artist — so when the artist-keyed lookups miss,
+    #     accept a same-title hit whose duration lines up (the signature LRCLIB
+    #     itself matches on). Cheap, and well ahead of the looser fuzzy steps.
+    if duration:
+        title_hits = _get_json(
+            f"{_BASE}/search?{urllib.parse.urlencode({'track_name': title})}"
+        )
+        if isinstance(title_hits, list):
+            for hit in title_hits:
+                hd = hit.get("duration") if isinstance(hit, dict) else None
+                if not isinstance(hd, (int, float)) or abs(hd - duration) > _DURATION_TOLERANCE:
+                    continue
+                found = _to_lyrics(hit)
+                if found is not None and (found.plain or found.synced):
+                    return found
 
     # 3. Fuzzy free-text search — catches multi-artist ("A, B"), accents and
     #    "feat."/noise that the structured artist match is too strict for.

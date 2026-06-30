@@ -50,6 +50,37 @@ def test_none_when_nothing_found(monkeypatch):
     assert lyr.fetch_lyrics("Song", "Artist") is None
 
 
+def test_title_duration_fallback_when_artist_differs(monkeypatch):
+    # All artist-keyed lookups miss (the source's artist differs from LRCLIB's —
+    # e.g. a renamed act or a YouTube channel name), but a title-only search
+    # returns a same-title hit whose duration matches -> used.
+    def fake(url: str):
+        if "/get?" in url:
+            return None
+        if "artist_name=" in url:  # structured + (no) fuzzy artist matches miss
+            return []
+        if "/search?" in url:  # title-only search
+            return [
+                {"trackName": "Song", "artistName": "Other", "duration": 999,
+                 "plainLyrics": "wrong duration", "instrumental": False},
+                {"trackName": "Song", "artistName": "Real Name", "duration": 200,
+                 "plainLyrics": "right one", "syncedLyrics": "[00:01.00] x",
+                 "instrumental": False},
+            ]
+        return None
+
+    monkeypatch.setattr(lyr, "_get_json", fake)
+    r = lyr.fetch_lyrics("Song", "Wrong Artist", duration=200)
+    assert r is not None and r.plain == "right one"  # duration picked the right hit
+
+    # Without a duration the fallback can't run -> nothing from a title search.
+    monkeypatch.setattr(
+        lyr, "_get_json",
+        lambda url: None if "/get?" in url else ([] if "artist_name=" in url else None),
+    )
+    assert lyr.fetch_lyrics("Song", "Wrong Artist") is None
+
+
 def test_empty_title_short_circuits(monkeypatch):
     called = False
 
