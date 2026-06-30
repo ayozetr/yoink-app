@@ -13,9 +13,9 @@ const EMPTY_STATS = { total_downloads: 0, total_bytes: 0, transferred: "0 B" };
 /** Mock the always-on calls the app makes on load (history, stats, settings). */
 async function mockBase(
   page: Page,
-  opts: { history?: unknown[]; stats?: unknown } = {},
+  opts: { history?: unknown[]; stats?: unknown; settings?: unknown } = {},
 ) {
-  const { history = [], stats = EMPTY_STATS } = opts;
+  const { history = [], stats = EMPTY_STATS, settings = SETTINGS } = opts;
   await page.route("**/api/history/stats", (route) =>
     route.fulfill({ json: stats }),
   );
@@ -24,7 +24,7 @@ async function mockBase(
       ? route.fulfill({ status: 204, body: "" })
       : route.fulfill({ json: history }),
   );
-  await page.route("**/api/settings", (route) => route.fulfill({ json: SETTINGS }));
+  await page.route("**/api/settings", (route) => route.fulfill({ json: settings }));
 }
 
 const VIDEO_INFO = {
@@ -253,6 +253,98 @@ test("offers to resume an unfinished batch", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Reanudar" })).toBeVisible();
   await page.getByRole("button", { name: "Descartar" }).click();
   await expect(page.getByRole("button", { name: "Reanudar" })).toHaveCount(0);
+});
+
+// A completed audio download — its history card has a "re-tag" (Etiquetar audio)
+// button that opens the auto-tag dialog, where the lyrics gating lives.
+const AUDIO_HISTORY = [
+  {
+    id: 1,
+    title: "Some Song",
+    url: "http://x/song",
+    kind: "audio",
+    status: "completed",
+    filename: "Some Song.mp3",
+    filepath: "/x/Some Song.mp3",
+    filesize: 100,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+];
+const AUDIO_STATS = { total_downloads: 1, total_bytes: 100, transferred: "100 B" };
+
+// Identify returns a single match so the panel reaches the "review" stage with
+// the title field seeded (which is what triggers the lyrics lookup).
+const TAG_CANDIDATES = {
+  results: [
+    {
+      title: "Some Song",
+      artist: "Some Artist",
+      album: "Some Album",
+      year: "2024",
+      track_number: 1,
+      cover_url: null,
+    },
+  ],
+};
+const LYRICS_FOUND = {
+  found: true,
+  instrumental: false,
+  has_synced: false,
+  plain: "la la la",
+};
+
+test("hides the lyrics searcher when fetch-lyrics is off", async ({ page }) => {
+  await mockBase(page, {
+    history: AUDIO_HISTORY,
+    stats: AUDIO_STATS,
+    settings: { ...SETTINGS, fetch_lyrics: false },
+  });
+  await page.route("**/api/autotag/identify", (route) =>
+    route.fulfill({ json: TAG_CANDIDATES }),
+  );
+  // If the gate works, the lyrics endpoint is never even hit.
+  let lyricsCalls = 0;
+  await page.route("**/api/autotag/lyrics", (route) => {
+    lyricsCalls += 1;
+    return route.fulfill({ json: LYRICS_FOUND });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Etiquetar audio" }).first().click();
+
+  // Reaches the review stage: the title field is seeded from the identify match.
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("textbox").first()).toHaveValue("Some Song");
+
+  // No lyrics block (neither the "searching" nor the "found" state) is rendered.
+  await expect(dialog.getByText("Buscando letra…")).toHaveCount(0);
+  await expect(dialog.getByText("Encontrada (LRCLIB)")).toHaveCount(0);
+  // Give the (gated) debounced lookup well past its 400ms window to (not) fire,
+  // then assert it never reached the network.
+  await page.waitForTimeout(700);
+  expect(lyricsCalls).toBe(0);
+});
+
+test("shows the lyrics searcher when fetch-lyrics is on", async ({ page }) => {
+  await mockBase(page, {
+    history: AUDIO_HISTORY,
+    stats: AUDIO_STATS,
+    settings: { ...SETTINGS, fetch_lyrics: true },
+  });
+  await page.route("**/api/autotag/identify", (route) =>
+    route.fulfill({ json: TAG_CANDIDATES }),
+  );
+  await page.route("**/api/autotag/lyrics", (route) =>
+    route.fulfill({ json: LYRICS_FOUND }),
+  );
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Etiquetar audio" }).first().click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("textbox").first()).toHaveValue("Some Song");
+  // With the feature on, the debounced LRCLIB lookup runs and its result shows.
+  await expect(dialog.getByText("Encontrada (LRCLIB)")).toBeVisible();
 });
 
 test("clears the history", async ({ page }) => {
