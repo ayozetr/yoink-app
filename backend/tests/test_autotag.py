@@ -171,6 +171,33 @@ def test_itunes_search_empty_term_skips_network():
     assert svc._itunes_search("", "") == []
 
 
+def test_apple_stores_adds_region_then_us(monkeypatch):
+    monkeypatch.setattr(svc, "_user_country", lambda: "ES")
+    assert svc._apple_stores() == ["ES", None]  # regional store first, US after
+    monkeypatch.setattr(svc, "_user_country", lambda: "US")
+    assert svc._apple_stores() == [None]  # already the US default — no duplicate
+    monkeypatch.setattr(svc, "_user_country", lambda: None)
+    assert svc._apple_stores() == [None]  # unknown region → US default only
+
+
+def test_itunes_search_queries_user_storefront(monkeypatch):
+    # On a Spanish machine the ES storefront is queried *in addition* to the US
+    # default, so regional-only releases surface. Both URLs are hit; an identical
+    # hit from both stores is deduped to one.
+    urls: list[str] = []
+
+    def fake_urlopen(request, *a, **k):
+        urls.append(request.full_url)
+        return _FakeResponse({"results": [{"trackName": "Amén", "artistName": "Cruzzi"}]})
+
+    monkeypatch.setattr(svc, "_user_country", lambda: "ES")
+    monkeypatch.setattr(svc, "urlopen", fake_urlopen)
+    results = svc._itunes_search("Cruzzi", "Amén")
+    assert any("country=ES" in u for u in urls)  # regional store queried
+    assert any("country=" not in u for u in urls)  # US default still queried too
+    assert len(results) == 1  # identical hit from both stores deduped
+
+
 # --- Deezer response mapping (mocked) --------------------------------------
 
 def test_deezer_search_maps_results(monkeypatch):

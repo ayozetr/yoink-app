@@ -14,7 +14,9 @@ releases the iTunes Search API hasn't indexed yet; MusicBrainz is rate-limited t
 from __future__ import annotations
 
 import json
+import locale
 import logging
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -159,14 +161,46 @@ def _auto_search(artist: str, title: str) -> list[TagCandidate]:
         return []
 
 
-def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
-    term = f"{artist} {title}".strip()
-    if not term:
-        return []
-    query = urlencode({"term": term, "entity": "song", "limit": limit})
+def _user_country() -> str | None:
+    """Best-effort 2-letter region for the iTunes storefront. Yoink runs on the
+    user's own machine, so its locale is their Apple Music region (e.g. ``es_ES``
+    -> ``ES``). ``None`` when it can't be determined (falls back to the US store)."""
+    candidates = [
+        os.environ.get("LC_ALL"),
+        os.environ.get("LC_MESSAGES"),
+        os.environ.get("LANG"),
+    ]
+    try:
+        candidates.append(locale.getlocale()[0])
+    except (ValueError, TypeError):
+        pass
+    for value in candidates:
+        if value and "_" in value:
+            region = value.split("_", 1)[1][:2]
+            if region.isalpha():
+                return region.upper()
+    return None
+
+
+def _apple_stores() -> list[str | None]:
+    """Storefronts to query: the user's region first, then iTunes' US default
+    (``None`` = no ``country`` param). Querying both is purely additive — it only
+    adds regional catalogue (e.g. Spanish releases missing from the US store) and
+    never drops a US match, so it can't return fewer results than before."""
+    region = _user_country()
+    return [region, None] if region and region != "US" else [None]
+
+
+def _itunes_search_store(
+    term: str, limit: int, country: str | None
+) -> list[TagCandidate]:
+    """One iTunes Search request against a single storefront."""
+    params: dict[str, str | int] = {"term": term, "entity": "song", "limit": limit}
+    if country:
+        params["country"] = country
     try:
         request = Request(  # noqa: S310 — fixed https host
-            f"{_ITUNES_URL}?{query}", headers={"User-Agent": _USER_AGENT}
+            f"{_ITUNES_URL}?{urlencode(params)}", headers={"User-Agent": _USER_AGENT}
         )
         with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310
             data = json.loads(response.read(_MAX_RESPONSE_BYTES))
@@ -189,6 +223,33 @@ def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate
             )
         )
     return candidates
+
+
+def _itunes_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
+    """Apple Music search across the user's storefront + the US default, merged
+    and deduped. A track only in a regional store (common for Spanish releases,
+    which the US-only default missed) is now found; US results are unaffected."""
+    term = f"{artist} {title}".strip()
+    if not term:
+        return []
+    stores = _apple_stores()
+    results: list[TagCandidate] = []
+    seen: set[tuple[str, str]] = set()
+    errors = 0
+    for country in stores:
+        try:
+            found = _itunes_search_store(term, limit, country)
+        except AutotagError:
+            errors += 1
+            continue
+        for cand in found:
+            key = (cand.artist.strip().lower(), cand.title.strip().lower())
+            if key not in seen:
+                seen.add(key)
+                results.append(cand)
+    if errors and errors == len(stores):  # every storefront failed → surface it
+        raise AutotagError("Apple Music search failed")
+    return results
 
 
 def _deezer_search(artist: str, title: str, limit: int = 8) -> list[TagCandidate]:
