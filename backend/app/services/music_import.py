@@ -652,6 +652,22 @@ _AMZ_ARTIST_RE = re.compile(r'class="trackListArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^
 _AMZ_ASIN_RE = re.compile(r'data-asin="([A-Z0-9]+)"')
 _AMZ_TRACK_ARTIST_RE = re.compile(r'class="trackArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)', re.DOTALL)
 _TITLE_TAG_RE = re.compile(r"<title>(.*?)</title>", re.DOTALL)
+# The embed has no og:image, but it does carry the artwork: the playlist/album
+# cover is the header <img>, and each track's own album art is the CSS background
+# of its row. Amazon's art differs from other catalogues (Amazon-curated
+# playlists, "Amazon Music Original" versions), so it's the source for those.
+_AMZ_HEADER_IMG_RE = re.compile(r'headerImg[^>]*><img[^>]*\bsrc="([^"]+)"')
+_AMZ_TRACK_IMG_RE = re.compile(
+    r"imageBackground[^>]*background-image:\s*url\(['\"]?([^'\")]+)"
+)
+_AMZ_ORIGINAL_RE = re.compile(r"amazon\s+(?:music\s+)?original", re.IGNORECASE)
+# Amazon serves a sized variant ("..._SY240_.jpg"); drop the token for full-res.
+_AMZ_SIZE_TOKEN_RE = re.compile(r"\._[^./]+_\.")
+
+
+def _amz_full_size(url: str) -> str:
+    """Strip Amazon's size token (e.g. ``._SY240_``) to get the original image."""
+    return _AMZ_SIZE_TOKEN_RE.sub(".", url)
 
 
 def _norm_title(title: str) -> str:
@@ -760,7 +776,8 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
     if kind == "track":
         # The single-track embed uses <div class="trackItem"> + a "trackArtist"
         # link (not the album's <li>/"trackListArtist"); the <title> is
-        # "Amazon Music - Pista <name>". Cover/duration come from Deezer.
+        # "Amazon Music - Pista <name>". The artwork is the header <img>; Deezer
+        # still supplies the duration (and a higher-res cover for non-originals).
         title_tag = _TITLE_TAG_RE.search(html)
         raw_title = unescape(title_tag.group(1)) if title_tag else ""
         name = re.sub(
@@ -771,10 +788,17 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
         artist = unescape(am.group(1)).strip() if am else ""
         if not name:
             raise MusicImportError("Could not read the Amazon Music track.")
+        hm = _AMZ_HEADER_IMG_RE.search(html)
+        amazon_cover = _amz_full_size(unescape(hm.group(1))) if hm else None
+        is_original = bool(_AMZ_ORIGINAL_RE.search(name))
         track = MusicTrack(title=name, artists=artist,
                            is_explicit="[Explicit]" in raw_title,
+                           cover_url=amazon_cover if is_original else None,
                            source_url=f"https://music.amazon.{tld}/tracks/{asin}")
-        cover = _deezer_enrich(name, artist, [track])
+        _deezer_enrich(name, artist, [track])
+        if not track.cover_url:  # Deezer missed (Amazon-exclusive) -> Amazon art
+            track.cover_url = amazon_cover
+        cover = amazon_cover or track.cover_url
         return MusicImportInfo(source="amazon", type="track",
                                name=name, subtitle=artist, cover_url=cover, tracks=[track])
 
@@ -786,10 +810,14 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
                           "", unescape(title_tag.group(1))).strip()
         set_name = re.sub(r"\s*\[Explicit\]\s*$", "", set_name)
 
-    cover_m = re.search(r'<meta property="og:image" content="([^"]*)"', html)
-    cover = unescape(cover_m.group(1)) if cover_m else None
+    # The playlist/album cover is Amazon's own header image (the embed has no
+    # og:image). It's the authoritative art for an Amazon-curated set, so it's
+    # preferred over anything Deezer would return for the header.
+    hm = _AMZ_HEADER_IMG_RE.search(html)
+    header_cover = _amz_full_size(unescape(hm.group(1))) if hm else None
 
     tracks: list[MusicTrack] = []
+    amazon_covers: list[str | None] = []  # per-track Amazon art (originals + fallback)
     for block in _AMZ_ITEM_RE.findall(html):
         tm = _AMZ_TITLE_RE.search(block)
         if not tm:
@@ -798,28 +826,39 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
         am = _AMZ_ARTIST_RE.search(block)
         artist = unescape(am.group(1)).strip() if am else ""
         asin_m = _AMZ_ASIN_RE.search(block)
+        im = _AMZ_TRACK_IMG_RE.search(block)
+        amazon_cover = _amz_full_size(unescape(im.group(1))) if im else header_cover
+        amazon_covers.append(amazon_cover)
+        # "Amazon Music Original" versions have artwork unique to Amazon — lock
+        # them to the Amazon image so the higher-res Deezer pass can't replace it
+        # with a different (regular-release) cover.
+        is_original = bool(_AMZ_ORIGINAL_RE.search(title))
         tracks.append(MusicTrack(
             title=title, artists=artist,
             is_explicit="[Explicit]" in tm.group(1),
-            album=set_name if kind == "album" else None, cover_url=cover,
+            album=set_name if kind == "album" else None,
+            cover_url=amazon_cover if is_original else None,
             source_url=f"https://music.amazon.{tld}/tracks/{asin_m.group(1)}"
             if asin_m else ""))
 
     if not tracks:
         raise MusicImportError("Could not read the Amazon Music tracklist.")
 
-    # The embed carries no per-track cover/durations; backfill them from Deezer's
-    # keyless API (the track branch already returned above). Always enrich so the
-    # tracks get durations even when og:image gave us a cover.
+    # The embed carries no durations, so still enrich from Deezer's keyless API —
+    # which also yields a higher-resolution cover for non-original tracks (it skips
+    # any track that already has one, i.e. the locked Amazon Originals).
     if kind == "album":
-        # One album lookup fills every track's duration and a shared cover.
-        cover = cover or _deezer_enrich(set_name, tracks[0].artists, tracks)
+        _deezer_enrich(set_name, tracks[0].artists, tracks)
     else:  # playlist — tracks span many albums, so look each one up on its own.
-        cover = cover or _deezer_enrich_each(tracks)
+        _deezer_enrich_each(tracks)
 
-    if kind == "track":
-        return MusicImportInfo(source="amazon", type="track", name=tracks[0].title,
-                               subtitle=tracks[0].artists, cover_url=cover, tracks=tracks[:1])
+    # Backfill covers Deezer couldn't find (Amazon-exclusive tracks) from Amazon.
+    for track, amazon_cover in zip(tracks, amazon_covers):
+        if not track.cover_url and amazon_cover:
+            track.cover_url = amazon_cover
+
+    # Header cover: Amazon's own art first, else the first track's (Deezer-)cover.
+    cover = header_cover or next((t.cover_url for t in tracks if t.cover_url), None)
     subtitle = tracks[0].artists if kind == "album" else None
     return MusicImportInfo(source="amazon", type=kind, name=set_name or "Amazon Music",
                            subtitle=subtitle, cover_url=cover, tracks=tracks)

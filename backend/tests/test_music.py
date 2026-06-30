@@ -125,15 +125,19 @@ def test_resolve_apple_playlist_scrapes_serialized_data(monkeypatch):
     assert info.tracks[0].cover_url == "http://apple/600x600bb.jpg"  # template filled
 
 
+# The real embed has no og:image: the cover is the header <img>, and each track
+# row carries its own album art as a CSS background-image.
 _AMAZON_HTML = """
 <title>Amazon Music - Álbum My Album [Explicit]</title>
-<meta property="og:image" content="http://cover.jpg" />
+<a class="headerImg albumHeader refLink"><img src="https://m.media-amazon.com/images/I/HEADER._SY240_.jpg"></a>
 <ul>
   <li class="trackItem albumTrackItem" data-asin="ASIN1">
+    <div class="imageBackground" style="background-image: url('https://m.media-amazon.com/images/I/T1.jpg');"></div>
     <div class="trackListTitle truncate"><a href="#" class="refLink">T1 [Explicit]</a></div>
     <div class="trackListArtist"><a href="#">The Artist</a></div>
   </li>
   <li class="trackItem albumTrackItem" data-asin="ASIN2">
+    <div class="imageBackground" style="background-image: url('https://m.media-amazon.com/images/I/T2.jpg');"></div>
     <div class="trackListTitle truncate"><a href="#" class="refLink">T2</a></div>
     <div class="trackListArtist"><a href="#">The Artist & X</a></div>
   </li>
@@ -143,19 +147,20 @@ _AMAZON_HTML = """
 
 def test_resolve_amazon_scrape(monkeypatch):
     monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_HTML)
+    monkeypatch.setattr(mi, "_get_json", lambda url, headers=None: None)  # no Deezer
     info = mi.resolve("https://music.amazon.es/albums/B0C5JPHTGC")
     assert info.source == "amazon" and info.name == "My Album"
     assert [t.title for t in info.tracks] == ["T1", "T2"]
     assert info.tracks[0].is_explicit is True  # had [Explicit]
     assert info.tracks[1].artists == "The Artist & X"
     assert info.subtitle == "The Artist"
+    # The header cover comes straight from Amazon (size token stripped to full-res),
+    # and with Deezer offering nothing each track keeps its own Amazon art.
+    assert info.cover_url == "https://m.media-amazon.com/images/I/HEADER.jpg"
+    assert info.tracks[0].cover_url == "https://m.media-amazon.com/images/I/T1.jpg"
+    assert info.tracks[1].cover_url == "https://m.media-amazon.com/images/I/T2.jpg"
 
 
-# Same album HTML but with no og:image — the real Amazon embed exposes neither
-# cover art nor durations, so resolution must fall back to Deezer for both.
-_AMAZON_HTML_NO_COVER = _AMAZON_HTML.replace(
-    '<meta property="og:image" content="http://cover.jpg" />', ""
-)
 _DEEZER_SEARCH = {"data": [{"id": 99, "cover_xl": "http://dz/cover_xl"}]}
 _DEEZER_ALBUM_LOOKUP = {
     "cover_xl": "http://dz/cover_xl",
@@ -167,17 +172,19 @@ _DEEZER_ALBUM_LOOKUP = {
 
 
 def test_resolve_amazon_enriches_from_deezer(monkeypatch):
-    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_HTML_NO_COVER)
+    # The embed has no durations, so Deezer still fills them — and supplies a
+    # higher-res cover for the (non-original) tracks. The header stays Amazon's.
+    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_HTML)
 
     def fake_json(url, headers=None):
         return _DEEZER_ALBUM_LOOKUP if "/album/" in url else _DEEZER_SEARCH
 
     monkeypatch.setattr(mi, "_get_json", fake_json)
     info = mi.resolve("https://music.amazon.es/albums/B0C5JPHTGC")
-    assert info.cover_url == "http://dz/cover_xl"  # backfilled
+    assert info.cover_url == "https://m.media-amazon.com/images/I/HEADER.jpg"  # Amazon
     assert info.tracks[0].duration_ms == 200000  # matched "T1"
     assert info.tracks[1].duration_ms == 180000  # matched ignoring "(feat. X)"
-    assert info.tracks[0].cover_url == "http://dz/cover_xl"
+    assert info.tracks[0].cover_url == "http://dz/cover_xl"  # Deezer's higher-res art
 
 
 # A single-track embed uses a <div class="trackItem"> + a "trackArtist" link
@@ -232,6 +239,46 @@ def test_resolve_amazon_playlist_enriches_per_track(monkeypatch):
     assert all(t.cover_url == "http://dz/track_cover" for t in info.tracks)
     assert all(t.duration_ms == 210000 for t in info.tracks)
     assert info.cover_url == "http://dz/track_cover"  # import header cover
+
+
+# A curated playlist mixing an "Amazon Music Original" (artwork unique to Amazon,
+# and not on Deezer) with a regular track that Deezer does have at higher res.
+_AMAZON_ORIGINAL_HTML = """
+<title>Amazon Music - Playlist Hits</title>
+<a class="headerImg playlistHeader refLink"><img src="https://m.media-amazon.com/images/I/PL._SY240_.jpg"></a>
+<ul>
+  <li class="trackItem playlistTrackItem" data-asin="ASIN1">
+    <div class="imageBackground" style="background-image: url('https://m.media-amazon.com/images/I/ORIG.jpg');"></div>
+    <div class="trackListTitle truncate"><a href="#" class="refLink">Azul (Amazon Music Original)</a></div>
+    <div class="trackListArtist"><a href="#">Some Artist</a></div>
+  </li>
+  <li class="trackItem playlistTrackItem" data-asin="ASIN2">
+    <div class="imageBackground" style="background-image: url('https://m.media-amazon.com/images/I/REG.jpg');"></div>
+    <div class="trackListTitle truncate"><a href="#" class="refLink">Regular Song</a></div>
+    <div class="trackListArtist"><a href="#">Other Artist</a></div>
+  </li>
+</ul>
+"""
+
+
+def test_resolve_amazon_originals_keep_amazon_art(monkeypatch):
+    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_ORIGINAL_HTML)
+
+    # Deezer has the regular track (higher-res cover) but not the Amazon Original.
+    def fake_json(url, headers=None):
+        if "Regular" in url or "Other" in url:
+            return {"data": [{"album": {"cover_xl": "http://dz/reg"}, "duration": 200}]}
+        return {"data": []}  # the Original isn't on Deezer
+
+    monkeypatch.setattr(mi, "_get_json", fake_json)
+    info = mi.resolve("https://music.amazon.es/playlists/B0EXAMPLE1")
+    # Header is Amazon's own playlist art (size token stripped).
+    assert info.cover_url == "https://m.media-amazon.com/images/I/PL.jpg"
+    # The Amazon Original keeps Amazon's distinct art — Deezer can't override it…
+    assert info.tracks[0].cover_url == "https://m.media-amazon.com/images/I/ORIG.jpg"
+    # …while the regular track takes Deezer's higher-res cover + duration.
+    assert info.tracks[1].cover_url == "http://dz/reg"
+    assert info.tracks[1].duration_ms == 200000
 
 
 # Tidal single track: the embed has no <list-item>, so it's built from the
