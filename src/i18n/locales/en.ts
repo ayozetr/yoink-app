@@ -176,6 +176,7 @@ export const en = {
     openFolder: "Open folder",
     openFile: "Open file",
     retag: "Tag audio",
+    reanalyze: "Re-analyze",
   },
   stats: {
     title: "Statistics",

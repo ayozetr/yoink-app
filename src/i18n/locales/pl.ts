@@ -180,6 +180,7 @@ export const pl = {
     openFolder: "Otwórz folder",
     openFile: "Otwórz plik",
     retag: "Taguj audio",
+    reanalyze: "Przeanalizuj ponownie",
   },
   stats: {
     title: "Statystyki",

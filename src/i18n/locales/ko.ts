@@ -176,6 +176,7 @@ export const ko = {
     openFolder: "폴더 열기",
     openFile: "파일 열기",
     retag: "오디오 태그 지정",
+    reanalyze: "다시 분석",
   },
   stats: {
     title: "통계",

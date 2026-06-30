@@ -12,6 +12,7 @@ interface HistorySidebarProps {
   onOpenFolder?: (entry: HistoryEntry) => void;
   onOpenFile?: (entry: HistoryEntry) => void;
   onRetag?: (entry: HistoryEntry) => void;
+  onReanalyze?: (entry: HistoryEntry) => void;
   onClear?: () => void;
 }
 
@@ -22,6 +23,7 @@ export function HistorySidebar({
   onOpenFolder,
   onOpenFile,
   onRetag,
+  onReanalyze,
   onClear,
 }: HistorySidebarProps) {
   const { t } = useTranslation();
@@ -77,6 +79,7 @@ export function HistorySidebar({
               onOpenFolder={onOpenFolder}
               onOpenFile={onOpenFile}
               onRetag={onRetag}
+              onReanalyze={onReanalyze}
             />
           ))
         )}

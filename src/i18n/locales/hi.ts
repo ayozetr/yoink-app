@@ -176,6 +176,7 @@ export const hi = {
     openFolder: "फ़ोल्डर खोलें",
     openFile: "फ़ाइल खोलें",
     retag: "ऑडियो टैग करें",
+    reanalyze: "फिर से विश्लेषण करें",
   },
   stats: {
     title: "आँकड़े",

@@ -180,6 +180,7 @@ export const ru = {
     openFolder: "Открыть папку",
     openFile: "Открыть файл",
     retag: "Теги для аудио",
+    reanalyze: "Анализировать снова",
   },
   stats: {
     title: "Статистика",

@@ -4,6 +4,7 @@ import {
   FolderOpen,
   Music4,
   Play,
+  RotateCcw,
   Tag,
   Video,
 } from "lucide-react";
@@ -18,6 +19,7 @@ interface HistoryItemCardProps {
   onOpenFolder?: (item: HistoryEntry) => void;
   onOpenFile?: (item: HistoryEntry) => void;
   onRetag?: (item: HistoryEntry) => void;
+  onReanalyze?: (item: HistoryEntry) => void;
 }
 
 /** The output format badge, derived from the file extension (e.g. "MP4"). */
@@ -65,6 +67,7 @@ export function HistoryItemCard({
   onOpenFolder,
   onOpenFile,
   onRetag,
+  onReanalyze,
 }: HistoryItemCardProps) {
   const { t, i18n } = useTranslation();
   const [coverFailed, setCoverFailed] = useState(false);
@@ -147,6 +150,17 @@ export function HistoryItemCard({
             touch / narrow screens where there's no hover). */}
         {isCompleted && (
           <div className="flex flex-col justify-center gap-1.5 shrink-0 opacity-100 transition group-hover:opacity-100 focus-within:opacity-100 sm:opacity-0">
+            {item.url && (
+              <button
+                type="button"
+                onClick={() => onReanalyze?.(item)}
+                className="text-zinc-400 hover:text-white transition"
+                aria-label={t("history.reanalyze")}
+                title={t("history.reanalyze")}
+              >
+                <RotateCcw size={16} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onOpenFolder?.(item)}

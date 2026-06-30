@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
@@ -56,6 +56,14 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [retagItem, setRetagItem] = useState<HistoryEntry | null>(null);
+  // External "analyze this URL" requests for the downloader (re-analyze from a
+  // history row, drag-and-drop). The bumped nonce re-triggers the same URL.
+  const [analyzeReq, setAnalyzeReq] = useState<{ url: string; nonce: number } | null>(null);
+  const nonceRef = useRef(0);
+  const requestAnalyze = useCallback((rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (url) setAnalyzeReq({ url, nonce: (nonceRef.current += 1) });
+  }, []);
   // Download queue: opened from the header button; keeps running while hidden.
   const [queueOpen, setQueueOpen] = useState(false);
   const [queuePending, setQueuePending] = useState(0);
@@ -147,6 +155,43 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Drag-and-drop a link onto the window → analyze it. Only intercepts text/URL
+  // drags, and leaves drops onto editable fields alone (so the user can still
+  // drop text into the URL input normally).
+  useEffect(() => {
+    // `dataTransfer.types` is a frozen array in Chromium but a DOMStringList in
+    // WebKitGTK (Tauri's Linux webview) — `Array.from` reads both.
+    const carriesText = (e: DragEvent) => {
+      const types = e.dataTransfer ? Array.from(e.dataTransfer.types) : [];
+      return types.includes("text/uri-list") || types.includes("text/plain");
+    };
+    const onEditable = (target: EventTarget | null) =>
+      !!(target as HTMLElement | null)?.closest?.(
+        "input, textarea, [contenteditable='true']",
+      );
+    const onDragOver = (e: DragEvent) => {
+      if (carriesText(e) && !onEditable(e.target)) e.preventDefault(); // allow drop
+    };
+    const onDrop = (e: DragEvent) => {
+      if (onEditable(e.target) || !carriesText(e)) return;
+      e.preventDefault();
+      const raw =
+        e.dataTransfer!.getData("text/uri-list") ||
+        e.dataTransfer!.getData("text/plain");
+      const url = raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find((line) => /^https?:\/\//i.test(line));
+      if (url) requestAnalyze(url);
+    };
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [requestAnalyze]);
+
   const handleClear = async () => {
     try {
       await clearHistory();
@@ -173,6 +218,7 @@ export default function App() {
               defaultEmbedSubs={settings?.default_embed_subs}
               defaultEmbedChapters={settings?.default_embed_chapters}
               fetchLyrics={settings?.fetch_lyrics}
+              analyzeRequest={analyzeReq}
             />
             <QueuePanel
               open={queueOpen}
@@ -193,6 +239,7 @@ export default function App() {
             onOpenFolder={handleOpenFolder}
             onOpenFile={handleOpenFile}
             onRetag={setRetagItem}
+            onReanalyze={(entry) => requestAnalyze(entry.url)}
             onClear={handleClear}
           />
         }

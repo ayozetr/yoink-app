@@ -176,6 +176,7 @@ export const id = {
     openFolder: "Buka folder",
     openFile: "Buka berkas",
     retag: "Beri tag audio",
+    reanalyze: "Analisis ulang",
   },
   stats: {
     title: "Statistik",

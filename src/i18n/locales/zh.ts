@@ -176,6 +176,7 @@ export const zh = {
     openFolder: "打开文件夹",
     openFile: "打开文件",
     retag: "标记音频",
+    reanalyze: "重新分析",
   },
   stats: {
     title: "统计",

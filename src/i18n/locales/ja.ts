@@ -176,6 +176,7 @@ export const ja = {
     openFolder: "フォルダを開く",
     openFile: "ファイルを開く",
     retag: "音声にタグ付け",
+    reanalyze: "再解析",
   },
   stats: {
     title: "統計",

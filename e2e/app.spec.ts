@@ -347,6 +347,52 @@ test("shows the lyrics searcher when fetch-lyrics is on", async ({ page }) => {
   await expect(dialog.getByText("Encontrada (LRCLIB)")).toBeVisible();
 });
 
+test("re-analyzes a history item into a fresh preview", async ({ page }) => {
+  await mockBase(page, {
+    history: [
+      {
+        id: 1,
+        title: "Old Download",
+        url: "https://x.com/v",
+        kind: "video",
+        status: "completed",
+        filename: "Old.mp4",
+        filepath: "/x/Old.mp4",
+        filesize: 100,
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ],
+    stats: { total_downloads: 1, total_bytes: 100, transferred: "100 B" },
+  });
+  await page.route("**/api/info", (route) => route.fulfill({ json: VIDEO_INFO }));
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Volver a analizar" }).click();
+  // The history row's URL is re-analyzed and the preview appears in the main column.
+  await expect(page.getByRole("heading", { name: "My Test Video" })).toBeVisible();
+});
+
+test("analyzes a link dropped onto the window", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: VIDEO_INFO }));
+
+  await page.goto("/");
+  // Wait until the app has mounted (so the window drop listener is attached)
+  // before dispatching — otherwise the event fires into the void.
+  await expect(page.getByPlaceholder(/Pega aquí la URL/)).toBeVisible();
+  // Dispatch a synthetic drop carrying a URL (as a dragged hyperlink would).
+  // Chromium's DragEvent constructor drops the `dataTransfer` init, so attach it
+  // explicitly — a real OS drop populates it natively.
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.setData("text/uri-list", "https://x.com/dropped");
+    const ev = new DragEvent("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, "dataTransfer", { value: dt });
+    window.dispatchEvent(ev);
+  });
+  await expect(page.getByRole("heading", { name: "My Test Video" })).toBeVisible();
+});
+
 test("clears the history", async ({ page }) => {
   await mockBase(page, {
     history: [

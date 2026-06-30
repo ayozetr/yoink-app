@@ -63,6 +63,9 @@ interface DownloaderPanelProps {
   defaultEmbedChapters?: boolean;
   /** Whether "fetch lyrics" is on (Settings) — gates the auto-tag lyrics preview. */
   fetchLyrics?: boolean;
+  /** External "analyze this URL" request (re-analyze from history, drag-and-drop).
+   *  A new object (changing `nonce`) re-triggers even for the same URL. */
+  analyzeRequest?: { url: string; nonce: number } | null;
 }
 
 interface DownloadJob {
@@ -102,6 +105,7 @@ export function DownloaderPanel({
   defaultEmbedSubs,
   defaultEmbedChapters,
   fetchLyrics,
+  analyzeRequest,
 }: DownloaderPanelProps) {
   const { t } = useTranslation();
   // Shared download lock: another engine (the queue / music import) holding it
@@ -349,6 +353,18 @@ export function DownloaderPanel({
   useEffect(() => {
     analyzeRef.current = handleAnalyze;
   });
+
+  // External "analyze this URL" requests: re-analyze from history, drag-and-drop.
+  // The parent bumps `nonce` so the same URL re-triggers; the ref keeps the
+  // latest analyze without re-running on every render.
+  useEffect(() => {
+    if (!analyzeRequest?.url) return;
+    const target = analyzeRequest.url;
+    void (async () => {
+      setUrl(target);
+      await analyzeRef.current(target);
+    })();
+  }, [analyzeRequest]);
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {

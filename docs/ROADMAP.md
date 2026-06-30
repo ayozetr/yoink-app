@@ -229,10 +229,13 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   stays, since Kodi music-video libraries and other tools still read it.
 
 ### 🖥️ UX / UI
-- ⬜ **Drag-and-drop a link** onto the window (M).
+- ✅ **Drag-and-drop a link** onto the window — dropping a link anywhere analyzes
+  it (drops onto editable fields are left alone); `dragDropEnabled: false` lets
+  the webview deliver DOM drops in the packaged app.
 - ⬜ **Responsive PreviewCard** (M) — stack the fixed thumbnail + controls on narrow widths.
 - ⬜ **Unify PlaylistCard checkboxes** onto `Toggle` (S).
-- ⬜ **Re-download / re-analyze from history** (S).
+- ✅ **Re-download / re-analyze from history** — a re-analyze button on each
+  history row reloads its URL into the analyzer.
 - ⬜ **Skip-current vs cancel-all** in the queue (M).
 - ⬜ **Reorder the queue** (drag up/down) (M).
 - ⬜ **Auto-fill a clipboard URL on window focus** (M) — when the field is empty and

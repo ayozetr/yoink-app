@@ -176,6 +176,7 @@ export const it = {
     openFolder: "Apri cartella",
     openFile: "Apri file",
     retag: "Etichetta audio",
+    reanalyze: "Rianalizza",
   },
   stats: {
     title: "Statistiche",
