@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import subprocess
+import unicodedata
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -84,9 +85,40 @@ def search(artist: str, title: str) -> CandidateList:
     return CandidateList(results=_search(artist, title))
 
 
+def _norm_for_match(text: str) -> str:
+    """Lower-case, strip accents + bracketed/parenthetical noise + punctuation."""
+    text = unicodedata.normalize("NFKD", text or "")
+    text = "".join(c for c in text if not unicodedata.combining(c)).lower()
+    text = re.sub(r"[\(\[][^\)\]]*[\)\]]", " ", text)  # drop "(feat …)" / "[Remix]"
+    return re.sub(r"[^a-z0-9]+", " ", text).strip()
+
+
+def _relevant(cands: list[TagCandidate], title: str) -> list[TagCandidate]:
+    """Drop catalogue hits whose title shares *nothing* with the query title.
+
+    Fuzzy APIs (Apple Music especially) return an unrelated "closest" song when
+    they have no real match — e.g. searching a track that isn't in the store gives
+    a random hit that then masquerades as a candidate. Conservative on purpose:
+    a hit is kept if it shares any 2+ char token, or one title contains the other,
+    so only genuinely-unrelated results are removed (a real match always overlaps).
+    """
+    query = _norm_for_match(title)
+    qtok = {t for t in query.split() if len(t) >= 2}
+    if not qtok:
+        return cands  # nothing meaningful to compare against → keep everything
+    kept: list[TagCandidate] = []
+    for cand in cands:
+        norm = _norm_for_match(cand.title)
+        ctok = {t for t in norm.split() if len(t) >= 2}
+        if not ctok or (qtok & ctok) or query in norm or norm in query:
+            kept.append(cand)
+    return kept
+
+
 def _search(artist: str, title: str) -> list[TagCandidate]:
     """Search the selected catalogue (auto / Apple Music / Deezer / MusicBrainz),
-    ranked so the cleanest match for the query comes first."""
+    ranked so the cleanest match for the query comes first, with clearly-unrelated
+    fuzzy hits dropped."""
     source = settings.autotag_source
     if source == "auto":
         results = _auto_search(artist, title)
@@ -96,7 +128,7 @@ def _search(artist: str, title: str) -> list[TagCandidate]:
         results = _musicbrainz_search(artist, title)
     else:
         results = _itunes_search(artist, title)
-    return _rank(results, artist, title)
+    return _rank(_relevant(results, title), artist, title)
 
 
 _VERSION_EXTRAS = (

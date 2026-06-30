@@ -270,20 +270,40 @@ def test_musicbrainz_search_empty_term_skips_network():
 # --- source dispatch -------------------------------------------------------
 
 def test_search_dispatches_on_source(monkeypatch):
-    apple = [TagCandidate(title="A", artist="apple")]
-    deezer = [TagCandidate(title="D", artist="deezer")]
-    mb = [TagCandidate(title="M", artist="mb")]
+    # Titles share the query's "Song" token so the relevance filter keeps them
+    # (this test is about source dispatch, not relevance).
+    apple = [TagCandidate(title="Song", artist="apple")]
+    deezer = [TagCandidate(title="Song", artist="deezer")]
+    mb = [TagCandidate(title="Song", artist="mb")]
     monkeypatch.setattr(svc, "_itunes_search", lambda *a, **k: apple)
     monkeypatch.setattr(svc, "_deezer_search", lambda *a, **k: deezer)
     monkeypatch.setattr(svc, "_musicbrainz_search", lambda *a, **k: mb)
     monkeypatch.setattr(svc.settings, "autotag_source", "apple")
-    assert svc._search("a", "b") == apple
+    assert svc._search("artist", "Song") == apple
     monkeypatch.setattr(svc.settings, "autotag_source", "deezer")
-    assert svc._search("a", "b") == deezer
+    assert svc._search("artist", "Song") == deezer
     monkeypatch.setattr(svc.settings, "autotag_source", "musicbrainz")
-    assert svc._search("a", "b") == mb
+    assert svc._search("artist", "Song") == mb
     monkeypatch.setattr(svc.settings, "autotag_source", "auto")
-    assert svc._search("a", "b") == apple + deezer  # auto merges Apple + Deezer
+    assert svc._search("artist", "Song") == apple + deezer  # auto merges Apple + Deezer
+
+
+def test_search_drops_unrelated_fuzzy_hits(monkeypatch):
+    # Apple Music returns an unrelated "closest" song when it has no real match;
+    # it must not masquerade as a candidate. A same-title hit is kept.
+    monkeypatch.setattr(svc.settings, "autotag_source", "apple")
+    monkeypatch.setattr(svc, "_itunes_search", lambda *a, **k: [
+        TagCandidate(title="Mantecao", artist="Cruz Cafuné & Choclock"),  # unrelated
+        TagCandidate(title="Amén (Remix)", artist="Someone"),             # shares "amén"
+    ])
+    titles = [c.title for c in svc._search("Cruz Cafuné", "Amén")]
+    assert "Mantecao" not in titles      # zero title overlap → dropped
+    assert "Amén (Remix)" in titles      # shares the title token → kept
+
+
+def test_relevant_keeps_all_when_query_blank():
+    cands = [TagCandidate(title="Whatever", artist="X")]
+    assert svc._relevant(cands, "") == cands  # no query tokens → no false drops
 
 
 def test_rank_puts_cleanest_match_first():
