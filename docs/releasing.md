@@ -26,6 +26,10 @@ Prerequisites on the build host:
   platform (downloads LGPL builds to `backend/vendor/ffmpeg/`). The sidecar
   embeds them, so the shipped app needs no system ffmpeg. See
   [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the LGPL attribution.
+- For the `.rpm` (built by converting the `.deb` — see §3): **`alien`**,
+  **`rpmbuild`** and **`fakeroot`** on PATH. Arch/CachyOS: `pacman -S rpm-tools
+  fakeroot` + `alien` from the AUR; Fedora: `dnf install alien rpm-build
+  fakeroot`; Debian/Ubuntu: `apt install alien fakeroot` (pulls `rpm`).
 
 ## 1. Bump the version
 
@@ -78,27 +82,56 @@ wired to yt-dlp via `ffmpeg_location` (`app/core/ffmpeg.py`).
 
 ## 3. Build the bundles
 
+Build **only** the `.deb` + AppImage with Tauri, then make the `.rpm` from the
+`.deb` (see below) — **do not** let Tauri bundle the rpm:
+
 ```bash
 APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 \
-  npm run tauri build
+  npx tauri build --bundles deb,appimage
 ```
 
-The `.deb` and `.rpm` are produced by their own packagers and practically never
-fail. The **AppImage** step (`linuxdeploy`) is the fragile one — see
-troubleshooting below. `APPIMAGE_EXTRACT_AND_RUN=1` is what makes it work on
-hosts without FUSE.
+> **Why skip Tauri's rpm.** Tauri's rpm bundler (the `rpm` Rust crate) takes
+> **10–12 min** to package the ~170 MB PyInstaller sidecar, while the `.deb` and
+> AppImage of the same payload bundle in *seconds*. It isn't the compressor
+> (the sidecar is incompressible — even `xz -9` is ~45 s) but the crate itself.
+> So we build deb+appimage here and convert the deb to rpm in §3b (seconds).
+> The rpm plays **no part in self-update** (the updater only uses the AppImage on
+> Linux — see §6), so this can't affect existing users' auto-updates.
+
+The `.deb` packager practically never fails. The **AppImage** step
+(`linuxdeploy`) is the fragile one — see troubleshooting below.
+`APPIMAGE_EXTRACT_AND_RUN=1` is what makes it work on hosts without FUSE.
 
 The Wayland blank-screen fix is **in the binary** (`src-tauri/src/main.rs`
 forces `WEBKIT_DISABLE_DMABUF_RENDERER=1` before any webview code runs), so it
-is present in all three bundles automatically — nothing to set per-package or
+is present in all bundles automatically — nothing to set per-package or
 at runtime.
+
+### 3b. Make the `.rpm` from the `.deb` (seconds, not minutes)
+
+```bash
+python scripts/build_rpm.py
+```
+
+This converts the freshly-built `.deb` to `.rpm` with `alien`, whose `rpmbuild`
+backend re-derives the **same soname `Requires`** Tauri's rpm declared
+(`libwebkit2gtk-4.1.so.0()(64bit)`, …) directly from the ELF binaries — so the
+result is functionally equivalent and installs on any rpm distro. It writes
+`src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm`.
+
+> **Verify before publishing** (the conversion is mechanical but confirm it on a
+> real rpm distro the first time): `rpm -qp --requires <rpm>` should list the same
+> sonames, and a clean install should pull webkit2gtk/gtk3, e.g.
+> `podman run --rm -v <rpm-dir>:/p:Z fedora bash -c 'dnf -y install /p/<file>.rpm'`.
+> *Fallback if `alien` is ever unavailable:* let Tauri grind the rpm with
+> `npx tauri build --bundles rpm` (slow), as earlier releases did.
 
 Output paths:
 
 ```
 src-tauri/target/release/bundle/appimage/Yoink_<ver>_amd64.AppImage
 src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb
-src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm
+src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm   # from §3b
 ```
 
 ## 4. Smoke-test
@@ -147,11 +180,15 @@ is on, so a signed build emits a `.sig` next to each bundle.
 ```bash
 export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yoink.key)"      # path or contents
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat ~/.tauri/pass)"  # a temp file — never inline the password
-APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 npm run tauri build
+APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 \
+  npx tauri build --bundles deb,appimage
+python scripts/build_rpm.py   # §3b — the rpm from the deb (the updater never uses it, so it needs no sig)
 ```
 
-This emits a `.sig` next to each bundle (`…/Yoink_<ver>_amd64.AppImage.sig`). Each
-`.sig` holds one base64 signature string.
+This emits a `.sig` next to the **AppImage** (`…/Yoink_<ver>_amd64.AppImage.sig`) —
+the only Linux artifact the updater self-installs from. Each `.sig` holds one
+base64 signature string. The `.deb`/`.rpm` need no signature (the updater offers
+their users a "view release" link instead of auto-installing — see the note below).
 
 **Windows — sign locally, never on the build VM.** The signing key must not leave
 your machine, so the Windows installers are built **unsigned** on the VM

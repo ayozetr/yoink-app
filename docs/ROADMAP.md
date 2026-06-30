@@ -272,14 +272,17 @@ also in *Next up* are the urgent ones.)
 - ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
   frontend `estimatedSizeBytes`/`formatBytes`.
 - ⬜ **PyInstaller `--onedir`** (M) — faster cold start (no per-launch re-extraction).
-- ⬜ **Slow `.rpm` bundling at release time** (M · build) — Tauri 2.11's rpm bundler
-  takes ~10–12 min to package the ~180 MB ffmpeg sidecar (the `Bundling …rpm` step
-  is CPU-bound *regardless of compression* — forcing `gzip` was no faster than the
-  default, so the compressor isn't the bottleneck). The `.deb` and AppImage of the
-  same payload bundle in seconds. v2.3.1 shipped the rpm by letting it grind in the
-  background after publishing the other assets. Investigate:
-  `bundle.linux.rpm.compression: { "type": "none" }`, converting the `.deb` with
-  `alien`/`fpm`, or an upstream tauri-bundler issue — so a release isn't gated on it.
+- ✅ **Slow `.rpm` bundling at release time** (M · build) — Tauri 2.11's rpm
+  bundler took ~10–12 min to package the ~170 MB PyInstaller sidecar, while the
+  `.deb`/AppImage of the same payload bundle in seconds. **Root-caused** (measured
+  on the real sidecar): *not* compression — the binary is incompressible, so even
+  `xz -9` is ~45 s, and SHA256/cpio are <1 s — the cost is inside the `rpm` Rust
+  crate itself. **Fixed** by building only deb+appimage with Tauri
+  (`--bundles deb,appimage`) and converting the deb → rpm with
+  `scripts/build_rpm.py` (`alien`, whose `rpmbuild` backend re-derives the same
+  soname `Requires` from the ELF binaries). Seconds instead of minutes; the rpm
+  plays no part in self-update, so it can't affect existing users. See
+  [`releasing.md`](releasing.md) §3/§3b.
 - ✅ **Friendlier download/extraction error messages** *(next)* —
   `friendly_download_error()` strips the `ERROR:`/`[extractor]`/"report this issue"
   noise and maps the common cases (bot-check/403/429 → cookies hint, private/
