@@ -61,6 +61,8 @@ interface DownloaderPanelProps {
   /** Persisted "embed subtitles/chapters by default" toggles (seed the preview). */
   defaultEmbedSubs?: boolean;
   defaultEmbedChapters?: boolean;
+  /** Whether "fetch lyrics" is on (Settings) — gates the auto-tag lyrics preview. */
+  fetchLyrics?: boolean;
 }
 
 interface DownloadJob {
@@ -99,6 +101,7 @@ export function DownloaderPanel({
   defaultAudioFormat,
   defaultEmbedSubs,
   defaultEmbedChapters,
+  fetchLyrics,
 }: DownloaderPanelProps) {
   const { t } = useTranslation();
   // Shared download lock: another engine (the queue / music import) holding it
@@ -585,6 +588,7 @@ export function DownloaderPanel({
             filename={completed.filename}
             onDismiss={() => setTagDismissedSingle(true)}
             onApplied={onDownloadFinished}
+            fetchLyrics={fetchLyrics}
           />
         </Suspense>
       )}

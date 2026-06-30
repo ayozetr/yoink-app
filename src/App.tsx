@@ -172,6 +172,7 @@ export default function App() {
               defaultAudioFormat={settings?.default_audio_format}
               defaultEmbedSubs={settings?.default_embed_subs}
               defaultEmbedChapters={settings?.default_embed_chapters}
+              fetchLyrics={settings?.fetch_lyrics}
             />
             <QueuePanel
               open={queueOpen}
@@ -238,6 +239,7 @@ export default function App() {
                 onDismiss={() => setRetagItem(null)}
                 onApplied={refresh}
                 autoOpen
+                fetchLyrics={settings?.fetch_lyrics}
                 panelClassName="!bg-[#16181f]"
               />
             </Suspense>

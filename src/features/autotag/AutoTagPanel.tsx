@@ -37,6 +37,9 @@ interface AutoTagPanelProps {
   autoOpen?: boolean;
   /** Extra classes for the root panel (e.g. a solid bg when shown in a modal). */
   panelClassName?: string;
+  /** Whether "fetch lyrics" is enabled (Settings). When off, the lyrics preview
+   *  is neither looked up nor shown. */
+  fetchLyrics?: boolean;
 }
 
 const INPUT =
@@ -59,6 +62,7 @@ export function AutoTagPanel({
   onApplied,
   autoOpen,
   panelClassName = "",
+  fetchLyrics = false,
 }: AutoTagPanelProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(!!autoOpen);
@@ -214,7 +218,7 @@ export function AutoTagPanel({
   // Look the track's lyrics up (debounced) while reviewing, for the indicator
   // + preview; the checkbox defaults to whatever LRCLIB returned.
   useEffect(() => {
-    if (stage !== "review" || !title.trim()) return;
+    if (stage !== "review" || !title.trim() || !fetchLyrics) return;
     let cancelled = false;
     const id = window.setTimeout(() => {
       setLyrics(null);
@@ -242,7 +246,7 @@ export function AutoTagPanel({
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [stage, title, artist, album, path]);
+  }, [stage, title, artist, album, path, fetchLyrics]);
 
   const onApply = async () => {
     setStage("applying");
@@ -473,7 +477,7 @@ export function AutoTagPanel({
             </div>
           )}
 
-          {reviewing && (lyricsLoading || lyrics) && (
+          {fetchLyrics && reviewing && (lyricsLoading || lyrics) && (
             <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
               {lyricsLoading ? (
                 <p className="flex items-center gap-2 text-xs text-zinc-400">
