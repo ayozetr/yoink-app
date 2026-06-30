@@ -26,6 +26,19 @@ _HEADERS = {"User-Agent": "Yoink (https://github.com/ayozetr/yoink-app)"}
 # A source's reported duration and LRCLIB's can differ by a second or two; the
 # title+duration fallback accepts a same-title hit within this many seconds.
 _DURATION_TOLERANCE = 2.0
+# Parenthetical/bracketed noise YouTube titles carry that LRCLIB's never do
+# ("(Official Video)", "(Visualizer)", "(Lyrics)"…); stripped for the title-only
+# search so e.g. "ISSEY MIYAKE (Visualizer)" still matches LRCLIB's "ISSEY MIYAKE".
+_TITLE_NOISE = re.compile(
+    r"\s*[\(\[][^\)\]]*\b(?:official|video|audio|lyric|letra|visuali[sz]er|"
+    r"videoclip|oficial|remaster(?:ed)?|hd|4k|mv)\b[^\)\]]*[\)\]]",
+    re.IGNORECASE,
+)
+
+
+def _clean_title(title: str) -> str:
+    """Drop video/audio/lyric-noise parentheticals from a title for searching."""
+    return re.sub(r"\s+", " ", _TITLE_NOISE.sub("", title or "")).strip()
 
 
 @dataclass
@@ -107,12 +120,17 @@ def fetch_lyrics(
     #     LRCLIB's — a renamed act (Cruz Cafuné → "Cruzzi"), or a YouTube channel
     #     name standing in for the artist — so when the artist-keyed lookups miss,
     #     accept a same-title hit whose duration lines up (the signature LRCLIB
-    #     itself matches on). Cheap, and well ahead of the looser fuzzy steps.
+    #     itself matches on). Try the raw title first, then a noise-stripped one
+    #     ("… (Official Video)") — additive, so it can only turn misses into hits.
+    #     Cheap, and well ahead of the looser fuzzy steps.
     if duration:
-        title_hits = _get_json(
-            f"{_BASE}/search?{urllib.parse.urlencode({'track_name': title})}"
-        )
-        if isinstance(title_hits, list):
+        cleaned = _clean_title(title)
+        for search_title in [title, *( [cleaned] if cleaned and cleaned != title else [] )]:
+            title_hits = _get_json(
+                f"{_BASE}/search?{urllib.parse.urlencode({'track_name': search_title})}"
+            )
+            if not isinstance(title_hits, list):
+                continue
             for hit in title_hits:
                 hd = hit.get("duration") if isinstance(hit, dict) else None
                 if not isinstance(hd, (int, float)) or abs(hd - duration) > _DURATION_TOLERANCE:

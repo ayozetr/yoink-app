@@ -81,6 +81,27 @@ def test_title_duration_fallback_when_artist_differs(monkeypatch):
     assert lyr.fetch_lyrics("Song", "Wrong Artist") is None
 
 
+def test_title_cleaning_fallback(monkeypatch):
+    assert lyr._clean_title("ISSEY MIYAKE (Visualizer)") == "ISSEY MIYAKE"
+    assert lyr._clean_title("Song (Official Video) [4K]") == "Song"
+    assert lyr._clean_title("Plain Title") == "Plain Title"  # nothing to strip
+
+    # The noisy raw title finds nothing; the cleaned one matches by duration.
+    def fake(url: str):
+        if "/get?" in url or "artist_name=" in url:
+            return None if "/get?" in url else []
+        if "/search?" in url:
+            if "Official" in url:  # raw "Song (Official Video)" — LRCLIB has none
+                return []
+            return [{"trackName": "Song", "artistName": "Real", "duration": 200,
+                     "plainLyrics": "the lyrics", "instrumental": False}]
+        return None
+
+    monkeypatch.setattr(lyr, "_get_json", fake)
+    r = lyr.fetch_lyrics("Song (Official Video)", "Wrong Artist", duration=200)
+    assert r is not None and r.plain == "the lyrics"
+
+
 def test_empty_title_short_circuits(monkeypatch):
     called = False
 
