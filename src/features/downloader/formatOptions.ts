@@ -59,13 +59,41 @@ export const AUDIO_FORMATS: AudioFormatOption[] = [
 /** Default audio format (mirrors the backend default). */
 export const DEFAULT_AUDIO_FORMAT: AudioFormat = "mp3";
 
-/** Pull a pixel height out of a yt-dlp resolution/note string. */
-function formatHeight(format: MediaFormat): number | null {
+/** Standard quality tiers (vertical resolution), used to label + match formats. */
+const QUALITY_TIERS = [144, 240, 360, 480, 720, 1080, 1440, 2160, 4320];
+
+/** Snap a raw pixel value to the nearest standard tier (rounds off encoder noise). */
+function snapToTier(value: number): number {
+  return QUALITY_TIERS.reduce((best, tier) =>
+    Math.abs(tier - value) < Math.abs(best - value) ? tier : best,
+  );
+}
+
+/** Whether these formats come from YouTube, whose quality labels are the tier
+ *  (so an ultrawide 1920×818 is "1080p"). Only there do we normalise to tiers —
+ *  other sites keep their raw pixel height so we don't relabel them wrongly. */
+function isYoutube(info: VideoInfo): boolean {
+  return /youtube/i.test(info.extractor ?? "");
+}
+
+/**
+ * The quality height for a format. For YouTube (`normalize`) it's the standard
+ * tier the frame fits into — for a wide frame `width × 9/16` (so an ultrawide
+ * 1920×818 is "1080p", not "818p"), for a tall / 4:3 one the shorter side;
+ * `max()` of the two covers every aspect ratio. For other sites it's the raw
+ * pixel height, unchanged.
+ */
+function formatHeight(format: MediaFormat, normalize: boolean): number | null {
   const source = format.resolution ?? "";
-  const wxh = source.match(/\d+\s*[x×]\s*(\d+)/i);
-  if (wxh) return Number(wxh[1]);
+  const wxh = source.match(/(\d+)\s*[x×]\s*(\d+)/i);
+  if (wxh) {
+    const w = Number(wxh[1]);
+    const h = Number(wxh[2]);
+    if (!normalize) return h;
+    return snapToTier(Math.max(Math.min(w, h), Math.round((Math.max(w, h) * 9) / 16)));
+  }
   const p = source.match(/(\d+)\s*p/i);
-  if (p) return Number(p[1]);
+  if (p) return normalize ? snapToTier(Number(p[1])) : Number(p[1]);
   return null;
 }
 
@@ -90,10 +118,11 @@ export function availableKinds(info: VideoInfo): KindOption[] {
  * empty list when the URL only exposes audio.
  */
 export function videoQualities(info: VideoInfo): string[] {
+  const normalize = isYoutube(info);
   const heights = new Set<number>();
   for (const format of info.formats) {
     if (!format.has_video) continue;
-    const height = formatHeight(format);
+    const height = formatHeight(format, normalize);
     if (height) heights.add(height);
   }
   return [...heights].sort((a, b) => b - a).map((height) => `${height}p`);
@@ -132,11 +161,12 @@ export function estimatedSizeBytes(
   }
 
   const target = quality ? Number.parseInt(quality, 10) : NaN;
+  const normalize = isYoutube(info);
   let videoBytes: number | null = null;
   let progressive = false;
   for (const format of info.formats) {
     if (!format.has_video || format.filesize == null) continue;
-    const height = formatHeight(format);
+    const height = formatHeight(format, normalize);
     if (Number.isFinite(target) && height !== target) continue;
     if (videoBytes == null || format.filesize > videoBytes) {
       videoBytes = format.filesize;
