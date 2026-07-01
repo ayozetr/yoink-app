@@ -22,7 +22,7 @@ interface HistoryItemCardProps {
   onReanalyze?: (item: HistoryEntry) => void;
 }
 
-/** The output format badge, derived from the file extension (e.g. "MP4"). */
+/** The output format, from the file extension (e.g. "MP4") — shown on the cover. */
 function formatLabel(filename: string | null): string | null {
   if (!filename) return null;
   const ext = filename.split(".").pop();
@@ -88,16 +88,21 @@ export function HistoryItemCard({
   const showCover =
     isCompleted && item.kind === "audio" && !!item.filepath && !coverFailed;
 
-  // Completed: "1080p · 45 MB · 5 min ago". Failed: "Failed · 5 min ago".
-  const meta = isCompleted
-    ? [item.quality, size, when].filter(Boolean).join(" · ")
-    : [t("history.error"), when].filter(Boolean).join(" · ");
+  // The flexible lead ("1080p · 45 MB" / "Failed") may truncate if space is
+  // tight; the time (`when`) is rendered separately and pinned (shrink-0) so it's
+  // always shown in full — a long relative time ("hace 3 horas") no longer gets
+  // cut off the end.
+  const metaLead = isCompleted
+    ? [item.quality, size].filter(Boolean).join(" · ")
+    : t("history.error");
 
   return (
     <div className="group rounded-2xl border border-white/10 bg-surface/70 hover:bg-surface-hover transition p-3">
       <div className="relative flex items-center gap-3">
-        {/* Cover art (tagged audio) or a kind icon over a gradient */}
-        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500/40 to-blue-500/40 flex items-center justify-center shrink-0 overflow-hidden">
+        {/* Cover art (tagged audio) or a kind icon over a gradient, with the
+            output format as a small chip in the corner — so it stays visible
+            without taking width from the "quality · size · time" line. */}
+        <div className="relative w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500/40 to-blue-500/40 flex items-center justify-center shrink-0 overflow-hidden">
           {showCover && item.filepath ? (
             <img
               src={coverUrl(item.filepath, item.mtime ?? undefined)}
@@ -110,24 +115,35 @@ export function HistoryItemCard({
           ) : (
             <Video size={18} />
           )}
+          {fmt && (
+            <span className="absolute bottom-0 right-0 rounded-tl-md bg-black/75 px-1 py-px text-[9px] font-semibold leading-tight tracking-wide text-white">
+              {fmt}
+            </span>
+          )}
         </div>
 
-        <div className="flex-1 min-w-0">
+        {/* Title + meta fade fully out on hover so only the cover + action pill
+            remain (the info reads when not hovering). A fade, not a CSS blur —
+            blur ghosts in the packaged WebKitGTK build over the scrollable list.
+            The cover is a sibling, so it stays sharp. */}
+        <div className="flex-1 min-w-0 transition-opacity duration-150 sm:group-hover:opacity-0">
           <p className="text-sm font-medium truncate">{item.title}</p>
 
-          {/* Status icon + format badge + size · time (truncates if tight) */}
+          {/* Status icon + "format · quality · size" (truncates if tight) + the
+              time, pinned so it always shows in full. */}
           <div className="mt-1.5 flex items-center gap-1.5 text-xs min-w-0">
             {isCompleted ? (
               <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
             ) : (
               <AlertCircle size={13} className="shrink-0 text-red-400" />
             )}
-            {isCompleted && fmt && (
-              <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 font-medium text-zinc-300">
-                {fmt}
+            {metaLead && <span className="truncate text-zinc-400">{metaLead}</span>}
+            {when && (
+              <span className="shrink-0 text-zinc-400">
+                {metaLead ? "· " : ""}
+                {when}
               </span>
             )}
-            <span className="truncate text-zinc-400">{meta}</span>
           </div>
 
           {!isCompleted && item.error_message && (
@@ -152,7 +168,7 @@ export function HistoryItemCard({
             quality · size · time) keeps the full row and isn't truncated. On
             touch/narrow screens (no hover) they stay in flow, always visible. */}
         {isCompleted && (
-          <div className="flex items-center gap-2 shrink-0 opacity-100 transition group-hover:opacity-100 focus-within:opacity-100 sm:absolute sm:right-1 sm:top-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-surface-hover sm:px-2 sm:py-1.5 sm:opacity-0 sm:shadow-md sm:shadow-black/20">
+          <div className="flex items-center gap-2 shrink-0 opacity-100 transition group-hover:opacity-100 focus-within:opacity-100 sm:absolute sm:left-[calc(50%_+_1.875rem)] sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-surface-hover sm:px-2 sm:py-1.5 sm:opacity-0 sm:shadow-md sm:shadow-black/20">
             {item.url && (
               <button
                 type="button"
