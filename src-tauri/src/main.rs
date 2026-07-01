@@ -96,7 +96,8 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
         }
     }
 
-    match Command::new(&exe)
+    let mut command = Command::new(&exe);
+    command
         .env("YOINK_PORT", port.to_string())
         // Give it a stdin pipe kept open for the process's lifetime (the Child
         // owns the write end). The backend's watchdog reads stdin and exits on
@@ -106,9 +107,19 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
         // launch — and wrongly trip that watchdog at startup.)
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
-        .stderr(Stdio::inherit())
-        .spawn()
+        .stderr(Stdio::null());
+
+    // The backend is a console-subsystem exe; without this flag Windows opens a
+    // visible terminal window for it. CREATE_NO_WINDOW hides it (the sidecar
+    // plugin did this for us before) while the stdin pipe still works.
+    #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    match command.spawn() {
         Ok(child) => Some(child),
         Err(err) => {
             eprintln!("[yoink] failed to start backend: {err}");
