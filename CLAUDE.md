@@ -165,13 +165,16 @@ pytest                                # run the backend test suite
 
 ```bash
 python scripts/fetch_ffmpeg.py    # once: download ffmpeg+ffprobe (LGPL) to bundle
-python scripts/build_backend.py   # bundle the backend (+ffmpeg) as a PyInstaller sidecar
+python scripts/build_backend.py   # bundle the backend (+ffmpeg) as a PyInstaller onedir folder
 npm run tauri build               # produce desktop installers in src-tauri/target
 ```
 
-The Tauri shell (`src-tauri/`) loads the built frontend and launches the
-bundled backend sidecar on startup. The sidecar embeds ffmpeg/ffprobe (wired to
-yt-dlp via `ffmpeg_location`), so the shipped app needs no system ffmpeg.
+The Tauri shell (`src-tauri/`) loads the built frontend and, on startup,
+launches the bundled backend — a PyInstaller **one-folder** distribution shipped
+as a Tauri `resources` entry, spawned by `main.rs` (`--onedir`, not a onefile
+sidecar: it starts faster with no per-launch extraction). It embeds
+ffmpeg/ffprobe (wired to yt-dlp via `ffmpeg_location`), so the shipped app needs
+no system ffmpeg.
 Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1). Icons are
 generated with `npm run tauri icon`. See `docs/releasing.md` for the full
 release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.

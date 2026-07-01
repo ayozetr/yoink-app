@@ -1,14 +1,14 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::path::PathBuf;
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 
 use tauri::Manager;
-use tauri_plugin_shell::process::{CommandChild, CommandEvent};
-use tauri_plugin_shell::ShellExt;
 
-/// Holds the backend sidecar handle so we can kill it when the app exits.
-struct BackendProcess(Mutex<Option<CommandChild>>);
+/// Holds the backend process handle so we can kill it when the app exits.
+struct BackendProcess(Mutex<Option<Child>>);
 
 /// The port the backend actually bound, exposed to the frontend so it can target
 /// the right URL when 8756 was taken and we fell back to a free port.
@@ -42,36 +42,74 @@ fn pick_backend_port() -> u16 {
     DEFAULT_PORT
 }
 
-/// Spawn the bundled FastAPI backend (PyInstaller sidecar) and pipe its logs.
+/// Locate the bundled backend executable inside the app's resource directory.
 ///
-/// The sidecar is told which port to bind via `YOINK_PORT`. In development the
-/// backend is started separately, so a missing sidecar is not an error — we just
-/// skip it. Returns the child handle so the caller can terminate it on exit
-/// (otherwise it would linger and hold the port).
-fn spawn_backend(app: &tauri::App, port: u16) -> Option<CommandChild> {
-    let sidecar = match app.shell().sidecar("yoink-backend") {
-        Ok(command) => command,
-        Err(err) => {
-            eprintln!("[yoink] backend sidecar unavailable (dev mode?): {err}");
+/// The backend ships as a PyInstaller **one-folder** distribution bundled as a
+/// Tauri resource, so the exe lives next to its `_internal/` libraries. Try the
+/// few layouts Tauri may place resources under, so a layout quirk on one platform
+/// doesn't stop it being found. Returns `None` in dev (no bundled resource) — the
+/// backend then runs separately on the default port.
+fn backend_exe(app: &tauri::App) -> Option<PathBuf> {
+    let resource_dir = app.path().resource_dir().ok()?;
+    let name = if cfg!(windows) {
+        "yoink-backend.exe"
+    } else {
+        "yoink-backend"
+    };
+    for sub in [
+        "backend",
+        "backend/yoink-backend",
+        "binaries/yoink-backend",
+        "resources/backend",
+        "resources/binaries/yoink-backend",
+    ] {
+        let candidate = resource_dir.join(sub).join(name);
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// Spawn the bundled FastAPI backend, telling it which port to bind via
+/// `YOINK_PORT`. Returns the child handle so the caller can terminate it on exit
+/// (otherwise it would linger and hold the port). Its own logs still go to
+/// `~/.yoink/logs/yoink.log`; stderr is inherited so a terminal launch shows it.
+fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
+    let exe = match backend_exe(app) {
+        Some(path) => path,
+        None => {
+            eprintln!("[yoink] bundled backend not found (dev mode?) — skipping spawn");
             return None;
         }
     };
-    let sidecar = sidecar.env("YOINK_PORT", port.to_string());
 
-    match sidecar.spawn() {
-        Ok((mut rx, child)) => {
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        CommandEvent::Stdout(line) | CommandEvent::Stderr(line) => {
-                            eprint!("[backend] {}", String::from_utf8_lossy(&line));
-                        }
-                        _ => {}
-                    }
-                }
-            });
-            Some(child)
+    // Resources can lose their executable bit when copied into the bundle; make
+    // sure the exe is runnable before spawning it.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(&exe) {
+            let mut perms = meta.permissions();
+            perms.set_mode(perms.mode() | 0o755);
+            let _ = std::fs::set_permissions(&exe, perms);
         }
+    }
+
+    match Command::new(&exe)
+        .env("YOINK_PORT", port.to_string())
+        // Give it a stdin pipe kept open for the process's lifetime (the Child
+        // owns the write end). The backend's watchdog reads stdin and exits on
+        // EOF, so if the app dies without running the exit handler, the closed
+        // pipe still shuts the backend down instead of leaving it on the port.
+        // (Inheriting stdin would EOF immediately with no tty — file-manager
+        // launch — and wrongly trip that watchdog at startup.)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::inherit())
+        .spawn()
+    {
+        Ok(child) => Some(child),
         Err(err) => {
             eprintln!("[yoink] failed to start backend: {err}");
             None
@@ -79,36 +117,30 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<CommandChild> {
     }
 }
 
-/// Terminate the backend sidecar and its entire process tree.
+/// Terminate the backend and any children (e.g. a running ffmpeg) on app exit.
 ///
-/// PyInstaller's `--onefile` exe is a *bootloader* that spawns the real Python
-/// process as a child. `CommandChild::kill()` only reaps the bootloader, so the
-/// Python child must be taken down separately or it lingers holding the backend
-/// port (on Windows it also keeps `yoink-backend.exe` open, breaking the NSIS
-/// updater). Kill the whole tree by PID on Windows; on Unix kill the bootloader
-/// and its child explicitly (closing stdin also trips the sidecar's in-process
-/// watchdog as a backstop).
-fn kill_sidecar(child: CommandChild) {
+/// With the one-folder build the spawned exe *is* the backend process (no
+/// PyInstaller bootloader indirection), so `kill()` ends it directly. Its
+/// grandchildren are reaped first — by process group on Windows (`taskkill /T`)
+/// and by parent PID on Unix — so nothing lingers holding the backend port.
+fn kill_backend(mut child: Child) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let pid = child.pid();
-        let _ = std::process::Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
+        let _ = Command::new("taskkill")
+            .args(["/PID", &child.id().to_string(), "/T", "/F"])
             .creation_flags(CREATE_NO_WINDOW)
             .status();
     }
     #[cfg(not(windows))]
     {
-        // Kill the bootloader's Python child directly (by parent PID) so it can't
-        // linger on the backend port if the stdin-EOF watchdog is slow, then reap
-        // the bootloader itself.
-        let _ = std::process::Command::new("pkill")
-            .args(["-TERM", "-P", &child.pid().to_string()])
+        let _ = Command::new("pkill")
+            .args(["-TERM", "-P", &child.id().to_string()])
             .status();
-        let _ = child.kill();
     }
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 /// Whether the app is running as a Linux AppImage — the only Linux package the
@@ -151,7 +183,6 @@ fn main() {
                 let _ = window.set_focus();
             }
         }))
-        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
@@ -182,7 +213,7 @@ fn main() {
                 if let Some(state) = app_handle.try_state::<BackendProcess>() {
                     if let Ok(mut guard) = state.0.lock() {
                         if let Some(child) = guard.take() {
-                            kill_sidecar(child);
+                            kill_backend(child);
                         }
                     }
                 }

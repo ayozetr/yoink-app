@@ -274,7 +274,13 @@ also in *Next up* are the urgent ones.)
 - ⬜ **ruff + mypy in CI** (S) — currently only `pytest` runs (CI itself paused on billing).
 - ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
   frontend `estimatedSizeBytes`/`formatBytes`.
-- ⬜ **PyInstaller `--onedir`** (M) — faster cold start (no per-launch re-extraction).
+- ✅ **PyInstaller `--onedir`** (M) — the backend ships as a one-folder Tauri
+  resource spawned by `main.rs` (std::process, stdin-pipe shutdown watchdog),
+  not a onefile sidecar, so it starts without re-extracting ~180 MB each launch.
+  Trade-off: bigger install (AppImage ~173→255 MB). Verified end-to-end on Linux
+  (spawns, binds :8756, ffmpeg/yt-dlp work, no orphan on exit); self-update is
+  unaffected (the updater swaps the whole AppImage). Windows launch to be smoke-
+  tested on the VM before it ships.
 - ✅ **Slow `.rpm` bundling at release time** (M · build) — Tauri 2.11's rpm
   bundler took ~10–12 min to package the ~170 MB PyInstaller sidecar, while the
   `.deb`/AppImage of the same payload bundle in seconds. **Root-caused** (measured

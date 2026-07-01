@@ -36,7 +36,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/yoink-backend"],
+    "resources": {
+      "binaries/yoink-backend": "backend"
+    },
     "windows": {
       "nsis": {
         "installerHooks": "./installer-hooks.nsh"

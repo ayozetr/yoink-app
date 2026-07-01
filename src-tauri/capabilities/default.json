@@ -11,10 +11,6 @@
     "os:default",
     "process:default",
     "notification:default",
-    "core:window:allow-set-progress-bar",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [{ "name": "binaries/yoink-backend", "sidecar": true }]
-    }
+    "core:window:allow-set-progress-bar"
   ]
 }

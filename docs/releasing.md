@@ -3,7 +3,11 @@
 How a new versioned release is cut and published. Releases are **manual**
 (no CI workflow yet). Each release ships three Linux bundles: `.AppImage`,
 `.deb` and `.rpm`, each with the FastAPI backend bundled as a PyInstaller
-sidecar (so users need no Python).
+**one-folder** distribution (a Tauri *resource*, launched by `main.rs`) so users
+need no Python. It's `--onedir`, not `--onefile`: the app starts faster (no
+per-launch extraction of the ~180 MB payload) at the cost of a bigger install
+(the AppImage grew from ~173 MB to ~255 MB — the auto-update download grows to
+match).
 
 Prerequisites on the build host:
 
@@ -48,10 +52,10 @@ number across these files before building to catch a stray one.
 
 Commit the bump together with any docs/README/icon updates.
 
-## 2. Rebuild the backend sidecar
+## 2. Rebuild the backend
 
-Whenever the backend changed since the last release, rebuild the sidecar so the
-bundles ship the new code:
+Whenever the backend changed since the last release, rebuild it so the bundles
+ship the new code:
 
 ```bash
 python scripts/fetch_ffmpeg.py   # once per platform — downloads ffmpeg/ffprobe
@@ -60,11 +64,16 @@ python scripts/build_backend.py
 
 `build_backend.py` PyInstaller-bundles `backend/run_backend.py` (collecting
 yt-dlp's dynamic extractors + uvicorn internals + `curl_cffi` for impersonation,
-and embedding ffmpeg/ffprobe from `backend/vendor/ffmpeg/` if present) into
-`src-tauri/binaries/yoink-backend-<target-triple>`, the name Tauri's
-`externalBin` sidecar expects. The packaged backend listens on port **8756**
-(matching the frontend's default `VITE_API_BASE_URL`); the bundled ffmpeg is
-wired to yt-dlp via `ffmpeg_location` (`app/core/ffmpeg.py`).
+and embedding ffmpeg/ffprobe from `backend/vendor/ffmpeg/` if present) as a
+**one-folder** (`--onedir`) distribution and copies the folder to
+`src-tauri/binaries/yoink-backend/`, which `tauri.conf.json` bundles as a
+`resources` entry (`→ backend/`). `src-tauri/src/main.rs` launches the exe inside
+it directly (`std::process`), passing the port via `YOINK_PORT` and keeping a
+stdin pipe open as a shutdown watchdog; it kills the process (and any ffmpeg
+grandchild) on exit. The packaged backend listens on **8756** (matching the
+frontend's default `VITE_API_BASE_URL`); the bundled ffmpeg is wired to yt-dlp
+via `ffmpeg_location` (`app/core/ffmpeg.py`), which resolves `sys._MEIPASS`
+(the `_internal/` folder in a onedir build).
 
 > **Linux sidecar — executable-stack fix (automated).** uv's managed
 > `libpython3.13.so` is built with an executable stack (`GNU_STACK = RWE`).
@@ -141,14 +150,24 @@ src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm   # from §3b
 ```bash
 ./src-tauri/target/release/bundle/appimage/Yoink_<ver>_amd64.AppImage &
 # the window should open; pasting a URL + Analizar should hit the bundled
-# backend on :8756. (ffmpeg is bundled in the sidecar — no system install needed.)
+# backend on :8756. (ffmpeg is bundled — no system install needed.)
 ```
 
-Quick structural check (no GUI needed) — confirm the sidecar is inside:
+> **Verify the backend launch, especially on Windows.** The backend is bundled
+> as a one-folder resource and spawned by `main.rs`, so the launch path is
+> exercised here — confirm the backend actually answers on :8756 and that closing
+> the app leaves **no** orphan `yoink-backend` (nothing holding the port). This
+> was verified on Linux end-to-end; the **Windows** build must be smoke-tested the
+> same way on the VM before publishing, since the resource path + process spawn
+> can't be checked from Linux. (Auto-update is unaffected either way — the updater
+> replaces the whole AppImage/installer and doesn't care what's inside.)
+
+Quick structural check (no GUI needed) — confirm the backend folder is inside:
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./...AppImage --appimage-extract 'usr/bin/*'
-ls squashfs-root/usr/bin   # expect: yoink  yoink-backend
+APPIMAGE_EXTRACT_AND_RUN=1 ./...AppImage --appimage-extract
+ls squashfs-root/usr/bin                       # expect: yoink
+ls squashfs-root/usr/lib/Yoink/backend         # expect: yoink-backend  _internal
 rm -rf squashfs-root
 ```
 

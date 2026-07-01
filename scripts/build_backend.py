@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
-"""Bundle the FastAPI backend into a single-file binary (Tauri sidecar).
+"""Bundle the FastAPI backend into a one-folder distribution (Tauri resource).
 
     python scripts/build_backend.py
 
 Runs PyInstaller (from the backend venv) on `run_backend.py`, collecting the
 yt-dlp extractors and uvicorn internals that are imported dynamically, then
-copies the result to `src-tauri/binaries/yoink-backend-<target-triple>` — the
-name Tauri expects for an `externalBin` sidecar.
+copies the resulting `yoink-backend/` folder to `src-tauri/binaries/yoink-backend/`,
+which `tauri.conf.json` bundles as a resource. `main.rs` launches the exe inside
+it directly.
+
+Uses PyInstaller **`--onedir`** (a folder), not `--onefile`: a one-file binary
+re-extracts its whole ~180 MB payload to a temp dir on *every* launch (slow cold
+start, notably on Windows), whereas the folder runs in place. It also removes the
+bootloader→Python indirection, so the spawned exe *is* the backend process and
+shutting it down is a plain kill.
 """
 
 from __future__ import annotations
@@ -64,13 +71,12 @@ def _target_triple() -> str:
 def main() -> int:
     py = _venv_python()
     triple = _target_triple()
-    exe_suffix = ".exe" if os.name == "nt" else ""
 
-    print(f"> Building backend sidecar for {triple}...")
+    print(f"> Building backend (onedir) for {triple}...")
     subprocess.run(
         [
             py, "-m", "PyInstaller",
-            "--noconfirm", "--clean", "--onefile",
+            "--noconfirm", "--clean", "--onedir",
             "--name", "yoink-backend",
             "--collect-all", "yt_dlp",
             "--collect-all", "uvicorn",
@@ -87,11 +93,13 @@ def main() -> int:
         check=True,
     )
 
-    built = BACKEND / "dist" / f"yoink-backend{exe_suffix}"
+    built = BACKEND / "dist" / "yoink-backend"  # the onedir folder
+    target = BINARIES / "yoink-backend"
     BINARIES.mkdir(parents=True, exist_ok=True)
-    target = BINARIES / f"yoink-backend-{triple}{exe_suffix}"
-    shutil.copy2(built, target)
-    print(f"[OK] Sidecar ready: {target.relative_to(ROOT)}")
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.copytree(built, target)
+    print(f"[OK] Backend ready: {target.relative_to(ROOT)}/ ({triple})")
     return 0
 
 
