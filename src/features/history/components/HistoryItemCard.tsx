@@ -95,7 +95,7 @@ export function HistoryItemCard({
 
   return (
     <div className="group rounded-2xl border border-white/10 bg-surface/70 hover:bg-surface-hover transition p-3">
-      <div className="flex items-center gap-3">
+      <div className="relative flex items-center gap-3">
         {/* Cover art (tagged audio) or a kind icon over a gradient */}
         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500/40 to-blue-500/40 flex items-center justify-center shrink-0 overflow-hidden">
           {showCover && item.filepath ? (
@@ -146,10 +146,13 @@ export function HistoryItemCard({
           )}
         </div>
 
-        {/* Open folder + open file (play), revealed on hover (always shown on
-            touch / narrow screens where there's no hover). */}
+        {/* Actions in a row so their count (audio has an extra "re-tag") doesn't
+            change the card's height. On ≥sm they're absolutely positioned and
+            revealed on hover, so they reserve no width — the title/meta (format ·
+            quality · size · time) keeps the full row and isn't truncated. On
+            touch/narrow screens (no hover) they stay in flow, always visible. */}
         {isCompleted && (
-          <div className="flex flex-col justify-center gap-1.5 shrink-0 opacity-100 transition group-hover:opacity-100 focus-within:opacity-100 sm:opacity-0">
+          <div className="flex items-center gap-2 shrink-0 opacity-100 transition group-hover:opacity-100 focus-within:opacity-100 sm:absolute sm:right-1 sm:top-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-surface-hover sm:px-2 sm:py-1.5 sm:opacity-0 sm:shadow-md sm:shadow-black/20">
             {item.url && (
               <button
                 type="button"
