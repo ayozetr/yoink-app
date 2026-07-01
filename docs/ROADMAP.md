@@ -281,10 +281,11 @@ also in *Next up* are the urgent ones.)
   on the real sidecar): *not* compression — the binary is incompressible, so even
   `xz -9` is ~45 s, and SHA256/cpio are <1 s — the cost is inside the `rpm` Rust
   crate itself. **Fixed** by building only deb+appimage with Tauri
-  (`--bundles deb,appimage`) and converting the deb → rpm with
-  `scripts/build_rpm.py` (`alien`, whose `rpmbuild` backend re-derives the same
-  soname `Requires` from the ELF binaries). Seconds instead of minutes; the rpm
-  plays no part in self-update, so it can't affect existing users. See
+  (`--bundles deb,appimage`) and repackaging the deb → rpm with
+  `scripts/build_rpm.py` (`rpmbuild` under `fakeroot`; its autoreq re-derives the
+  same soname `Requires` from the ELF binaries). **~40 s** instead of minutes,
+  verified installing cleanly in a Fedora container; the rpm plays no part in
+  self-update, so it can't affect existing users. See
   [`releasing.md`](releasing.md) §3/§3b.
 - ✅ **Friendlier download/extraction error messages** *(next)* —
   `friendly_download_error()` strips the `ERROR:`/`[extractor]`/"report this issue"

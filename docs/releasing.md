@@ -26,10 +26,9 @@ Prerequisites on the build host:
   platform (downloads LGPL builds to `backend/vendor/ffmpeg/`). The sidecar
   embeds them, so the shipped app needs no system ffmpeg. See
   [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the LGPL attribution.
-- For the `.rpm` (built by converting the `.deb` — see §3): **`alien`**,
-  **`rpmbuild`** and **`fakeroot`** on PATH. Arch/CachyOS: `pacman -S rpm-tools
-  fakeroot` + `alien` from the AUR; Fedora: `dnf install alien rpm-build
-  fakeroot`; Debian/Ubuntu: `apt install alien fakeroot` (pulls `rpm`).
+- For the `.rpm` (built by repackaging the `.deb` — see §3b): **`rpmbuild`** and
+  **`fakeroot`** on PATH. Arch/CachyOS: `pacman -S rpm-tools fakeroot`; Fedora:
+  `dnf install rpm-build fakeroot`; Debian/Ubuntu: `apt install rpm fakeroot`.
 
 ## 1. Bump the version
 
@@ -113,17 +112,20 @@ at runtime.
 python scripts/build_rpm.py
 ```
 
-This converts the freshly-built `.deb` to `.rpm` with `alien`, whose `rpmbuild`
-backend re-derives the **same soname `Requires`** Tauri's rpm declared
-(`libwebkit2gtk-4.1.so.0()(64bit)`, …) directly from the ELF binaries — so the
-result is functionally equivalent and installs on any rpm distro. It writes
-`src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm`.
+This unpacks the freshly-built `.deb` and repackages the file tree with
+`rpmbuild` (run under `fakeroot` for root-owned files), whose automatic
+dependency generator re-derives the **soname `Requires`** from the ELF binaries
+(`libwebkit2gtk-4.1.so.0()(64bit)`, `libgtk-3.so.0()(64bit)`, …) — so the result
+installs on any rpm distro without hand-listing distro-specific package names.
+It writes `src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm` in **~40
+seconds** (vs Tauri's 10–12 min). Verified: installs cleanly in a Fedora
+container, pulling `gtk3` + `webkit2gtk4.1`.
 
-> **Verify before publishing** (the conversion is mechanical but confirm it on a
-> real rpm distro the first time): `rpm -qp --requires <rpm>` should list the same
-> sonames, and a clean install should pull webkit2gtk/gtk3, e.g.
-> `podman run --rm -v <rpm-dir>:/p:Z fedora bash -c 'dnf -y install /p/<file>.rpm'`.
-> *Fallback if `alien` is ever unavailable:* let Tauri grind the rpm with
+> **Re-verify after a big packaging change**: `rpm -qp --requires <rpm>` should
+> list the webkit/gtk sonames, `rpm -qp --list` the six files, and a clean
+> install should pull the deps:
+> `docker run --rm -v <rpm-dir>:/p:ro fedora dnf -y install /p/<file>.rpm`.
+> *Fallback if `rpmbuild` is ever unavailable:* let Tauri grind the rpm with
 > `npx tauri build --bundles rpm` (slow), as earlier releases did.
 
 Output paths:
