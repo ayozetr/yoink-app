@@ -249,6 +249,19 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Auto-fill a clipboard URL on window focus** (M) — when the field is empty and
   the clipboard holds a link, pre-fill it (non-destructive) so a paste→analyze is one step.
   *(Tried in v2.3.0 but skipped: a gesture-less clipboard read is blocked by browsers.)*
+- ⬜ **Update experience** (M) — an opt-in **"check for updates automatically"**
+  setting (the app only; yt-dlp stays owner-managed). When on, check the latest
+  GitHub release on launch and, if newer, show an in-app banner **and** a desktop
+  notification. After an update, the **first launch shows a "What's new" popup**
+  with that release's notes, shown **once** (persist `last_seen_version` and bump
+  it after showing; it only re-opens when the user picks "What's new" in Settings).
+  The notes come back with the release check (`body`); the popup renders only the
+  "what's new" part by splitting the body at a hidden `<!-- /whatsnew -->` marker
+  (fallback: before `## Downloads`), so the Downloads table / self-update
+  boilerplate stay on GitHub but out of the in-app view. Builds on the existing
+  update check (`/api/version`) + notification plugin; the only new piece is a
+  small markdown renderer. *(When built, add the marker to the notes template in
+  `docs/releasing.md`.)*
 - ✅ **Paste-and-analyze keyboard gesture** *(v2.3.0)* — `Ctrl/Cmd+Shift+V` pastes a
   link from the clipboard and analyzes it in one shot, from anywhere in the window.
 - ✅ **"Copy error" button** *(v2.3.0)* — on a failed download and on history error
@@ -348,6 +361,14 @@ Bigger, standalone efforts. Desktop (Linux/Windows) stays the focus.
 - ⬜ **Android** (L) — the PyInstaller sidecar can't run on Android, so the local
   server must be replaced. Routes: embed Python (Chaquopy) + ffmpeg-kit · native
   yt-dlp lib (Seal-style) · thin remote client. Proven feasible (cf. Seal).
+- ⬜ **Windows on ARM — native ARM64** (L) — the x64 build already runs on
+  Snapdragon Win11 via the Prism emulator (fine for download + stream-copy mux,
+  slower only for re-encode), so nobody's blocked. A native
+  `aarch64-pc-windows-msvc` build is feasible — Tauri + WebView2 are ready, ffmpeg
+  ships `winarm64` (BtbN), pydantic-core has ARM64 wheels — but gated on: an ARM64
+  Windows build machine (**PyInstaller can't cross-compile**) and, the key unknown,
+  a **`curl_cffi`** ARM64 wheel (the anti-bot impersonation dep). Also needs a
+  `windows-aarch64` entry + signed builds in `latest.json`.
 
 ---
 
