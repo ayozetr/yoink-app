@@ -87,7 +87,7 @@ It is split into two layers that communicate asynchronously:
 - **Update check** against the latest GitHub release; Settings also shows the
   bundled **yt-dlp version** and whether a newer one is out.
 - **Self-contained desktop app** (Tauri, Linux & Windows): bundles the backend
-  **and ffmpeg** as a sidecar — no Python or ffmpeg install needed.
+  **and ffmpeg** in a one-folder build — no Python or ffmpeg install needed.
 
 ## Quick start
 
@@ -104,7 +104,7 @@ per-layer commands.
 
 ```bash
 python scripts/fetch_ffmpeg.py    # once: download ffmpeg+ffprobe (LGPL) to bundle
-python scripts/build_backend.py   # bundle backend + ffmpeg as a PyInstaller sidecar
+python scripts/build_backend.py   # bundle backend + ffmpeg as a PyInstaller onedir folder
 npm run tauri build               # installers in src-tauri/target/release/bundle
 ```
 

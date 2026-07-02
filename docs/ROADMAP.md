@@ -11,14 +11,21 @@
 
 ## 📍 Status
 
-- **Current release:** **v2.4.0** — **broader source support** (resolves videos
-  whose media is served through the page's own player config), **immersive (VR)
-  clips: trimming fixed** + an **audio-less source warning** shown before the
-  download, **steadier downloads** (auto-retry of a transient ffmpeg hiccup;
-  cancelling mid-merge no longer wedges the next download), **complete Amazon
-  playlist import** (per-track cover art + duration), and a **fully localized
-  interface** (pluralized counts + per-locale durations across the 14 languages).
-- **Previously (v2.3.1):** Windows reliability — **certifi** TLS for every
+- **Current release:** **v2.5.0** — **Amazon Music cover art from Amazon**
+  (playlist/album + per-track, incl. Amazon-exclusive tracks), **auto-tagging**
+  via your **regional Apple Music store** with **fewer irrelevant matches**,
+  **lyrics** looked up only when the Setting is on + a **title+duration** fallback
+  for renamed acts, a **handier history** (re-analyze a past download,
+  **drag-and-drop** a link, tidier same-height rows), **correct YouTube quality
+  labels** for non-16:9 videos, and a **faster start** (one-folder backend — no
+  per-launch extraction).
+- **Previously (v2.4.0):** **broader source support** (resolves videos whose
+  media is served through the page's own player config), **immersive (VR) clips:
+  trimming fixed** + an **audio-less source warning**, **steadier downloads**
+  (auto-retry of a transient ffmpeg hiccup; cancelling mid-merge no longer wedges
+  the next download), **complete Amazon playlist import**, and a **fully localized
+  interface**.
+- **(v2.3.1):** Windows reliability — **certifi** TLS for every
   non-yt-dlp HTTPS call (cover art / music import / lyrics), a sturdier **cookie
   fallback**, and **playlist de-duplication**.
 - **(v2.3.0):** **lyrics in auto-tagging** (LRCLIB plain + an optional synced
@@ -34,8 +41,9 @@
   from five services**, SoundCloud search, **14 UI languages**. (v1.9.x:
   immersive VR, the queue, hardening.)
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
-- **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled as a sidecar.
-- **Health:** backend (pytest, 314) green · frontend build + e2e green · `npm audit` 0 · strict TS.
+- **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
+  one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
+- **Health:** backend (pytest, 321) green · frontend build + e2e (14) + vitest (40) green · `npm audit` 0 · strict TS.
 
 ---
 
