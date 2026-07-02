@@ -126,7 +126,7 @@ export const id = {
     empty: "Tempel tautan di atas dan tekan Tambah untuk membuat satu kumpulan.",
   },
   music: {
-    label: "Impor dari {{source}}",
+    label: "Impor",
     songs_one: "{{count}} lagu",
     songs_other: "{{count}} lagu",
     truncated: "(hanya trek yang ditampilkan oleh embed)",

@@ -126,7 +126,7 @@ export const ja = {
     empty: "上にリンクを貼り付けて「追加」を押すとバッチを作成できます。",
   },
   music: {
-    label: "{{source}} からインポート",
+    label: "インポート",
     songs_one: "{{count}} 曲",
     songs_other: "{{count}} 曲",
     truncated: "（埋め込みに表示される曲のみ）",

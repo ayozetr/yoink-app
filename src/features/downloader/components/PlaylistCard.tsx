@@ -1,4 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   Clock3,
   Download,
@@ -40,6 +46,9 @@ interface PlaylistCardProps {
   busy?: boolean;
   defaultKind?: MediaKind;
   defaultQuality?: string;
+  /** The analyzed URL — a YouTube Music playlist downloads audio only and hides
+   * the video/audio selector (like the keyless music import). */
+  sourceUrl?: string;
 }
 
 // Playlist entries are listed flat (no per-item formats), so quality is a
@@ -74,8 +83,11 @@ export function PlaylistCard({
   busy,
   defaultKind,
   defaultQuality,
+  sourceUrl,
 }: PlaylistCardProps) {
   const { t, i18n } = useTranslation();
+  // A YouTube Music playlist is music: download audio only, no video/audio picker.
+  const audioOnly = /music\.youtube\.com/i.test(sourceUrl ?? "");
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(playlist.entries.map((entry) => entry.url)),
   );
@@ -90,11 +102,23 @@ export function PlaylistCard({
   }
   // Free-text filter over the entry list (titles); selection persists across it.
   const [filter, setFilter] = useState("");
+  // The cover is a square whose side tracks the info column's own height, so its
+  // bottom lines up with the format selector whatever the title/meta length. The
+  // column is `self-start` so its measured height is the content's (not the row's).
+  const infoColRef = useRef<HTMLDivElement>(null);
+  const [coverSize, setCoverSize] = useState<number>();
+  useEffect(() => {
+    const el = infoColRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setCoverSize(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   // Last checkbox toggled, for shift-click range selection (by id, so it survives
   // a changing filter view).
   const lastIdRef = useRef<string | null>(null);
   const [kind, setKind] = useState<MediaKind>(
-    isMusicPlaylist(playlist) ? "audio" : (defaultKind ?? "video"),
+    audioOnly || isMusicPlaylist(playlist) ? "audio" : (defaultKind ?? "video"),
   );
   const [quality, setQuality] = useState<string>(
     defaultQuality && QUALITY_OPTIONS.includes(defaultQuality)
@@ -212,7 +236,7 @@ export function PlaylistCard({
 
   return (
     <GlassPanel className="p-5">
-      <div className="flex items-center justify-between gap-3 mb-1">
+      <div className="flex items-center justify-between gap-3 mb-3">
         <span className="text-xs uppercase tracking-wider text-violet-400 flex items-center gap-2">
           <ListVideo size={14} />
           {t("playlist.label")}
@@ -226,192 +250,207 @@ export function PlaylistCard({
         </button>
       </div>
 
-      <div className="flex items-center gap-4">
-        {playlist.thumbnail_url && (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-violet-500/40 to-blue-500/40">
+      <div className="flex flex-col gap-5 sm:flex-row">
+        {/* Big square cover — same look as the music-import header. */}
+        <div
+          style={{ "--cover-h": `${coverSize ?? 180}px` } as CSSProperties}
+          className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500/40 to-blue-500/40 sm:aspect-auto sm:h-[var(--cover-h)] sm:w-[var(--cover-h)] sm:max-w-none sm:self-start">
+          {playlist.thumbnail_url ? (
             <Thumbnail
               src={playlist.thumbnail_url}
               alt={playlist.title}
               className="h-full w-full object-cover"
-              fallback={<ListVideo size={22} className="text-white/70" />}
+              fallback={<ListVideo size={48} className="text-white/70" />}
             />
-          </div>
-        )}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold truncate">{playlist.title}</h2>
-            {playlist.is_vr && (
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
-                <Glasses size={14} />
-                {t("preview.vrBadge")}
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-zinc-400 mt-1">
-            {playlist.uploader ? `${playlist.uploader} • ` : ""}
-            {t("playlist.videos", { count: playlist.entry_count })}
-            {playlist.truncated &&
-              ` ${t("playlist.showingFirst", { count: playlist.entries.length })}`}
-          </p>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="mt-4 flex flex-col gap-3">
-        <div className="grid md:grid-cols-3 gap-3">
-          <Select
-            ariaLabel={t("preview.format")}
-            value={kind}
-            onChange={(v) => setKind(v as MediaKind)}
-            options={[
-              { value: "video", label: t("preview.video") },
-              { value: "audio", label: t("preview.audio") },
-            ]}
-            className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
-          />
-
-          {isVideo ? (
-            <>
-              <Select
-                ariaLabel={t("preview.quality")}
-                value={quality}
-                onChange={setQuality}
-                options={QUALITY_OPTIONS.map((option) => ({
-                  value: option,
-                  label: option,
-                }))}
-                className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
-              />
-
-              <Select
-                ariaLabel={t("preview.container")}
-                value={container}
-                onChange={(v) => setContainer(v as VideoContainer)}
-                options={VIDEO_CONTAINERS}
-                className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
-              />
-            </>
           ) : (
-            <Select
-              ariaLabel={t("preview.audioFormat")}
-              value={effectiveAudioFormat}
-              onChange={(v) => setAudioFormat(v as AudioFormat)}
-              options={AUDIO_FORMATS.map((option) => ({
-                value: option.value,
-                label: option.label,
-                disabled: option.lossless && !losslessAllowed,
-              }))}
-              className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm md:col-span-2"
-            />
+            <ListVideo size={48} className="text-white/70" />
           )}
         </div>
 
-        {showLosslessWarning && (
-          <p className="flex items-center gap-2 text-xs text-zinc-400">
-            <Info size={14} className="shrink-0" />
-            {t("preview.losslessWarning")}
-          </p>
-        )}
-
-        {/* Subtitles + chapters, applied to the whole batch. Video-only. */}
-        {isVideo && (
-          <div className="flex flex-wrap items-center gap-3">
-            {showSubtitles && (
-              <Select
-                ariaLabel={t("preview.subtitles")}
-                value={subtitle}
-                onChange={setSubtitle}
-                options={[
-                  { value: SUBS_NONE, label: t("preview.subtitlesNone") },
-                  { value: "all", label: t("preview.subtitlesAll") },
-                  ...SUBTITLE_LANGS.map((code) => ({
-                    value: code,
-                    label: code.toUpperCase(),
-                  })),
-                ]}
-                className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
-              />
-            )}
-            <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
-              <input
-                type="checkbox"
-                checked={embedChapters}
-                onChange={(e) => setEmbedChapters(e.target.checked)}
-                className="size-4 accent-violet-500 shrink-0"
-              />
-              {t("preview.chapters")}
-            </label>
-            {showMultiAudio && (
-              <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
-                <input
-                  type="checkbox"
-                  checked={audioMultistreams}
-                  onChange={(e) => setAudioMultistreams(e.target.checked)}
-                  className="size-4 accent-violet-500 shrink-0"
-                />
-                {t("preview.multiAudio")}
-              </label>
-            )}
+        {/* Info + controls */}
+        <div ref={infoColRef} className="flex min-w-0 flex-1 flex-col gap-4 sm:self-start">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-2xl font-semibold leading-tight">
+                {playlist.title}
+              </h2>
+              {playlist.is_vr && (
+                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
+                  <Glasses size={14} />
+                  {t("preview.vrBadge")}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-zinc-400 mt-1">
+              {playlist.uploader ? `${playlist.uploader} • ` : ""}
+              {audioOnly
+                ? t("music.songs", { count: playlist.entry_count })
+                : t("playlist.videos", { count: playlist.entry_count })}
+              {playlist.truncated &&
+                ` ${t("playlist.showingFirst", { count: playlist.entries.length })}`}
+            </p>
           </div>
-        )}
 
-        {/* VR — tag the whole batch (shown only when detected as immersive). */}
-        {isVideo && playlist.is_vr && (
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <Toggle checked={isVr} onChange={setIsVr} label={t("preview.vr")} />
-              {isVr && (
+          {/* Controls */}
+          <div className="flex flex-col gap-3">
+            <div className="grid md:grid-cols-3 gap-3">
+              {!audioOnly && (
                 <Select
-                  ariaLabel={t("preview.vrLayout")}
-                  value={vrLayout}
-                  onChange={(v) => setVrLayout(v as VRLayout)}
-                  options={VR_LAYOUTS.map((o) => ({
-                    value: o.value,
-                    label:
-                      o.value === playlist.vr_layout
-                        ? `${o.label} (${t("preview.vrDetected")})`
-                        : o.label,
+                  ariaLabel={t("preview.format")}
+                  value={kind}
+                  onChange={(v) => setKind(v as MediaKind)}
+                  options={[
+                    { value: "video", label: t("preview.video") },
+                    { value: "audio", label: t("preview.audio") },
+                  ]}
+                  className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
+                />
+              )}
+
+              {isVideo ? (
+                <>
+                  <Select
+                    ariaLabel={t("preview.quality")}
+                    value={quality}
+                    onChange={setQuality}
+                    options={QUALITY_OPTIONS.map((option) => ({
+                      value: option,
+                      label: option,
+                    }))}
+                    className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
+                  />
+
+                  <Select
+                    ariaLabel={t("preview.container")}
+                    value={container}
+                    onChange={(v) => setContainer(v as VideoContainer)}
+                    options={VIDEO_CONTAINERS}
+                    className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
+                  />
+                </>
+              ) : (
+                <Select
+                  ariaLabel={t("preview.audioFormat")}
+                  value={effectiveAudioFormat}
+                  onChange={(v) => setAudioFormat(v as AudioFormat)}
+                  options={AUDIO_FORMATS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                    disabled: option.lossless && !losslessAllowed,
                   }))}
-                  className="h-11 min-w-[170px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
+                  className={`h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm ${
+                    audioOnly ? "md:col-span-3" : "md:col-span-2"
+                  }`}
                 />
               )}
             </div>
-            {isVr && (
+
+            {showLosslessWarning && (
               <p className="flex items-center gap-2 text-xs text-zinc-400">
                 <Info size={14} className="shrink-0" />
-                {t("preview.vrHint")}
+                {t("preview.losslessWarning")}
               </p>
             )}
+
+            {/* Subtitles + chapters, applied to the whole batch. Video-only. */}
+            {isVideo && (
+              <div className="flex flex-wrap items-center gap-3">
+                {showSubtitles && (
+                  <Select
+                    ariaLabel={t("preview.subtitles")}
+                    value={subtitle}
+                    onChange={setSubtitle}
+                    options={[
+                      { value: SUBS_NONE, label: t("preview.subtitlesNone") },
+                      { value: "all", label: t("preview.subtitlesAll") },
+                      ...SUBTITLE_LANGS.map((code) => ({
+                        value: code,
+                        label: code.toUpperCase(),
+                      })),
+                    ]}
+                    className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
+                  />
+                )}
+                <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={embedChapters}
+                    onChange={(e) => setEmbedChapters(e.target.checked)}
+                    className="size-4 accent-violet-500 shrink-0"
+                  />
+                  {t("preview.chapters")}
+                </label>
+                {showMultiAudio && (
+                  <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={audioMultistreams}
+                      onChange={(e) => setAudioMultistreams(e.target.checked)}
+                      className="size-4 accent-violet-500 shrink-0"
+                    />
+                    {t("preview.multiAudio")}
+                  </label>
+                )}
+              </div>
+            )}
+
+            {/* VR — tag the whole batch (shown only when detected as immersive). */}
+            {isVideo && playlist.is_vr && (
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Toggle checked={isVr} onChange={setIsVr} label={t("preview.vr")} />
+                  {isVr && (
+                    <Select
+                      ariaLabel={t("preview.vrLayout")}
+                      value={vrLayout}
+                      onChange={(v) => setVrLayout(v as VRLayout)}
+                      options={VR_LAYOUTS.map((o) => ({
+                        value: o.value,
+                        label:
+                          o.value === playlist.vr_layout
+                            ? `${o.label} (${t("preview.vrDetected")})`
+                            : o.label,
+                      }))}
+                      className="h-11 min-w-[170px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
+                    />
+                  )}
+                </div>
+                {isVr && (
+                  <p className="flex items-center gap-2 text-xs text-zinc-400">
+                    <Info size={14} className="shrink-0" />
+                    {t("preview.vrHint")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+              <Clock3 size={12} className="shrink-0" />
+              {selected.size === 0 || selectedDuration > 0
+                ? t("playlist.selectionSummary", {
+                    count: selected.size,
+                    duration: formatDuration(selectedDuration, i18n.language),
+                  })
+                : t("playlist.selectionCount", { count: selected.size })}
+            </p>
+
+            <Button
+              variant="gradient"
+              onClick={handleDownload}
+              disabled={busy || selected.size === 0}
+              title={busy ? t("common.busy") : undefined}
+              className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download size={18} />
+              {t("playlist.download", { count: selected.size })}
+            </Button>
           </div>
-        )}
-
-        {selected.size > 0 && (
-          <p className="flex items-center gap-1.5 text-xs text-zinc-400">
-            <Clock3 size={12} className="shrink-0" />
-            {selectedDuration > 0
-              ? t("playlist.selectionSummary", {
-                  count: selected.size,
-                  duration: formatDuration(selectedDuration, i18n.language),
-                })
-              : t("playlist.selectionCount", { count: selected.size })}
-          </p>
-        )}
-
-        <Button
-          variant="gradient"
-          onClick={handleDownload}
-          disabled={busy || selected.size === 0}
-          title={busy ? t("common.busy") : undefined}
-          className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Download size={18} />
-          {t("playlist.download", { count: selected.size })}
-        </Button>
+        </div>
       </div>
 
       {/* Entries — a filter (for long lists) + the selectable rows. */}
       {playlist.entries.length > 8 && (
-        <div className="relative mt-4">
+        <div className="relative mt-5">
           <Search
             size={15}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -427,7 +466,11 @@ export function PlaylistCard({
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5 mt-3 max-h-[320px] overflow-auto pr-1">
+      <div
+        className={`flex flex-col gap-1.5 max-h-[320px] overflow-auto pr-1 ${
+          playlist.entries.length > 8 ? "mt-3" : "mt-5"
+        }`}
+      >
         {visible.length === 0 ? (
           <p className="py-6 text-center text-sm text-zinc-500">
             {t("playlist.noMatches")}

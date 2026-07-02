@@ -128,7 +128,7 @@ export const pl = {
     empty: "Wklej linki powyżej i naciśnij Dodaj, aby utworzyć paczkę.",
   },
   music: {
-    label: "Import z {{source}}",
+    label: "Import",
     songs_one: "{{count}} utwór",
     songs_few: "{{count}} utwory",
     songs_many: "{{count}} utworów",

@@ -191,6 +191,7 @@ export function formatDuration(totalSeconds: number, lang: string): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   if (hours) return `${unit(hours, "hour")} ${unit(minutes, "minute")}`;
-  if (minutes) return unit(minutes, "minute");
+  // 0 reads as "0 min" (used only by the selection summary, e.g. nothing picked).
+  if (minutes || totalSeconds === 0) return unit(minutes, "minute");
   return unit(totalSeconds, "second");
 }

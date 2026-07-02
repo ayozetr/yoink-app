@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -16,7 +22,7 @@ import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
 import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Thumbnail } from "../../components/ui/Thumbnail";
-import { applyAudioTags, matchMusic } from "../../lib/api";
+import { applyAudioTags, getTrackMeta, matchMusic } from "../../lib/api";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
 import {
   acquireDownloadLock,
@@ -70,6 +76,30 @@ export function MusicImportCard({
   // The full live progress event (percent + speed + ETA + status) so the bar
   // shows the same detail as a normal download, not just a bare percentage.
   const [progress, setProgress] = useState<DownloadProgressEvent | null>(null);
+  // Per-track cover/duration filled lazily after a non-enriched resolve (the
+  // backend returns a big playlist instantly, then we look each track up row by
+  // row so covers pop in instead of blocking the whole list for ~15 s).
+  const [meta, setMeta] = useState<
+    Record<number, { cover_url: string | null; duration_ms: number | null }>
+  >({});
+  const coverOf = (i: number) =>
+    info.tracks[i].cover_url ?? meta[i]?.cover_url ?? null;
+  const durationOf = (i: number) =>
+    info.tracks[i].duration_ms ?? meta[i]?.duration_ms ?? null;
+
+  // The cover is a square whose side tracks the info column's own height, so its
+  // bottom lines up with the format selector on any card (title/subtitle length
+  // varies). The column is `self-start` so its measured height is the content's,
+  // not the row's — and the cover doesn't feed back into it.
+  const infoColRef = useRef<HTMLDivElement>(null);
+  const [coverSize, setCoverSize] = useState<number>();
+  useEffect(() => {
+    const el = infoColRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setCoverSize(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const runningRef = useRef(false);
   // Monotonic run token: each start() bumps it; every async continuation captures
@@ -104,6 +134,36 @@ export function MusicImportCard({
     [],
   );
 
+  // Lazily fill each track's missing cover/duration (Spotify/Tidal playlists come
+  // back cover-less; Amazon playlists duration-less). A few fetches run at once
+  // and the backend paces the actual Deezer calls, so covers stream in top-first
+  // instead of the whole list waiting. Aborts if the card unmounts (new URL).
+  useEffect(() => {
+    const pending = info.tracks
+      .map((track, i) => ({ track, i }))
+      .filter(({ track }) => !track.cover_url || !track.duration_ms);
+    if (pending.length === 0) return;
+    const controller = new AbortController();
+    let cursor = 0;
+    const lane = async () => {
+      while (cursor < pending.length && !controller.signal.aborted) {
+        const { track, i } = pending[cursor++];
+        try {
+          const filled = await getTrackMeta(track, controller.signal);
+          if (!controller.signal.aborted) {
+            setMeta((prev) => ({ ...prev, [i]: filled }));
+          }
+        } catch {
+          // Abort or a lookup miss — leave the row on its placeholder icon.
+        }
+      }
+    };
+    void Promise.all(
+      Array.from({ length: Math.min(6, pending.length) }, lane),
+    );
+    return () => controller.abort();
+  }, [info]);
+
   // Free-text filter over the track list (title + artist); selection persists.
   const [filter, setFilter] = useState("");
   const query = filter.trim().toLowerCase();
@@ -121,11 +181,14 @@ export function MusicImportCard({
   );
   const allVisibleSelected =
     visible.length > 0 && visible.every(({ i }) => selected.has(i));
-  // Total duration of the current selection (some tracks may lack one).
-  const selectedMs = info.tracks.reduce(
-    (acc, track, i) =>
-      selected.has(i) && track.duration_ms ? acc + track.duration_ms : acc,
-    0,
+  // Total duration of the current selection (folds in lazily-filled durations).
+  const selectedMs = useMemo(
+    () =>
+      info.tracks.reduce((acc, track, i) => {
+        const ms = track.duration_ms ?? meta[i]?.duration_ms ?? 0;
+        return selected.has(i) ? acc + ms : acc;
+      }, 0),
+    [info.tracks, selected, meta],
   );
   // Last row toggled, for shift-click range selection (by original index).
   const lastIdxRef = useRef<number | null>(null);
@@ -254,7 +317,7 @@ export function MusicImportCard({
               artist: track.artists,
               album: track.album,
               year: track.year,
-              cover_url: track.cover_url,
+              cover_url: coverOf(idx),
             })
               .catch(() => undefined) // tagging is best-effort
               .finally(() => {
@@ -333,24 +396,42 @@ export function MusicImportCard({
   const status0 = rows[0];
   // Header artist line: playlist owner / album artist / track artist.
   const headerArtist = info.subtitle ?? "";
+  // Meta line leads with the source (Apple Music · N songs), like the playlist
+  // card's "uploader · N videos" — the label above is just a generic "Import".
+  const sourceName = MUSIC_SOURCE_NAMES[info.source];
   const headerMeta = isSingle
-    ? [first?.album, first?.year, fmtMs(first?.duration_ms ?? null)]
+    ? [sourceName, first?.album, first?.year, fmtMs(first?.duration_ms ?? null)]
         .filter(Boolean)
-        .join(" · ")
-    : `${t("music.songs", { count: info.tracks.length })}${
+        .join(" • ")
+    : `${sourceName} • ${t("music.songs", { count: info.tracks.length })}${
         info.truncated ? ` ${t("music.truncated")}` : ""
       }`;
 
   return (
     <GlassPanel className="p-5">
-      <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-violet-400">
-        <Music4 size={14} />
-        {t("music.label", { source: MUSIC_SOURCE_NAMES[info.source] })}
-      </span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-violet-400">
+          <Music4 size={14} />
+          {t("music.label")}
+        </span>
+        {!isSingle && !running && (
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="text-xs text-zinc-400 hover:text-white transition"
+          >
+            {allVisibleSelected
+              ? t("playlist.deselectAll")
+              : t("playlist.selectAll")}
+          </button>
+        )}
+      </div>
 
       <div className="mt-3 flex flex-col gap-5 sm:flex-row">
         {/* Square cover */}
-        <div className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600/40 to-blue-600/40 sm:w-[180px] sm:self-start">
+        <div
+          style={{ "--cover-h": `${coverSize ?? 180}px` } as CSSProperties}
+          className="flex aspect-square w-full max-w-[200px] shrink-0 items-center justify-center self-center overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600/40 to-blue-600/40 sm:aspect-auto sm:h-[var(--cover-h)] sm:w-[var(--cover-h)] sm:max-w-none sm:self-start">
           {info.cover_url ? (
             <Thumbnail
               src={info.cover_url}
@@ -364,37 +445,34 @@ export function MusicImportCard({
         </div>
 
         {/* Info + controls */}
-        <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
+        <div ref={infoColRef} className="flex min-w-0 flex-1 flex-col gap-4 sm:self-start">
           <div>
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-2xl font-semibold leading-tight">{info.name}</h2>
-              {!isSingle && !running && (
-                <button
-                  type="button"
-                  onClick={toggleAll}
-                  className="mt-1 shrink-0 text-xs text-zinc-400 hover:text-white transition"
-                >
-                  {allVisibleSelected
-                    ? t("playlist.deselectAll")
-                    : t("playlist.selectAll")}
-                </button>
-              )}
-            </div>
+            <h2 className="text-2xl font-semibold leading-tight">{info.name}</h2>
             {headerArtist && (
               <p className="mt-1 truncate text-zinc-300">{headerArtist}</p>
             )}
             {headerMeta && <p className="mt-1 text-sm text-zinc-400">{headerMeta}</p>}
-            <p className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
-              <AlertCircle size={14} className="shrink-0" />
-              {t("music.hint")}
-            </p>
           </div>
 
           <div className="flex flex-col gap-3">
-            {!isSingle && !running && selected.size > 0 && (
+            <Select
+              ariaLabel={t("preview.audioFormat")}
+              value={audioFormat}
+              onChange={(v) => setAudioFormat(v as AudioFormat)}
+              options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              className="h-12 w-full rounded-xl bg-surface border border-white/10 px-4 text-sm"
+            />
+            <p className="flex items-center gap-2 text-xs text-zinc-400">
+              <AlertCircle size={14} className="shrink-0" />
+              {t("music.hint")}
+            </p>
+            {!isSingle && !running && (
               <p className="flex items-center gap-1.5 text-xs text-zinc-400">
                 <Clock3 size={12} className="shrink-0" />
-                {selectedMs > 0
+                {selected.size === 0 || selectedMs > 0
                   ? t("playlist.selectionSummary", {
                       count: selected.size,
                       duration: formatDuration(Math.round(selectedMs / 1000), i18n.language),
@@ -402,46 +480,34 @@ export function MusicImportCard({
                   : t("playlist.selectionCount", { count: selected.size })}
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-3">
-              <Select
-                ariaLabel={t("preview.audioFormat")}
-                value={audioFormat}
-                onChange={(v) => setAudioFormat(v as AudioFormat)}
-                options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                }))}
-                className="h-12 min-w-[140px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
-              />
-              {running ? (
-                <button
-                  type="button"
-                  onClick={stop}
-                  className="h-12 px-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-surface text-sm transition hover:bg-surface-hover"
-                >
-                  <Square size={16} />
-                  {t("queue.stop")}
-                </button>
-              ) : isSingle && status0 === "done" ? (
-                <span className="flex h-12 items-center gap-2 text-sm text-violet-300">
-                  <CheckCircle2 size={18} />
-                  {t("music.done")}
-                </span>
-              ) : (
-                <Button
-                  variant="gradient"
-                  onClick={start}
-                  disabled={selected.size === 0 || lockedByOther}
-                  title={lockedByOther ? t("common.busy") : undefined}
-                  className="h-12 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Download size={18} />
-                  {isSingle
-                    ? t("music.download")
-                    : t("music.import", { count: selected.size })}
-                </Button>
-              )}
-            </div>
+            {running ? (
+              <button
+                type="button"
+                onClick={stop}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-surface px-6 text-sm transition hover:bg-surface-hover"
+              >
+                <Square size={16} />
+                {t("queue.stop")}
+              </button>
+            ) : isSingle && status0 === "done" ? (
+              <span className="flex h-12 items-center justify-center gap-2 text-sm text-violet-300">
+                <CheckCircle2 size={18} />
+                {t("music.done")}
+              </span>
+            ) : (
+              <Button
+                variant="gradient"
+                onClick={start}
+                disabled={selected.size === 0 || lockedByOther}
+                title={lockedByOther ? t("common.busy") : undefined}
+                className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={18} />
+                {isSingle
+                  ? t("music.download")
+                  : t("music.import", { count: selected.size })}
+              </Button>
+            )}
 
             {running && (
               <div className="flex flex-col gap-1.5">
@@ -505,7 +571,11 @@ export function MusicImportCard({
               />
             </div>
           )}
-          <div className="mt-3 flex max-h-[320px] flex-col gap-1.5 overflow-auto pr-1">
+          <div
+            className={`flex max-h-[320px] flex-col gap-1.5 overflow-auto pr-1 ${
+              info.tracks.length > 8 ? "mt-3" : "mt-5"
+            }`}
+          >
             {visible.length === 0 ? (
               <p className="py-6 text-center text-sm text-zinc-500">
                 {t("playlist.noMatches")}
@@ -513,6 +583,8 @@ export function MusicImportCard({
             ) : (
               visible.map(({ track, i }, pos) => {
                 const status = rows[i];
+                const cover = coverOf(i);
+                const duration = durationOf(i);
                 return (
                   <div
                     key={`${track.source_url}-${i}`}
@@ -538,9 +610,9 @@ export function MusicImportCard({
                       className="size-4 accent-violet-500 shrink-0 pointer-events-none disabled:opacity-40"
                     />
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-violet-500/40 to-blue-500/40">
-                      {track.cover_url ? (
+                      {cover ? (
                         <Thumbnail
-                          src={track.cover_url}
+                          src={cover}
                           alt={track.title}
                           loading="lazy"
                           className="h-full w-full object-cover"
@@ -577,9 +649,10 @@ export function MusicImportCard({
                     {status === "skipped" && (
                       <SkipForward size={15} className="shrink-0 text-zinc-500" />
                     )}
-                    {!status && track.duration_ms && (
-                      <span className="shrink-0 text-xs text-zinc-400">
-                        {fmtMs(track.duration_ms)}
+                    {!status && duration && (
+                      <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
+                        <Clock3 size={12} />
+                        {fmtMs(duration)}
                       </span>
                     )}
                   </div>

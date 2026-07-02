@@ -126,7 +126,7 @@ export const ko = {
     empty: "위에 링크를 붙여넣고 추가를 눌러 일괄 작업을 만드세요.",
   },
   music: {
-    label: "{{source}} 가져오기",
+    label: "가져오기",
     songs_one: "곡 {{count}}개",
     songs_other: "곡 {{count}}개",
     truncated: "(임베드에 노출된 트랙만 표시)",

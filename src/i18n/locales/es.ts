@@ -126,7 +126,7 @@ export const es = {
     empty: "Pega enlaces arriba y pulsa Añadir para crear un lote.",
   },
   music: {
-    label: "Importar de {{source}}",
+    label: "Importar",
     songs_one: "{{count}} canción",
     songs_other: "{{count}} canciones",
     truncated: "(solo los temas que expone el embed)",

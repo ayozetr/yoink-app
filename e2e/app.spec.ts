@@ -170,6 +170,24 @@ test("analyzes a playlist with per-item selection", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Descargar \(1\)/ })).toBeVisible();
 });
 
+test("hides the video/audio selector for a YouTube Music playlist", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: PLAYLIST_INFO }));
+
+  await page.goto("/");
+  await page
+    .getByPlaceholder(/Pega aquí la URL/)
+    .fill("https://music.youtube.com/playlist?list=PL1");
+  await page.getByRole("button", { name: "Analizar" }).click();
+
+  await expect(page.getByText("My Playlist")).toBeVisible();
+  // Audio-only: the format picker is the audio one, no Vídeo/Audio kind selector,
+  // and the count reads "canciones" (songs), not "vídeos".
+  await expect(page.getByLabel("Formato de audio")).toBeVisible();
+  await expect(page.getByLabel("Formato", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/2 canciones/)).toBeVisible();
+});
+
 const MUSIC_INFO = {
   source: "spotify",
   type: "playlist",
@@ -201,7 +219,8 @@ test("imports a music playlist with shift-click range selection", async ({ page 
     .fill("https://open.spotify.com/playlist/abc");
   await page.getByRole("button", { name: "Analizar" }).click();
 
-  await expect(page.getByText("Importar de Spotify")).toBeVisible();
+  // Generic "Importar" label; the source now leads the meta line ("Spotify • N …").
+  await expect(page.getByText(/Spotify • \d+/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "My Mix" })).toBeVisible();
   // All 10 selected by default → the duration summary and the import count.
   await expect(page.getByText("10 seleccionados")).toBeVisible();
@@ -216,6 +235,24 @@ test("imports a music playlist with shift-click range selection", async ({ page 
   await expect(
     page.getByRole("button", { name: "Importar 6 como audio" }),
   ).toBeVisible();
+});
+
+test("keeps a '0 selected' summary after deselecting everything", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/music/resolve", (route) =>
+    route.fulfill({ json: MUSIC_INFO }),
+  );
+
+  await page.goto("/");
+  await page
+    .getByPlaceholder(/Pega aquí la URL/)
+    .fill("https://open.spotify.com/playlist/abc");
+  await page.getByRole("button", { name: "Analizar" }).click();
+  await expect(page.getByRole("heading", { name: "My Mix" })).toBeVisible();
+
+  // Deselecting everything keeps the summary line (it used to vanish) reading "0 …".
+  await page.getByRole("button", { name: "Deseleccionar todo" }).click();
+  await expect(page.getByText("0 seleccionados · 0min")).toBeVisible();
 });
 
 test("opens the settings modal", async ({ page }) => {

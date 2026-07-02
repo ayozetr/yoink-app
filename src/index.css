@@ -35,6 +35,17 @@ textarea,
   -webkit-user-select: text;
 }
 
+/* Nothing is draggable like in a browser: a webview otherwise lets you drag a
+   cover/thumbnail (or link) out as an image, and dropping it back would trip the
+   window's "drop a link to analyze" handler. Images also don't respond to a drag. */
+img,
+a,
+svg {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Hidden scrollbars for a native-app feel — scrolling (wheel / touchpad / keys)
    still works, there's just no visible bar. Covers the dev browser, the Linux
    WebKitGTK webview and the Windows WebView2 (Chromium). */

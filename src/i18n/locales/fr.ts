@@ -126,7 +126,7 @@ export const fr = {
     empty: "Collez des liens ci-dessus et appuyez sur Ajouter pour créer un lot.",
   },
   music: {
-    label: "Importation depuis {{source}}",
+    label: "Importation",
     songs_one: "{{count}} titre",
     songs_other: "{{count}} titres",
     truncated: "(seulement les titres exposés par l'intégration)",

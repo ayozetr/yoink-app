@@ -126,7 +126,7 @@ export const hi = {
     empty: "ऊपर लिंक पेस्ट करें और बैच बनाने के लिए जोड़ें दबाएँ।",
   },
   music: {
-    label: "{{source}} इम्पोर्ट",
+    label: "इम्पोर्ट",
     songs_one: "{{count}} गाना",
     songs_other: "{{count}} गाने",
     truncated: "(केवल वे ट्रैक जो एम्बेड दिखाता है)",

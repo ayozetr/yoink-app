@@ -145,6 +145,24 @@ export async function resolveMusic(
   return (await response.json()) as MusicImportInfo;
 }
 
+/** One track's cover art + duration via a keyless (server-paced) Deezer lookup —
+ * for filling a non-enriched playlist's covers lazily, row by row. */
+export async function getTrackMeta(
+  track: MusicTrack,
+  signal?: AbortSignal,
+): Promise<{ cover_url: string | null; duration_ms: number | null }> {
+  const response = await request("/music/cover", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(track),
+    signal,
+  });
+  return (await response.json()) as {
+    cover_url: string | null;
+    duration_ms: number | null;
+  };
+}
+
 /** Find the best-ranked YouTube video URL for a track (null if none). */
 export async function matchMusic(
   track: MusicTrack,

@@ -126,7 +126,7 @@ export const en = {
     empty: "Paste links above and press Add to build a batch.",
   },
   music: {
-    label: "{{source}} import",
+    label: "Import",
     songs_one: "{{count}} song",
     songs_other: "{{count}} songs",
     truncated: "(only the tracks the embed exposes)",

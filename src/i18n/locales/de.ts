@@ -126,7 +126,7 @@ export const de = {
     empty: "Füge oben Links ein und drücke „Hinzufügen“, um einen Stapel zu erstellen.",
   },
   music: {
-    label: "{{source}}-Import",
+    label: "Import",
     songs_one: "{{count}} Titel",
     songs_other: "{{count}} Titel",
     truncated: "(nur die Titel, die das Embed bereitstellt)",

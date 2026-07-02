@@ -126,7 +126,7 @@ export const zh = {
     empty: "在上方粘贴链接并点击「添加」以创建批次。",
   },
   music: {
-    label: "从 {{source}} 导入",
+    label: "导入",
     songs_one: "{{count}} 首歌曲",
     songs_other: "{{count}} 首歌曲",
     truncated: "（仅包含嵌入页面公开的曲目）",

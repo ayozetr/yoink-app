@@ -128,7 +128,7 @@ export const ru = {
     empty: "Вставьте ссылки выше и нажмите «Добавить», чтобы собрать пакет.",
   },
   music: {
-    label: "Импорт из {{source}}",
+    label: "Импорт",
     songs_one: "{{count}} трек",
     songs_few: "{{count}} трека",
     songs_many: "{{count}} треков",

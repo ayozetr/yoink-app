@@ -128,7 +128,7 @@ export const uk = {
     empty: "Вставте посилання вище та натисніть Додати, щоб зібрати пакет.",
   },
   music: {
-    label: "Імпорт із {{source}}",
+    label: "Імпорт",
     songs_one: "{{count}} пісня",
     songs_few: "{{count}} пісні",
     songs_many: "{{count}} пісень",

@@ -571,6 +571,7 @@ export function DownloaderPanel({
           busy={downloading || lockedByOther}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
+          sourceUrl={analyzedUrl}
         />
       )}
 
