@@ -74,6 +74,29 @@ def test_resolve_deezer(monkeypatch):
     assert info.tracks[0].year == "2020" and info.tracks[0].is_explicit is True
 
 
+_DEEZER_PLAYLIST = {
+    "title": "My Mix",
+    "creator": {"name": "Curator"},
+    "cover_xl": "http://playlist/cover",
+    "tracks": {"data": [
+        {"title": "T1", "artist": {"name": "A1"}, "duration": 200,
+         "album": {"title": "Album1", "cover_xl": "http://album1/xl"}},
+        {"title": "T2", "artist": {"name": "A2"}, "duration": 180,
+         "album": {"title": "Album2", "cover_xl": "http://album2/xl"}},
+    ]},
+}
+
+
+def test_resolve_deezer_playlist_keeps_per_track_covers(monkeypatch):
+    monkeypatch.setattr(mi, "_get_json", lambda url, headers=None: _DEEZER_PLAYLIST)
+    info = mi.resolve("https://www.deezer.com/playlist/999")
+    assert info.type == "playlist"
+    assert info.cover_url == "http://playlist/cover"  # header = the playlist's own
+    # Each track keeps its own album cover, not the playlist's.
+    assert info.tracks[0].cover_url == "http://album1/xl"
+    assert info.tracks[1].cover_url == "http://album2/xl"
+
+
 _APPLE = {"results": [
     {"wrapperType": "collection", "collectionName": "My Album",
      "artistName": "The Artist", "artworkUrl100": "http://a/100x100bb.jpg"},
@@ -279,6 +302,30 @@ def test_resolve_amazon_originals_keep_amazon_art(monkeypatch):
     # …while the regular track takes Deezer's higher-res cover + duration.
     assert info.tracks[1].cover_url == "http://dz/reg"
     assert info.tracks[1].duration_ms == 200000
+
+
+def test_resolve_amazon_playlist_no_enrich_stays_instant(monkeypatch):
+    # enrich=False (what the endpoint uses): the playlist returns with Amazon's own
+    # per-track covers but no durations, and Deezer is never called — the frontend
+    # then fills each cover/duration lazily via track_meta.
+    monkeypatch.setattr(mi, "_get", lambda url, headers=None: _AMAZON_ORIGINAL_HTML)
+
+    def boom(url, headers=None):
+        raise AssertionError("Deezer must not be called when enrich=False")
+
+    monkeypatch.setattr(mi, "_get_json", boom)
+    info = mi.resolve("https://music.amazon.es/playlists/B0EXAMPLE1", enrich=False)
+    assert info.tracks[0].cover_url == "https://m.media-amazon.com/images/I/ORIG.jpg"
+    assert info.tracks[1].cover_url == "https://m.media-amazon.com/images/I/REG.jpg"
+    assert all(t.duration_ms is None for t in info.tracks)
+
+
+def test_track_meta_looks_up_deezer(monkeypatch):
+    # The frontend's lazy per-track fill: one Deezer search -> (cover, duration).
+    monkeypatch.setattr(mi, "_get_json", lambda url, headers=None: _DEEZER_TRACK_SEARCH)
+    cover, duration_ms = mi.track_meta("Song One", "Artist One")
+    assert cover == "http://dz/track_cover"
+    assert duration_ms == 210000
 
 
 # Tidal single track: the embed has no <list-item>, so it's built from the

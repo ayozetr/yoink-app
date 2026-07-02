@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import re
+import threading
+import time
 from html import unescape
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -151,20 +153,32 @@ def is_music_url(url: str) -> bool:
     return detect_source(url) is not None
 
 
-def resolve(url: str) -> MusicImportInfo:
-    """Resolve any supported music URL into a tracklist (keyless)."""
+def resolve(url: str, enrich: bool = True) -> MusicImportInfo:
+    """Resolve any supported music URL into a tracklist (keyless).
+
+    When ``enrich`` is false, the per-track Deezer cover/duration backfill that
+    Spotify/Tidal/Amazon playlists need is skipped, so the tracklist returns
+    immediately and the caller fills each track's cover lazily (via
+    :func:`track_meta`) — keeping the UI responsive on a big playlist.
+    """
     source = detect_source(url)
     if source == "spotify":
-        return _resolve_spotify(url)
+        return _resolve_spotify(url, enrich)
     if source == "deezer":
         return _resolve_deezer(url)
     if source == "apple":
         return _resolve_apple(url)
     if source == "tidal":
-        return _resolve_tidal(url)
+        return _resolve_tidal(url, enrich)
     if source == "amazon":
-        return _resolve_amazon(url)
+        return _resolve_amazon(url, enrich)
     raise MusicImportError("Not a recognised music-service URL.")
+
+
+def track_meta(title: str, artists: str) -> tuple[str | None, int | None]:
+    """One keyless Deezer lookup for a track -> (cover_url, duration_ms), for the
+    frontend's lazy per-track cover fill after a non-enriched ``resolve``."""
+    return _deezer_track_meta(title, artists)
 
 
 # --- YouTube match (shared) ------------------------------------------------
@@ -312,7 +326,7 @@ def _sp_track_from_api(item: dict[str, Any], kind: str, album_entity: dict[str, 
     )
 
 
-def _resolve_spotify(url: str) -> MusicImportInfo:
+def _resolve_spotify(url: str, enrich: bool = True) -> MusicImportInfo:
     match = _SPOTIFY_RE.search(url)
     if not match:
         raise MusicImportError("Not a recognised Spotify URL.")
@@ -348,8 +362,9 @@ def _resolve_spotify(url: str) -> MusicImportInfo:
         tracks = [t for t in (_sp_track_from_api(it, kind, entity) for it in api_items) if t]
         truncated = len(api_items) >= 2000  # hit the paging cap — more tracks exist
     else:
-        album_name = entity.get("name") if kind == "album" else None
-        album_year = _sp_year(entity) if kind == "album" else None
+        is_album = kind == "album"
+        album_name = entity.get("name") if is_album else None
+        album_year = _sp_year(entity) if is_album else None
         tracks = []
         for item in entity.get("trackList") or []:
             if not isinstance(item, dict) or not item.get("title"):
@@ -360,7 +375,12 @@ def _resolve_spotify(url: str) -> MusicImportInfo:
             tracks.append(MusicTrack(
                 title=item.get("title", ""), artists=item.get("subtitle", "") or "",
                 duration_ms=item.get("duration"), is_explicit=bool(item.get("isExplicit")),
-                album=album_name, year=album_year, cover_url=cover, source_url=surl))
+                # An album shares one cover; a playlist's tracks each have their own,
+                # which the embed doesn't carry — backfilled from Deezer below.
+                album=album_name, year=album_year,
+                cover_url=cover if is_album else None, source_url=surl))
+        if not is_album and enrich:
+            _deezer_enrich_each(tracks)
         truncated = len(tracks) >= 100
 
     subtitle = entity.get("subtitle") if kind == "playlist" else (tracks[0].artists if tracks else None)
@@ -422,7 +442,10 @@ def _resolve_deezer(url: str) -> MusicImportInfo:
         page = _get_json(nxt)
         items += page.get("data") or []
         nxt = page.get("next")
-    tracks = [t for t in (_deezer_track(it, album_name, album_year, cover) for it in items) if t]
+    # A playlist's tracks span many albums, so each keeps its own album cover
+    # (Deezer includes it per track); only an album shares a single cover.
+    track_cover = cover if kind == "album" else None
+    tracks = [t for t in (_deezer_track(it, album_name, album_year, track_cover) for it in items) if t]
     truncated = bool(nxt)  # a next page remained past the cap — more tracks exist
     return MusicImportInfo(source="deezer", type=kind, name=name, subtitle=subtitle,
                            cover_url=cover, tracks=tracks, truncated=truncated)
@@ -583,7 +606,7 @@ def _join_artists(fragment: str) -> str:
     return ", ".join(dict.fromkeys(names))
 
 
-def _resolve_tidal(url: str) -> MusicImportInfo:
+def _resolve_tidal(url: str, enrich: bool = True) -> MusicImportInfo:
     match = _TIDAL_RE.search(url)
     if not match:
         raise MusicImportError("Not a recognised Tidal URL.")
@@ -624,7 +647,10 @@ def _resolve_tidal(url: str) -> MusicImportInfo:
         tracks.append(MusicTrack(
             title=title, artists=artist or og_artist or "", duration_ms=dur_ms,
             is_explicit='slot="explicit-badge"><i class="badge explicit"' in block,
-            album=og_name if kind == "album" else None, cover_url=cover,
+            # An album shares one cover; a playlist's tracks each have their own,
+            # which the embed doesn't carry — backfilled from Deezer below.
+            album=og_name if kind == "album" else None,
+            cover_url=cover if kind == "album" else None,
             source_url=f"https://tidal.com/track/{pid_m.group(1)}" if pid_m else ""))
 
     # A single-track URL: the embed has no list-items, so build it from the
@@ -636,6 +662,8 @@ def _resolve_tidal(url: str) -> MusicImportInfo:
 
     if not tracks:
         raise MusicImportError("Could not read the Tidal tracklist.")
+    if kind == "playlist" and enrich:
+        _deezer_enrich_each(tracks)  # per-track covers the embed doesn't carry
     if kind == "track":
         return MusicImportInfo(source="tidal", type="track", name=tracks[0].title,
                                subtitle=tracks[0].artists, cover_url=cover, tracks=tracks[:1])
@@ -713,14 +741,56 @@ def _deezer_enrich(name: str, artist: str, tracks: list[MusicTrack]) -> str | No
         return None
 
 
+# Deezer's keyless API rate-limits bursts (~50 requests / 5 s) with a
+# "Quota limit exceeded" error (code 4). Enriching a 100-track playlist's covers
+# would trip it and silently drop covers, so pace every search through a shared
+# throttle (~8/s, safely under the limit) — plus one backoff retry as a backstop.
+_DEEZER_GATE = threading.Lock()
+_DEEZER_NEXT = [0.0]  # earliest monotonic time the next request may fire
+_DEEZER_MIN_INTERVAL = 0.12
+
+
+def _deezer_search(url: str) -> Any | None:
+    """A paced (and quota-retried) Deezer GET, for the per-track enrichment burst."""
+    for attempt in range(2):
+        with _DEEZER_GATE:
+            wait = _DEEZER_NEXT[0] - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            _DEEZER_NEXT[0] = time.monotonic() + _DEEZER_MIN_INTERVAL
+        found = _get_json(url)
+        if isinstance(found, dict) and (found.get("error") or {}).get("code") == 4:
+            time.sleep(1.5 * (attempt + 1))  # quota exceeded — back off, retry once
+            continue
+        return found
+    return found
+
+
 def _deezer_track_meta(title: str, artist: str) -> tuple[str | None, int | None]:
     """One keyless Deezer track lookup -> (cover_url, duration_ms). Best-effort:
     returns (None, None) on any miss or error."""
     if not title:
         return None, None
+    # Multi-artist ("A, B, C") and live/version titles ("… - En Directo", "(Live)")
+    # are too specific for Deezer's search, so also try the primary artist alone
+    # and a title stripped of its version suffix.
+    primary = re.split(r"\s*(?:,|&|/|\bfeat\.?\b|\bft\.?\b|\bcon\b)\s*",
+                       artist, maxsplit=1, flags=re.I)[0].strip() if artist else ""
+    stripped = re.sub(
+        r"\s*[(\-–][^)]*\b(live|directo|en vivo|remaster\w*|versi[oó]n|version|"
+        r"ac[uú]stic\w*|acoustic|remix|radio edit)\b.*$", "", title, flags=re.I).strip()
+    queries = [f'artist:"{artist}" track:"{title}"', f"{artist} {title}".strip()]
+    if primary and primary != artist:
+        queries.append(f"{primary} {title}".strip())
+    if stripped and stripped != title:
+        queries.append(f"{primary or artist} {stripped}".strip())
     try:
-        for query in (f'artist:"{artist}" track:"{title}"', f"{artist} {title}".strip()):
-            found = _get_json(
+        seen: set[str] = set()
+        for query in queries:
+            if not query or query in seen:
+                continue
+            seen.add(query)
+            found = _deezer_search(
                 "https://api.deezer.com/search/track?limit=1&q=" + quote(query)
             )
             data = found.get("data") if isinstance(found, dict) else None
@@ -757,7 +827,7 @@ def _deezer_enrich_each(tracks: list[MusicTrack]) -> str | None:
     return next((t.cover_url for t in tracks if t.cover_url), None)
 
 
-def _resolve_amazon(url: str) -> MusicImportInfo:
+def _resolve_amazon(url: str, enrich: bool = True) -> MusicImportInfo:
     match = _AMAZON_RE.search(url)
     if not match:
         raise MusicImportError("Not a recognised Amazon Music URL.")
@@ -848,8 +918,8 @@ def _resolve_amazon(url: str) -> MusicImportInfo:
     # which also yields a higher-resolution cover for non-original tracks (it skips
     # any track that already has one, i.e. the locked Amazon Originals).
     if kind == "album":
-        _deezer_enrich(set_name, tracks[0].artists, tracks)
-    else:  # playlist — tracks span many albums, so look each one up on its own.
+        _deezer_enrich(set_name, tracks[0].artists, tracks)  # small set — always sync
+    elif enrich:  # playlist — skip the slow per-track pass when it's filled lazily
         _deezer_enrich_each(tracks)
 
     # Backfill covers Deezer couldn't find (Amazon-exclusive tracks) from Amazon.
