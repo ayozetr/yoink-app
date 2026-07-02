@@ -127,13 +127,17 @@ def main() -> int:
         if not files:
             print("! The .deb contained no files.")
             return 1
+        # Quote every %files path: the onedir backend bundles files with spaces in
+        # their name (e.g. setuptools' "Lorem ipsum.txt"), which rpmbuild would
+        # otherwise split on and reject ("must start with /").
+        files_spec = "\n".join(f'"{f}"' for f in files)
 
         topdir = tmp_path / "rpmbuild"
         out = tmp_path / "out"
         out.mkdir()
         spec = tmp_path / "yoink.spec"
         spec.write_text(
-            _SPEC.format(version=version, summary=SUMMARY, license=LICENSE, tree=tree, files="\n".join(files)),
+            _SPEC.format(version=version, summary=SUMMARY, license=LICENSE, tree=tree, files=files_spec),
             encoding="utf-8",
         )
 
