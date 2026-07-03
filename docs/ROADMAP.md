@@ -176,10 +176,7 @@ Not committed and not release-ordered — picked from as capacity allows.
   a "Downloaded" badge and stay re-selectable.
 - ⬜ **Sidecar exports** (S) — `.info.json` / thumbnail / loose `.srt`/`.vtt`.
 - ⬜ **Subtitles as separate files + auto-translate** (M).
-- ⬜ **Transcode local files** (M) — drop a file (no URL), remux/re-encode.
-- ⬜ **Clip → GIF/WebP** (M) — export a trimmed range (ffmpeg palette).
 - ⬜ **Loudness normalization** (M) — ffmpeg `loudnorm` (EBU R128).
-- ⬜ **Capture frame / embed poster** (S).
 - ✅ **Download presets/profiles** *(next)* — save the preview's format selection
   as a named preset (`lib/presets`, localStorage) and apply it in one click; chips
   to apply/delete and an inline "save current" in the preview card.
@@ -392,3 +389,7 @@ Decisions kept here so they aren't re-proposed.
   a dedicated multi-progress UI.
 - **In-app yt-dlp update** — **not happening, by design.** Yoink only *reports* the
   bundled yt-dlp version; it's updated with the next Yoink release (owner's decision).
+- **Local media conversion / editing** — dropping a local file to transcode/remux,
+  clip to GIF/WebP, or grab a frame is **out of scope.** Yoink *downloads*
+  audio/video; it isn't a converter, editor or frame grabber — those act on files
+  you already have, which is a different tool.
