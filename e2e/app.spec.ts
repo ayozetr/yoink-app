@@ -288,6 +288,11 @@ test("keeps a '0 selected' summary after deselecting everything", async ({ page 
 
 test("queue: drag reorders items", async ({ page }) => {
   await mockBase(page);
+  // Non-music URLs are resolved via /api/info on add; a 422 makes each fall back
+  // to a plain single titled with its URL (which the test drags by).
+  await page.route("**/api/info", (route) =>
+    route.fulfill({ status: 422, json: { detail: "x" } }),
+  );
   await page.goto("/");
   await page.getByRole("button", { name: "Cola de descargas" }).click();
   await page
@@ -302,6 +307,48 @@ test("queue: drag reorders items", async ({ page }) => {
   // Drag the last item onto the first → it moves to the top.
   await items.nth(2).dragTo(items.nth(0));
   await expect(items.nth(0)).toContainText("http://x/3");
+});
+
+test("queue: a music album adds as an expandable, selectable group", async ({
+  page,
+}) => {
+  await mockBase(page);
+  // A Spotify album resolves (keylessly) into a tracklist.
+  await page.route("**/api/music/resolve", (route) =>
+    route.fulfill({
+      json: {
+        source: "spotify",
+        type: "album",
+        name: "Greatest Hits",
+        subtitle: "The Band",
+        cover_url: null,
+        truncated: false,
+        tracks: [
+          { title: "Song A", artists: "The Band", duration_ms: null, is_explicit: false, album: "Greatest Hits", year: "2020", cover_url: null, source_url: "s://a" },
+          { title: "Song B", artists: "The Band", duration_ms: null, is_explicit: false, album: "Greatest Hits", year: "2020", cover_url: null, source_url: "s://b" },
+          { title: "Song C", artists: "The Band", duration_ms: null, is_explicit: false, album: "Greatest Hits", year: "2020", cover_url: null, source_url: "s://c" },
+        ],
+      },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Cola de descargas" }).click();
+  await page
+    .getByPlaceholder(/enlaces/i)
+    .first()
+    .fill("https://open.spotify.com/album/123");
+  await page.getByRole("button", { name: /Añadir/ }).click();
+
+  // The album is a single row (not 3) that expands into its 3 tracks.
+  await expect(page.getByText("Greatest Hits")).toBeVisible();
+  await expect(page.getByText("Spotify · 3/3")).toBeVisible();
+  await expect(page.getByText("Song B")).toHaveCount(0); // collapsed
+  await page.getByRole("button", { name: "Desplegar" }).click();
+  await expect(page.getByText("Song B")).toBeVisible();
+
+  // Deselect one track → the counter drops to 2/3.
+  await page.getByRole("checkbox").nth(1).uncheck();
+  await expect(page.getByText("Spotify · 2/3")).toBeVisible();
 });
 
 test("opens the settings modal", async ({ page }) => {

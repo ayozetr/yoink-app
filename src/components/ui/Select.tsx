@@ -247,7 +247,7 @@ export function Select({
                 disabled={isDisabled}
                 onMouseEnter={() => setActiveIndex(i)}
                 onClick={() => choose(option.value)}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors ${
                   isDisabled
                     ? "cursor-not-allowed text-zinc-500"
                     : active

@@ -245,12 +245,18 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ✅ **Drag-and-drop a link** onto the window — dropping a link anywhere analyzes
   it (drops onto editable fields are left alone); `dragDropEnabled: false` lets
   the webview deliver DOM drops in the packaged app.
-- ⬜ **Responsive PreviewCard** (M) — stack the fixed thumbnail + controls on narrow widths.
-- ⬜ **Unify PlaylistCard checkboxes** onto `Toggle` (S).
+- ✅ **Responsive PreviewCard** — the single-video preview stacks the thumbnail
+  (16:9, full-width) above the info/controls on narrow widths.
+- ✅ **Unify PlaylistCard checkboxes** onto `Toggle` (chapters/multi-audio switches).
 - ✅ **Re-download / re-analyze from history** — a re-analyze button on each
   history row reloads its URL into the analyzer.
-- ⬜ **Skip-current vs cancel-all** in the queue (M).
-- ⬜ **Reorder the queue** (drag up/down) (M).
+- ✅ **Skip-current vs cancel-all** in the queue — a *Skip* button drops the
+  current download and moves on; *Stop* still cancels the whole run.
+- ✅ **Reorder the queue** — drag a row by its grip handle to change the order.
+- ✅ **Queue: format picker + music/playlist groups** — pick video/audio + format
+  for the whole queue; a pasted album/playlist resolves into one collapsible row
+  whose tracks/videos you select individually (music routed through the importer:
+  match on YouTube → download audio → tag), instead of failing on DRM.
 - ⬜ **Auto-fill a clipboard URL on window focus** (M) — when the field is empty and
   the clipboard holds a link, pre-fill it (non-destructive) so a paste→analyze is one step.
   *(Tried in v2.3.0 but skipped: a gesture-less clipboard read is blocked by browsers.)*

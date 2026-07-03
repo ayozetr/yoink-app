@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronRight,
   GripVertical,
   ListPlus,
   Loader2,
@@ -24,14 +25,25 @@ import {
 } from "../../lib/downloadLock";
 import { notify } from "../../lib/notify";
 import {
+  applyAudioTags,
+  fetchInfo,
+  isMusicUrl,
+  matchMusic,
+  resolveMusic,
+} from "../../lib/api";
+import {
   loadQueue,
   newQueueId,
   parseUrls,
   saveQueue,
+  type QueueChild,
   type QueueItem,
+  type QueueStatus,
 } from "../../lib/queueStore";
+import { MUSIC_SOURCE_NAMES, type MusicTrack } from "../../types/music";
 import type {
   AudioFormat,
+  DownloadRequest,
   DownloadProgressEvent,
   MediaKind,
   VideoContainer,
@@ -40,6 +52,96 @@ import type {
 // The queue has no preview, so it offers a generic best-effort quality target
 // (yt-dlp caps to it or takes the closest lower tier).
 const QUALITY_OPTIONS = ["best", "1080p", "720p", "480p", "360p"];
+
+// Control-flow signals for the drain loop: SkipSignal drops the current download
+// and moves on; StopSignal (Cancel-all) unwinds the whole run.
+class SkipSignal extends Error {}
+class StopSignal extends Error {}
+
+/** The next thing to download: a plain item, or a group's next selected child. */
+interface Work {
+  item: QueueItem;
+  child: QueueChild | null;
+}
+
+/** Human name of the platform a non-music playlist/video came from, from its URL
+ * (so a group reads "YouTube Music · 20/20" like the music ones do). */
+function playlistSource(url: string): string | null {
+  let host: string;
+  try {
+    host = new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+  if (host === "music.youtube.com") return "YouTube Music";
+  if (host.endsWith("youtube.com") || host === "youtu.be") return "YouTube";
+  if (host.endsWith("soundcloud.com")) return "SoundCloud";
+  if (host.endsWith("vimeo.com")) return "Vimeo";
+  if (host.endsWith("bandcamp.com")) return "Bandcamp";
+  if (host.endsWith("dailymotion.com")) return "Dailymotion";
+  if (host.endsWith("twitch.tv")) return "Twitch";
+  // Fallback: the registrable domain's main label, capitalized (e.g. "Nebula").
+  const label = host.split(".").slice(-2, -1)[0];
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : null;
+}
+
+/** Reset an interrupted item/child (status "active") back to "pending". */
+function resetActive(item: QueueItem): QueueItem {
+  const status: QueueStatus = item.status === "active" ? "pending" : item.status;
+  if (!item.children) return { ...item, status };
+  return {
+    ...item,
+    status,
+    children: item.children.map((c) =>
+      c.status === "active" ? { ...c, status: "pending" } : c,
+    ),
+  };
+}
+
+/** A group's status is derived from its selected children; a single's is its own. */
+function displayStatus(item: QueueItem): QueueStatus {
+  if (item.status === "resolving") return "resolving";
+  if (!item.children) return item.status;
+  const sel = item.children.filter((c) => c.selected);
+  if (sel.some((c) => c.status === "active")) return "active";
+  if (sel.length === 0) return "pending";
+  if (sel.every((c) => c.status !== "pending"))
+    return sel.some((c) => c.status === "done") ? "done" : "error";
+  return "pending";
+}
+
+function itemDone(item: QueueItem): boolean {
+  return displayStatus(item) === "done";
+}
+
+/** The status dot/icon shared by item rows and their child rows. */
+function statusIcon(status: QueueStatus) {
+  switch (status) {
+    case "active":
+      return <Loader2 size={16} className="animate-spin text-violet-400" />;
+    case "resolving":
+      return <Loader2 size={16} className="animate-spin text-zinc-500" />;
+    case "done":
+      return <CheckCircle2 size={16} className="text-emerald-400" />;
+    case "error":
+      return <AlertCircle size={16} className="text-red-400" />;
+    case "skipped":
+      return <SkipForward size={16} className="text-zinc-500" />;
+    default:
+      return <span className="block size-2 rounded-full bg-zinc-500" />;
+  }
+}
+
+/** Pending or active work an item still owes (itself, or its selected children)
+ * — drives the Start button + the header badge. */
+function unfinishedCount(item: QueueItem): number {
+  if (item.status === "resolving") return 1;
+  if (!item.children)
+    return item.status === "pending" || item.status === "active" ? 1 : 0;
+  return item.children.filter(
+    (c) => c.selected && (c.status === "pending" || c.status === "active"),
+  ).length;
+}
 
 interface QueuePanelProps {
   /** Whether the panel is visible (the queue keeps running while hidden). */
@@ -130,9 +232,7 @@ export function QueuePanel({
 
   // Report unfinished items so the header can badge the queue button.
   useEffect(() => {
-    onPendingChange?.(
-      items.filter((i) => i.status === "pending" || i.status === "active").length,
-    );
+    onPendingChange?.(items.reduce((n, i) => n + unfinishedCount(i), 0));
   }, [items, onPendingChange]);
 
   // Tear down a live socket + free the lock if the panel unmounts.
@@ -147,45 +247,167 @@ export function QueuePanel({
   const update = (id: string, patch: Partial<QueueItem>) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
 
-  const processNext = () => {
-    const next = itemsRef.current.find((i) => i.status === "pending");
-    if (!next) {
-      const wasRunning = runningRef.current;
-      runningRef.current = false;
-      releaseDownloadLock("queue");
-      setRunning(false);
-      setProgress(null);
-      onDownloadFinished?.();
-      // A "launch it and walk away" queue shouldn't finish in silence: notify
-      // once the run drains (not when Start is pressed on an empty queue).
-      if (wasRunning) {
-        const done = itemsRef.current.filter((i) => i.status === "done").length;
-        const failed = itemsRef.current.filter((i) => i.status === "error").length;
-        void notify(
-          tRef.current("notify.queueDone"),
-          tRef.current("notify.queueSummary", { completed: done, failed }),
-        );
-      }
+  const updateChild = (
+    itemId: string,
+    childId: string,
+    patch: Partial<QueueChild>,
+  ) =>
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === itemId && i.children
+          ? {
+              ...i,
+              children: i.children.map((c) =>
+                c.id === childId ? { ...c, ...patch } : c,
+              ),
+            }
+          : i,
+      ),
+    );
+
+  const toggleExpanded = (id: string) =>
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, expanded: !i.expanded } : i)),
+    );
+
+  const toggleChild = (itemId: string, childId: string) =>
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === itemId && i.children
+          ? {
+              ...i,
+              children: i.children.map((c) =>
+                c.id === childId ? { ...c, selected: !c.selected } : c,
+              ),
+            }
+          : i,
+      ),
+    );
+
+  const setAllChildren = (itemId: string, selected: boolean) =>
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === itemId && i.children
+          ? { ...i, children: i.children.map((c) => ({ ...c, selected })) }
+          : i,
+      ),
+    );
+
+  // --- Adding URLs: resolve each into a single item or a selectable group ---
+
+  const addUrls = () => {
+    const urls = parsedInput;
+    if (urls.length === 0) return;
+    // Skip URLs already queued (by source url) so re-pasting is idempotent;
+    // failed items can be re-added to retry.
+    const existing = new Set(
+      itemsRef.current.filter((i) => i.status !== "error").map((i) => i.url),
+    );
+    const fresh = urls.filter((url) => !existing.has(url));
+    if (fresh.length === 0) {
+      setInput("");
       return;
     }
-    runningRef.current = true;
-    setRunning(true);
-    setProgress(null);
-    update(next.id, { status: "active", error: undefined });
+    const placeholders = fresh.map((url) => ({
+      id: newQueueId(),
+      url,
+      status: "resolving" as const,
+    }));
+    setItems((prev) => [...prev, ...placeholders]);
+    setInput("");
+    placeholders.forEach((p) => void resolveItem(p.id, p.url));
+  };
 
-    let settled = false;
-    const opts = optsRef.current;
-    handleRef.current = startDownload(
-      {
-        url: next.url,
-        kind: opts.kind,
-        quality: opts.quality,
-        container: opts.container,
-        audio_format: opts.audioFormat,
-        // The queue has no preview, so auto-detect + tag VR during the download.
-        auto_vr: true,
-      },
-      {
+  // Turn a placeholder into a plain single item, or a group of selectable
+  // children (a music album/playlist, or a regular video playlist).
+  const resolveItem = async (id: string, url: string) => {
+    try {
+      if (isMusicUrl(url)) {
+        const info = await resolveMusic(url);
+        const source = MUSIC_SOURCE_NAMES[info.source];
+        // Fall back to the album/playlist cover so tagging always has art.
+        const withCover = (t: MusicTrack): MusicTrack => ({
+          ...t,
+          cover_url: t.cover_url ?? info.cover_url,
+        });
+        if (info.tracks.length === 1) {
+          // A single track is a plain music item — no chevron, downloaded via
+          // match + tag.
+          const track = withCover(info.tracks[0]);
+          update(id, {
+            status: "pending",
+            title: `${track.artists} — ${track.title}`,
+            track,
+            sourceLabel: source,
+          });
+        } else {
+          const children: QueueChild[] = info.tracks.map((track) => ({
+            id: newQueueId(),
+            title: `${track.artists} — ${track.title}`,
+            status: "pending",
+            selected: true,
+            track: withCover(track),
+          }));
+          update(id, {
+            status: "pending",
+            title: info.name,
+            children,
+            sourceLabel: source,
+          });
+        }
+      } else {
+        const info = await fetchInfo(url);
+        if (info.type === "playlist" && info.playlist) {
+          const children: QueueChild[] = info.playlist.entries.map((e) => ({
+            id: newQueueId(),
+            title: e.title,
+            url: e.url,
+            status: "pending",
+            selected: true,
+          }));
+          update(id, {
+            status: "pending",
+            title: info.playlist.title,
+            children,
+            sourceLabel: playlistSource(url) ?? tRef.current("queue.playlist"),
+          });
+        } else {
+          update(id, {
+            status: "pending",
+            title: info.video?.title ?? url,
+            sourceLabel: playlistSource(url) ?? undefined,
+          });
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // A music URL that won't resolve is a hard error (yt-dlp can't take it
+      // either). A non-music resolve failure (anti-bot/network) falls back to a
+      // plain item so the download can still try it later.
+      if (isMusicUrl(url)) update(id, { status: "error", error: message });
+      else
+        update(id, {
+          status: "pending",
+          title: url,
+          sourceLabel: playlistSource(url) ?? undefined,
+        });
+    }
+  };
+
+  // --- Download engine: an async drain loop over singles + group children ---
+
+  const [activeChildId, setActiveChildId] = useState<string | null>(null);
+  const runIdRef = useRef(0);
+  const rejectRef = useRef<((reason: unknown) => void) | null>(null);
+
+  // Wrap one yt-dlp download in a promise. cancel() suppresses the socket
+  // callbacks, so skip/stop reject through rejectRef instead of leaving the
+  // loop's await hanging forever.
+  const downloadOne = (req: DownloadRequest) =>
+    new Promise<{ filepath: string; filename: string }>((resolve, reject) => {
+      rejectRef.current = reject;
+      let settled = false;
+      handleRef.current = startDownload(req, {
         onEvent: (event) => {
           if (settled) return;
           if (event.type === "progress") {
@@ -194,85 +416,173 @@ export function QueuePanel({
           }
           settled = true;
           handleRef.current = null;
-          if (event.type === "completed") {
-            update(next.id, { status: "done", title: event.filename });
-          } else {
-            update(next.id, { status: "error", error: event.message });
-          }
-          onDownloadFinished?.();
-          if (runningRef.current) processNext();
+          rejectRef.current = null;
+          if (event.type === "completed")
+            resolve({ filepath: event.filepath, filename: event.filename });
+          else reject(new Error(event.message));
         },
         onClose: () => {
           if (settled) return;
           settled = true;
           handleRef.current = null;
-          update(next.id, {
-            status: "error",
-            error: tRef.current("errors.downloadConnectionLost"),
-          });
-          if (runningRef.current) processNext();
+          rejectRef.current = null;
+          reject(new Error(tRef.current("errors.downloadConnectionLost")));
         },
-      },
-    );
+      });
+    });
+
+  const findNextWork = (): Work | null => {
+    for (const item of itemsRef.current) {
+      if (item.children) {
+        const child = item.children.find(
+          (c) => c.selected && c.status === "pending",
+        );
+        if (child) return { item, child };
+      } else if (item.status === "pending") {
+        return { item, child: null };
+      }
+    }
+    return null;
   };
 
-  const addUrls = () => {
-    const urls = parsedInput;
-    if (urls.length === 0) return;
-    setItems((prev) => {
-      // Skip URLs already queued (pending/active/done) so re-pasting the same
-      // block — a very common "did it add?" action — is idempotent, not a
-      // silent double download. Failed items can be re-added to retry.
-      const existing = new Set(
-        prev.filter((i) => i.status !== "error").map((i) => i.url),
-      );
-      const fresh = urls.filter((url) => !existing.has(url));
-      if (fresh.length === 0) return prev;
-      return [
-        ...prev,
-        ...fresh.map((url) => ({
-          id: newQueueId(),
-          url,
-          status: "pending" as const,
-        })),
-      ];
+  // Music: match on YouTube → download audio → tag with the source metadata.
+  const downloadMusic = async (track: MusicTrack, runId: number) => {
+    const url = await matchMusic(track);
+    if (!runningRef.current || runIdRef.current !== runId) throw new StopSignal();
+    if (!url) throw new SkipSignal(); // nothing cleared the match threshold
+    const res = await downloadOne({
+      url,
+      kind: "audio",
+      audio_format: optsRef.current.audioFormat,
     });
-    setInput("");
+    await applyAudioTags({
+      path: res.filepath,
+      title: track.title,
+      artist: track.artists,
+      album: track.album,
+      year: track.year,
+      cover_url: track.cover_url,
+    }).catch(() => undefined); // tagging is best-effort
+  };
+
+  const doWork = async (work: Work, runId: number) => {
+    const opts = optsRef.current;
+    // A single music track (plain item) or a music child both download + tag.
+    const track = work.child ? work.child.track : work.item.track;
+    if (track) {
+      await downloadMusic(track, runId);
+      return;
+    }
+    // Otherwise a plain video/audio download at the queue's chosen format.
+    const url = work.child ? work.child.url! : work.item.url;
+    await downloadOne({
+      url,
+      kind: opts.kind,
+      quality: opts.quality,
+      container: opts.container,
+      audio_format: opts.audioFormat,
+      auto_vr: true, // no preview, so auto-detect + tag VR during the download
+    });
+  };
+
+  const drain = async (runId: number) => {
+    while (runningRef.current && runIdRef.current === runId) {
+      const work = findNextWork();
+      if (!work) break;
+      setProgress(null);
+      if (work.child) {
+        setActiveChildId(work.child.id);
+        updateChild(work.item.id, work.child.id, {
+          status: "active",
+          error: undefined,
+        });
+      } else {
+        setActiveChildId(null);
+        update(work.item.id, { status: "active", error: undefined });
+      }
+      try {
+        await doWork(work, runId);
+        if (runIdRef.current !== runId) return; // superseded by stop/restart
+        if (work.child)
+          updateChild(work.item.id, work.child.id, { status: "done" });
+        else update(work.item.id, { status: "done" });
+      } catch (err) {
+        if (runIdRef.current !== runId) return;
+        if (err instanceof StopSignal) return; // stop() already reset the row
+        const skipped = err instanceof SkipSignal;
+        const status = skipped ? "skipped" : "error";
+        const error = skipped
+          ? undefined
+          : err instanceof Error
+            ? err.message
+            : String(err);
+        if (work.child)
+          updateChild(work.item.id, work.child.id, { status, error });
+        else update(work.item.id, { status, error });
+      }
+      setActiveChildId(null);
+      onDownloadFinished?.();
+    }
+    finish(runId);
+  };
+
+  const finish = (runId: number) => {
+    if (runIdRef.current !== runId) return; // superseded by stop/restart
+    runningRef.current = false;
+    releaseDownloadLock("queue");
+    setRunning(false);
+    setProgress(null);
+    setActiveChildId(null);
+    onDownloadFinished?.();
+    // A "launch it and walk away" queue shouldn't finish in silence.
+    let done = 0;
+    let failed = 0;
+    for (const i of itemsRef.current) {
+      for (const r of i.children ?? [i]) {
+        if (r.status === "done") done += 1;
+        else if (r.status === "error") failed += 1;
+      }
+    }
+    void notify(
+      tRef.current("notify.queueDone"),
+      tRef.current("notify.queueSummary", { completed: done, failed }),
+    );
   };
 
   const start = () => {
     if (runningRef.current) return;
     // Refuse to start while another engine downloads (Start is also disabled in
-    // the UI; this guards the race between render and click).
+    // the UI; this guards the render-vs-click race).
     if (!acquireDownloadLock("queue")) return;
-    processNext();
+    runningRef.current = true;
+    setRunning(true);
+    void drain((runIdRef.current += 1));
   };
 
   const stop = () => {
     runningRef.current = false;
+    runIdRef.current += 1; // invalidate the running drain's continuations
     handleRef.current?.cancel();
+    rejectRef.current?.(new StopSignal());
+    rejectRef.current = null;
     handleRef.current = null;
     releaseDownloadLock("queue");
     setRunning(false);
     setProgress(null);
-    // Put the interrupted item back in line so it can resume.
-    setItems((prev) =>
-      prev.map((i) => (i.status === "active" ? { ...i, status: "pending" } : i)),
-    );
+    setActiveChildId(null);
+    // Put the interrupted item/child back in line so it resumes next run.
+    setItems((prev) => prev.map(resetActive));
     onDownloadFinished?.();
   };
 
-  // Skip just the current item and move straight on to the next — the queue keeps
-  // running (unlike Stop/Cancel-all, which halts the whole run). cancel() suppresses
-  // the socket callbacks, so advancing here can't race with them.
+  // Skip just the current download and move on — the run keeps going (unlike
+  // Stop). Rejecting the in-flight promise unblocks the drain loop's await.
   const skipCurrent = () => {
     handleRef.current?.cancel();
     handleRef.current = null;
+    rejectRef.current?.(new SkipSignal());
+    rejectRef.current = null;
     setProgress(null);
-    setItems((prev) =>
-      prev.map((i) => (i.status === "active" ? { ...i, status: "skipped" } : i)),
-    );
-    if (runningRef.current) processNext();
   };
 
   // Drag-reorder pending items so the user can change the download order.
@@ -292,11 +602,17 @@ export function QueuePanel({
 
   const removeItem = (id: string) =>
     setItems((prev) => prev.filter((i) => i.id !== id));
-  const clearDone = () =>
-    setItems((prev) => prev.filter((i) => i.status !== "done"));
+  const clearDone = () => setItems((prev) => prev.filter((i) => !itemDone(i)));
 
-  const pending = items.filter((i) => i.status === "pending").length;
-  const hasDone = items.some((i) => i.status === "done");
+  // Downloadable pending work (excludes resolving/active) — gates the Start button.
+  const pending = items.reduce((n, i) => {
+    if (i.children)
+      return (
+        n + i.children.filter((c) => c.selected && c.status === "pending").length
+      );
+    return n + (i.status === "pending" ? 1 : 0);
+  }, 0);
+  const hasDone = items.some(itemDone);
 
   // Same readout as DownloadProgressCard, shown on the active item's row.
   const percent = progress?.percent ?? 0;
@@ -404,7 +720,7 @@ export function QueuePanel({
             { value: "video", label: t("preview.video") },
             { value: "audio", label: t("preview.audio") },
           ]}
-          className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+          className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
         />
         {isVideo ? (
           <>
@@ -412,15 +728,18 @@ export function QueuePanel({
               ariaLabel={t("preview.quality")}
               value={quality}
               onChange={setQuality}
-              options={QUALITY_OPTIONS.map((o) => ({ value: o, label: o }))}
-              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+              options={QUALITY_OPTIONS.map((o) => ({
+                value: o,
+                label: o === "best" ? t("settings.qualityBest") : o,
+              }))}
+              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
             />
             <Select
               ariaLabel={t("preview.container")}
               value={container}
               onChange={(v) => setContainer(v as VideoContainer)}
               options={VIDEO_CONTAINERS}
-              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
             />
           </>
         ) : (
@@ -429,7 +748,7 @@ export function QueuePanel({
             value={audioFormat}
             onChange={(v) => setAudioFormat(v as AudioFormat)}
             options={AUDIO_FORMATS.map((o) => ({ value: o.value, label: o.label }))}
-            className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+            className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
           />
         )}
       </div>
@@ -443,82 +762,156 @@ export function QueuePanel({
 
       {items.length > 0 && (
         <ul className="mt-3 flex max-h-72 flex-col gap-1.5 overflow-auto pr-1">
-          {items.map((item) => (
-            <li
-              key={item.id}
-              draggable
-              onDragStart={() => setDragId(item.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragId) reorder(dragId, item.id);
-                setDragId(null);
-              }}
-              onDragEnd={() => setDragId(null)}
-              className={`flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 p-2.5 ${
-                dragId === item.id ? "opacity-50" : ""
-              }`}
-            >
-              <GripVertical
-                size={15}
-                className="shrink-0 cursor-grab text-zinc-600"
-              />
-              <span className="shrink-0">
-                {item.status === "active" ? (
-                  <Loader2 size={16} className="animate-spin text-violet-400" />
-                ) : item.status === "done" ? (
-                  <CheckCircle2 size={16} className="text-emerald-400" />
-                ) : item.status === "error" ? (
-                  <AlertCircle size={16} className="text-red-400" />
-                ) : item.status === "skipped" ? (
-                  <SkipForward size={16} className="text-zinc-500" />
-                ) : (
-                  <span className="block size-2 rounded-full bg-zinc-500" />
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="block truncate text-sm">
-                    {item.title ?? item.url}
-                  </span>
-                  {item.status === "active" && (
-                    <span className="shrink-0 text-xs font-medium text-violet-400">
-                      {Math.round(percent)}%
-                    </span>
-                  )}
-                </span>
-                {item.status === "active" && (
-                  <>
-                    <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/10">
-                      <span
-                        className="block h-full bg-violet-500 transition-[width]"
-                        style={{ width: `${percent}%` }}
+          {items.map((item) => {
+            const status = displayStatus(item);
+            const total = item.children?.length ?? 0;
+            const selectedCount =
+              item.children?.filter((c) => c.selected).length ?? 0;
+            return (
+              <li
+                key={item.id}
+                draggable
+                onDragStart={(e) => {
+                  setDragId(item.id);
+                  // Drag only the row as the ghost — dragging an expanded group
+                  // would otherwise carry its whole child list, which looks messy.
+                  const row = e.currentTarget.firstElementChild;
+                  if (row) e.dataTransfer.setDragImage(row, 16, 16);
+                }}
+                // Reorder live as the dragged row passes over another one.
+                onDragEnter={() => {
+                  if (dragId && dragId !== item.id) reorder(dragId, item.id);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragId(null);
+                }}
+                onDragEnd={() => setDragId(null)}
+                className={dragId === item.id ? "opacity-50" : ""}
+              >
+                <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-surface/60 p-2.5">
+                  <GripVertical
+                    size={15}
+                    className="shrink-0 cursor-grab text-zinc-600"
+                  />
+                  {item.children && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(item.id)}
+                      aria-label={t("queue.expand")}
+                      className="shrink-0 text-zinc-400 transition hover:text-white"
+                    >
+                      <ChevronRight
+                        size={15}
+                        className={`transition-transform ${
+                          item.expanded ? "rotate-90" : ""
+                        }`}
                       />
+                    </button>
+                  )}
+                  <span className="shrink-0">{statusIcon(status)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="block truncate text-sm">
+                        {item.status === "resolving"
+                          ? t("queue.resolving")
+                          : (item.title ?? item.url)}
+                      </span>
+                      {status === "active" && (
+                        <span className="shrink-0 text-xs font-medium text-violet-400">
+                          {Math.round(percent)}%
+                        </span>
+                      )}
                     </span>
-                    {progressDetail && (
-                      <span className="mt-1 block truncate text-xs text-zinc-400">
-                        {progressDetail}
+                    {item.sourceLabel && item.status !== "resolving" && (
+                      <span className="mt-0.5 block truncate text-xs text-zinc-500">
+                        {item.children
+                          ? `${item.sourceLabel} · ${t("queue.selectedOfTracks", {
+                              selected: selectedCount,
+                              total,
+                            })}`
+                          : item.sourceLabel}
                       </span>
                     )}
-                  </>
-                )}
-                {item.status === "error" && item.error && (
-                  <span className="block truncate text-xs text-red-300">
-                    {item.error}
+                    {status === "active" && (
+                      <>
+                        <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/10">
+                          <span
+                            className="block h-full bg-violet-500 transition-[width]"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </span>
+                        {progressDetail && (
+                          <span className="mt-1 block truncate text-xs text-zinc-400">
+                            {progressDetail}
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {status === "error" && item.error && (
+                      <span className="block truncate text-xs text-red-300">
+                        {item.error}
+                      </span>
+                    )}
                   </span>
+                  {status !== "active" && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      aria-label={t("queue.remove")}
+                      className="shrink-0 text-zinc-500 transition hover:text-white"
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
+
+                {item.children && item.expanded && (
+                  <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-white/10 py-1 pl-3">
+                    <li className="flex justify-end pr-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAllChildren(item.id, selectedCount < total)
+                        }
+                        className="text-[11px] text-zinc-400 transition hover:text-white"
+                      >
+                        {selectedCount < total
+                          ? t("playlist.selectAll")
+                          : t("playlist.deselectAll")}
+                      </button>
+                    </li>
+                    {item.children.map((child) => (
+                      <li key={child.id} className="flex items-start gap-2 pr-1">
+                        <input
+                          type="checkbox"
+                          checked={child.selected}
+                          onChange={() => toggleChild(item.id, child.id)}
+                          className="mt-0.5 size-3.5 shrink-0 accent-violet-500"
+                        />
+                        <span className="mt-px shrink-0">
+                          {statusIcon(child.status)}
+                        </span>
+                        <span
+                          className={`min-w-0 flex-1 break-words text-xs leading-snug ${
+                            child.selected ? "text-zinc-300" : "text-zinc-600"
+                          }`}
+                        >
+                          {child.title}
+                        </span>
+                        {child.id === activeChildId && (
+                          <span className="mt-px shrink-0 text-[11px] font-medium text-violet-400">
+                            {Math.round(percent)}%
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </span>
-              {item.status !== "active" && (
-                <button
-                  type="button"
-                  onClick={() => removeItem(item.id)}
-                  aria-label={t("queue.remove")}
-                  className="shrink-0 text-zinc-500 transition hover:text-white"
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </GlassPanel>
