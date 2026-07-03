@@ -76,6 +76,7 @@ export const it = {
     label: "Playlist",
     selectAll: "Seleziona tutto",
     deselectAll: "Deseleziona tutto",
+    downloaded: "Scaricata",
     videos_one: "{{count}} video",
     videos_other: "{{count}} video",
     showingFirst: "(mostrati i primi {{count}})",

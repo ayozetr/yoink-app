@@ -123,6 +123,10 @@ class PlaylistEntry(BaseModel):
     thumbnail_url: str | None = Field(default=None)
     uploader: str | None = Field(default=None)
     view_count: int | None = Field(default=None, description="View count, if known.")
+    already_downloaded: bool = Field(
+        default=False,
+        description="This item's URL is already a completed download (playlist sync).",
+    )
 
 
 class PlaylistInfo(BaseModel):

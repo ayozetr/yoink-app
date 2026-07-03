@@ -76,6 +76,7 @@ export const pl = {
     label: "Playlista",
     selectAll: "Zaznacz wszystko",
     deselectAll: "Odznacz wszystko",
+    downloaded: "Pobrano",
     videos_one: "{{count}} film",
     videos_few: "{{count}} filmy",
     videos_many: "{{count}} filmów",

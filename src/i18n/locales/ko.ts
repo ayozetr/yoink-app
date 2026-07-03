@@ -76,6 +76,7 @@ export const ko = {
     label: "재생목록",
     selectAll: "모두 선택",
     deselectAll: "선택 해제",
+    downloaded: "다운로드됨",
     videos_one: "영상 {{count}}개",
     videos_other: "영상 {{count}}개",
     showingFirst: "(처음 {{count}}개 표시 중)",

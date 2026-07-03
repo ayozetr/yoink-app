@@ -119,6 +119,8 @@ export interface PlaylistEntry {
   thumbnail_url: string | null;
   uploader: string | null;
   view_count: number | null;
+  /** URL already a completed download — pre-selected off (playlist sync). */
+  already_downloaded: boolean;
 }
 
 /** Flat YouTube search results for the URL-field typeahead (mirrors backend). */

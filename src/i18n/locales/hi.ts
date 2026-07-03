@@ -76,6 +76,7 @@ export const hi = {
     label: "प्लेलिस्ट",
     selectAll: "सभी चुनें",
     deselectAll: "सभी अचयनित करें",
+    downloaded: "डाउनलोड किया",
     videos_one: "{{count}} वीडियो",
     videos_other: "{{count}} वीडियो",
     showingFirst: "(पहले {{count}} दिखाए जा रहे हैं)",

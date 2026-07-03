@@ -76,6 +76,7 @@ export const en = {
     label: "Playlist",
     selectAll: "Select all",
     deselectAll: "Deselect all",
+    downloaded: "Downloaded",
     videos_one: "{{count}} video",
     videos_other: "{{count}} videos",
     showingFirst: "(showing the first {{count}})",

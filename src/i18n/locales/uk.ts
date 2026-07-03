@@ -76,6 +76,7 @@ export const uk = {
     label: "Плейлист",
     selectAll: "Вибрати все",
     deselectAll: "Зняти вибір",
+    downloaded: "Завантажено",
     videos_one: "{{count}} відео",
     videos_few: "{{count}} відео",
     videos_many: "{{count}} відео",

@@ -173,6 +173,17 @@ def list_entries(limit: int = 50) -> list[HistoryEntry]:
     return [_row_to_entry(row) for row in rows]
 
 
+def completed_urls() -> set[str]:
+    """Source URLs of every successfully-completed download — used to flag which
+    playlist entries you already have, so re-analyzing a playlist only pre-selects
+    what's new (playlist sync)."""
+    with closing(_connect()) as connection, connection:
+        rows = connection.execute(
+            "SELECT DISTINCT url FROM downloads WHERE status = 'completed'"
+        ).fetchall()
+    return {row["url"] for row in rows}
+
+
 def get_entry(entry_id: int) -> HistoryEntry | None:
     """Return a single entry by id, or None."""
     with closing(_connect()) as connection, connection:

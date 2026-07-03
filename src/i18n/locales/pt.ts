@@ -76,6 +76,7 @@ export const pt = {
     label: "Playlist",
     selectAll: "Selecionar tudo",
     deselectAll: "Desmarcar tudo",
+    downloaded: "Baixada",
     videos_one: "{{count}} vídeo",
     videos_other: "{{count}} vídeos",
     showingFirst: "(mostrando os primeiros {{count}})",

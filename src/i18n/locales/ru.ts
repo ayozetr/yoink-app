@@ -76,6 +76,7 @@ export const ru = {
     label: "Плейлист",
     selectAll: "Выбрать всё",
     deselectAll: "Снять выделение",
+    downloaded: "Скачано",
     videos_one: "{{count}} видео",
     videos_few: "{{count}} видео",
     videos_many: "{{count}} видео",

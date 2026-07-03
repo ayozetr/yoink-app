@@ -170,7 +170,10 @@ Not committed and not release-ordered — picked from as capacity allows.
   typeahead, flipping the yt-dlp search prefix (`ytsearch`→`scsearch`). More
   platforms drop in by adding a prefix.
 - ⬜ **Split by chapters** (M) — one file per chapter (`--split-chapters`).
-- ⬜ **Playlist sync / `--download-archive`** (M) — only fetch what's new.
+- ✅ **Playlist sync** — re-analyzing a playlist flags each entry already in your
+  download history (matched by a context-free URL key that ignores playlist/
+  tracking params) and pre-selects only the new ones; already-downloaded rows show
+  a "Downloaded" badge and stay re-selectable.
 - ⬜ **Sidecar exports** (S) — `.info.json` / thumbnail / loose `.srt`/`.vtt`.
 - ⬜ **Subtitles as separate files + auto-translate** (M).
 - ⬜ **Transcode local files** (M) — drop a file (no URL), remux/re-encode.

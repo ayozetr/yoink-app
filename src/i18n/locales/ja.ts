@@ -76,6 +76,7 @@ export const ja = {
     label: "プレイリスト",
     selectAll: "すべて選択",
     deselectAll: "選択をすべて解除",
+    downloaded: "取得済み",
     videos_one: "{{count}} 本の動画",
     videos_other: "{{count}} 本の動画",
     showingFirst: "（最初の {{count}} 件を表示）",

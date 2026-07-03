@@ -6,6 +6,7 @@ import {
   type CSSProperties,
 } from "react";
 import {
+  CheckCircle2,
   Clock3,
   Download,
   Glasses,
@@ -76,6 +77,15 @@ function isMusicPlaylist(playlist: PlaylistInfo): boolean {
   return /^(RD|OLAK)/.test(playlist.id);
 }
 
+/** Playlist sync: pre-select only the items you don't already have. If they're
+ * all downloaded, nothing is pre-selected (you're up to date) — the rows still
+ * show, badged, and Select-all is there to re-grab any. */
+function freshSelection(entries: PlaylistEntry[]): Set<string> {
+  return new Set(
+    entries.filter((e) => !e.already_downloaded).map((e) => e.url),
+  );
+}
+
 /** Preview of an analyzed playlist: pick which items to download. */
 export function PlaylistCard({
   playlist,
@@ -88,17 +98,17 @@ export function PlaylistCard({
   const { t, i18n } = useTranslation();
   // A YouTube Music playlist is music: download audio only, no video/audio picker.
   const audioOnly = /music\.youtube\.com/i.test(sourceUrl ?? "");
-  const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(playlist.entries.map((entry) => entry.url)),
+  const [selected, setSelected] = useState<Set<string>>(() =>
+    freshSelection(playlist.entries),
   );
   // Re-analyzing a mutable playlist (radio mixes RD…, Watch Later) reuses this
-  // component (the id key is unchanged), so reset the selection to all entries
-  // whenever the entry list itself changes — React's "adjust state during
-  // render" pattern (track the entries we've seen), not an effect.
+  // component (the id key is unchanged), so reset the selection whenever the
+  // entry list itself changes — React's "adjust state during render" pattern
+  // (track the entries we've seen), not an effect.
   const [seenEntries, setSeenEntries] = useState(playlist.entries);
   if (seenEntries !== playlist.entries) {
     setSeenEntries(playlist.entries);
-    setSelected(new Set(playlist.entries.map((entry) => entry.url)));
+    setSelected(freshSelection(playlist.entries));
   }
   // Free-text filter over the entry list (titles); selection persists across it.
   const [filter, setFilter] = useState("");
@@ -518,6 +528,12 @@ export function PlaylistCard({
                 )}
               </div>
               <span className="flex-1 min-w-0 text-sm truncate">{entry.title}</span>
+              {entry.already_downloaded && (
+                <span className="flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-zinc-400 shrink-0">
+                  <CheckCircle2 size={11} className="text-violet-400/80" />
+                  {t("playlist.downloaded")}
+                </span>
+              )}
               {entry.duration_string && (
                 <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
                   <Clock3 size={12} />

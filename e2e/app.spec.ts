@@ -170,6 +170,37 @@ test("analyzes a playlist with per-item selection", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Descargar \(1\)/ })).toBeVisible();
 });
 
+test("playlist sync: pre-selects only items you don't already have", async ({ page }) => {
+  await mockBase(page);
+  const info = {
+    type: "playlist",
+    video: null,
+    playlist: {
+      id: "PL9",
+      title: "Sync List",
+      uploader: "Me",
+      entry_count: 2,
+      truncated: false,
+      entries: [
+        { id: "a", title: "Old Clip", url: "http://x/a", duration_string: "1:00", thumbnail_url: null, uploader: null, already_downloaded: true },
+        { id: "b", title: "New Clip", url: "http://x/b", duration_string: "2:00", thumbnail_url: null, uploader: null, already_downloaded: false },
+      ],
+    },
+  };
+  await page.route("**/api/info", (route) => route.fulfill({ json: info }));
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://x.com/synclist");
+  await page.getByRole("button", { name: "Analizar" }).click();
+
+  await expect(page.getByText("Sync List")).toBeVisible();
+  // Only the new one is pre-selected (button shows 1); the old one is badged "off".
+  await expect(page.getByRole("button", { name: /Descargar \(1\)/ })).toBeVisible();
+  await expect(page.getByText("Descargada")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /New Clip/ })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Old Clip/ })).not.toBeChecked();
+});
+
 test("hides the video/audio selector for a YouTube Music playlist", async ({ page }) => {
   await mockBase(page);
   await page.route("**/api/info", (route) => route.fulfill({ json: PLAYLIST_INFO }));

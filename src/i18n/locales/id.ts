@@ -76,6 +76,7 @@ export const id = {
     label: "Playlist",
     selectAll: "Pilih semua",
     deselectAll: "Batalkan semua pilihan",
+    downloaded: "Terunduh",
     videos_one: "{{count}} video",
     videos_other: "{{count}} video",
     showingFirst: "(menampilkan {{count}} pertama)",

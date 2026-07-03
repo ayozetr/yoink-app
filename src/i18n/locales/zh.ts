@@ -76,6 +76,7 @@ export const zh = {
     label: "播放列表",
     selectAll: "全选",
     deselectAll: "取消全选",
+    downloaded: "已下载",
     videos_one: "{{count}} 个视频",
     videos_other: "{{count}} 个视频",
     showingFirst: "（仅显示前 {{count}} 个）",
