@@ -14,6 +14,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
+import { Select } from "../../components/ui/Select";
+import { AUDIO_FORMATS, VIDEO_CONTAINERS } from "../downloader/formatOptions";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
 import {
   acquireDownloadLock,
@@ -34,6 +36,10 @@ import type {
   MediaKind,
   VideoContainer,
 } from "../../types/download";
+
+// The queue has no preview, so it offers a generic best-effort quality target
+// (yt-dlp caps to it or takes the closest lower tier).
+const QUALITY_OPTIONS = ["best", "1080p", "720p", "480p", "360p"];
 
 interface QueuePanelProps {
   /** Whether the panel is visible (the queue keeps running while hidden). */
@@ -89,22 +95,22 @@ export function QueuePanel({
   const runningRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Live snapshot of the format settings, so a queue already running picks up
-  // changes made in Settings (processNext recurses from a closure and would
-  // otherwise keep using the values from the render that started it).
-  const optsRef = useRef({
-    defaultKind,
-    defaultQuality,
-    defaultContainer,
-    defaultAudioFormat,
-  });
+  // Format for the whole queue, seeded from Settings but editable here (the queue
+  // has no per-item picker). Music-service URLs ignore the video/audio choice.
+  const [kind, setKind] = useState<MediaKind>(defaultKind ?? "video");
+  const [quality, setQuality] = useState(defaultQuality ?? "best");
+  const [container, setContainer] = useState<VideoContainer>(
+    defaultContainer ?? "mp4",
+  );
+  const [audioFormat, setAudioFormat] = useState<AudioFormat>(
+    defaultAudioFormat ?? "mp3",
+  );
+  const isVideo = kind === "video";
+  // Live snapshot so a running queue picks up format changes made mid-run
+  // (processNext recurses from a closure and would otherwise keep the old values).
+  const optsRef = useRef({ kind, quality, container, audioFormat });
   useEffect(() => {
-    optsRef.current = {
-      defaultKind,
-      defaultQuality,
-      defaultContainer,
-      defaultAudioFormat,
-    };
+    optsRef.current = { kind, quality, container, audioFormat };
   });
 
   // Auto-grow the input to fit its content (up to a cap) instead of using the
@@ -172,10 +178,10 @@ export function QueuePanel({
     handleRef.current = startDownload(
       {
         url: next.url,
-        kind: opts.defaultKind ?? "video",
-        quality: opts.defaultQuality,
-        container: opts.defaultContainer ?? "mp4",
-        audio_format: opts.defaultAudioFormat ?? "mp3",
+        kind: opts.kind,
+        quality: opts.quality,
+        container: opts.container,
+        audio_format: opts.audioFormat,
         // The queue has no preview, so auto-detect + tag VR during the download.
         auto_vr: true,
       },
@@ -385,6 +391,47 @@ export function QueuePanel({
             </button>
           )}
         </div>
+      </div>
+
+      {/* Format for the whole queue (music URLs always download audio). */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-zinc-500">{t("preview.format")}</span>
+        <Select
+          ariaLabel={t("preview.format")}
+          value={kind}
+          onChange={(v) => setKind(v as MediaKind)}
+          options={[
+            { value: "video", label: t("preview.video") },
+            { value: "audio", label: t("preview.audio") },
+          ]}
+          className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+        />
+        {isVideo ? (
+          <>
+            <Select
+              ariaLabel={t("preview.quality")}
+              value={quality}
+              onChange={setQuality}
+              options={QUALITY_OPTIONS.map((o) => ({ value: o, label: o }))}
+              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+            />
+            <Select
+              ariaLabel={t("preview.container")}
+              value={container}
+              onChange={(v) => setContainer(v as VideoContainer)}
+              options={VIDEO_CONTAINERS}
+              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+            />
+          </>
+        ) : (
+          <Select
+            ariaLabel={t("preview.audioFormat")}
+            value={audioFormat}
+            onChange={(v) => setAudioFormat(v as AudioFormat)}
+            options={AUDIO_FORMATS.map((o) => ({ value: o.value, label: o.label }))}
+            className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-xs"
+          />
+        )}
       </div>
 
       {items.length === 0 && (
