@@ -122,6 +122,7 @@ export const en = {
     add: "Add",
     start: "Start",
     stop: "Stop",
+    skip: "Skip",
     clearDone: "Clear finished",
     remove: "Remove from queue",
     empty: "Paste links above and press Add to build a batch.",

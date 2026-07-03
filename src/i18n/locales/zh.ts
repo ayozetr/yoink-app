@@ -122,6 +122,7 @@ export const zh = {
     add: "添加",
     start: "开始",
     stop: "停止",
+    skip: "跳过",
     clearDone: "清除已完成",
     remove: "从队列移除",
     empty: "在上方粘贴链接并点击「添加」以创建批次。",

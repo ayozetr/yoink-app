@@ -240,9 +240,9 @@ export function PreviewCard({
 
   return (
     <GlassPanel className="p-5">
-      <div className="flex gap-5">
-        {/* Thumbnail */}
-        <div className="w-[320px] h-[180px] rounded-2xl overflow-hidden relative bg-gradient-to-br from-violet-600/40 to-blue-600/40 flex items-center justify-center">
+      <div className="flex flex-col gap-5 sm:flex-row">
+        {/* Thumbnail — full-width 16:9 on narrow, fixed beside the info on wide. */}
+        <div className="relative flex aspect-video w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600/40 to-blue-600/40 sm:aspect-auto sm:h-[180px] sm:w-[320px]">
           {info.thumbnail_url ? (
             <Thumbnail
               src={info.thumbnail_url}

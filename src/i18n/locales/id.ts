@@ -122,6 +122,7 @@ export const id = {
     add: "Tambah",
     start: "Mulai",
     stop: "Hentikan",
+    skip: "Lewati",
     clearDone: "Bersihkan yang selesai",
     remove: "Hapus dari antrean",
     empty: "Tempel tautan di atas dan tekan Tambah untuk membuat satu kumpulan.",

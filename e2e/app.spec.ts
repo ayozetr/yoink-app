@@ -286,6 +286,24 @@ test("keeps a '0 selected' summary after deselecting everything", async ({ page 
   await expect(page.getByText("0 seleccionados · 0min")).toBeVisible();
 });
 
+test("queue: drag reorders items", async ({ page }) => {
+  await mockBase(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Cola de descargas" }).click();
+  await page
+    .getByPlaceholder(/enlaces/i)
+    .first()
+    .fill("http://x/1\nhttp://x/2\nhttp://x/3");
+  await page.getByRole("button", { name: /Añadir/ }).click();
+
+  const items = page.getByRole("listitem");
+  await expect(items).toHaveCount(3);
+  await expect(items.nth(0)).toContainText("http://x/1");
+  // Drag the last item onto the first → it moves to the top.
+  await items.nth(2).dragTo(items.nth(0));
+  await expect(items.nth(0)).toContainText("http://x/3");
+});
+
 test("opens the settings modal", async ({ page }) => {
   await mockBase(page);
   await page.goto("/");

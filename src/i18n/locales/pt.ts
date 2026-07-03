@@ -122,6 +122,7 @@ export const pt = {
     add: "Adicionar",
     start: "Iniciar",
     stop: "Parar",
+    skip: "Pular",
     clearDone: "Limpar concluídos",
     remove: "Remover da fila",
     empty: "Cole links acima e clique em Adicionar para montar um lote.",

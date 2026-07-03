@@ -122,6 +122,7 @@ export const ko = {
     add: "추가",
     start: "시작",
     stop: "중지",
+    skip: "건너뛰기",
     clearDone: "완료 항목 지우기",
     remove: "대기열에서 제거",
     empty: "위에 링크를 붙여넣고 추가를 눌러 일괄 작업을 만드세요.",

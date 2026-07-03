@@ -122,6 +122,7 @@ export const es = {
     add: "Añadir",
     start: "Iniciar",
     stop: "Detener",
+    skip: "Saltar",
     clearDone: "Limpiar completadas",
     remove: "Quitar de la cola",
     empty: "Pega enlaces arriba y pulsa Añadir para crear un lote.",

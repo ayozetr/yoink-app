@@ -122,6 +122,7 @@ export const ja = {
     add: "追加",
     start: "開始",
     stop: "停止",
+    skip: "スキップ",
     clearDone: "完了分をクリア",
     remove: "キューから削除",
     empty: "上にリンクを貼り付けて「追加」を押すとバッチを作成できます。",

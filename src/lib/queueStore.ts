@@ -6,7 +6,12 @@
  * on the next run (yt-dlp itself resumes the partial `.part` bytes on disk).
  */
 
-export type QueueStatus = "pending" | "active" | "done" | "error";
+export type QueueStatus =
+  | "pending"
+  | "active"
+  | "done"
+  | "error"
+  | "skipped";
 
 export interface QueueItem {
   id: string;

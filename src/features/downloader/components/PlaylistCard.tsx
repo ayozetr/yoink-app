@@ -381,25 +381,17 @@ export function PlaylistCard({
                     className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
                   />
                 )}
-                <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={embedChapters}
-                    onChange={(e) => setEmbedChapters(e.target.checked)}
-                    className="size-4 accent-violet-500 shrink-0"
-                  />
-                  {t("preview.chapters")}
-                </label>
+                <Toggle
+                  checked={embedChapters}
+                  onChange={setEmbedChapters}
+                  label={t("preview.chapters")}
+                />
                 {showMultiAudio && (
-                  <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-surface px-4 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={audioMultistreams}
-                      onChange={(e) => setAudioMultistreams(e.target.checked)}
-                      className="size-4 accent-violet-500 shrink-0"
-                    />
-                    {t("preview.multiAudio")}
-                  </label>
+                  <Toggle
+                    checked={audioMultistreams}
+                    onChange={setAudioMultistreams}
+                    label={t("preview.multiAudio")}
+                  />
                 )}
               </div>
             )}

@@ -122,6 +122,7 @@ export const de = {
     add: "Hinzufügen",
     start: "Starten",
     stop: "Stoppen",
+    skip: "Überspringen",
     clearDone: "Abgeschlossene entfernen",
     remove: "Aus der Warteschlange entfernen",
     empty: "Füge oben Links ein und drücke „Hinzufügen“, um einen Stapel zu erstellen.",

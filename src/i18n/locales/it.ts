@@ -122,6 +122,7 @@ export const it = {
     add: "Aggiungi",
     start: "Avvia",
     stop: "Ferma",
+    skip: "Salta",
     clearDone: "Rimuovi completati",
     remove: "Rimuovi dalla coda",
     empty: "Incolla i link sopra e premi Aggiungi per creare un lotto.",

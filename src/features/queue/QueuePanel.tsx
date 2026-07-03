@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  GripVertical,
   ListPlus,
   Loader2,
   Play,
+  SkipForward,
   Square,
   Trash2,
   X,
@@ -254,6 +256,34 @@ export function QueuePanel({
     onDownloadFinished?.();
   };
 
+  // Skip just the current item and move straight on to the next — the queue keeps
+  // running (unlike Stop/Cancel-all, which halts the whole run). cancel() suppresses
+  // the socket callbacks, so advancing here can't race with them.
+  const skipCurrent = () => {
+    handleRef.current?.cancel();
+    handleRef.current = null;
+    setProgress(null);
+    setItems((prev) =>
+      prev.map((i) => (i.status === "active" ? { ...i, status: "skipped" } : i)),
+    );
+    if (runningRef.current) processNext();
+  };
+
+  // Drag-reorder pending items so the user can change the download order.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const reorder = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setItems((prev) => {
+      const from = prev.findIndex((i) => i.id === fromId);
+      const to = prev.findIndex((i) => i.id === toId);
+      if (from < 0 || to < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
   const removeItem = (id: string) =>
     setItems((prev) => prev.filter((i) => i.id !== id));
   const clearDone = () =>
@@ -324,14 +354,24 @@ export function QueuePanel({
             {t("queue.add")}
           </Button>
           {running ? (
-            <button
-              type="button"
-              onClick={stop}
-              className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface px-4 text-sm text-zinc-200 transition hover:border-white/20"
-            >
-              <Square size={15} />
-              {t("queue.stop")}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={skipCurrent}
+                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface px-4 text-sm text-zinc-200 transition hover:border-white/20"
+              >
+                <SkipForward size={15} />
+                {t("queue.skip")}
+              </button>
+              <button
+                type="button"
+                onClick={stop}
+                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface px-4 text-sm text-zinc-200 transition hover:border-white/20"
+              >
+                <Square size={15} />
+                {t("queue.stop")}
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -359,8 +399,22 @@ export function QueuePanel({
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 p-2.5"
+              draggable
+              onDragStart={() => setDragId(item.id)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (dragId) reorder(dragId, item.id);
+                setDragId(null);
+              }}
+              onDragEnd={() => setDragId(null)}
+              className={`flex items-center gap-3 rounded-xl border border-white/10 bg-surface/60 p-2.5 ${
+                dragId === item.id ? "opacity-50" : ""
+              }`}
             >
+              <GripVertical
+                size={15}
+                className="shrink-0 cursor-grab text-zinc-600"
+              />
               <span className="shrink-0">
                 {item.status === "active" ? (
                   <Loader2 size={16} className="animate-spin text-violet-400" />
@@ -368,6 +422,8 @@ export function QueuePanel({
                   <CheckCircle2 size={16} className="text-emerald-400" />
                 ) : item.status === "error" ? (
                   <AlertCircle size={16} className="text-red-400" />
+                ) : item.status === "skipped" ? (
+                  <SkipForward size={16} className="text-zinc-500" />
                 ) : (
                   <span className="block size-2 rounded-full bg-zinc-500" />
                 )}

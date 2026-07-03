@@ -124,6 +124,7 @@ export const pl = {
     add: "Dodaj",
     start: "Rozpocznij",
     stop: "Zatrzymaj",
+    skip: "Pomiń",
     clearDone: "Wyczyść zakończone",
     remove: "Usuń z kolejki",
     empty: "Wklej linki powyżej i naciśnij Dodaj, aby utworzyć paczkę.",

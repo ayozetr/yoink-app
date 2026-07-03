@@ -122,6 +122,7 @@ export const fr = {
     add: "Ajouter",
     start: "Démarrer",
     stop: "Arrêter",
+    skip: "Passer",
     clearDone: "Effacer les terminés",
     remove: "Retirer de la file",
     empty: "Collez des liens ci-dessus et appuyez sur Ajouter pour créer un lot.",
