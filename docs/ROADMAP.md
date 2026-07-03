@@ -11,7 +11,12 @@
 
 ## 📍 Status
 
-- **Current release:** **v2.5.0** — **Amazon Music cover art from Amazon**
+- **Current release:** **v2.5.1** — **per-track playlist cover art** (each track's
+  own album art, not the playlist's — Deezer lookups paced so big lists keep them,
+  streamed in progressively), a **unified music-import / playlist card** (a large
+  square cover + shared layout), **YouTube Music playlists as audio-only**, and
+  polish (undraggable covers, a persistent "0 selected" summary).
+- **Previously (v2.5.0):** **Amazon Music cover art from Amazon**
   (playlist/album + per-track, incl. Amazon-exclusive tracks), **auto-tagging**
   via your **regional Apple Music store** with **fewer irrelevant matches**,
   **lyrics** looked up only when the Setting is on + a **title+duration** fallback
@@ -19,7 +24,7 @@
   **drag-and-drop** a link, tidier same-height rows), **correct YouTube quality
   labels** for non-16:9 videos, and a **faster start** (one-folder backend — no
   per-launch extraction).
-- **Previously (v2.4.0):** **broader source support** (resolves videos whose
+- **(v2.4.0):** **broader source support** (resolves videos whose
   media is served through the page's own player config), **immersive (VR) clips:
   trimming fixed** + an **audio-less source warning**, **steadier downloads**
   (auto-retry of a transient ffmpeg hiccup; cancelling mid-merge no longer wedges
@@ -43,7 +48,7 @@
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
   one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 321) green · frontend build + e2e (14) + vitest (40) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 324) green · frontend build + e2e (16) + vitest (40) green · `npm audit` 0 · strict TS.
 
 ---
 
