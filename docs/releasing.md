@@ -185,6 +185,13 @@ gh release create v<ver> \
 
 Verify with `gh release view v<ver> --json assets`.
 
+> **Release-notes format for the in-app "What's new" popup.** Put a hidden
+> `<!-- /whatsnew -->` marker on its own line right before the `## Downloads`
+> table. The popup (`GET /api/release-notes`) renders everything **before** the
+> marker, so the downloads table + self-update boilerplate stay on GitHub but out
+> of the in-app view. (Falls back to splitting before `## Downloads` if the marker
+> is missing.)
+
 > The in-app "Comprobar actualizaciones" check and the release links only work
 > once the GitHub repo is **public** — the unauthenticated API returns 404 for
 > a private repo.

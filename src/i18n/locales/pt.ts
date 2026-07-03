@@ -282,10 +282,27 @@ export const pt = {
     installing: "Instalando…",
     viewRelease: "Ver versão",
     developedBy: "Desenvolvido por",
+    autoCheckUpdates: "Verificar atualizações automaticamente",
     donate: "Se quiser, você pode fazer uma doação",
   },
   splash: {
     preparing: "Preparando tudo…",
+  },
+  whatsNew: {
+    button: "Novidades",
+    title: "Novidades · {{version}}",
+    close: "Fechar",
+    loading: "Carregando notas…",
+    unavailable: "Não foi possível carregar as notas.",
+    gotIt: "Entendi",
+  },
+  update: {
+    available: "Yoink {{version}} disponível",
+    action: "Atualizar",
+    dismiss: "Dispensar",
+    notifyBody: "Abra as Configurações para instalar.",
+    downloading: "Baixando atualização…",
+    dontClose: "Não feche o app — ele reiniciará sozinho.",
   },
   common: {
     copyError: "Copiar erro",

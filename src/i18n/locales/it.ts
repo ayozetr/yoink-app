@@ -282,10 +282,27 @@ export const it = {
     installing: "Installazione…",
     viewRelease: "Vedi versione",
     developedBy: "Sviluppato da",
+    autoCheckUpdates: "Controlla aggiornamenti automaticamente",
     donate: "Se vuoi, puoi fare una donazione",
   },
   splash: {
     preparing: "Preparazione di tutto…",
+  },
+  whatsNew: {
+    button: "Novità",
+    title: "Novità · {{version}}",
+    close: "Chiudi",
+    loading: "Caricamento note…",
+    unavailable: "Impossibile caricare le note.",
+    gotIt: "Ho capito",
+  },
+  update: {
+    available: "Yoink {{version}} disponibile",
+    action: "Aggiorna",
+    dismiss: "Ignora",
+    notifyBody: "Apri le Impostazioni per installare.",
+    downloading: "Download aggiornamento…",
+    dontClose: "Non chiudere l'app — si riavvierà da sola.",
   },
   common: {
     copyError: "Copia errore",

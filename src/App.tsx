@@ -3,7 +3,15 @@ import { useTranslation } from "react-i18next";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
+import { UpdateBanner } from "./components/ui/UpdateBanner";
+import { UpdatingModal } from "./components/ui/UpdatingModal";
 import { useFocusTrap } from "./lib/useFocusTrap";
+import { checkForUpdate, installUpdate, type UpdateCheck } from "./lib/updater";
+import { notify } from "./lib/notify";
+import type { Update } from "@tauri-apps/plugin-updater";
+
+/** The "available" variant of an update check (carries the installable Update). */
+type AvailableUpdate = Extract<UpdateCheck, { status: "available" }>;
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { QueuePanel } from "./features/queue/QueuePanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
@@ -18,6 +26,11 @@ const SettingsModal = lazy(() =>
 const AutoTagPanel = lazy(() =>
   import("./features/autotag/AutoTagPanel").then((m) => ({
     default: m.AutoTagPanel,
+  })),
+);
+const WhatsNewModal = lazy(() =>
+  import("./components/ui/WhatsNewModal").then((m) => ({
+    default: m.WhatsNewModal,
   })),
 );
 import {
@@ -67,6 +80,21 @@ export default function App() {
   // Download queue: opened from the header button; keeps running while hidden.
   const [queueOpen, setQueueOpen] = useState(false);
   const [queuePending, setQueuePending] = useState(0);
+
+  // Update experience: an opt-in launch check raises a banner (+ notification)
+  // when a newer release exists, and a first-launch-after-update "what's new" popup.
+  const [availableUpdate, setAvailableUpdate] = useState<AvailableUpdate | null>(
+    null,
+  );
+  const [updating, setUpdating] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
+  // Show "what's new" once when the version changed since last run — but not on a
+  // fresh install (nothing recorded yet). Computed at mount from localStorage.
+  const [whatsNewOpen, setWhatsNewOpen] = useState(() => {
+    const seen = localStorage.getItem("yoink-last-seen-version");
+    return seen !== null && seen !== __APP_VERSION__;
+  });
+  const updateCheckedRef = useRef(false);
   const { t } = useTranslation();
   // Trap focus inside the re-tag dialog while it's open (a11y).
   const retagDialogRef = useFocusTrap<HTMLDivElement>(retagItem?.filepath != null);
@@ -117,6 +145,36 @@ export default function App() {
       cancelled = true;
     };
   }, [refresh]);
+
+  // Remember this version so the "what's new" popup (decided at mount above)
+  // doesn't reappear on the next launch.
+  useEffect(() => {
+    localStorage.setItem("yoink-last-seen-version", __APP_VERSION__);
+  }, []);
+
+  // Opt-in: once settings load, check GitHub for a newer release (once per run)
+  // and, if found, raise the banner + a desktop notification.
+  useEffect(() => {
+    if (updateCheckedRef.current || !settings?.check_updates) return;
+    updateCheckedRef.current = true;
+    void checkForUpdate().then((result) => {
+      if (result.status !== "available") return;
+      setAvailableUpdate(result);
+      void notify(
+        t("update.available", { version: result.version }),
+        t("update.notifyBody"),
+      );
+    });
+  }, [settings?.check_updates, t]);
+
+  // Download + install the update (from the banner or Settings). The app relaunches
+  // on success, so the "downloading" modal stays up until then; dismiss it on error.
+  const startUpdate = (update: Update) => {
+    setAvailableUpdate(null);
+    setUpdateProgress(0);
+    setUpdating(true);
+    void installUpdate(update, setUpdateProgress).catch(() => setUpdating(false));
+  };
 
   // Global shortcuts: Ctrl/Cmd+L focus the URL field, Ctrl/Cmd+, toggle Settings,
   // Esc close Settings.
@@ -251,7 +309,21 @@ export default function App() {
             settings={settings}
             onClose={() => setSettingsOpen(false)}
             onSaved={setSettings}
+            onShowWhatsNew={() => {
+              setSettingsOpen(false);
+              setWhatsNewOpen(true);
+            }}
+            onInstall={(update) => {
+              setSettingsOpen(false);
+              startUpdate(update);
+            }}
           />
+        </Suspense>
+      )}
+
+      {whatsNewOpen && (
+        <Suspense fallback={null}>
+          <WhatsNewModal onClose={() => setWhatsNewOpen(false)} />
         </Suspense>
       )}
 
@@ -293,6 +365,24 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {availableUpdate && (
+        <UpdateBanner
+          version={availableUpdate.version}
+          onAction={() => {
+            if (availableUpdate.autoInstallable) {
+              startUpdate(availableUpdate.update);
+            } else {
+              // .deb/.rpm can't self-install — send them to the release page.
+              setAvailableUpdate(null);
+              setSettingsOpen(true);
+            }
+          }}
+          onDismiss={() => setAvailableUpdate(null)}
+        />
+      )}
+
+      {updating && <UpdatingModal progress={updateProgress} />}
 
       <Splash visible={!ready} />
       <EditMenu />

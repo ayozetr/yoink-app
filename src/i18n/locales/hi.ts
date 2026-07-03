@@ -282,10 +282,27 @@ export const hi = {
     installing: "इंस्टॉल हो रहा है…",
     viewRelease: "रिलीज़ देखें",
     developedBy: "द्वारा विकसित",
+    autoCheckUpdates: "स्वचालित रूप से अपडेट जांचें",
     donate: "अगर आप चाहें, तो दान कर सकते हैं",
   },
   splash: {
     preparing: "सब कुछ तैयार किया जा रहा है…",
+  },
+  whatsNew: {
+    button: "नया क्या है",
+    title: "नया क्या है · {{version}}",
+    close: "बंद करें",
+    loading: "नोट्स लोड हो रहे हैं…",
+    unavailable: "नोट्स लोड नहीं हो सके।",
+    gotIt: "समझ गया",
+  },
+  update: {
+    available: "Yoink {{version}} उपलब्ध",
+    action: "अपडेट करें",
+    dismiss: "खारिज करें",
+    notifyBody: "इंस्टॉल करने के लिए सेटिंग्स खोलें।",
+    downloading: "अपडेट डाउनलोड हो रहा है…",
+    dontClose: "ऐप बंद न करें — यह खुद रीस्टार्ट होगा।",
   },
   common: {
     copyError: "त्रुटि कॉपी करें",

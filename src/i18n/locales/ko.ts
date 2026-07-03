@@ -282,10 +282,27 @@ export const ko = {
     installing: "설치 중…",
     viewRelease: "릴리스 보기",
     developedBy: "개발자",
+    autoCheckUpdates: "자동으로 업데이트 확인",
     donate: "원하신다면 후원해 주실 수 있습니다",
   },
   splash: {
     preparing: "모든 준비를 마치는 중…",
+  },
+  whatsNew: {
+    button: "새로운 기능",
+    title: "새로운 기능 · {{version}}",
+    close: "닫기",
+    loading: "불러오는 중…",
+    unavailable: "노트를 불러올 수 없습니다.",
+    gotIt: "확인",
+  },
+  update: {
+    available: "Yoink {{version}} 사용 가능",
+    action: "업데이트",
+    dismiss: "닫기",
+    notifyBody: "설정에서 업데이트를 설치하세요.",
+    downloading: "업데이트 다운로드 중…",
+    dontClose: "앱을 닫지 마세요 — 자동으로 다시 시작됩니다.",
   },
   common: {
     copyError: "오류 복사",

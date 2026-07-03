@@ -282,10 +282,27 @@ export const fr = {
     installing: "Installation…",
     viewRelease: "Voir la version",
     developedBy: "Développé par",
+    autoCheckUpdates: "Vérifier les mises à jour automatiquement",
     donate: "Si vous le souhaitez, vous pouvez faire un don",
   },
   splash: {
     preparing: "Préparation en cours…",
+  },
+  whatsNew: {
+    button: "Nouveautés",
+    title: "Nouveautés · {{version}}",
+    close: "Fermer",
+    loading: "Chargement des notes…",
+    unavailable: "Impossible de charger les notes.",
+    gotIt: "Compris",
+  },
+  update: {
+    available: "Yoink {{version}} disponible",
+    action: "Mettre à jour",
+    dismiss: "Ignorer",
+    notifyBody: "Ouvrez les Réglages pour installer la mise à jour.",
+    downloading: "Téléchargement de la mise à jour…",
+    dontClose: "Ne fermez pas l'app — elle redémarrera seule.",
   },
   common: {
     copyError: "Copier l'erreur",

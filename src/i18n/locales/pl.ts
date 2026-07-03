@@ -286,10 +286,27 @@ export const pl = {
     installing: "Instalowanie…",
     viewRelease: "Zobacz wydanie",
     developedBy: "Stworzone przez",
+    autoCheckUpdates: "Automatycznie sprawdzaj aktualizacje",
     donate: "Jeśli chcesz, możesz przekazać darowiznę",
   },
   splash: {
     preparing: "Przygotowywanie wszystkiego…",
+  },
+  whatsNew: {
+    button: "Co nowego",
+    title: "Co nowego · {{version}}",
+    close: "Zamknij",
+    loading: "Wczytywanie informacji…",
+    unavailable: "Nie udało się wczytać informacji.",
+    gotIt: "Rozumiem",
+  },
+  update: {
+    available: "Dostępny Yoink {{version}}",
+    action: "Aktualizuj",
+    dismiss: "Odrzuć",
+    notifyBody: "Otwórz Ustawienia, aby zainstalować.",
+    downloading: "Pobieranie aktualizacji…",
+    dontClose: "Nie zamykaj aplikacji — uruchomi się ponownie.",
   },
   common: {
     copyError: "Kopiuj błąd",

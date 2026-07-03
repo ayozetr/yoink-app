@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Loader2,
   Settings as SettingsIcon,
+  Sparkles,
   X,
 } from "lucide-react";
 import { GlassPanel } from "../../components/ui/GlassPanel";
@@ -22,12 +23,8 @@ import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
 import { useFocusTrap } from "../../lib/useFocusTrap";
-import {
-  checkForUpdate,
-  installUpdate,
-  RELEASES_URL,
-  type UpdateCheck,
-} from "../../lib/updater";
+import { checkForUpdate, RELEASES_URL, type UpdateCheck } from "../../lib/updater";
+import type { Update } from "@tauri-apps/plugin-updater";
 import {
   SUPPORTED_LANGUAGES,
   changeLanguage as applyLanguage,
@@ -51,6 +48,10 @@ interface SettingsModalProps {
   settings: AppSettings;
   onClose: () => void;
   onSaved: (next: AppSettings) => void;
+  /** Open the "what's new" popup (closes this modal first). */
+  onShowWhatsNew: () => void;
+  /** Download + install the update (closes this modal; App shows the progress). */
+  onInstall: (update: Update) => void;
 }
 
 const QUALITY_OPTIONS = ["1440p", "1080p", "720p", "480p", "360p"];
@@ -98,7 +99,13 @@ const COOKIE_BROWSERS = [
 ] as const;
 
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
-export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps) {
+export function SettingsModal({
+  settings,
+  onClose,
+  onSaved,
+  onShowWhatsNew,
+  onInstall,
+}: SettingsModalProps) {
   const { t } = useTranslation();
   const dialogRef = useFocusTrap<HTMLDivElement>();
   const [form, setForm] = useState<AppSettings>(settings);
@@ -106,7 +113,6 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<UpdateCheck | null>(null);
-  const [installing, setInstalling] = useState(false);
   const [ytdlp, setYtdlp] = useState<VersionInfo | null>(null);
   // "system" = follow the OS/browser language; otherwise a forced choice.
   const [lang, setLang] = useState<string>(
@@ -156,18 +162,6 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
       if (ytdlpResult.status === "fulfilled") setYtdlp(ytdlpResult.value);
     } finally {
       setChecking(false);
-    }
-  };
-
-  const handleInstall = async () => {
-    if (result?.status !== "available") return;
-    setInstalling(true);
-    try {
-      await installUpdate(result.update);
-      // installUpdate relaunches the app; control won't return on success.
-    } catch {
-      setInstalling(false);
-      setResult({ status: "error" });
     }
   };
 
@@ -598,6 +592,21 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           </span>
         </a>
 
+        <Toggle
+          checked={form.check_updates}
+          onChange={(v) => set("check_updates", v)}
+          label={t("settings.autoCheckUpdates")}
+          className="mt-4"
+        />
+        <button
+          type="button"
+          onClick={onShowWhatsNew}
+          className="mt-2 flex items-center gap-1.5 text-xs text-violet-300 transition hover:text-violet-200"
+        >
+          <Sparkles size={13} />
+          {t("whatsNew.button")}
+        </button>
+
         <div className="mt-4 flex items-center justify-between gap-3">
           <div className="text-sm">
             <div>
@@ -643,18 +652,11 @@ export function SettingsModal({ settings, onClose, onSaved }: SettingsModalProps
           {result?.status === "available" && result.autoInstallable ? (
             <button
               type="button"
-              onClick={handleInstall}
-              disabled={installing}
-              className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200 transition disabled:opacity-50"
+              onClick={() => onInstall(result.update)}
+              className="flex items-center gap-1.5 text-sm text-violet-300 transition hover:text-violet-200"
             >
-              {installing ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <ArrowUpCircle size={15} />
-              )}
-              {installing
-                ? t("settings.installing")
-                : t("settings.downloadInstall")}
+              <ArrowUpCircle size={15} />
+              {t("settings.downloadInstall")}
             </button>
           ) : result?.status === "available" ? (
             <a

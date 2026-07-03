@@ -282,10 +282,27 @@ export const id = {
     installing: "Memasang…",
     viewRelease: "Lihat rilis",
     developedBy: "Dikembangkan oleh",
+    autoCheckUpdates: "Periksa pembaruan otomatis",
     donate: "Jika berkenan, Anda dapat memberikan donasi",
   },
   splash: {
     preparing: "Menyiapkan semuanya…",
+  },
+  whatsNew: {
+    button: "Yang baru",
+    title: "Yang baru · {{version}}",
+    close: "Tutup",
+    loading: "Memuat catatan…",
+    unavailable: "Tidak dapat memuat catatan.",
+    gotIt: "Mengerti",
+  },
+  update: {
+    available: "Yoink {{version}} tersedia",
+    action: "Perbarui",
+    dismiss: "Tutup",
+    notifyBody: "Buka Pengaturan untuk memasang.",
+    downloading: "Mengunduh pembaruan…",
+    dontClose: "Jangan tutup aplikasi — akan mulai ulang sendiri.",
   },
   common: {
     copyError: "Salin galat",

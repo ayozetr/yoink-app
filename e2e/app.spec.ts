@@ -6,6 +6,7 @@ const SETTINGS = {
   default_quality: "1080p",
   cookies_from_browser: null,
   cookies_file: null,
+  check_updates: false,
 };
 
 const EMPTY_STATS = { total_downloads: 0, total_bytes: 0, transferred: "0 B" };
@@ -349,6 +350,32 @@ test("queue: a music album adds as an expandable, selectable group", async ({
   // Deselect one track → the counter drops to 2/3.
   await page.getByRole("checkbox").nth(1).uncheck();
   await expect(page.getByText("Spotify · 2/3")).toBeVisible();
+});
+
+test("update experience: settings toggle opens the What's new popup", async ({
+  page,
+}) => {
+  await mockBase(page);
+  await page.route("**/api/release-notes", (route) =>
+    route.fulfill({
+      json: {
+        version: "v2.6.0",
+        notes: "## New stuff\n\n- **Bold** thing\n- Another one",
+      },
+    }),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Ajustes" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  // The opt-in "check automatically" toggle is present.
+  await expect(
+    dialog.getByText("Comprobar actualizaciones automáticamente"),
+  ).toBeVisible();
+  // "Ver novedades" opens the popup, which renders the markdown notes.
+  await dialog.getByRole("button", { name: "Ver novedades" }).click();
+  await expect(page.getByRole("heading", { name: "New stuff" })).toBeVisible();
+  await expect(page.getByText("Bold")).toBeVisible();
 });
 
 test("opens the settings modal", async ({ page }) => {

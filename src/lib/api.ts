@@ -12,6 +12,7 @@ import type {
   HistoryEntry,
   InfoResponse,
   PlaylistEntry,
+  ReleaseNotes,
   SearchResponse,
   VersionInfo,
 } from "../types/download";
@@ -202,6 +203,14 @@ export async function fetchYtdlpVersion(
 ): Promise<VersionInfo> {
   const response = await request("/ytdlp-version", { signal });
   return (await response.json()) as VersionInfo;
+}
+
+/** This version's "what's new" release notes, via `GET /api/release-notes`. */
+export async function fetchReleaseNotes(
+  signal?: AbortSignal,
+): Promise<ReleaseNotes> {
+  const response = await request("/release-notes", { signal });
+  return (await response.json()) as ReleaseNotes;
 }
 
 /** Fetch recent download records via `GET /api/history`. */

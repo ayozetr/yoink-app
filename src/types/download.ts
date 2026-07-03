@@ -265,6 +265,15 @@ export interface AppSettings {
   video_codec: VideoCodec;
   /** Lossy audio bitrate in kbps, or "best". */
   audio_bitrate: AudioBitrate;
+  /** Check GitHub for a newer app release on launch (opt-in; the app only). */
+  check_updates: boolean;
+}
+
+/** A release's "what's new" notes for the after-update popup (mirrors backend). */
+export interface ReleaseNotes {
+  version: string;
+  /** Markdown notes, trimmed to the what's-new part; null if unavailable. */
+  notes: string | null;
 }
 
 /** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */

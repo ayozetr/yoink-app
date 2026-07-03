@@ -282,10 +282,27 @@ export const ja = {
     installing: "インストール中…",
     viewRelease: "リリースを見る",
     developedBy: "開発者",
+    autoCheckUpdates: "自動的に更新を確認",
     donate: "よろしければ、寄付でご支援いただけます",
   },
   splash: {
     preparing: "準備しています…",
+  },
+  whatsNew: {
+    button: "新着情報",
+    title: "新着情報 · {{version}}",
+    close: "閉じる",
+    loading: "読み込み中…",
+    unavailable: "ノートを読み込めませんでした。",
+    gotIt: "了解",
+  },
+  update: {
+    available: "Yoink {{version}} が利用可能",
+    action: "更新",
+    dismiss: "閉じる",
+    notifyBody: "設定を開いて更新をインストール。",
+    downloading: "更新をダウンロード中…",
+    dontClose: "アプリを閉じないでください。自動的に再起動します。",
   },
   common: {
     copyError: "エラーをコピー",

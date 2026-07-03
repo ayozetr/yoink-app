@@ -286,10 +286,27 @@ export const uk = {
     installing: "Встановлення…",
     viewRelease: "Переглянути реліз",
     developedBy: "Розроблено",
+    autoCheckUpdates: "Автоматично перевіряти оновлення",
     donate: "Якщо хочете, можете зробити пожертву",
   },
   splash: {
     preparing: "Готую все необхідне…",
+  },
+  whatsNew: {
+    button: "Що нового",
+    title: "Що нового · {{version}}",
+    close: "Закрити",
+    loading: "Завантаження нотаток…",
+    unavailable: "Не вдалося завантажити нотатки.",
+    gotIt: "Зрозуміло",
+  },
+  update: {
+    available: "Доступний Yoink {{version}}",
+    action: "Оновити",
+    dismiss: "Відхилити",
+    notifyBody: "Відкрийте налаштування, щоб встановити.",
+    downloading: "Завантаження оновлення…",
+    dontClose: "Не закривайте застосунок — він перезапуститься.",
   },
   common: {
     copyError: "Копіювати помилку",

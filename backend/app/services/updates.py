@@ -12,7 +12,48 @@ import urllib.request
 
 from app.core.config import settings
 from app.core.safe_http import SSL_CONTEXT
-from app.models.media import VersionInfo
+from app.models.media import ReleaseNotes, VersionInfo
+
+
+def _trim_notes(body: str) -> str:
+    """Keep only the 'what's new' part — everything before the hidden
+    ``<!-- /whatsnew -->`` marker, or failing that before the ``## Downloads``
+    section, so the downloads table + self-update boilerplate stay on GitHub."""
+    for cut in ("<!-- /whatsnew -->", "## Downloads"):
+        index = body.find(cut)
+        if index != -1:
+            return body[:index].strip()
+    return body.strip()
+
+
+def release_notes(tag: str, timeout: float = 8.0) -> ReleaseNotes:
+    """Fetch one release's markdown ``body`` (trimmed to the what's-new part) by
+    tag — used by the after-update popup. Never raises: any failure returns
+    ``notes=None`` so the popup simply doesn't show."""
+    url = f"https://api.github.com/repos/{settings.github_repo}/releases/tags/{tag}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": f"Yoink/{settings.app_version}",
+            "Accept": "application/vnd.github+json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(
+            request, timeout=timeout, context=SSL_CONTEXT
+        ) as response:
+            data = json.load(response)
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
+        return ReleaseNotes(version=tag)
+    body = data.get("body")
+    notes = _trim_notes(body) if isinstance(body, str) else None
+    return ReleaseNotes(version=tag, notes=notes)
 
 
 def _parse_version(tag: str) -> tuple[int, ...]:

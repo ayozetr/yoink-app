@@ -394,6 +394,11 @@ class AppSettings(BaseModel):
     audio_bitrate: AudioBitrate = Field(
         default="best", description="Lossy audio bitrate in kbps, or 'best'."
     )
+    check_updates: bool = Field(
+        default=True,
+        description="Check GitHub for a newer app release on launch (on by default; "
+        "toggle off in Settings — the app only, yt-dlp stays owner-managed).",
+    )
 
 
 class VersionInfo(BaseModel):
@@ -404,6 +409,16 @@ class VersionInfo(BaseModel):
     update_available: bool = Field(default=False, description="A newer release exists.")
     release_url: str | None = Field(default=None, description="Latest release page URL.")
     error: str | None = Field(default=None, description="Why the check failed, if it did.")
+
+
+class ReleaseNotes(BaseModel):
+    """A release's 'what's new' notes, for the in-app popup after an update."""
+
+    version: str = Field(..., description="The release tag these notes are for.")
+    notes: str | None = Field(
+        default=None,
+        description="Markdown notes, trimmed to the 'what's new' part.",
+    )
 
 
 class OpenRequest(BaseModel):

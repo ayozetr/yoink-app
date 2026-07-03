@@ -7,7 +7,8 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.media import AppSettings, VersionInfo
+from app.core.config import settings as app_settings
+from app.models.media import AppSettings, ReleaseNotes, VersionInfo
 from app.services import settings_store, updates
 
 router = APIRouter(tags=["settings"])
@@ -24,6 +25,17 @@ _PROXY_SCHEMES = frozenset({"http", "https", "socks4", "socks4a", "socks5", "soc
 def get_version() -> VersionInfo:
     """Return the current version and whether a newer GitHub release exists."""
     return updates.check_for_updates()
+
+
+@router.get(
+    "/release-notes",
+    response_model=ReleaseNotes,
+    summary="This version's 'what's new' notes",
+)
+def get_release_notes() -> ReleaseNotes:
+    """The current app version's release notes (trimmed to the what's-new part),
+    for the after-update popup. `notes` is null if they can't be fetched."""
+    return updates.release_notes(f"v{app_settings.app_version}")
 
 
 @router.get(

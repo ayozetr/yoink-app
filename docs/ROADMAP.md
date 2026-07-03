@@ -268,19 +268,14 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Auto-fill a clipboard URL on window focus** (M) — when the field is empty and
   the clipboard holds a link, pre-fill it (non-destructive) so a paste→analyze is one step.
   *(Tried in v2.3.0 but skipped: a gesture-less clipboard read is blocked by browsers.)*
-- ⬜ **Update experience** (M) — an opt-in **"check for updates automatically"**
-  setting (the app only; yt-dlp stays owner-managed). When on, check the latest
-  GitHub release on launch and, if newer, show an in-app banner **and** a desktop
-  notification. After an update, the **first launch shows a "What's new" popup**
-  with that release's notes, shown **once** (persist `last_seen_version` and bump
-  it after showing; it only re-opens when the user picks "What's new" in Settings).
-  The notes come back with the release check (`body`); the popup renders only the
-  "what's new" part by splitting the body at a hidden `<!-- /whatsnew -->` marker
-  (fallback: before `## Downloads`), so the Downloads table / self-update
-  boilerplate stay on GitHub but out of the in-app view. Builds on the existing
-  update check (`/api/version`) + notification plugin; the only new piece is a
-  small markdown renderer. *(When built, add the marker to the notes template in
-  `docs/releasing.md`.)*
+- ✅ **Update experience** — an **on-by-default** "check for updates automatically"
+  setting (togglable off; the app only; yt-dlp stays owner-managed) raises an in-app
+  banner + a desktop notification when a newer release exists, and either (banner or
+  Settings) **installs it in place** with a live-progress "Downloading…" popup. The
+  **first launch after an update shows a "What's new" popup** (once, then remembered;
+  re-openable from Settings) rendering that release's notes, trimmed to the part
+  before a hidden `<!-- /whatsnew -->` marker (`GET /api/release-notes` + a small
+  markdown renderer).
 - ✅ **Paste-and-analyze keyboard gesture** *(v2.3.0)* — `Ctrl/Cmd+Shift+V` pastes a
   link from the clipboard and analyzes it in one shot, from anywhere in the window.
 - ✅ **"Copy error" button** *(v2.3.0)* — on a failed download and on history error

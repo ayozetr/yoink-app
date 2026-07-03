@@ -282,10 +282,27 @@ export const zh = {
     installing: "安装中…",
     viewRelease: "查看版本",
     developedBy: "开发者",
+    autoCheckUpdates: "自动检查更新",
     donate: "如果愿意，你可以进行捐赠",
   },
   splash: {
     preparing: "正在准备一切…",
+  },
+  whatsNew: {
+    button: "新功能",
+    title: "新功能 · {{version}}",
+    close: "关闭",
+    loading: "正在加载…",
+    unavailable: "无法加载说明。",
+    gotIt: "知道了",
+  },
+  update: {
+    available: "Yoink {{version}} 可用",
+    action: "更新",
+    dismiss: "忽略",
+    notifyBody: "打开设置以安装更新。",
+    downloading: "正在下载更新…",
+    dontClose: "请勿关闭应用——它会自动重启。",
   },
   common: {
     copyError: "复制错误",

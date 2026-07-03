@@ -286,10 +286,27 @@ export const ru = {
     installing: "Установка…",
     viewRelease: "Посмотреть релиз",
     developedBy: "Разработано",
+    autoCheckUpdates: "Проверять обновления автоматически",
     donate: "Если хотите, вы можете сделать пожертвование",
   },
   splash: {
     preparing: "Всё готовится…",
+  },
+  whatsNew: {
+    button: "Что нового",
+    title: "Что нового · {{version}}",
+    close: "Закрыть",
+    loading: "Загрузка заметок…",
+    unavailable: "Не удалось загрузить заметки.",
+    gotIt: "Понятно",
+  },
+  update: {
+    available: "Доступен Yoink {{version}}",
+    action: "Обновить",
+    dismiss: "Скрыть",
+    notifyBody: "Откройте настройки, чтобы установить.",
+    downloading: "Загрузка обновления…",
+    dontClose: "Не закрывайте приложение — оно перезапустится.",
   },
   common: {
     copyError: "Копировать ошибку",

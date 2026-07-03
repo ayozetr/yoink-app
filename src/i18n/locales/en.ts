@@ -282,10 +282,27 @@ export const en = {
     installing: "Installing…",
     viewRelease: "View release",
     developedBy: "Developed by",
+    autoCheckUpdates: "Check for updates automatically",
     donate: "If you'd like, you can make a donation",
   },
   splash: {
     preparing: "Getting everything ready…",
+  },
+  whatsNew: {
+    button: "What's new",
+    title: "What's new · {{version}}",
+    close: "Close",
+    loading: "Loading release notes…",
+    unavailable: "Couldn't load the notes.",
+    gotIt: "Got it",
+  },
+  update: {
+    available: "Yoink {{version}} available",
+    action: "Update",
+    dismiss: "Dismiss",
+    notifyBody: "Open Settings to install the update.",
+    downloading: "Downloading update…",
+    dontClose: "Don't close the app — it'll restart itself.",
   },
   common: {
     copyError: "Copy error",
