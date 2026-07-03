@@ -11,11 +11,19 @@
 
 ## 📍 Status
 
-- **Current release:** **v2.5.1** — **per-track playlist cover art** (each track's
-  own album art, not the playlist's — Deezer lookups paced so big lists keep them,
-  streamed in progressively), a **unified music-import / playlist card** (a large
-  square cover + shared layout), **YouTube Music playlists as audio-only**, and
-  polish (undraggable covers, a persistent "0 selected" summary).
+- **Current release:** **v2.6.0** — a **reworked download queue**: pick its
+  **format** (video/audio + quality), and paste an **album/playlist** to get one
+  collapsible row whose **tracks you pick individually** — music routed through the
+  importer (match → audio → tag) instead of failing on DRM, each row labelled with
+  its **source**. Plus **playlist sync** (re-analyzing a playlist pre-selects only
+  what's new), a **responsive preview card**, a **Skip-current vs Stop** queue
+  control with **live drag-reorder**, and the playlist card's checkboxes unified
+  onto the shared toggle.
+- **Previously (v2.5.1):** **per-track playlist cover art** (each track's own album
+  art, not the playlist's — Deezer lookups paced so big lists keep them, streamed
+  in progressively), a **unified music-import / playlist card**, **YouTube Music
+  playlists as audio-only**, and polish (undraggable covers, a persistent
+  "0 selected" summary).
 - **Previously (v2.5.0):** **Amazon Music cover art from Amazon**
   (playlist/album + per-track, incl. Amazon-exclusive tracks), **auto-tagging**
   via your **regional Apple Music store** with **fewer irrelevant matches**,
@@ -48,7 +56,7 @@
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
   one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 324) green · frontend build + e2e (16) + vitest (40) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 325) green · frontend build + e2e (19) + vitest (40) green · `npm audit` 0 · strict TS.
 
 ---
 
