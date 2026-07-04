@@ -88,8 +88,12 @@ def put_settings(payload: AppSettings) -> AppSettings:
         raise HTTPException(
             status_code=400, detail="cookies_from_browser is not a supported browser."
         )
-    if payload.proxy and urlparse(payload.proxy).scheme.lower() not in _PROXY_SCHEMES:
-        raise HTTPException(
-            status_code=400, detail="proxy must be an http(s) or socks URL."
-        )
+    if payload.proxy:
+        parsed = urlparse(payload.proxy)
+        # Require both a supported scheme *and* a host, so a bare "http://" (or
+        # "socks5://:1080") is rejected rather than silently accepted.
+        if parsed.scheme.lower() not in _PROXY_SCHEMES or not parsed.hostname:
+            raise HTTPException(
+                status_code=400, detail="proxy must be an http(s) or socks URL."
+            )
     return settings_store.update(payload)

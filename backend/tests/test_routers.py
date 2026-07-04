@@ -164,6 +164,10 @@ def test_settings_put_rejects_bad_values(temp_dirs):
     bad_proxy = {**base, "cookies_from_browser": None, "proxy": "ftp://x:1"}
     assert client.put("/api/settings", json=bad_proxy).status_code == 400
 
+    # Proxy with a supported scheme but no host (e.g. a bare "http://").
+    hostless_proxy = {**base, "cookies_from_browser": None, "proxy": "http://"}
+    assert client.put("/api/settings", json=hostless_proxy).status_code == 400
+
     # A known browser with a profile suffix (e.g. "firefox:work") is accepted.
     ok = {**base, "cookies_from_browser": "firefox:work", "cookies_file": None, "proxy": None}
     assert client.put("/api/settings", json=ok).status_code == 200

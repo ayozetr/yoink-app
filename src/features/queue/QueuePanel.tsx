@@ -15,6 +15,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
+import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Select } from "../../components/ui/Select";
 import { AUDIO_FORMATS, VIDEO_CONTAINERS } from "../downloader/formatOptions";
 import { startDownload, type DownloadHandle } from "../../lib/downloadSocket";
@@ -811,7 +812,7 @@ export function QueuePanel({
                     </button>
                   )}
                   <span className="shrink-0">{statusIcon(status)}</span>
-                  <span className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <span className="block truncate text-sm">
                         {item.status === "resolving"
@@ -836,12 +837,7 @@ export function QueuePanel({
                     )}
                     {status === "active" && (
                       <>
-                        <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/10">
-                          <span
-                            className="block h-full bg-violet-500 transition-[width]"
-                            style={{ width: `${percent}%` }}
-                          />
-                        </span>
+                        <ProgressBar percent={percent} className="mt-1 h-1" />
                         {progressDetail && (
                           <span className="mt-1 block truncate text-xs text-zinc-400">
                             {progressDetail}
@@ -854,7 +850,7 @@ export function QueuePanel({
                         {item.error}
                       </span>
                     )}
-                  </span>
+                  </div>
                   {status !== "active" && (
                     <button
                       type="button"
