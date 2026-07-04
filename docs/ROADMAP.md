@@ -11,14 +11,18 @@
 
 ## 📍 Status
 
-- **Current release:** **v2.6.0** — a **reworked download queue**: pick its
-  **format** (video/audio + quality), and paste an **album/playlist** to get one
-  collapsible row whose **tracks you pick individually** — music routed through the
-  importer (match → audio → tag) instead of failing on DRM, each row labelled with
-  its **source**. Plus **playlist sync** (re-analyzing a playlist pre-selects only
-  what's new), a **responsive preview card**, a **Skip-current vs Stop** queue
-  control with **live drag-reorder**, and the playlist card's checkboxes unified
-  onto the shared toggle.
+- **Current release:** **v2.7.0** — **automatic in-app updates**: an *on-by-default*
+  (togglable) launch check floats a dismissible banner + a desktop notification when
+  a newer release exists, and either the banner or Settings **self-updates in place**
+  behind a live-progress "Downloading…" popup (Windows installs passively — no
+  click-through). The **first launch after an update shows a "What's new" popup**
+  (once; re-openable from Settings) rendering that release's notes. Plus small
+  hardening (the proxy setting now requires a host; one shared progress bar).
+- **Previously (v2.6.0):** a **reworked download queue** — its own **format** picker,
+  and a pasted **album/playlist** becomes one collapsible row whose **tracks you pick
+  individually** (music routed through the importer instead of failing on DRM, each
+  row labelled with its source); plus **playlist sync**, a **responsive preview card**,
+  and a **Skip-current vs Stop** queue control with **live drag-reorder**.
 - **Previously (v2.5.1):** **per-track playlist cover art** (each track's own album
   art, not the playlist's — Deezer lookups paced so big lists keep them, streamed
   in progressively), a **unified music-import / playlist card**, **YouTube Music
@@ -56,7 +60,7 @@
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
   one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 325) green · frontend build + e2e (19) + vitest (40) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 329) green · frontend build + e2e (20) + vitest (40) green · `npm audit` 0 · strict TS.
 
 ---
 
