@@ -26,7 +26,9 @@ Two layers communicating asynchronously:
   that is **either** a single video (title, thumbnail, formats, plus
   `source_lossless`/`best_audio_abr`/`has_audio`/`subtitle_langs`/`has_chapters`,
   and an `is_vr`/`vr_layout` immersive-video heuristic) **or** a flat playlist listing
-  (entries with title/duration/url). Endpoint: `POST /api/info` — a transient
+  (entries with title/duration/url, each flagged `already_downloaded` when its URL is
+  already a completed download — *playlist sync* pre-selects only the new ones).
+  Endpoint: `POST /api/info` — a transient
   extraction failure (anti-bot 403 / network blip) is retried before surfacing as
   503 (retryable) vs 422 (a genuinely unsupported URL).
 - **Search (REST):** typing a query (not a URL) in the field hits
@@ -35,10 +37,11 @@ Two layers communicating asynchronously:
   YouTube↔SoundCloud toggle); picking one analyzes it via `POST /api/info`.
 - **Music import (REST):** pasting a Spotify/Deezer/Apple/Tidal/Amazon URL hits
   `POST /api/music/resolve`, which **keyless**ly turns it into a `MusicImportInfo`
-  (track/album/playlist + per-track title/artist/duration/cover). The card then
-  calls `POST /api/music/match` per track to rank a YouTube video (spotDL-ported
-  scorer), downloads it via the normal WS flow, and auto-tags it with the *exact*
-  source metadata. Audio is never taken from the source — only its metadata.
+  (track/album/playlist + per-track title/artist/duration/cover; `POST /api/music/cover`
+  fills a missing per-track cover lazily). The card (and the queue, for a pasted
+  music URL) then calls `POST /api/music/match` per track to rank a YouTube video
+  (spotDL-ported scorer), downloads it via the normal WS flow, and auto-tags it with
+  the *exact* source metadata. Audio is never taken from the source — only its metadata.
 - **Download & progress (WebSockets):** on "Download", the frontend opens a
   socket to `WS /api/ws/download` and sends the request (`DownloadRequest`:
   `kind`/`quality`, output `container`, `audio_format`, `embed_subs`/
@@ -57,6 +60,13 @@ Two layers communicating asynchronously:
   `apply`. When `fetch_lyrics` is on, `POST /api/autotag/lyrics` previews the
   LRCLIB match in the card and `apply` embeds the lyrics (plus an optional synced
   `.lrc` sidecar); `apply` also rewrites the `.nfo` from the tagged metadata.
+- **Update check (REST):** with the *"check for updates automatically"* setting on
+  (`AppSettings.check_updates`, **on by default**; the app only — yt-dlp stays
+  owner-managed), the app checks the latest GitHub release on launch; if newer it
+  shows an in-app banner + a desktop notification and can **self-update in place**
+  via the Tauri updater (a live-progress "Downloading…" popup). `GET /api/release-notes`
+  returns the current version's release `body` — trimmed to the part before a hidden
+  `<!-- /whatsnew -->` marker — for the first-launch-after-update "What's new" popup.
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` (and `src/types/autotag.ts` ↔
@@ -76,14 +86,14 @@ literal OpenAPI types on demand.
 ├── src/                      # frontend (React + TS + Tailwind)
 │   ├── components/
 │   │   ├── layout/           # app shell, background glow
-│   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, EditMenu, …)
+│   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, Toggle, EditMenu, Markdown, update banner/popups, …)
 │   ├── features/
 │   │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
 │   │   ├── music/            # keyless music import card (Spotify/Deezer/Apple/Tidal/Amazon)
 │   │   ├── downloader/       # URL input (+ YouTube/SoundCloud search toggle), preview (incl. VR), playlist, progress
-│   │   ├── queue/            # persistent sequential download queue (opened from the header)
+│   │   ├── queue/            # download queue: format picker + expandable music/playlist groups (per-item select), skip/reorder
 │   │   ├── history/          # download history + stats (sidebar)
-│   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version)
+│   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version + auto-update)
 │   ├── i18n/                 # react-i18next setup + 14 lazy-loaded locale files
 │   ├── lib/                  # API client (+ runtime backend-port resolve) + download WebSocket + single-download lock + queue store + search-source pref + VR-layout memory + native dialogs
 │   └── types/                # shared domain types (backend JSON contract)
@@ -98,12 +108,12 @@ literal OpenAPI types on demand.
         ├── core/humanize.py   # shared byte/size formatting
         ├── core/ytdlp_options.py      # shared URL normalize + cookies (browser→file fallback)
         ├── core/safe_http.py  # SSRF-safe fetch (public-host pinning) for client URLs
-        ├── routers/info.py    # POST /api/info (video or playlist), GET /api/search (YouTube/SoundCloud)
+        ├── routers/info.py    # POST /api/info (video or playlist + playlist-sync flags), GET /api/search
         ├── routers/download.py        # WS /api/ws/download (live progress)
         ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
-        ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
+        ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version + /api/release-notes
         ├── routers/autotag.py         # POST /api/autotag/{identify,search,lyrics,apply}
-        ├── routers/music.py           # POST /api/music/{resolve,match} (keyless import)
+        ├── routers/music.py           # POST /api/music/{resolve,match,cover} (keyless import)
         ├── routers/media.py           # GET /api/thumbnail (host-guarded proxy) + /api/cover (embedded art)
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
         ├── services/download_service.py  # yt-dlp download + progress stream
@@ -117,7 +127,7 @@ literal OpenAPI types on demand.
         ├── services/vr.py              # VR detection + Spherical Video V2 (st3d/sv3d) tagging
         ├── services/history_store.py  # SQLite persistence (history + stats)
         ├── services/settings_store.py # persisted user settings overrides
-        └── services/updates.py        # GitHub release update check
+        └── services/updates.py        # GitHub release update check + release notes
 ```
 
 ## Common commands

@@ -76,8 +76,11 @@ missing. The full list of detected dependencies appears at the top of
 ### In Yoink
 
 `yt-dlp` itself is pinned in [`backend/requirements.txt`](../backend/requirements.txt).
+Yoink runs it on **Python 3.13** specifically, so the `curl_cffi` impersonation
+wheels (needed to get past Cloudflare/anti-bot 403s) are available.
 **ffmpeg must be installed separately** (system package manager or the builds
-above) and available on `PATH` — it is *not* a pip dependency.
+above) and available on `PATH` — it is *not* a pip dependency, though the
+packaged desktop app bundles it and wires it via `ffmpeg_location`.
 
 ## 4. Python embedding API (what the backend uses)
 
@@ -279,7 +282,8 @@ rather than blocking.
   yt-dlp. It calls `extract_info(url, download=False)` + `sanitize_info`, then
   normalizes the result into typed models.
 - **`/api/info`** (`backend/app/routers/info.py`) exposes that as REST; failures
-  surface as `MediaExtractionError` → HTTP 422.
+  surface as `MediaExtractionError`, mapped to **503** when transient (anti-bot
+  403 / network blip, retried first) or **422** for a genuinely unsupported URL.
 - **`backend/app/services/download_service.py`** runs the download off-thread,
   builds yt-dlp options from a `DownloadRequest` (container, audio format,
   subtitles, chapters), and streams `progress_hooks` events over

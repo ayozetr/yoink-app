@@ -56,9 +56,16 @@ It is split into two layers that communicate asynchronously:
 - **Playlists** — pick which items to download (a cover, a **filter** for long
   lists, **Shift+click** range selection); they download sequentially with
   "X of N" progress, **resume** if interrupted, and offer **retry-failed** when
-  some items don't finish (VR tagging applies to the whole batch).
-- **Download queue** — paste many links to download one after another; the
-  queue **persists across restarts** and **resumes** interrupted items.
+  some items don't finish. Re-analyzing a growing playlist **pre-selects only what's
+  new** (a "Downloaded" badge on the rest — *playlist sync*). VR tagging applies to
+  the whole batch.
+- **Download queue** — paste many links, or a whole **album/playlist**, with the
+  queue's own **format picker**. A music-service or video **playlist URL becomes one
+  collapsible group** whose tracks you **select individually** — music is routed
+  through the importer (match → audio → tag), so DRM-protected links don't fail — and
+  every row is labelled with its source. **Skip** the current item (vs **Stop** the
+  whole run), **drag to reorder** live, and it **persists across restarts** and
+  **resumes** interrupted items.
 - **Audio auto-tagging** — after an audio download, an inline card tags the file
   with real artist / album / title / year + **cover art** from **Apple Music,
   Deezer or MusicBrainz** (free, no account; pick one — or Automatic — in
@@ -84,8 +91,11 @@ It is split into two layers that communicate asynchronously:
   Ctrl/Cmd+, settings).
 - **14 UI languages** (react-i18next: EN/ES/FR/DE/IT/PT-BR/RU/PL/UK/ID/HI/ZH/JA/KO), auto-detected from your system
   language and switchable in Settings.
-- **Update check** against the latest GitHub release; Settings also shows the
-  bundled **yt-dlp version** and whether a newer one is out.
+- **Automatic updates** (on by default, togglable off — the app only; yt-dlp stays
+  owner-managed) — checks the latest GitHub release on launch and, when a newer one
+  exists, shows an in-app **banner + desktop notification** and can **self-update in
+  place** behind a progress popup, plus a **"What's new"** popup after updating.
+  Settings also shows the bundled **yt-dlp version** and whether a newer one is out.
 - **Self-contained desktop app** (Tauri, Linux & Windows): bundles the backend
   **and ffmpeg** in a one-folder build — no Python or ffmpeg install needed.
 
@@ -120,8 +130,9 @@ src/                      # frontend (React + TS + Tailwind)
 │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
 │   ├── music/            # music-service import card (Spotify/Deezer/Apple/Tidal/Amazon)
 │   ├── downloader/       # URL input (+ search-source toggle), preview, playlist, progress
+│   ├── queue/            # download queue (format picker, music/playlist groups, skip/reorder)
 │   ├── history/          # download history + stats (sidebar)
-│   └── settings/         # settings modal (download dir, defaults, cookies, version)
+│   └── settings/         # settings modal (download dir, defaults, cookies, version, auto-update)
 ├── lib/                  # API client + download WebSocket
 └── types/                # shared domain types (mirror the backend JSON contract)
 

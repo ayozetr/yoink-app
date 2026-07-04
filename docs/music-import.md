@@ -165,8 +165,11 @@ with nothing depending on spotDL itself.
 
 ## Status
 
-Backlog only — see *Import from Spotify* in [`ROADMAP.md`](ROADMAP.md). This file
-is the design reference for when we pick it up.
+**Implemented** (Option A) and generalized to Spotify / Deezer / Apple Music /
+Tidal / Amazon Music — `services/music_import.py` (keyless resolvers, SSRF-guarded
+fetches) + `matching.py` (the spotDL-ported ranking) + `routers/music.py`, with
+the `MusicImportCard` on the frontend and a music-group path in the download
+queue. This file remains the design reference for *why* it works this way.
 
 ## Sources
 

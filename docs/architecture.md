@@ -34,8 +34,9 @@ When the user pastes a URL and clicks **Analyze**:
 2. Backend runs yt-dlp with `download=False` and normalizes the result.
 3. Backend → clean JSON: `title`, `duration`, `duration_string`,
    `thumbnail_url`, a list of `formats`, plus capability hints
-   `source_lossless`, `best_audio_abr`, `subtitle_langs`, `auto_caption_langs`,
-   and `has_chapters`.
+   `source_lossless`, `best_audio_abr`, `has_audio`, `subtitle_langs`,
+   `auto_caption_langs`, `has_chapters`, `audio_langs` (multi-audio), and an
+   `is_vr`/`vr_layout` immersive-video heuristic.
 4. Frontend populates the preview card and the format/quality selectors.
 
 Typing a query instead of a URL hits `GET /api/search?q=&source=youtube|soundcloud`
@@ -51,7 +52,11 @@ YouTube ranking) and downloads + auto-tags each via the normal flow. See
 
 For a playlist, the backend additionally resolves the **first entry** to set
 `source_lossless` / `best_audio_abr` on the listing, so the playlist UI gates
-FLAC/WAV like a single video (assuming a homogeneous playlist).
+FLAC/WAV like a single video (assuming a homogeneous playlist). It also **syncs
+against the download history**: each entry already downloaded is flagged
+`already_downloaded` (matched by a context-free URL key — normalized, minus
+playlist/position/tracking params), so the playlist card pre-selects only the new
+ones and badges the rest as "Downloaded".
 
 The JSON shape is defined once in `backend/app/models/media.py` (Pydantic) and
 mirrored in `src/types/download.ts` (TypeScript).
@@ -62,11 +67,13 @@ When the user clicks **Download**:
 
 1. Frontend opens `WS /api/ws/download` and sends a `DownloadRequest`: `kind`
    and `quality`, the output `container` (mp4/mov/mkv) or `audio_format`
-   (mp3/m4a/flac/wav), the `embed_subs` / `subtitle_lang` / `embed_chapters`
-   options, an optional `trim_start`/`trim_end` range, and `is_vr`/`vr_layout`
-   to tag the output as immersive (projection name suffix + Spherical Video V2
-   metadata, via `services/vr.py`) — or `auto_vr` to detect + tag VR with no
-   preview step (used by the queue).
+   (mp3/m4a/flac/wav), the `embed_subs` / `subtitle_lang` / `embed_chapters` /
+   `audio_multistreams` options, an optional `trim_start`/`trim_end` range (an
+   inverted range is rejected up front), and `is_vr`/`vr_layout` to tag the
+   output as immersive (projection name suffix + Spherical Video V2 metadata, via
+   `services/vr.py`) — or `auto_vr` to detect + tag VR with no preview step (used
+   by the queue). An optional `estimated_size` scales the pre-flight free-disk
+   check.
 2. Backend runs the yt-dlp job off-thread (`asyncio.to_thread`).
 3. yt-dlp `progress_hooks` emit percent / speed / ETA.
 4. Those events stream back over the same socket as typed events.
@@ -110,6 +117,24 @@ apply**; nothing is written to the file until **Apply**.
 
 All file paths are confined to the download directory (path guard). Models live
 in `backend/app/models/autotag.py`, mirrored in `src/types/autotag.ts`.
+
+### 4. Update check & release notes — REST (implemented)
+
+On launch — when the **check-for-updates** setting is on (`AppSettings.check_updates`,
+the default; togglable off, the *app only* — yt-dlp stays owner-managed) — the
+frontend calls `GET /api/version`, which compares the running version against the
+latest GitHub release. A newer one raises a dismissible bottom banner + a desktop
+notification. Installing (from the banner or Settings) **self-updates in place**
+via the Tauri updater behind a "Downloading…" progress popup (Windows always;
+Linux only as an AppImage — `.deb`/`.rpm` fall back to the release page).
+
+The **first launch after an update** shows a one-time **"What's new"** popup
+(remembered in localStorage, re-openable from Settings) that renders
+`GET /api/release-notes` — the current version's GitHub release `body`, trimmed to
+the part before a hidden `<!-- /whatsnew -->` marker (model `ReleaseNotes`) — with
+a tiny built-in Markdown renderer (`components/ui/Markdown.tsx`).
+`GET /api/ytdlp-version` reports the bundled yt-dlp version but is informational
+only (no in-app yt-dlp update).
 
 ## Cross-platform notes
 

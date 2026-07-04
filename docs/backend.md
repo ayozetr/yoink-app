@@ -9,9 +9,10 @@ backend/
 ├── app/
 │   ├── main.py                 # app factory: FastAPI(), CORS, router mounting, /health
 │   ├── core/
-│   │   ├── config.py           # typed Settings (CORS origins, download dir, ~/.yoink data dir)
+│   │   ├── config.py           # typed Settings (CORS origins, download dir, ~/.yoink data dir, app_version)
 │   │   ├── logging_config.py   # rotating file log at ~/.yoink/logs/yoink.log + console
 │   │   ├── humanize.py         # shared byte/size formatting
+│   │   ├── ffmpeg.py           # locate the bundled/system ffmpeg + ffprobe (ffmpeg_location)
 │   │   ├── ytdlp_options.py    # shared URL normalize + cookies (browser → file fallback)
 │   │   └── safe_http.py        # SSRF-safe fetch (public-host pinning) for client-supplied URLs
 │   ├── models/
@@ -20,25 +21,27 @@ backend/
 │   │   ├── music.py            # music-import models: MusicTrack, MusicImportInfo, …
 │   │   └── autotag.py          # auto-tag models: TagCandidate, CandidateList, LyricsRequest/Result, …
 │   ├── routers/
-│   │   ├── info.py             # POST /api/info (video or playlist), GET /api/search (YouTube/SoundCloud)
+│   │   ├── info.py             # POST /api/info (video or playlist; playlist sync vs history), GET /api/search (YouTube/SoundCloud)
 │   │   ├── download.py         # WS /api/ws/download (live progress)
 │   │   ├── history.py          # GET/DELETE /api/history(/stats), POST /api/open
-│   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version
+│   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version + /api/release-notes + /api/ytdlp-version
 │   │   ├── autotag.py          # POST /api/autotag/{identify,search,lyrics,apply}
 │   │   ├── music.py            # POST /api/music/{resolve,match} (keyless music import)
-│   │   └── media.py            # GET /api/thumbnail (host-guarded image proxy)
+│   │   └── media.py            # GET /api/thumbnail (host-guarded image proxy) + /api/cover (embedded art)
 │   └── services/
 │       ├── ytdlp_service.py    # typed yt-dlp metadata wrapper (extract_info, download=False)
-│       ├── download_service.py # yt-dlp download + typed progress stream (one job at a time via a process-wide asyncio lock)
+│       ├── download_service.py # yt-dlp download + typed progress stream (one job at a time via a process-wide asyncio lock; free-disk pre-flight)
+│       ├── threads_extractor.py     # custom Threads (Meta) yt-dlp extractor
+│       ├── embedded_vr_extractor.py # player-config extractor overriding stale bundled ones
 │       ├── music_import.py     # keyless resolvers (Spotify/Deezer/Apple/Tidal/Amazon) + YouTube match
 │       ├── matching.py         # spotDL-ported YouTube match ranking (pure, no network)
 │       ├── autotag_service.py  # Apple Music (iTunes) / Deezer / MusicBrainz lookup + mutagen tag/cover/lyrics writing
 │       ├── lyrics.py           # LRCLIB lyrics lookup (plain + synced .lrc), SSRF-safe
 │       ├── nfo.py              # Kodi/Jellyfin .nfo sidecars (movie / musicvideo)
 │       ├── vr.py               # VR detection + Spherical Video V2 (st3d/sv3d) tagging
-│       ├── history_store.py    # SQLite persistence (history + stats; error_message column)
+│       ├── history_store.py    # SQLite persistence (WAL; history + stats; error_message column)
 │       ├── settings_store.py   # persisted user settings overrides
-│       └── updates.py          # GitHub release update check
+│       └── updates.py          # GitHub release update check + release-notes fetch
 └── requirements.txt
 ```
 
@@ -87,9 +90,12 @@ yt-dlp options:
 
 ## Audio auto-tagging
 
-`services/autotag_service.py` tags already-downloaded audio against the Apple
-Music catalogue via the **iTunes Search API** — free, key-less, plain HTTPS over
-stdlib `urllib` (no new dependencies; `mutagen` ships with yt-dlp):
+`services/autotag_service.py` tags already-downloaded audio against a
+user-selected catalogue — **Apple Music** (iTunes Search API), **Deezer**, or
+**MusicBrainz** (cover art via the Cover Art Archive), or `auto`, which cascades
+Apple → Deezer → MusicBrainz and takes the first non-empty match. All are free,
+key-less, plain HTTPS over stdlib `urllib` (no new dependencies; `mutagen` ships
+with yt-dlp):
 
 - `identify(path)` parses an "Artist - Title" from the filename
   (`guess_from_filename`, stripping trailing tags like "(Official Video)") and
@@ -99,7 +105,9 @@ stdlib `urllib` (no new dependencies; `mutagen` ships with yt-dlp):
   1000px). Nothing is written until `apply`.
 - `apply(request, path)` writes the chosen (and possibly user-edited) tags +
   cover art with `mutagen`: native frames/atoms/pictures for mp3/m4a/flac,
-  text-only tags for opus/ogg/wav.
+  text-only tags for opus/ogg/wav. When lyrics are enabled it embeds the LRCLIB
+  match (`services/lyrics.py`, + an optional synced `.lrc` sidecar) and rewrites
+  the `.nfo` (`services/nfo.py`) from the tagged metadata.
 
 The `/autotag` router endpoints are plain `def` (FastAPI runs the blocking
 network/file work in a thread) and confine the client-supplied path to the
@@ -143,7 +151,7 @@ Response (`VideoInfo`, abridged):
 - Invalid URL → `422` from Pydantic validation.
 - Extraction failure → `422` with `detail: "Could not extract media info: …"`.
 
-### `POST /api/autotag/identify` · `/search` · `/apply`
+### `POST /api/autotag/identify` · `/search` · `/lyrics` · `/apply`
 
 Audio auto-tagging against the user-selected catalogue — Apple Music (iTunes
 Search API), Deezer, or MusicBrainz (cover art via the Cover Art Archive); all
@@ -153,9 +161,12 @@ errors is skipped):
 
 - `identify` (`{ "path": … }`) and `search` (`{ "artist": …, "title": … }`)
   both return a `CandidateList` of matches.
+- `lyrics` (`LyricsRequest`) previews the LRCLIB match (when the lyrics setting is
+  on) so the card can show a found/synced/instrumental indicator; nothing is
+  written yet.
 - `apply` (`ApplyRequest`: `path` + the chosen `title`/`artist`/`album`/`year`/
-  `track_number`/`cover_url`) writes the tags into the file and returns
-  `ApplyResponse` (`ok`, `embedded_cover`).
+  `track_number`/`cover_url`, + an `embed_lyrics` override) writes the tags into
+  the file and returns `ApplyResponse` (`ok`, `embedded_cover`).
 - `identify`/`apply` resolve `path` within the download dir → `400`/`403`/`404`
   if it's invalid, outside, or missing. Lookup/write failures → `422`.
 
@@ -180,5 +191,7 @@ uvicorn app.main:app --reload      # http://127.0.0.1:8000  (Swagger UI at /docs
 ## More
 
 History/stats (`/api/history`), settings (`/api/settings`), the update check
-(`/api/version`), and revealing files (`/api/open`) round out the API. See the
-[roadmap](ROADMAP.md) for what's done and what's next.
+(`/api/version`) + release notes (`/api/release-notes`), keyless music import
+(`/api/music/{resolve,match}`), embedded cover art (`/api/cover`), and revealing
+files (`/api/open`) round out the API. See the [roadmap](ROADMAP.md) for what's
+done and what's next.

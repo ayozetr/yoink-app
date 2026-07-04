@@ -10,7 +10,9 @@ download progress to the UI over a WebSocket.
 
 ## Requirements
 
-- Python 3.11+
+- Python **3.13** (recommended — yt-dlp's `curl_cffi` anti-bot impersonation
+  needs a Python with compatible wheels; see `../CLAUDE.md`). 3.11+ runs, but
+  `scripts/setup.py` selects 3.13.
 - [ffmpeg](https://ffmpeg.org/) on your `PATH` (needed to merge high-quality
   video + audio formats during downloads)
 
@@ -64,7 +66,10 @@ Response (abridged):
 ```
 
 For a playlist URL the response is a flat listing; the backend resolves the
-first entry to set `source_lossless` / `best_audio_abr` on it.
+first entry to set `source_lossless` / `best_audio_abr` on it, and flags each
+entry already in the download history (`already_downloaded`) so the UI
+pre-selects only the new ones. A transient extraction failure is retried, then
+surfaces as **503** (retryable) vs **422** (a genuinely unsupported URL).
 
 ### `POST /api/autotag/{identify,search,lyrics,apply}`
 
@@ -92,10 +97,10 @@ Settings are read from `YOINK_`-prefixed environment variables (or a local
 backend/
 ├── app/
 │   ├── main.py              # FastAPI app, CORS, router mounting
-│   ├── core/               # typed settings, humanize, shared yt-dlp options
-│   ├── models/            # Pydantic models (JSON contract): media, autotag
-│   ├── routers/            # info, download (WS), history, settings, autotag
-│   └── services/           # yt-dlp metadata + download, history/settings stores, updates, autotag (+ lyrics, nfo)
+│   ├── core/               # typed settings, humanize, ffmpeg locate, shared yt-dlp options, SSRF-safe fetch
+│   ├── models/            # Pydantic models (JSON contract): media, music, autotag
+│   ├── routers/            # info, media, download (WS), history, settings, autotag, music
+│   └── services/           # yt-dlp metadata + download, music import + match, autotag (+ lyrics, nfo), VR, history/settings stores, updates
 └── requirements.txt
 ```
 

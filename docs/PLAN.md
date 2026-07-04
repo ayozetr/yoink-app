@@ -12,7 +12,22 @@
 > el WAL + busy-timeout del historial, `update_title` por id, las guardas de trim,
 > la notificación de fin de cola, los defaults de contenedor/audio en la cola
 > (`auto_vr` incluido), la resiliencia de `/api/info` (reintento transitorio →
-> 503/422), y el contraste WCAG AA. Lo que sigue listado abajo es lo que **queda**.
+> 503/422), y el contraste WCAG AA.
+>
+> **✅ Resuelto después (v2.x):** la reescritura de la **cola** (grupos
+> playlist/álbum seleccionables, selector de formato propio, Skip/Stop y
+> reordenar arrastrando) que sustituye buena parte de la sección *Cola*; el
+> **lock de descarga compartido** entre los tres motores (`lib/downloadLock.ts` +
+> `asyncio.Lock`); la **deduplicación** de la cola y el fallback de
+> `crypto.randomUUID` (`queueStore`); el **pre-vuelo de espacio en disco** +
+> validación de `download_dir`; el **hook de cancelación en post-procesado**
+> (`postprocessor_hooks`); PreviewCard reestructurado en "Opciones avanzadas"; el
+> modal de re-tag como **diálogo accesible** (role/aria-modal/focus-trap/Escape) y
+> el **code-splitting** con `React.lazy`; y los **empty states** de la cola. Lo que
+> sigue listado abajo es el **snapshot original** de la auditoría; quedan sobre
+> todo rendimiento de render (`React.memo`), algunos ítems de accesibilidad
+> (progressbar de la cola, `aria-activedescendant` en `Select`, validación de
+> host del proxy) y pulido menor.
 
 
 Este documento recoge todos los hallazgos verificados y curados, ordenados por impacto, para llevar Yoink a ser la mejor app de su categoría. Cada punto incluye el qué, el dónde (fichero) y el arreglo concreto.
