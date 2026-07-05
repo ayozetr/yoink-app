@@ -303,7 +303,7 @@ export function PlaylistCard({
 
           {/* Controls */}
           <div className="flex flex-col gap-3">
-            <div className="grid md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
               {!audioOnly && (
                 <Select
                   ariaLabel={t("preview.format")}
@@ -348,9 +348,7 @@ export function PlaylistCard({
                     label: option.label,
                     disabled: option.lossless && !losslessAllowed,
                   }))}
-                  className={`h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm ${
-                    audioOnly ? "md:col-span-3" : "md:col-span-2"
-                  }`}
+                  className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
                 />
               )}
             </div>

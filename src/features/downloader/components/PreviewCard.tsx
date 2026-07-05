@@ -371,7 +371,7 @@ export function PreviewCard({
               )}
             </div>
 
-            <div className="grid md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
               <Select
                 ariaLabel={t("preview.format")}
                 value={kind}
@@ -422,7 +422,7 @@ export function PreviewCard({
                     label: option.label,
                     disabled: option.lossless && !losslessAllowed,
                   }))}
-                  className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm md:col-span-2"
+                  className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
                 />
               )}
             </div>
