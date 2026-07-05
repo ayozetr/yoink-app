@@ -168,7 +168,7 @@ export function HistoryItemCard({
             quality · size · time) keeps the full row and isn't truncated. On
             touch/narrow screens (no hover) they stay in flow, always visible. */}
         {isCompleted && (
-          <div className="flex items-center gap-2 shrink-0 opacity-100 transition group-hover:opacity-100 focus-within:opacity-100 sm:absolute sm:left-[calc(50%_+_1.875rem)] sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-surface-hover sm:px-2 sm:py-1.5 sm:opacity-0 sm:shadow-md sm:shadow-black/20">
+          <div className="flex items-center gap-2 shrink-0 opacity-100 transition group-hover:opacity-100 has-[:focus-visible]:opacity-100 sm:absolute sm:left-[calc(50%_+_1.875rem)] sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-surface-hover sm:px-2 sm:py-1.5 sm:opacity-0 sm:shadow-md sm:shadow-black/20">
             {item.url && (
               <button
                 type="button"

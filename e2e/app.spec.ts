@@ -378,6 +378,33 @@ test("update experience: settings toggle opens the What's new popup", async ({
   await expect(page.getByText("Bold")).toBeVisible();
 });
 
+test("history: action buttons don't stick visible after a mouse click", async ({ page }) => {
+  const entry = {
+    id: 1, title: "Sticky Test Song", url: "http://x/s", kind: "audio", status: "completed",
+    filename: "Sticky Test Song.mp3", filepath: "/dl/Sticky Test Song.mp3", filesize: 1000,
+    quality: "320 kbps", error_message: null, created_at: "2026-01-01T00:00:00Z", mtime: null,
+  };
+  await mockBase(page, { history: [entry] });
+  await page.route("**/api/open", (route) => route.fulfill({ status: 200, json: { ok: true } }));
+  await page.goto("/");
+
+  const openFolder = page.getByRole("button", { name: "Abrir carpeta" });
+  const actions = openFolder.locator("xpath=..");
+  const box = (await openFolder.boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+
+  // Move the pointer over the row (the actions live inside the group) -> fade in.
+  await page.mouse.move(cx, cy);
+  await expect(actions).toHaveCSS("opacity", "1");
+  // Click with the mouse, then move the pointer off the row entirely.
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.mouse.move(5, 5);
+  // The bug: focus-within kept them at opacity 1 after the click. Now they fade out.
+  await expect(actions).toHaveCSS("opacity", "0");
+});
+
 test("opens the settings modal", async ({ page }) => {
   await mockBase(page);
   await page.goto("/");
