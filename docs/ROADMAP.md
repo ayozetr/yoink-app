@@ -11,7 +11,14 @@
 
 ## 📍 Status
 
-- **Current release:** **v2.7.0** — **automatic in-app updates**: an *on-by-default*
+- **Current release:** **v2.8.0** — an **"Artist – Title (auto-tag)" filename
+  template**: pick it in Settings and a downloaded track is renamed to its *tagged*
+  name (the one already shown in history), carrying its `.nfo`/`.lrc` sidecars along
+  and never clobbering an existing file. Bundles **yt-dlp 2026.07.04** (verified
+  across the full URL spread — video, playlists, music imports, Threads, VR), and the
+  **preview + playlist format selectors reflow** so they stay readable in a narrow
+  (non-maximized) window.
+- **Previously (v2.7.0):** **automatic in-app updates**: an *on-by-default*
   (togglable) launch check floats a dismissible banner + a desktop notification when
   a newer release exists, and either the banner or Settings **self-updates in place**
   behind a live-progress "Downloading…" popup (Windows installs passively — no
@@ -60,7 +67,7 @@
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
   one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 329) green · frontend build + e2e (20) + vitest (40) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 335) green · frontend build + e2e (20) + vitest (40) green · `npm audit` 0 · strict TS.
 
 ---
 
