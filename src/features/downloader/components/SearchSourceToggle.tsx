@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SearchSource } from "../../../lib/api";
 import { SEARCH_SOURCES, SOURCE_NAMES } from "../../../lib/searchSource";
+import { SearchSourceIcon } from "./SearchSourceIcon";
 
 interface SearchSourceToggleProps {
   value: SearchSource;
@@ -26,14 +27,16 @@ export function SearchSourceToggle({ value, onChange }: SearchSourceToggleProps)
           key={source}
           type="button"
           aria-pressed={value === source}
+          aria-label={SOURCE_NAMES[source]}
+          title={SOURCE_NAMES[source]}
           onClick={() => onChange(source)}
-          className={`rounded-lg px-3 py-1 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 ${
+          className={`rounded-lg px-2.5 py-1.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 ${
             value === source
               ? "bg-violet-600 text-white"
               : "text-zinc-400 hover:text-white"
           }`}
         >
-          {SOURCE_NAMES[source]}
+          <SearchSourceIcon source={source} className="size-4" />
         </button>
       ))}
     </div>
