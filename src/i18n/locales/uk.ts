@@ -294,6 +294,7 @@ export const uk = {
     viewRelease: "Переглянути реліз",
     developedBy: "Розроблено",
     autoCheckUpdates: "Автоматично перевіряти оновлення",
+    notifyOnComplete: "Сповіщати про завершення завантаження",
     donate: "Якщо хочете, можете зробити пожертву",
   },
   splash: {

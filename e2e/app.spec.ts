@@ -7,6 +7,7 @@ const SETTINGS = {
   cookies_from_browser: null,
   cookies_file: null,
   check_updates: false,
+  notify_on_complete: true,
 };
 
 const EMPTY_STATS = { total_downloads: 0, total_bytes: 0, transferred: "0 B" };

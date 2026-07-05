@@ -269,6 +269,8 @@ export interface AppSettings {
   normalize_audio: boolean;
   /** Check GitHub for a newer app release on launch (opt-in; the app only). */
   check_updates: boolean;
+  /** Send a desktop notification when a download finishes. */
+  notify_on_complete: boolean;
 }
 
 /** A release's "what's new" notes for the after-update popup (mirrors backend). */

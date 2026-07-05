@@ -294,6 +294,7 @@ export const pl = {
     viewRelease: "Zobacz wydanie",
     developedBy: "Stworzone przez",
     autoCheckUpdates: "Automatycznie sprawdzaj aktualizacje",
+    notifyOnComplete: "Powiadamiaj o zakończeniu pobierania",
     donate: "Jeśli chcesz, możesz przekazać darowiznę",
   },
   splash: {

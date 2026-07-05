@@ -63,6 +63,8 @@ interface DownloaderPanelProps {
   defaultEmbedChapters?: boolean;
   /** Whether "fetch lyrics" is on (Settings) — gates the auto-tag lyrics preview. */
   fetchLyrics?: boolean;
+  /** Whether "notify on complete" is on (Settings) — gates the finish notification. */
+  notifyOnComplete?: boolean;
   /** External "analyze this URL" request (re-analyze from history, drag-and-drop).
    *  A new object (changing `nonce`) re-triggers even for the same URL. */
   analyzeRequest?: { url: string; nonce: number } | null;
@@ -105,6 +107,7 @@ export function DownloaderPanel({
   defaultEmbedSubs,
   defaultEmbedChapters,
   fetchLyrics,
+  notifyOnComplete,
   analyzeRequest,
 }: DownloaderPanelProps) {
   const { t } = useTranslation();
@@ -223,14 +226,15 @@ export function DownloaderPanel({
         if (audioPathsRef.current.length > 0) {
           setBatchItems([...audioPathsRef.current]);
         }
-        void notify(
-          t("notify.queueDone"),
-          t("notify.queueSummary", { completed: ok, failed }),
-        );
+        if (notifyOnComplete)
+          void notify(
+            t("notify.queueDone"),
+            t("notify.queueSummary", { completed: ok, failed }),
+          );
       } else if (failed === 0) {
-        void notify(t("notify.completed"), jobs[0].title);
+        if (notifyOnComplete) void notify(t("notify.completed"), jobs[0].title);
       } else {
-        void notify(t("notify.failed"), jobs[0].title);
+        if (notifyOnComplete) void notify(t("notify.failed"), jobs[0].title);
       }
       // Refresh history/stats once, when the whole queue is done — not per item.
       onDownloadFinished?.();

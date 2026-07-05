@@ -290,6 +290,7 @@ export const id = {
     viewRelease: "Lihat rilis",
     developedBy: "Dikembangkan oleh",
     autoCheckUpdates: "Periksa pembaruan otomatis",
+    notifyOnComplete: "Beri tahu saat unduhan selesai",
     donate: "Jika berkenan, Anda dapat memberikan donasi",
   },
   splash: {

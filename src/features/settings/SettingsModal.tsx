@@ -339,6 +339,12 @@ export function SettingsModal({
                     label={t("settings.autoCheckUpdates")}
                     className="w-full"
                   />
+                  <Toggle
+                    checked={form.notify_on_complete}
+                    onChange={(v) => set("notify_on_complete", v)}
+                    label={t("settings.notifyOnComplete")}
+                    className="w-full"
+                  />
                 </>
               )}
 

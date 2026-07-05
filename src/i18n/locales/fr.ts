@@ -290,6 +290,7 @@ export const fr = {
     viewRelease: "Voir la version",
     developedBy: "Développé par",
     autoCheckUpdates: "Vérifier les mises à jour automatiquement",
+    notifyOnComplete: "Notifier à la fin d'un téléchargement",
     donate: "Si vous le souhaitez, vous pouvez faire un don",
   },
   splash: {

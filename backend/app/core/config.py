@@ -172,6 +172,10 @@ class Settings(BaseSettings):
     sponsorblock_enabled: bool = False
     sponsorblock_action: Literal["remove", "mark"] = "remove"
 
+    # Send a desktop notification when a download finishes. Used by the frontend
+    # (the backend only stores it so it persists + rides the settings contract).
+    notify_on_complete: bool = True
+
     def ensure_download_dir(self) -> Path:
         """Create the download directory if missing and return it."""
         self.download_dir.mkdir(parents=True, exist_ok=True)

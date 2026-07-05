@@ -290,6 +290,7 @@ export const zh = {
     viewRelease: "查看版本",
     developedBy: "开发者",
     autoCheckUpdates: "自动检查更新",
+    notifyOnComplete: "下载完成时通知",
     donate: "如果愿意，你可以进行捐赠",
   },
   splash: {
