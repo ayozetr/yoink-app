@@ -128,6 +128,7 @@ export const de = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "Abgeschlossene entfernen",
+    progressCount: "{{done}} von {{total}} heruntergeladen",
     remove: "Aus der Warteschlange entfernen",
     empty: "Füge oben Links ein und drücke „Hinzufügen“, um einen Stapel zu erstellen.",
   },

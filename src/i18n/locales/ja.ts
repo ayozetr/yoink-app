@@ -128,6 +128,7 @@ export const ja = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "完了分をクリア",
+    progressCount: "{{total}} 件中 {{done}} 件ダウンロード済み",
     remove: "キューから削除",
     empty: "上にリンクを貼り付けて「追加」を押すとバッチを作成できます。",
   },

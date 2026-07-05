@@ -128,6 +128,7 @@ export const pt = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "Limpar concluídos",
+    progressCount: "{{done}} de {{total}} baixados",
     remove: "Remover da fila",
     empty: "Cole links acima e clique em Adicionar para montar um lote.",
   },

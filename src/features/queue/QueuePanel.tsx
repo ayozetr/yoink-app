@@ -144,6 +144,20 @@ function unfinishedCount(item: QueueItem): number {
   ).length;
 }
 
+/** Media-level tallies for the whole-queue progress: a group counts its selected
+ * children, a single counts as one. */
+function mediaTotal(item: QueueItem): number {
+  if (item.status === "resolving") return 1;
+  if (!item.children) return 1;
+  return item.children.filter((c) => c.selected).length;
+}
+function mediaMatching(item: QueueItem, match: (s: QueueStatus) => boolean): number {
+  if (!item.children) return match(item.status) ? 1 : 0;
+  return item.children.filter((c) => c.selected && match(c.status)).length;
+}
+const isTerminalStatus = (s: QueueStatus): boolean =>
+  s === "done" || s === "skipped" || s === "error";
+
 interface QueuePanelProps {
   /** Whether the panel is visible (the queue keeps running while hidden). */
   open: boolean;
@@ -617,6 +631,22 @@ export function QueuePanel({
 
   // Same readout as DownloadProgressCard, shown on the active item's row.
   const percent = progress?.percent ?? 0;
+  // Whole-queue progress, counted in media (album/playlist tracks, not rows).
+  const mediaTotals = items.reduce((n, i) => n + mediaTotal(i), 0);
+  const mediaDoneCount = items.reduce(
+    (n, i) => n + mediaMatching(i, (s) => s === "done"),
+    0,
+  );
+  const mediaFinishedCount = items.reduce(
+    (n, i) => n + mediaMatching(i, isTerminalStatus),
+    0,
+  );
+  // Fill by finished media plus the fraction of the one in flight, so the bar
+  // glides instead of jumping a whole media at a time.
+  const queuePercent =
+    mediaTotals > 0
+      ? Math.min(100, ((mediaFinishedCount + Math.min(1, percent / 100)) / mediaTotals) * 100)
+      : 0;
   const isProcessing = progress?.status === "processing";
   const progressDetail = isProcessing
     ? t("progress.merging")
@@ -753,6 +783,23 @@ export function QueuePanel({
           />
         )}
       </div>
+
+      {mediaTotals > 0 && (
+        <div className="mt-3 border-t border-white/5 pt-3">
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="text-zinc-400">
+              {t("queue.progressCount", {
+                done: mediaDoneCount,
+                total: mediaTotals,
+              })}
+            </span>
+            <span className="tabular-nums text-zinc-500">
+              {Math.round(queuePercent)}%
+            </span>
+          </div>
+          <ProgressBar percent={queuePercent} className="h-1.5" />
+        </div>
+      )}
 
       {items.length === 0 && (
         <div className="mt-3 flex flex-col items-center gap-2 py-6 text-center text-zinc-500">

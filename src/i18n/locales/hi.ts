@@ -128,6 +128,7 @@ export const hi = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "पूर्ण हुए हटाएँ",
+    progressCount: "{{total}} में से {{done}} डाउनलोड किए गए",
     remove: "कतार से हटाएँ",
     empty: "ऊपर लिंक पेस्ट करें और बैच बनाने के लिए जोड़ें दबाएँ।",
   },

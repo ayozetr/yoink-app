@@ -128,6 +128,7 @@ export const id = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "Bersihkan yang selesai",
+    progressCount: "{{done}} dari {{total}} diunduh",
     remove: "Hapus dari antrean",
     empty: "Tempel tautan di atas dan tekan Tambah untuk membuat satu kumpulan.",
   },

@@ -128,6 +128,7 @@ export const en = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "Clear finished",
+    progressCount: "{{done}} of {{total}} downloaded",
     remove: "Remove from queue",
     empty: "Paste links above and press Add to build a batch.",
   },

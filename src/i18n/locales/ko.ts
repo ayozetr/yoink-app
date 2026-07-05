@@ -128,6 +128,7 @@ export const ko = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "완료 항목 지우기",
+    progressCount: "{{total}}개 중 {{done}}개 다운로드됨",
     remove: "대기열에서 제거",
     empty: "위에 링크를 붙여넣고 추가를 눌러 일괄 작업을 만드세요.",
   },

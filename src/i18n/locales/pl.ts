@@ -130,6 +130,7 @@ export const pl = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "Wyczyść zakończone",
+    progressCount: "{{done}} z {{total}} pobrano",
     remove: "Usuń z kolejki",
     empty: "Wklej linki powyżej i naciśnij Dodaj, aby utworzyć paczkę.",
   },

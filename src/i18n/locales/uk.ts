@@ -130,6 +130,7 @@ export const uk = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "Очистити завершені",
+    progressCount: "{{done}} з {{total}} завантажено",
     remove: "Видалити з черги",
     empty: "Вставте посилання вище та натисніть Додати, щоб зібрати пакет.",
   },

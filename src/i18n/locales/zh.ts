@@ -128,6 +128,7 @@ export const zh = {
     selectedOfTracks: "{{selected}}/{{total}}",
     playlist: "Playlist",
     clearDone: "清除已完成",
+    progressCount: "已下载 {{done}} / {{total}}",
     remove: "从队列移除",
     empty: "在上方粘贴链接并点击「添加」以创建批次。",
   },
