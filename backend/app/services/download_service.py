@@ -20,7 +20,11 @@ from typing import Any, AsyncIterator, Callable
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError, download_range_func
 
-from app.core.config import AUTOTAG_FILENAME_TEMPLATE, settings
+from app.core.config import (
+    AUTOTAG_FILENAME_TEMPLATE,
+    AUTOTAG_FILENAME_TEMPLATE_REVERSED,
+    settings,
+)
 from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import (
@@ -283,9 +287,12 @@ def _build_options(
     # Strip first (so a whitespace-only value falls back) and neutralise path
     # traversal / absolute paths so a template can't write outside download_dir.
     name_template = (settings.filename_template or "").strip() or "%(title)s"
-    # The "auto-tag name" option downloads under %(title)s; the auto-tag apply step
-    # renames the file to "Artist - Title" once the real metadata is known.
-    if name_template == AUTOTAG_FILENAME_TEMPLATE:
+    # The "auto-tag name" options download under %(title)s; the auto-tag apply step
+    # renames the file to "Artist - Title" (or reversed) once the metadata is known.
+    if name_template in (
+        AUTOTAG_FILENAME_TEMPLATE,
+        AUTOTAG_FILENAME_TEMPLATE_REVERSED,
+    ):
         name_template = "%(title)s"
     name_template = name_template.replace("\\", "/").replace("..", "").strip("/")
     name_template = name_template or "%(title)s"

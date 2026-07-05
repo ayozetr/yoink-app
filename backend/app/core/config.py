@@ -20,6 +20,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # metadata ("Artist - Title"). yt-dlp can't know the tags at download time, so the
 # file downloads under a "%(title)s" fallback and the auto-tag apply step renames it.
 AUTOTAG_FILENAME_TEMPLATE = "%(autotag)s"
+# Same idea, but names the file "Title - Artist" instead of "Artist - Title".
+AUTOTAG_FILENAME_TEMPLATE_REVERSED = "%(autotag_ta)s"
 
 
 def _xdg_download_dir() -> Path | None:
