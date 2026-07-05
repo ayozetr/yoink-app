@@ -633,3 +633,47 @@ def test_rename_to_tagged_noop_when_already_named(tmp_path):
     audio = tmp_path / "Cruzzi - Amén.mp3"
     audio.write_bytes(b"x")
     assert svc.rename_to_tagged(audio, "Cruzzi - Amén") == audio
+
+
+# --- identify: "Song - Artist" backwards-title fallback ----------------------
+
+
+def test_identify_retries_with_swapped_artist_title(monkeypatch, tmp_path):
+    # "Punto G - Quevedo" parses backwards (artist="Punto G", title="Quevedo").
+    # The natural search misses; the swapped retry (Quevedo / Punto G) hits.
+    calls = []
+
+    def fake_search(artist, title):
+        calls.append((artist, title))
+        if artist == "Quevedo" and title == "Punto G":
+            return [TagCandidate(title="Punto G", artist="Quevedo", album="Punto G")]
+        return []
+
+    monkeypatch.setattr(svc, "_search", fake_search)
+    audio = tmp_path / "Punto G - Quevedo.mp3"
+    audio.write_bytes(b"x")
+
+    result = svc.identify(audio)
+
+    assert [c.artist for c in result.results] == ["Quevedo"]
+    assert result.results[0].title == "Punto G"
+    assert calls == [("Punto G", "Quevedo"), ("Quevedo", "Punto G")]  # natural, then swap
+
+
+def test_identify_keeps_natural_order_when_it_matches(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_search(artist, title):
+        calls.append((artist, title))
+        if (artist, title) == ("Bad Bunny", "Tití Me Preguntó"):
+            return [TagCandidate(title="Tití Me Preguntó", artist="Bad Bunny")]
+        return []
+
+    monkeypatch.setattr(svc, "_search", fake_search)
+    audio = tmp_path / "Bad Bunny - Tití Me Preguntó.mp3"
+    audio.write_bytes(b"x")
+
+    result = svc.identify(audio)
+
+    assert result.results[0].artist == "Bad Bunny"  # not swapped
+    assert calls == [("Bad Bunny", "Tití Me Preguntó")]  # no retry needed

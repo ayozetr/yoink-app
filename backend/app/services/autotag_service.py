@@ -79,6 +79,11 @@ def identify(path: Path) -> CandidateList:
     """Catalogue matches for a downloaded file, keyed on its filename."""
     artist, title = guess_from_filename(path.name)
     results = _search(artist, title) if title else []
+    # Some channels title videos "Song - Artist" (e.g. an artist's own channel:
+    # "Punto G - Quevedo"), which guess_from_filename reads backwards. When a
+    # dash-split found nothing, retry with artist/title swapped before giving up.
+    if not results and artist and title:
+        results = _search(title, artist)
     return CandidateList(results=results)
 
 
