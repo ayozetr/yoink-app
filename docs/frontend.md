@@ -21,6 +21,7 @@ src/
 │       ├── EditMenu.tsx         # custom right-click Cut/Copy/Paste menu for text fields
 │       ├── CopyButton.tsx       # copy-to-clipboard button with a copied tick
 │       ├── Thumbnail.tsx        # <img> that proxies via /api/thumbnail with a fallback
+│       ├── youtubeFallback.ts   # YouTube thumbnail fallback (hqdefault when maxres is the grey 200 placeholder)
 │       ├── ProgressBar.tsx      # gradient progress bar
 │       ├── Markdown.tsx         # tiny built-in Markdown renderer (release notes)
 │       ├── UpdateBanner.tsx     # dismissible "update available" bottom banner
@@ -41,7 +42,7 @@ src/
 │   ├── music/                   # keyless music import (Spotify/Deezer/Apple/Tidal/Amazon)
 │   │   └── MusicImportCard.tsx  # resolve → match each track on YouTube → download + tag
 │   ├── queue/                   # persistent sequential download queue (opened from the header)
-│   │   └── QueuePanel.tsx        # own format picker + collapsible playlist/album groups + skip/stop + drag-reorder
+│   │   └── QueuePanel.tsx        # own format picker + collapsible playlist/album groups + skip/stop + drag-reorder + whole-queue progress bar
 │   ├── autotag/                 # audio auto-tagging (Apple Music / Deezer / MusicBrainz), wired into DownloaderPanel
 │   │   ├── AutoTagPanel.tsx     # inline "Tag audio" card (+ a lyrics indicator/preview/popup) after a single audio download
 │   │   ├── AutoTagBatchPanel.tsx # per-track tagging list after an audio playlist
@@ -115,8 +116,10 @@ queued item. Pasting a music-service album/playlist or a regular video playlist
 resolves on add into a **collapsible group row** whose tracks/videos you select
 individually (a single video/track stays a plain row); music groups route through
 the importer (match on YouTube → download audio → tag). An async drain loop walks
-singles + selected children, with **Skip-current** vs **Stop** and live
-**drag-reorder**; the queue persists to localStorage (`lib/queueStore.ts`). The
+singles + selected children, with **Skip-current** vs **Stop**, live
+**drag-reorder**, and a **whole-queue progress bar** ("N of M downloaded", counted
+in *media* so an album/playlist counts its selected tracks); the queue persists to
+localStorage (`lib/queueStore.ts`). The
 main panel's own multi-item batch persists separately (`lib/batchStore.ts`) so an
 interrupted playlist resumes.
 

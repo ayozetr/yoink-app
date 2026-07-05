@@ -82,6 +82,11 @@ When the user clicks **Download**:
 6. ffmpeg merges separate video/audio streams (and extracts/embeds audio,
    subtitles, and chapters) as needed.
 
+When the **normalize audio** setting is on (off by default), an audio download is
+loudness-normalized to **-14 LUFS** (EBU R128) with a two-pass ffmpeg `loudnorm`
+(`services/audio_normalize.py`) before it's finalized and offered for
+auto-tagging — best-effort, so a failure leaves the original file untouched.
+
 Downloads run **one at a time** (concurrent downloads are a non-goal): the three
 frontend engines (main panel, queue, music import) share an in-memory lock
 (`src/lib/downloadLock.ts`) and the backend serializes jobs with a process-wide

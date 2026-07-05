@@ -52,7 +52,9 @@ Two layers communicating asynchronously:
   off-thread
   (`asyncio.to_thread`) and streams typed events — `progress` (percent, speed,
   ETA) → terminal `completed`/`error` — back over the same socket to animate the
-  progress bar.
+  progress bar. When the `normalize_audio` setting is on (off by default), an
+  audio download is loudness-normalized to -14 LUFS (EBU R128) with a two-pass
+  ffmpeg `loudnorm` before it's finalized and auto-tagged.
 - **Audio auto-tagging (REST):** after an audio download the frontend looks the
   file up in the Apple Music, Deezer or MusicBrainz catalogue — or `auto`, which
   cascades through them (Settings, `autotag_source`) — and writes tags + cover
@@ -117,6 +119,7 @@ literal OpenAPI types on demand.
         ├── routers/media.py           # GET /api/thumbnail (host-guarded proxy) + /api/cover (embedded art)
         ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
         ├── services/download_service.py  # yt-dlp download + progress stream
+        ├── services/audio_normalize.py  # two-pass ffmpeg loudnorm (-14 LUFS EBU R128) for audio downloads
         ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor
         ├── services/embedded_vr_extractor.py  # player-config extractor (overrides stale bundled ones)
         ├── services/music_import.py    # keyless resolvers (5 services) + YouTube match

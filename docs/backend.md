@@ -31,6 +31,7 @@ backend/
 │   └── services/
 │       ├── ytdlp_service.py    # typed yt-dlp metadata wrapper (extract_info, download=False)
 │       ├── download_service.py # yt-dlp download + typed progress stream (one job at a time via a process-wide asyncio lock; free-disk pre-flight)
+│       ├── audio_normalize.py  # two-pass ffmpeg loudnorm → -14 LUFS (EBU R128) for audio downloads; best-effort
 │       ├── threads_extractor.py     # custom Threads (Meta) yt-dlp extractor
 │       ├── embedded_vr_extractor.py # player-config extractor overriding stale bundled ones
 │       ├── music_import.py     # keyless resolvers (Spotify/Deezer/Apple/Tidal/Amazon) + YouTube match
@@ -87,6 +88,10 @@ yt-dlp options:
   removes the segments or just marks them as chapters.
 - **Trim/clip:** when `trim_start`/`trim_end` are set, `download_ranges`
   (+ `force_keyframes_at_cuts`) fetches only that time range (audio + video).
+- **Loudness normalization:** when `settings.normalize_audio` is on, an audio
+  download is levelled to -14 LUFS (EBU R128) with a two-pass ffmpeg `loudnorm`
+  (measure → re-encode, preserving the source sample rate) before auto-tagging
+  (`services/audio_normalize.py`); best-effort, so a failure leaves the file as-is.
 
 ## Audio auto-tagging
 

@@ -64,8 +64,9 @@ It is split into two layers that communicate asynchronously:
   collapsible group** whose tracks you **select individually** — music is routed
   through the importer (match → audio → tag), so DRM-protected links don't fail — and
   every row is labelled with its source. **Skip** the current item (vs **Stop** the
-  whole run), **drag to reorder** live, and it **persists across restarts** and
-  **resumes** interrupted items.
+  whole run), **drag to reorder** live, follow the batch on a **whole-queue progress
+  bar** ("N of M downloaded"), and it **persists across restarts** and **resumes**
+  interrupted items.
 - **Audio auto-tagging** — after an audio download, an inline card tags the file
   with real artist / album / title / year + **cover art** from **Apple Music,
   Deezer or MusicBrainz** (free, no account; pick one — or Automatic — in
@@ -75,6 +76,9 @@ It is split into two layers that communicate asynchronously:
   on **LRCLIB** (free, keyless) and embed its lyrics in the file, with an
   in-card indicator + a "view lyrics" popup and an optional synced **`.lrc`
   sidecar** for karaoke-capable players.
+- **Loudness normalization** (optional, off by default) — level every audio
+  download to **-14 LUFS** (EBU R128, the Spotify/YouTube target) with a two-pass
+  ffmpeg `loudnorm`, so quiet and loud tracks all play back at the same volume.
 - **SponsorBlock** (optional, off by default) — strip or just mark sponsor /
   intro / outro segments on YouTube downloads, chosen in Settings.
 - **History & stats** persisted locally (SQLite), with quality (resolution /
@@ -83,7 +87,8 @@ It is split into two layers that communicate asynchronously:
 - **Settings** — download folder (defaults to your OS Downloads folder, whatever
   its localized name), default format/quality (up to **4K / best**), **default
   subtitles/chapters embedding**, **lyrics** and **`.nfo` sidecars**, **filename
-  template**, **video codec** & **audio bitrate**, **bandwidth limit**, **proxy**
+  template**, **video codec**, **audio bitrate** & optional **loudness
+  normalization**, **bandwidth limit**, **proxy**
   (http/socks), **language**, and cookies (browser — with icons — or
   `cookies.txt`; the browser store falls back to the file if it can't be read).
 - **Desktop notifications** when a download finishes, **taskbar/title progress**,

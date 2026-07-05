@@ -67,7 +67,7 @@
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
   one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 335) green · frontend build + e2e (20) + vitest (40) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 341) green · frontend build + e2e (21) + vitest (44) green · `npm audit` 0 · strict TS.
 
 ---
 
@@ -195,7 +195,11 @@ Not committed and not release-ordered — picked from as capacity allows.
   a "Downloaded" badge and stay re-selectable.
 - ⬜ **Sidecar exports** (S) — `.info.json` / thumbnail / loose `.srt`/`.vtt`.
 - ⬜ **Subtitles as separate files + auto-translate** (M).
-- ⬜ **Loudness normalization** (M) — ffmpeg `loudnorm` (EBU R128).
+- 🚧 **Loudness normalization** — an optional (off by default) leveling of every
+  audio download to **-14 LUFS** (EBU R128, the Spotify/YouTube target) via a
+  **two-pass ffmpeg `loudnorm`** (measure → re-encode with the measured values,
+  preserving the source sample rate); runs before auto-tagging and is best-effort,
+  so a failure leaves the original untouched.
 - ✅ **Download presets/profiles** *(next)* — save the preview's format selection
   as a named preset (`lib/presets`, localStorage) and apply it in one click; chips
   to apply/delete and an inline "save current" in the preview card.

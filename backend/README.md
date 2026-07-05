@@ -100,7 +100,7 @@ backend/
 │   ├── core/               # typed settings, humanize, ffmpeg locate, shared yt-dlp options, SSRF-safe fetch
 │   ├── models/            # Pydantic models (JSON contract): media, music, autotag
 │   ├── routers/            # info, media, download (WS), history, settings, autotag, music
-│   └── services/           # yt-dlp metadata + download, music import + match, autotag (+ lyrics, nfo), VR, history/settings stores, updates
+│   └── services/           # yt-dlp metadata + download, music import + match, autotag (+ lyrics, nfo), audio loudness-normalize, VR, history/settings stores, updates
 └── requirements.txt
 ```
 
