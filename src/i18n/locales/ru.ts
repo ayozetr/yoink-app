@@ -228,6 +228,7 @@ export const ru = {
     audioBitrateBest: "Лучший доступный",
     filenameTemplate: "Шаблон имени файла",
     filenameCustom: "Свой…",
+    filenameAutotag: "Исполнитель - Название (авто-теги)",
     autotagSource: "Источник тегов",
     autotagAuto: "Автоматически",
     autotagApple: "Apple Music",

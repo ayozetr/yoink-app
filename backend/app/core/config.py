@@ -16,6 +16,11 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Sentinel `filename_template` value: name the audio file after the auto-tag
+# metadata ("Artist - Title"). yt-dlp can't know the tags at download time, so the
+# file downloads under a "%(title)s" fallback and the auto-tag apply step renames it.
+AUTOTAG_FILENAME_TEMPLATE = "%(autotag)s"
+
 
 def _xdg_download_dir() -> Path | None:
     """The user's Downloads dir from XDG user-dirs (Linux) — localized, e.g.

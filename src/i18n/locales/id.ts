@@ -224,6 +224,7 @@ export const id = {
     audioBitrateBest: "Terbaik yang tersedia",
     filenameTemplate: "Templat nama berkas",
     filenameCustom: "Khusus…",
+    filenameAutotag: "Artis - Judul (auto-tag)",
     autotagSource: "Sumber pemberian tag",
     autotagAuto: "Otomatis",
     autotagApple: "Apple Music",

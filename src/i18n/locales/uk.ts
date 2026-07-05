@@ -228,6 +228,7 @@ export const uk = {
     audioBitrateBest: "Найкращий доступний",
     filenameTemplate: "Шаблон імені файлу",
     filenameCustom: "Власний…",
+    filenameAutotag: "Виконавець - Назва (авто-теги)",
     autotagSource: "Джерело тегування",
     autotagAuto: "Автоматично",
     autotagApple: "Apple Music",

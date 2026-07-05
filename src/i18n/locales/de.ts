@@ -224,6 +224,7 @@ export const de = {
     audioBitrateBest: "Beste verfügbare",
     filenameTemplate: "Dateinamen-Vorlage",
     filenameCustom: "Benutzerdefiniert…",
+    filenameAutotag: "Künstler - Titel (Auto-Tag)",
     autotagSource: "Tagging-Quelle",
     autotagAuto: "Automatisch",
     autotagApple: "Apple Music",

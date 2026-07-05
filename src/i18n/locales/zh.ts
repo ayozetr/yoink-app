@@ -224,6 +224,7 @@ export const zh = {
     audioBitrateBest: "最佳可用",
     filenameTemplate: "文件名模板",
     filenameCustom: "自定义…",
+    filenameAutotag: "艺术家 - 标题（自动标签）",
     autotagSource: "标记来源",
     autotagAuto: "自动",
     autotagApple: "Apple Music",

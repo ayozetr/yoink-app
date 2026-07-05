@@ -583,3 +583,53 @@ def test_fetch_cover_passes_jpeg_through(monkeypatch):
     assert mime == "image/jpeg"
     assert data is jpeg  # exact same object, not re-encoded
 
+
+
+# --- rename_to_tagged: "Artist - Title" filename template -------------------
+
+
+def test_rename_to_tagged_renames_file_and_sidecars(tmp_path):
+    audio = tmp_path / "BNMP Music - CRUZ.mp3"
+    audio.write_bytes(b"x")
+    (tmp_path / "BNMP Music - CRUZ.nfo").write_text("nfo")
+    (tmp_path / "BNMP Music - CRUZ.lrc").write_text("lrc")
+
+    new_path = svc.rename_to_tagged(audio, "Cruzzi - Amén")
+
+    assert new_path == tmp_path / "Cruzzi - Amén.mp3"
+    assert new_path.exists()
+    assert not audio.exists()  # old audio gone
+    # Sidecars follow the audio's stem.
+    assert (tmp_path / "Cruzzi - Amén.nfo").read_text() == "nfo"
+    assert (tmp_path / "Cruzzi - Amén.lrc").read_text() == "lrc"
+
+
+def test_rename_to_tagged_skips_on_collision(tmp_path):
+    audio = tmp_path / "raw.mp3"
+    audio.write_bytes(b"x")
+    (tmp_path / "Cruzzi - Amén.mp3").write_bytes(b"other")  # a different file owns it
+
+    new_path = svc.rename_to_tagged(audio, "Cruzzi - Amén")
+
+    assert new_path == audio  # unchanged — never clobber the existing file
+    assert audio.exists()
+    assert (tmp_path / "Cruzzi - Amén.mp3").read_bytes() == b"other"
+
+
+def test_rename_to_tagged_sanitizes_illegal_chars(tmp_path):
+    audio = tmp_path / "raw.mp3"
+    audio.write_bytes(b"x")
+
+    new_path = svc.rename_to_tagged(audio, "AC/DC - Thunder?")
+
+    # yt-dlp's sanitizer replaces the slash so it never becomes a path separator.
+    assert new_path.parent == tmp_path
+    assert new_path.suffix == ".mp3"
+    assert "/" not in new_path.stem
+    assert new_path.exists()
+
+
+def test_rename_to_tagged_noop_when_already_named(tmp_path):
+    audio = tmp_path / "Cruzzi - Amén.mp3"
+    audio.write_bytes(b"x")
+    assert svc.rename_to_tagged(audio, "Cruzzi - Amén") == audio

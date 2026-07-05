@@ -55,11 +55,16 @@ interface SettingsModalProps {
 }
 
 const QUALITY_OPTIONS = ["1440p", "1080p", "720p", "480p", "360p"];
+// Sentinel: name audio files after the auto-tag metadata ("Artist - Title").
+// The backend downloads under %(title)s and renames once auto-tagging resolves
+// the real metadata (backend AUTOTAG_FILENAME_TEMPLATE).
+const AUTOTAG_TEMPLATE = "%(autotag)s";
 const TEMPLATE_PRESETS = [
   "%(title)s",
   "%(uploader)s - %(title)s",
   "%(upload_date)s - %(title)s",
   "%(title)s [%(id)s]",
+  AUTOTAG_TEMPLATE,
 ];
 
 // Illustrative values so a yt-dlp template renders as a concrete sample filename.
@@ -74,6 +79,10 @@ const TEMPLATE_SAMPLE: Record<string, string> = {
 
 /** Render a yt-dlp output template as an example filename (e.g. "Blinding Lights.mp3"). */
 function templateExample(tpl: string): string {
+  // The auto-tag template isn't a yt-dlp field — show its "Artist - Title" shape.
+  if (tpl === AUTOTAG_TEMPLATE) {
+    return `${TEMPLATE_SAMPLE.uploader} - ${TEMPLATE_SAMPLE.title}.mp3`;
+  }
   const name = (tpl || "%(title)s").replace(
     /%\(([a-z_]+)\)s/g,
     (_, key: string) => TEMPLATE_SAMPLE[key] ?? `%(${key})s`,
@@ -251,7 +260,10 @@ export function SettingsModal({
                 }
               }}
               options={[
-                ...TEMPLATE_PRESETS.map((p) => ({ value: p, label: p })),
+                ...TEMPLATE_PRESETS.map((p) => ({
+                  value: p,
+                  label: p === AUTOTAG_TEMPLATE ? t("settings.filenameAutotag") : p,
+                })),
                 { value: "__custom__", label: t("settings.filenameCustom") },
               ]}
               className={`${INPUT_CLASS} w-full`}

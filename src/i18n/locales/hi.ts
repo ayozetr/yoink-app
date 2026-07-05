@@ -224,6 +224,7 @@ export const hi = {
     audioBitrateBest: "सर्वश्रेष्ठ उपलब्ध",
     filenameTemplate: "फ़ाइल नाम टेम्पलेट",
     filenameCustom: "कस्टम…",
+    filenameAutotag: "कलाकार - शीर्षक (ऑटो-टैग)",
     autotagSource: "टैगिंग स्रोत",
     autotagAuto: "स्वचालित",
     autotagApple: "Apple Music",

@@ -224,6 +224,7 @@ export const ja = {
     audioBitrateBest: "利用可能な最高",
     filenameTemplate: "ファイル名テンプレート",
     filenameCustom: "カスタム…",
+    filenameAutotag: "アーティスト - タイトル（自動タグ）",
     autotagSource: "タグ付けソース",
     autotagAuto: "自動",
     autotagApple: "Apple Music",

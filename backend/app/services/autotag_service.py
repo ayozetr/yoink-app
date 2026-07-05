@@ -42,6 +42,8 @@ from mutagen.id3 import (
 from mutagen.mp4 import MP4, MP4Cover
 from mutagen.wave import WAVE
 
+from yt_dlp.utils import sanitize_filename
+
 from app.core.config import settings
 from app.core.ffmpeg import ffmpeg_path
 from app.core.safe_http import SSL_CONTEXT, SafeHTTPError, fetch_public
@@ -594,6 +596,32 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
             ),
         )
     return ApplyResponse(ok=True, embedded_cover=embedded)
+
+
+def rename_to_tagged(path: Path, new_title: str) -> Path:
+    """Rename the audio file — and any sidecars sharing its name (``.nfo``/``.lrc``)
+    — to the auto-tag name (``"Artist - Title"``), keeping each extension.
+
+    Returns the new audio path, or the original when the rename can't happen (an
+    empty/unchanged name, or a *different* file already owns the target name).
+    Best-effort: filesystem errors leave everything as-is instead of raising.
+    """
+    new_stem = sanitize_filename(new_title, restricted=False).strip()
+    if not new_stem or new_stem == path.stem:
+        return path
+    target = path.with_name(new_stem + path.suffix)
+    if target.exists():
+        return path  # don't clobber a different file that already has this name
+    prefix = path.stem + "."
+    try:
+        movable = [
+            p for p in path.parent.iterdir() if p.is_file() and p.name.startswith(prefix)
+        ]
+        for sib in movable:
+            sib.rename(sib.with_name(new_stem + sib.name[len(path.stem) :]))
+    except OSError:
+        return path
+    return target
 
 
 def extract_cover(path: Path) -> tuple[bytes, str] | None:

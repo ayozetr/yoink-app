@@ -12,7 +12,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.core.config import settings
+from app.core.config import AUTOTAG_FILENAME_TEMPLATE, settings
 from app.models.autotag import (
     ApplyRequest,
     ApplyResponse,
@@ -28,6 +28,7 @@ from app.services.autotag_service import (
     apply,
     identify,
     lyrics_preview,
+    rename_to_tagged,
     search,
 )
 
@@ -99,7 +100,15 @@ def apply_endpoint(request: ApplyRequest) -> ApplyResponse:
     new_title = f"{artist} - {title}" if artist and title else title
     if new_title:
         try:
-            history_store.update_title(str(path), new_title)
+            # "Auto-tag name" template: rename the file to "Artist - Title" now that
+            # the real metadata is known, and point history at the new location.
+            if settings.filename_template == AUTOTAG_FILENAME_TEMPLATE:
+                new_path = rename_to_tagged(path, new_title)
+                history_store.update_after_tag(
+                    str(path), str(new_path), new_path.name, new_title
+                )
+            else:
+                history_store.update_title(str(path), new_title)
         except sqlite3.Error:
             pass  # best-effort: the tags were written even if history can't update
     return response

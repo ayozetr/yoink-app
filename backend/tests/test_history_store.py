@@ -127,3 +127,34 @@ def test_init_db_migrates_a_legacy_db(temp_dirs):
     history_store.init_db()  # should migrate without touching the (empty) data
     assert {"quality", "error_message"} <= _columns()
     assert _user_version() == len(history_store._MIGRATIONS)
+
+
+def test_update_after_tag_moves_path_and_relabels(history_db):
+    # The "auto-tag name" template renames the file after tagging; history must
+    # follow it to the new path + filename, and relabel the title.
+    entry = _add(
+        title="raw name",
+        kind="audio",
+        filepath="/dl/BNMP - CRUZ.mp3",
+        filename="BNMP - CRUZ.mp3",
+    )
+    history_store.update_after_tag(
+        "/dl/BNMP - CRUZ.mp3",
+        "/dl/Cruzzi - Amén.mp3",
+        "Cruzzi - Amén.mp3",
+        "Cruzzi - Amén",
+    )
+    got = history_store.get_entry(entry.id)
+    assert got.title == "Cruzzi - Amén"
+    assert got.filepath == "/dl/Cruzzi - Amén.mp3"
+    assert got.filename == "Cruzzi - Amén.mp3"
+
+
+def test_update_after_tag_only_touches_latest_row(history_db):
+    old = _add(title="old", kind="audio", filepath="/dl/song.mp3", filename="song.mp3")
+    new = _add(title="raw", kind="audio", filepath="/dl/song.mp3", filename="song.mp3")
+    history_store.update_after_tag(
+        "/dl/song.mp3", "/dl/A - B.mp3", "A - B.mp3", "A - B"
+    )
+    assert history_store.get_entry(new.id).filepath == "/dl/A - B.mp3"
+    assert history_store.get_entry(old.id).filepath == "/dl/song.mp3"  # untouched

@@ -163,6 +163,20 @@ def update_title(filepath: str, title: str) -> None:
         )
 
 
+def update_after_tag(
+    old_filepath: str, new_filepath: str, filename: str, title: str
+) -> None:
+    """Update the title *and* file location after auto-tagging renamed the file to
+    "Artist - Title" (the "auto-tag name" filename template). Targets only the
+    latest row for the old path, like :func:`update_title`."""
+    with closing(_connect()) as connection, connection:
+        connection.execute(
+            "UPDATE downloads SET title = ?, filepath = ?, filename = ? "
+            "WHERE id = (SELECT MAX(id) FROM downloads WHERE filepath = ?)",
+            (title, new_filepath, filename, old_filepath),
+        )
+
+
 def list_entries(limit: int = 50) -> list[HistoryEntry]:
     """Return the most recent entries, newest first."""
     with closing(_connect()) as connection, connection:

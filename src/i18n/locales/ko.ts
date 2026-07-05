@@ -224,6 +224,7 @@ export const ko = {
     audioBitrateBest: "사용 가능한 최고",
     filenameTemplate: "파일명 템플릿",
     filenameCustom: "사용자 지정…",
+    filenameAutotag: "아티스트 - 제목 (자동 태그)",
     autotagSource: "태그 소스",
     autotagAuto: "자동",
     autotagApple: "Apple Music",
