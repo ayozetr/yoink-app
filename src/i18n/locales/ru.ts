@@ -294,6 +294,7 @@ export const ru = {
     viewRelease: "Посмотреть релиз",
     developedBy: "Разработано",
     autoCheckUpdates: "Проверять обновления автоматически",
+    notifyOnComplete: "Уведомлять о завершении загрузки",
     donate: "Если хотите, вы можете сделать пожертвование",
   },
   splash: {

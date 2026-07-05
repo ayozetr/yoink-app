@@ -290,6 +290,7 @@ export const pt = {
     viewRelease: "Ver versão",
     developedBy: "Desenvolvido por",
     autoCheckUpdates: "Verificar atualizações automaticamente",
+    notifyOnComplete: "Notificar ao concluir o download",
     donate: "Se quiser, você pode fazer uma doação",
   },
   splash: {

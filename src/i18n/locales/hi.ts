@@ -290,6 +290,7 @@ export const hi = {
     viewRelease: "रिलीज़ देखें",
     developedBy: "द्वारा विकसित",
     autoCheckUpdates: "स्वचालित रूप से अपडेट जांचें",
+    notifyOnComplete: "डाउनलोड पूरा होने पर सूचित करें",
     donate: "अगर आप चाहें, तो दान कर सकते हैं",
   },
   splash: {

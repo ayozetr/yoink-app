@@ -290,6 +290,7 @@ export const ko = {
     viewRelease: "릴리스 보기",
     developedBy: "개발자",
     autoCheckUpdates: "자동으로 업데이트 확인",
+    notifyOnComplete: "다운로드 완료 시 알림",
     donate: "원하신다면 후원해 주실 수 있습니다",
   },
   splash: {

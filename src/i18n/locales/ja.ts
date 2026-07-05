@@ -290,6 +290,7 @@ export const ja = {
     viewRelease: "リリースを見る",
     developedBy: "開発者",
     autoCheckUpdates: "自動的に更新を確認",
+    notifyOnComplete: "ダウンロード完了時に通知",
     donate: "よろしければ、寄付でご支援いただけます",
   },
   splash: {

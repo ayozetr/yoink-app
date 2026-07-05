@@ -404,6 +404,11 @@ class AppSettings(BaseModel):
         description="Check GitHub for a newer app release on launch (on by default; "
         "toggle off in Settings — the app only, yt-dlp stays owner-managed).",
     )
+    notify_on_complete: bool = Field(
+        default=True,
+        description="Send a desktop notification when a download finishes "
+        "(on by default; toggle off in Settings).",
+    )
 
 
 class VersionInfo(BaseModel):

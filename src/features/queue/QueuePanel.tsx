@@ -168,6 +168,8 @@ interface QueuePanelProps {
   defaultQuality?: string;
   defaultContainer?: VideoContainer;
   defaultAudioFormat?: AudioFormat;
+  /** Whether "notify on complete" is on (Settings) — gates the finish notification. */
+  notifyOnComplete?: boolean;
   /** Refresh history/stats after each item finishes. */
   onDownloadFinished?: () => void;
   /** Report the number of unfinished items so the header can badge it. */
@@ -182,6 +184,7 @@ export function QueuePanel({
   defaultQuality,
   defaultContainer,
   defaultAudioFormat,
+  notifyOnComplete,
   onDownloadFinished,
   onPendingChange,
 }: QueuePanelProps) {
@@ -190,8 +193,10 @@ export function QueuePanel({
   // which are created once and would otherwise use a stale translator after a
   // mid-run language change.
   const tRef = useRef(t);
+  const notifyRef = useRef(notifyOnComplete);
   useEffect(() => {
     tRef.current = t;
+    notifyRef.current = notifyOnComplete;
   });
   const [items, setItems] = useState<QueueItem[]>(() => loadQueue());
   const [input, setInput] = useState("");
@@ -558,10 +563,11 @@ export function QueuePanel({
         else if (r.status === "error") failed += 1;
       }
     }
-    void notify(
-      tRef.current("notify.queueDone"),
-      tRef.current("notify.queueSummary", { completed: done, failed }),
-    );
+    if (notifyRef.current)
+      void notify(
+        tRef.current("notify.queueDone"),
+        tRef.current("notify.queueSummary", { completed: done, failed }),
+      );
   };
 
   const start = () => {

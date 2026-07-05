@@ -276,6 +276,7 @@ export default function App() {
               defaultEmbedSubs={settings?.default_embed_subs}
               defaultEmbedChapters={settings?.default_embed_chapters}
               fetchLyrics={settings?.fetch_lyrics}
+              notifyOnComplete={settings?.notify_on_complete}
               analyzeRequest={analyzeReq}
             />
             <QueuePanel
@@ -285,6 +286,7 @@ export default function App() {
               defaultQuality={settings?.default_quality}
               defaultContainer={settings?.default_container}
               defaultAudioFormat={settings?.default_audio_format}
+              notifyOnComplete={settings?.notify_on_complete}
               onDownloadFinished={refresh}
               onPendingChange={setQueuePending}
             />
