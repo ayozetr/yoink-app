@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.core.config import settings
+from app.core.config import (
+    AUTOTAG_FILENAME_TEMPLATE,
+    AUTOTAG_FILENAME_TEMPLATE_REVERSED,
+    settings,
+)
 from app.main import app
 from app.models.autotag import ApplyResponse, CandidateList, TagCandidate
 from app.services.autotag_service import AutotagError
@@ -81,3 +85,43 @@ def test_autotag_error_maps_to_422(temp_dirs, monkeypatch):
     monkeypatch.setattr("app.routers.autotag.identify", boom)
     response = client.post("/api/autotag/identify", json={"path": str(audio)})
     assert response.status_code == 422
+
+
+def _apply_capturing_rename(monkeypatch, template):
+    """Drive /apply with the given filename_template, capturing the rename name."""
+    audio = _make_audio()
+    monkeypatch.setattr(
+        "app.routers.autotag.apply",
+        lambda request, path: ApplyResponse(ok=True, embedded_cover=False),
+    )
+    captured = {}
+
+    def fake_rename(path, new_title):
+        captured["name"] = new_title
+        return path.with_name(new_title + ".mp3")
+
+    monkeypatch.setattr("app.routers.autotag.rename_to_tagged", fake_rename)
+    monkeypatch.setattr(
+        "app.routers.autotag.history_store.update_after_tag", lambda *a: None
+    )
+    monkeypatch.setattr(settings, "filename_template", template)
+    resp = client.post(
+        "/api/autotag/apply",
+        json={"path": str(audio), "artist": "Quevedo", "title": "Punto G"},
+    )
+    assert resp.status_code == 200
+    return captured.get("name")
+
+
+def test_apply_autotag_template_renames_artist_title(temp_dirs, monkeypatch):
+    assert (
+        _apply_capturing_rename(monkeypatch, AUTOTAG_FILENAME_TEMPLATE)
+        == "Quevedo - Punto G"
+    )
+
+
+def test_apply_reversed_template_renames_title_artist(temp_dirs, monkeypatch):
+    assert (
+        _apply_capturing_rename(monkeypatch, AUTOTAG_FILENAME_TEMPLATE_REVERSED)
+        == "Punto G - Quevedo"
+    )

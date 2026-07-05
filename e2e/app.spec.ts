@@ -368,11 +368,13 @@ test("update experience: settings toggle opens the What's new popup", async ({
   await page.getByRole("button", { name: "Ajustes" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  // The opt-in "check automatically" toggle is present.
+  // The opt-in "check automatically" toggle lives in the General category.
+  await dialog.getByRole("button", { name: "General" }).click();
   await expect(
     dialog.getByText("Comprobar actualizaciones automáticamente"),
   ).toBeVisible();
-  // "Ver novedades" opens the popup, which renders the markdown notes.
+  // "Ver novedades" lives in the About category and opens the popup.
+  await dialog.getByRole("button", { name: "Acerca de" }).click();
   await dialog.getByRole("button", { name: "Ver novedades" }).click();
   await expect(page.getByRole("heading", { name: "New stuff" })).toBeVisible();
   await expect(page.getByText("Bold")).toBeVisible();
@@ -412,6 +414,8 @@ test("opens the settings modal", async ({ page }) => {
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  // General opens by default; the download dir lives in the Downloads category.
+  await dialog.getByRole("button", { name: "Descargas" }).click();
   await expect(dialog.getByText("Carpeta para descargas")).toBeVisible();
   // The download-dir input is seeded from the mocked settings.
   await expect(dialog.locator("input").first()).toHaveValue(

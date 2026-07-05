@@ -12,7 +12,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.core.config import AUTOTAG_FILENAME_TEMPLATE, settings
+from app.core.config import (
+    AUTOTAG_FILENAME_TEMPLATE,
+    AUTOTAG_FILENAME_TEMPLATE_REVERSED,
+    settings,
+)
 from app.models.autotag import (
     ApplyRequest,
     ApplyResponse,
@@ -98,14 +102,20 @@ def apply_endpoint(request: ApplyRequest) -> ApplyResponse:
     title = (request.title or "").strip()
     artist = (request.artist or "").strip()
     new_title = f"{artist} - {title}" if artist and title else title
+    # "Auto-tag name" templates rename the file to the tagged name in the chosen
+    # order (Artist - Title, or the reversed Title - Artist).
+    renamed: str | None = None
+    if artist and title:
+        if settings.filename_template == AUTOTAG_FILENAME_TEMPLATE:
+            renamed = f"{artist} - {title}"
+        elif settings.filename_template == AUTOTAG_FILENAME_TEMPLATE_REVERSED:
+            renamed = f"{title} - {artist}"
     if new_title:
         try:
-            # "Auto-tag name" template: rename the file to "Artist - Title" now that
-            # the real metadata is known, and point history at the new location.
-            if settings.filename_template == AUTOTAG_FILENAME_TEMPLATE:
-                new_path = rename_to_tagged(path, new_title)
+            if renamed:
+                new_path = rename_to_tagged(path, renamed)
                 history_store.update_after_tag(
-                    str(path), str(new_path), new_path.name, new_title
+                    str(path), str(new_path), new_path.name, renamed
                 )
             else:
                 history_store.update_title(str(path), new_title)

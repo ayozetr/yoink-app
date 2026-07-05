@@ -3,13 +3,22 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowUpCircle,
+  Ban,
   CheckCircle2,
   Coffee,
   CornerDownRight,
+  Download,
   FolderOpen,
+  Globe,
   HelpCircle,
+  Info,
+  Languages,
   Loader2,
+  Monitor,
+  Music,
   Settings as SettingsIcon,
+  Shield,
+  SlidersHorizontal,
   Sparkles,
   X,
 } from "lucide-react";
@@ -19,6 +28,10 @@ import { Select } from "../../components/ui/Select";
 import { Toggle } from "../../components/ui/Toggle";
 import { SponsorBlockIcon } from "../../components/ui/SponsorBlockIcon";
 import { BrowserIcon } from "../../components/ui/BrowserIcon";
+import { AutotagSourceIcon } from "../../components/ui/AutotagSourceIcon";
+import { WhaleIcon } from "../../components/ui/WhaleIcon";
+import { FlagIcon } from "../../components/ui/FlagIcon";
+import logoUrl from "../../assets/logo.png";
 import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
@@ -55,33 +68,66 @@ interface SettingsModalProps {
 }
 
 const QUALITY_OPTIONS = ["1440p", "1080p", "720p", "480p", "360p"];
+
+// UI languages (besides "system") with a representative country flag (ISO code
+// under /public/flags). pt → br (the locale is Brazilian), uk → ua (Ukraine),
+// hi → in, zh → cn, ja → jp, ko → kr, en → gb.
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English", flag: "gb" },
+  { value: "es", label: "Español", flag: "es" },
+  { value: "fr", label: "Français", flag: "fr" },
+  { value: "de", label: "Deutsch", flag: "de" },
+  { value: "it", label: "Italiano", flag: "it" },
+  { value: "pt", label: "Português (BR)", flag: "br" },
+  { value: "ru", label: "Русский", flag: "ru" },
+  { value: "pl", label: "Polski", flag: "pl" },
+  { value: "uk", label: "Українська", flag: "ua" },
+  { value: "id", label: "Bahasa Indonesia", flag: "id" },
+  { value: "hi", label: "हिन्दी", flag: "in" },
+  { value: "zh", label: "简体中文", flag: "cn" },
+  { value: "ja", label: "日本語", flag: "jp" },
+  { value: "ko", label: "한국어", flag: "kr" },
+] as const;
 // Sentinel: name audio files after the auto-tag metadata ("Artist - Title").
 // The backend downloads under %(title)s and renames once auto-tagging resolves
 // the real metadata (backend AUTOTAG_FILENAME_TEMPLATE).
 const AUTOTAG_TEMPLATE = "%(autotag)s";
+const AUTOTAG_TEMPLATE_REV = "%(autotag_ta)s";
+// Shown in the template dropdown in the same %(...)s style as the other presets
+// (their real values are the sentinels above — the file is renamed to the tag).
+const AUTOTAG_LABEL = "%(artist)s - %(title)s (auto-tag)";
+const AUTOTAG_LABEL_REV = "%(title)s - %(artist)s (auto-tag)";
 const TEMPLATE_PRESETS = [
   "%(title)s",
   "%(uploader)s - %(title)s",
   "%(upload_date)s - %(title)s",
   "%(title)s [%(id)s]",
   AUTOTAG_TEMPLATE,
+  AUTOTAG_TEMPLATE_REV,
 ];
 
 // Illustrative values so a yt-dlp template renders as a concrete sample filename.
+// `title` is the raw YouTube title (with its "(Official Music Video)" cruft); the
+// auto-tag presets clean it down to the song, so they use AUTOTAG_SAMPLE_TITLE.
 const TEMPLATE_SAMPLE: Record<string, string> = {
-  title: "Big Poppa",
+  title: "Big Poppa (Official Music Video)",
   uploader: "The Notorious B.I.G.",
-  upload_date: "19940913",
-  id: "tCJh3sQ9zEg",
+  upload_date: "20110906",
+  id: "phaJXp_zMYM",
   playlist_index: "01",
   ext: "mp3",
 };
+const AUTOTAG_SAMPLE_TITLE = "Big Poppa";
 
 /** Render a yt-dlp output template as an example filename (e.g. "Blinding Lights.mp3"). */
 function templateExample(tpl: string): string {
-  // The auto-tag template isn't a yt-dlp field — show its "Artist - Title" shape.
+  // The auto-tag templates aren't yt-dlp fields — show their "Artist - Title" shape
+  // with the cleaned (tagged) title, not the raw YouTube one.
   if (tpl === AUTOTAG_TEMPLATE) {
-    return `${TEMPLATE_SAMPLE.uploader} - ${TEMPLATE_SAMPLE.title}.mp3`;
+    return `${TEMPLATE_SAMPLE.uploader} - ${AUTOTAG_SAMPLE_TITLE}.mp3`;
+  }
+  if (tpl === AUTOTAG_TEMPLATE_REV) {
+    return `${AUTOTAG_SAMPLE_TITLE} - ${TEMPLATE_SAMPLE.uploader}.mp3`;
   }
   const name = (tpl || "%(title)s").replace(
     /%\(([a-z_]+)\)s/g,
@@ -94,8 +140,8 @@ const INPUT_CLASS =
 
 /**
  * Browsers yt-dlp can read cookies from directly (same names on Linux &
- * Windows). Safari is macOS-only — added once a macOS build ships (see
- * ROADMAP); Naver Whale is too niche to list.
+ * Windows). Safari is macOS-only — added once a macOS build ships (see ROADMAP).
+ * Whale (Naver's Chromium browser) is included since the app ships in Korean.
  */
 const COOKIE_BROWSERS = [
   "brave",
@@ -105,7 +151,20 @@ const COOKIE_BROWSERS = [
   "firefox",
   "opera",
   "vivaldi",
+  "whale",
 ] as const;
+
+/** Left-rail categories for the settings modal (sidebar + content panel). */
+const SECTIONS = [
+  { id: "general", labelKey: "settings.catGeneral", icon: <Languages size={16} /> },
+  { id: "downloads", labelKey: "settings.secDownloads", icon: <Download size={16} /> },
+  { id: "quality", labelKey: "settings.secQuality", icon: <SlidersHorizontal size={16} /> },
+  { id: "processing", labelKey: "settings.secProcessing", icon: <Music size={16} /> },
+  { id: "sponsorblock", labelKey: "settings.sponsorblock", icon: <Shield size={16} /> },
+  { id: "network", labelKey: "settings.secNetwork", icon: <Globe size={16} /> },
+  { id: "about", labelKey: "settings.catAbout", icon: <Info size={16} /> },
+] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
 
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
 export function SettingsModal({
@@ -131,6 +190,8 @@ export function SettingsModal({
   const [templateCustom, setTemplateCustom] = useState(
     () => !TEMPLATE_PRESETS.includes(settings.filename_template),
   );
+  // Which sidebar category is showing in the content panel.
+  const [section, setSection] = useState<SectionId>("general");
 
   const pickFolder = async () => {
     const dir = await pickDirectory(form.download_dir);
@@ -207,9 +268,9 @@ export function SettingsModal({
         aria-modal="true"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
+        className="flex w-full max-w-3xl h-[85vh] max-h-[620px] flex-col overflow-hidden !bg-[#16181f] p-0 outline-none"
       >
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <SettingsIcon size={18} className="text-violet-400" />
             {t("settings.title")}
@@ -224,8 +285,65 @@ export function SettingsModal({
           </button>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <SectionHeader first label={t("settings.secDownloads")} />
+        <div className="flex min-h-0 flex-1">
+          <nav className="flex w-44 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-white/10 p-3">
+            {SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSection(s.id)}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition ${
+                  section === s.id
+                    ? "bg-violet-600/15 font-medium text-white"
+                    : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                }`}
+              >
+                <span className="shrink-0">{s.icon}</span>
+                {t(s.labelKey)}
+              </button>
+            ))}
+          </nav>
+
+          <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="flex flex-col gap-4">
+              {section === "general" && (
+                <>
+                  <Field label={t("settings.language")}>
+                    <Select
+                      ariaLabel={t("settings.language")}
+                      value={lang}
+                      onChange={changeLanguage}
+                      options={[
+                        {
+                          value: "system",
+                          label: t("settings.langSystem"),
+                          icon: (
+                            <Monitor
+                              size={16}
+                              className="shrink-0 text-zinc-400"
+                            />
+                          ),
+                        },
+                        ...LANGUAGE_OPTIONS.map((o) => ({
+                          value: o.value,
+                          label: o.label,
+                          icon: <FlagIcon code={o.flag} />,
+                        })),
+                      ]}
+                      className={`${INPUT_CLASS} w-full`}
+                    />
+                  </Field>
+                  <Toggle
+                    checked={form.check_updates}
+                    onChange={(v) => set("check_updates", v)}
+                    label={t("settings.autoCheckUpdates")}
+                    className="w-full"
+                  />
+                </>
+              )}
+
+              {section === "downloads" && (
+                <>
           <Field label={t("settings.downloadDir")}>
             <div className="relative">
               <input
@@ -262,7 +380,12 @@ export function SettingsModal({
               options={[
                 ...TEMPLATE_PRESETS.map((p) => ({
                   value: p,
-                  label: p === AUTOTAG_TEMPLATE ? t("settings.filenameAutotag") : p,
+                  label:
+                    p === AUTOTAG_TEMPLATE
+                      ? AUTOTAG_LABEL
+                      : p === AUTOTAG_TEMPLATE_REV
+                        ? AUTOTAG_LABEL_REV
+                        : p,
                 })),
                 { value: "__custom__", label: t("settings.filenameCustom") },
               ]}
@@ -287,7 +410,7 @@ export function SettingsModal({
           </p>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("settings.defaultFormat")}>
+            <Field label={t("settings.defaultFormat")} className="col-span-2">
               <Select
                 ariaLabel={t("settings.defaultFormat")}
                 value={form.default_kind}
@@ -295,18 +418,6 @@ export function SettingsModal({
                 options={[
                   { value: "video", label: t("settings.video") },
                   { value: "audio", label: t("settings.audio") },
-                ]}
-                className={`${INPUT_CLASS} w-full`}
-              />
-            </Field>
-            <Field label={t("settings.defaultQuality")}>
-              <Select
-                ariaLabel={t("settings.defaultQuality")}
-                value={form.default_quality}
-                onChange={(v) => set("default_quality", v)}
-                options={[
-                  { value: "best", label: t("settings.qualityBest") },
-                  ...QUALITY_OPTIONS.map((q) => ({ value: q, label: q })),
                 ]}
                 className={`${INPUT_CLASS} w-full`}
               />
@@ -320,7 +431,10 @@ export function SettingsModal({
                 className={`${INPUT_CLASS} w-full`}
               />
             </Field>
-            <Field label={t("settings.defaultAudioFormat")}>
+            <Field
+              label={t("settings.defaultAudioFormat")}
+              hint={<AudioFormatHelp />}
+            >
               <Select
                 ariaLabel={t("settings.defaultAudioFormat")}
                 value={form.default_audio_format}
@@ -348,10 +462,24 @@ export function SettingsModal({
               className="w-full"
             />
           </div>
+                </>
+              )}
 
-          <SectionHeader label={t("settings.secQuality")} />
-
+              {section === "quality" && (
+                <>
           <div className="grid grid-cols-2 gap-3">
+            <Field label={t("settings.defaultQuality")}>
+              <Select
+                ariaLabel={t("settings.defaultQuality")}
+                value={form.default_quality}
+                onChange={(v) => set("default_quality", v)}
+                options={[
+                  { value: "best", label: t("settings.qualityBest") },
+                  ...QUALITY_OPTIONS.map((q) => ({ value: q, label: q })),
+                ]}
+                className={`${INPUT_CLASS} w-full`}
+              />
+            </Field>
             <Field label={t("settings.videoCodec")}>
               <Select
                 ariaLabel={t("settings.videoCodec")}
@@ -382,19 +510,39 @@ export function SettingsModal({
               />
             </Field>
           </div>
+                </>
+              )}
 
-          <SectionHeader label={t("settings.secProcessing")} />
-
+              {section === "processing" && (
+                <>
           <Field label={t("settings.autotagSource")}>
             <Select
               ariaLabel={t("settings.autotagSource")}
               value={form.autotag_source}
               onChange={(v) => set("autotag_source", v as AutotagSource)}
               options={[
-                { value: "auto", label: t("settings.autotagAuto") },
-                { value: "apple", label: t("settings.autotagApple") },
-                { value: "deezer", label: t("settings.autotagDeezer") },
-                { value: "musicbrainz", label: t("settings.autotagMusicbrainz") },
+                {
+                  value: "auto",
+                  label: t("settings.autotagAuto"),
+                  icon: <Sparkles className="size-4" />,
+                },
+                {
+                  value: "apple",
+                  label: t("settings.autotagApple"),
+                  icon: <AutotagSourceIcon source="apple" className="size-4" />,
+                },
+                {
+                  value: "deezer",
+                  label: t("settings.autotagDeezer"),
+                  icon: <AutotagSourceIcon source="deezer" className="size-4" />,
+                },
+                {
+                  value: "musicbrainz",
+                  label: t("settings.autotagMusicbrainz"),
+                  icon: (
+                    <AutotagSourceIcon source="musicbrainz" className="size-4" />
+                  ),
+                },
               ]}
               className={`${INPUT_CLASS} w-full`}
             />
@@ -402,36 +550,6 @@ export function SettingsModal({
           <p className="text-[11px] italic text-zinc-400 -mt-1">
             {t(`settings.autotagHint_${form.autotag_source}`)}
           </p>
-
-          <div className="flex flex-col gap-2">
-            <Toggle
-              checked={form.sponsorblock_enabled}
-              onChange={(v) => set("sponsorblock_enabled", v)}
-              label={t("settings.sponsorblock")}
-              icon={<SponsorBlockIcon className="size-4 shrink-0" />}
-              help={<SponsorBlockHelp />}
-              className="w-full"
-            />
-            {form.sponsorblock_enabled && (
-              <>
-                <Select
-                  ariaLabel={t("settings.sponsorblockAction")}
-                  value={form.sponsorblock_action}
-                  onChange={(v) =>
-                    set("sponsorblock_action", v as SponsorblockAction)
-                  }
-                  options={[
-                    { value: "remove", label: t("settings.sponsorblockRemove") },
-                    { value: "mark", label: t("settings.sponsorblockMark") },
-                  ]}
-                  className={`${INPUT_CLASS} w-full`}
-                />
-                <p className="text-[11px] italic text-zinc-400">
-                  {t(`settings.sponsorblockHint_${form.sponsorblock_action}`)}
-                </p>
-              </>
-            )}
-          </div>
 
           <Toggle
             checked={form.normalize_audio}
@@ -469,9 +587,45 @@ export function SettingsModal({
               </div>
             )}
           </div>
+                </>
+              )}
 
-          <SectionHeader label={t("settings.secNetwork")} />
+              {section === "sponsorblock" && (
+                <>
+          <div className="flex flex-col gap-2">
+            <Toggle
+              checked={form.sponsorblock_enabled}
+              onChange={(v) => set("sponsorblock_enabled", v)}
+              label={t("settings.sponsorblock")}
+              icon={<SponsorBlockIcon className="size-4 shrink-0" />}
+              help={<SponsorBlockHelp />}
+              className="w-full"
+            />
+            {form.sponsorblock_enabled && (
+              <>
+                <Select
+                  ariaLabel={t("settings.sponsorblockAction")}
+                  value={form.sponsorblock_action}
+                  onChange={(v) =>
+                    set("sponsorblock_action", v as SponsorblockAction)
+                  }
+                  options={[
+                    { value: "remove", label: t("settings.sponsorblockRemove") },
+                    { value: "mark", label: t("settings.sponsorblockMark") },
+                  ]}
+                  className={`${INPUT_CLASS} w-full`}
+                />
+                <p className="text-[11px] italic text-zinc-400">
+                  {t(`settings.sponsorblockHint_${form.sponsorblock_action}`)}
+                </p>
+              </>
+            )}
+          </div>
+                </>
+              )}
 
+              {section === "network" && (
+                <>
           <Field label={t("settings.rateLimit")}>
             <Select
               ariaLabel={t("settings.rateLimit")}
@@ -499,11 +653,20 @@ export function SettingsModal({
               value={form.cookies_from_browser ?? ""}
               onChange={(v) => set("cookies_from_browser", v)}
               options={[
-                { value: "", label: t("settings.cookiesBrowserNone") },
+                {
+                  value: "",
+                  label: t("settings.cookiesBrowserNone"),
+                  icon: <Ban className="size-4" />,
+                },
                 ...COOKIE_BROWSERS.map((b) => ({
                   value: b,
                   label: b.charAt(0).toUpperCase() + b.slice(1),
-                  icon: <BrowserIcon browser={b} className="size-4" />,
+                  icon:
+                    b === "whale" ? (
+                      <WhaleIcon className="size-4" />
+                    ) : (
+                      <BrowserIcon browser={b} className="size-4" />
+                    ),
                 })),
               ]}
               className={`${INPUT_CLASS} w-full`}
@@ -545,179 +708,169 @@ export function SettingsModal({
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
-
-          <div className="pt-1 border-t border-white/10" />
-          <Field label={t("settings.language")}>
-            <Select
-              ariaLabel={t("settings.language")}
-              value={lang}
-              onChange={changeLanguage}
-              options={[
-                { value: "system", label: t("settings.langSystem") },
-                { value: "en", label: "English" },
-                { value: "es", label: "Español" },
-                { value: "fr", label: "Français" },
-                { value: "de", label: "Deutsch" },
-                { value: "it", label: "Italiano" },
-                { value: "pt", label: "Português (BR)" },
-                { value: "ru", label: "Русский" },
-                { value: "pl", label: "Polski" },
-                { value: "uk", label: "Українська" },
-                { value: "id", label: "Bahasa Indonesia" },
-                { value: "hi", label: "हिन्दी" },
-                { value: "zh", label: "简体中文" },
-                { value: "ja", label: "日本語" },
-                { value: "ko", label: "한국어" },
-              ]}
-              className={`${INPUT_CLASS} w-full`}
-            />
-          </Field>
-        </div>
-
-        {error && <p className="text-sm text-red-400 mt-4">{error}</p>}
-
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 h-11 rounded-2xl text-sm text-zinc-300 hover:text-white transition"
-          >
-            {t("settings.cancel")}
-          </button>
-          <Button
-            variant="gradient"
-            onClick={handleSave}
-            disabled={saving}
-            className="px-5 h-11 disabled:opacity-50"
-          >
-            {saving && <Loader2 size={16} className="animate-spin" />}
-            {t("settings.save")}
-          </Button>
-        </div>
-
-        <a
-          href="https://github.com/ayozetr"
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => {
-            e.preventDefault();
-            void openExternal("https://github.com/ayozetr");
-          }}
-          className="mt-6 flex items-center justify-center gap-1.5 border-y border-white/10 px-2 py-2.5 text-[11px] text-zinc-400 transition-colors hover:text-zinc-300"
-        >
-          <GithubIcon className="size-3" />
-          <span>
-            {t("settings.developedBy")}{" "}
-            <strong className="font-semibold text-zinc-300">ayozetr</strong>
-          </span>
-        </a>
-
-        <Toggle
-          checked={form.check_updates}
-          onChange={(v) => set("check_updates", v)}
-          label={t("settings.autoCheckUpdates")}
-          className="mt-4"
-        />
-        <button
-          type="button"
-          onClick={onShowWhatsNew}
-          className="mt-2 flex items-center gap-1.5 text-xs text-violet-300 transition hover:text-violet-200"
-        >
-          <Sparkles size={13} />
-          {t("whatsNew.button")}
-        </button>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="text-sm">
-            <div>
-              <span className="text-zinc-400">{t("settings.version")}</span>
-              <span className="font-medium ml-1.5">v{__APP_VERSION__}</span>
-              {result?.status === "available" && (
-                <span className="ml-2 text-violet-300">
-                  · {t("settings.updateAvailable", { version: result.version })}
-                </span>
+                </>
               )}
+
+              {section === "about" && (
+                <>
+        <div className="flex flex-col items-center gap-3 pt-1 text-center">
+          <img
+            src={logoUrl}
+            alt="Yoink"
+            className="size-16 rounded-[1.15rem] shadow-lg shadow-violet-950/50 ring-1 ring-white/10"
+          />
+          <div>
+            <div className="text-lg font-semibold tracking-tight">Yoink</div>
+            <div className="text-xs text-zinc-400">Media Downloader</div>
+          </div>
+        </div>
+
+        <div className="w-full divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <div className="text-sm font-medium">{t("settings.version")}</div>
+              <div className="font-mono text-xs text-zinc-400">
+                v{__APP_VERSION__}
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
               {result?.status === "up-to-date" && (
-                <span className="ml-2 inline-flex items-center gap-1 text-emerald-400">
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
                   <CheckCircle2 size={13} /> {t("settings.upToDate")}
                 </span>
               )}
               {result?.status === "error" && (
-                <span className="ml-2 text-zinc-400">
-                  · {t("settings.checkError")}
+                <span className="text-xs text-zinc-400">
+                  {t("settings.checkError")}
                 </span>
               )}
               {result?.status === "tauri-unavailable" && (
-                <span className="ml-2 text-zinc-400">
-                  · {t("settings.checkDesktopOnly")}
+                <span className="text-xs text-zinc-400">
+                  {t("settings.checkDesktopOnly")}
+                </span>
+              )}
+              {result?.status === "available" && result.autoInstallable ? (
+                <button
+                  type="button"
+                  onClick={() => onInstall(result.update)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
+                >
+                  <ArrowUpCircle size={13} /> {t("settings.downloadInstall")}
+                </button>
+              ) : result?.status === "available" ? (
+                <a
+                  href={RELEASES_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void openExternal(RELEASES_URL);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
+                >
+                  <ArrowUpCircle size={13} /> {t("settings.viewRelease")}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCheck}
+                  disabled={checking}
+                  className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-zinc-300 transition hover:border-white/20 hover:text-white disabled:opacity-50"
+                >
+                  {checking && <Loader2 size={12} className="animate-spin" />}
+                  {t("settings.checkUpdates")}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {ytdlp && !ytdlp.error && ytdlp.current !== "unknown" && (
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div>
+                <div className="text-sm font-medium">yt-dlp</div>
+                <div className="font-mono text-xs text-zinc-400">
+                  {ytdlp.current}
+                </div>
+              </div>
+              {ytdlp.update_available && ytdlp.latest ? (
+                <span className="text-xs text-violet-300">
+                  {t("settings.updateAvailable", { version: ytdlp.latest })}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-400/80">
+                  <CheckCircle2 size={12} /> {t("settings.upToDate")}
                 </span>
               )}
             </div>
-            {ytdlp && !ytdlp.error && ytdlp.current !== "unknown" && (
-              <div className="mt-1 text-xs text-zinc-400">
-                <span>yt-dlp {ytdlp.current}</span>
-                {ytdlp.update_available && ytdlp.latest ? (
-                  <span className="ml-1.5 text-violet-300">
-                    · {t("settings.updateAvailable", { version: ytdlp.latest })}
-                  </span>
-                ) : (
-                  <span className="ml-1.5 inline-flex items-center gap-1 text-emerald-400/80">
-                    <CheckCircle2 size={12} /> {t("settings.upToDate")}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {result?.status === "available" && result.autoInstallable ? (
-            <button
-              type="button"
-              onClick={() => onInstall(result.update)}
-              className="flex items-center gap-1.5 text-sm text-violet-300 transition hover:text-violet-200"
-            >
-              <ArrowUpCircle size={15} />
-              {t("settings.downloadInstall")}
-            </button>
-          ) : result?.status === "available" ? (
-            <a
-              href={RELEASES_URL}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => {
-                e.preventDefault();
-                void openExternal(RELEASES_URL);
-              }}
-              className="flex items-center gap-1.5 text-sm text-violet-300 hover:text-violet-200 transition"
-            >
-              <ArrowUpCircle size={15} />
-              {t("settings.viewRelease")}
-            </a>
-          ) : (
-            <button
-              type="button"
-              onClick={handleCheck}
-              disabled={checking}
-              className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition disabled:opacity-50"
-            >
-              {checking && <Loader2 size={14} className="animate-spin" />}
-              {t("settings.checkUpdates")}
-            </button>
           )}
         </div>
 
-        <a
-          href="https://ko-fi.com/ayozetr"
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => {
-            e.preventDefault();
-            void openExternal("https://ko-fi.com/ayozetr");
-          }}
-          className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 transition-colors hover:text-violet-300"
-        >
-          <Coffee size={12} />
-          {t("settings.donate")}
-        </a>
+        <div className="flex w-full flex-col gap-0.5">
+          <button
+            type="button"
+            onClick={onShowWhatsNew}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-200 transition hover:bg-white/5"
+          >
+            <Sparkles size={16} className="shrink-0 text-violet-400" />
+            {t("whatsNew.button")}
+          </button>
+          <a
+            href="https://github.com/ayozetr"
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              void openExternal("https://github.com/ayozetr");
+            }}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-200 transition hover:bg-white/5"
+          >
+            <GithubIcon className="size-4 shrink-0" />
+            <span>
+              {t("settings.developedBy")}{" "}
+              <strong className="font-medium text-white">ayozetr</strong>
+            </span>
+          </a>
+          <a
+            href="https://ko-fi.com/ayozetr"
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              void openExternal("https://ko-fi.com/ayozetr");
+            }}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-200 transition hover:bg-white/5 hover:text-violet-200"
+          >
+            <Coffee size={16} className="shrink-0 text-violet-400" />
+            {t("settings.donate")}
+          </a>
+        </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border-t border-white/10 px-6 py-4">
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <div className="ml-auto flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 h-11 rounded-2xl text-sm text-zinc-300 hover:text-white transition"
+            >
+              {t("settings.cancel")}
+            </button>
+            <Button
+              variant="gradient"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-5 h-11 disabled:opacity-50"
+            >
+              {saving && <Loader2 size={16} className="animate-spin" />}
+              {t("settings.save")}
+            </Button>
+          </div>
+        </div>
       </GlassPanel>
     </div>
   );
@@ -741,33 +894,20 @@ function Field({
   label,
   hint,
   children,
+  className = "",
 }: {
   label: string;
   hint?: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={`flex flex-col gap-1.5 ${className}`}>
       <span className="flex items-center gap-1.5 text-xs text-zinc-400">
         {label}
         {hint}
       </span>
       {children}
-    </div>
-  );
-}
-
-/** A labelled section divider: a violet accent bar + heading, with a top rule
- *  separating it from the previous group (skipped on the first section). */
-function SectionHeader({ label, first }: { label: string; first?: boolean }) {
-  return (
-    <div
-      className={`flex items-center gap-2 ${first ? "" : "mt-3 border-t border-white/10 pt-4"}`}
-    >
-      <span className="h-3.5 w-1 rounded-full bg-violet-500" />
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-200">
-        {label}
-      </h3>
     </div>
   );
 }
@@ -924,6 +1064,16 @@ function NormalizeAudioHelp() {
   return (
     <HelpPopover label={t("settings.normalizeAudio")}>
       {t("settings.normalizeAudioHint")}
+    </HelpPopover>
+  );
+}
+
+/** "?" help for the default audio format: FLAC/WAV availability caveat. */
+function AudioFormatHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.defaultAudioFormat")}>
+      {t("settings.defaultAudioFormatHint")}
     </HelpPopover>
   );
 }
