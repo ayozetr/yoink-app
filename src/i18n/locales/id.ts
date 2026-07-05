@@ -223,6 +223,8 @@ export const id = {
     videoCodecAny: "Terbaik yang tersedia",
     audioBitrate: "Bitrate audio",
     audioBitrateBest: "Terbaik yang tersedia",
+    normalizeAudio: "Normalkan audio otomatis",
+    normalizeAudioHint: "Menyetel setiap lagu ke -14 LUFS (level Spotify/YouTube) agar semua diputar pada volume yang sama.",
     filenameTemplate: "Templat nama berkas",
     filenameCustom: "Khusus…",
     filenameAutotag: "Artis - Judul (auto-tag)",

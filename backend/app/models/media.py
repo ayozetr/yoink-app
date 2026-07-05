@@ -394,6 +394,11 @@ class AppSettings(BaseModel):
     audio_bitrate: AudioBitrate = Field(
         default="best", description="Lossy audio bitrate in kbps, or 'best'."
     )
+    normalize_audio: bool = Field(
+        default=False,
+        description="Loudness-normalize audio to -14 LUFS so every track plays "
+        "at the same volume (re-encodes the audio).",
+    )
     check_updates: bool = Field(
         default=True,
         description="Check GitHub for a newer app release on launch (on by default; "

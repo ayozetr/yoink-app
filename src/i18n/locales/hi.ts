@@ -223,6 +223,8 @@ export const hi = {
     videoCodecAny: "सर्वश्रेष्ठ उपलब्ध",
     audioBitrate: "ऑडियो बिटरेट",
     audioBitrateBest: "सर्वश्रेष्ठ उपलब्ध",
+    normalizeAudio: "ऑडियो स्वतः सामान्यीकृत करें",
+    normalizeAudioHint: "हर ट्रैक को -14 LUFS (Spotify/YouTube स्तर) पर लाता है ताकि सब एक ही वॉल्यूम पर बजे।",
     filenameTemplate: "फ़ाइल नाम टेम्पलेट",
     filenameCustom: "कस्टम…",
     filenameAutotag: "कलाकार - शीर्षक (ऑटो-टैग)",

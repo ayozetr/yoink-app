@@ -223,6 +223,8 @@ export const it = {
     videoCodecAny: "Migliore disponibile",
     audioBitrate: "Bitrate audio",
     audioBitrateBest: "Migliore disponibile",
+    normalizeAudio: "Normalizza l'audio automaticamente",
+    normalizeAudioHint: "Porta ogni brano a -14 LUFS (livello Spotify/YouTube) così suonano allo stesso volume.",
     filenameTemplate: "Modello nome file",
     filenameCustom: "Personalizzato…",
     filenameAutotag: "Artista - Titolo (auto-tag)",

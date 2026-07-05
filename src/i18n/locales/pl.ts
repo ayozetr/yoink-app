@@ -227,6 +227,8 @@ export const pl = {
     videoCodecAny: "Najlepszy dostępny",
     audioBitrate: "Bitrate audio",
     audioBitrateBest: "Najlepszy dostępny",
+    normalizeAudio: "Automatycznie normalizuj głośność",
+    normalizeAudioHint: "Ustawia każdy utwór na -14 LUFS (poziom Spotify/YouTube), aby wszystko grało tak samo głośno.",
     filenameTemplate: "Szablon nazwy pliku",
     filenameCustom: "Własny…",
     filenameAutotag: "Wykonawca - Tytuł (auto-tag)",

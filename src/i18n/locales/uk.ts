@@ -227,6 +227,8 @@ export const uk = {
     videoCodecAny: "Найкращий доступний",
     audioBitrate: "Бітрейт аудіо",
     audioBitrateBest: "Найкращий доступний",
+    normalizeAudio: "Автоматично нормалізувати гучність",
+    normalizeAudioHint: "Приводить кожен трек до -14 LUFS (рівень Spotify/YouTube), щоб усе звучало однаково гучно.",
     filenameTemplate: "Шаблон імені файлу",
     filenameCustom: "Власний…",
     filenameAutotag: "Виконавець - Назва (авто-теги)",

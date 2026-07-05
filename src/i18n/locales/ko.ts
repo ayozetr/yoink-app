@@ -223,6 +223,8 @@ export const ko = {
     videoCodecAny: "사용 가능한 최고",
     audioBitrate: "오디오 비트레이트",
     audioBitrateBest: "사용 가능한 최고",
+    normalizeAudio: "오디오 자동 정규화",
+    normalizeAudioHint: "모든 트랙을 -14 LUFS(Spotify/YouTube 수준)로 맞춰 같은 음량으로 재생합니다.",
     filenameTemplate: "파일명 템플릿",
     filenameCustom: "사용자 지정…",
     filenameAutotag: "아티스트 - 제목 (자동 태그)",

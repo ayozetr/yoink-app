@@ -67,6 +67,8 @@ def _apply(data: dict[str, Any]) -> None:
         settings.video_codec = data["video_codec"]
     if data.get("audio_bitrate") in ("best", "320", "256", "192", "128"):
         settings.audio_bitrate = data["audio_bitrate"]
+    if isinstance(data.get("normalize_audio"), bool):
+        settings.normalize_audio = data["normalize_audio"]
 
 
 def load_overrides() -> None:
@@ -110,6 +112,7 @@ def get_current() -> AppSettings:
         rate_limit=settings.rate_limit,
         video_codec=settings.video_codec,
         audio_bitrate=settings.audio_bitrate,
+        normalize_audio=settings.normalize_audio,
     )
 
 

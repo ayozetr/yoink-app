@@ -223,6 +223,8 @@ export const ja = {
     videoCodecAny: "利用可能な最高",
     audioBitrate: "音声ビットレート",
     audioBitrateBest: "利用可能な最高",
+    normalizeAudio: "音量を自動で正規化",
+    normalizeAudioHint: "各曲を-14 LUFS（Spotify/YouTube基準）に揃え、すべて同じ音量で再生します。",
     filenameTemplate: "ファイル名テンプレート",
     filenameCustom: "カスタム…",
     filenameAutotag: "アーティスト - タイトル（自動タグ）",

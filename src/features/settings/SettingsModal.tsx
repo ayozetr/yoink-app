@@ -434,6 +434,14 @@ export function SettingsModal({
           </div>
 
           <Toggle
+            checked={form.normalize_audio}
+            onChange={(v) => set("normalize_audio", v)}
+            label={t("settings.normalizeAudio")}
+            help={<NormalizeAudioHelp />}
+            className="w-full"
+          />
+
+          <Toggle
             checked={form.nfo_sidecars}
             onChange={(v) => set("nfo_sidecars", v)}
             label={t("settings.nfoSidecars")}
@@ -906,6 +914,16 @@ function NfoHelp() {
   return (
     <HelpPopover label={t("settings.nfoSidecars")}>
       {t("settings.nfoSidecarsHelp")}
+    </HelpPopover>
+  );
+}
+
+/** "?" help for loudness normalization — what it does + the target level. */
+function NormalizeAudioHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.normalizeAudio")}>
+      {t("settings.normalizeAudioHint")}
     </HelpPopover>
   );
 }

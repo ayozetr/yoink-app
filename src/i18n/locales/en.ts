@@ -223,6 +223,8 @@ export const en = {
     videoCodecAny: "Best available",
     audioBitrate: "Audio bitrate",
     audioBitrateBest: "Best available",
+    normalizeAudio: "Normalize audio automatically",
+    normalizeAudioHint: "Brings every track to -14 LUFS (Spotify/YouTube level) so everything plays at the same volume.",
     filenameTemplate: "Filename template",
     filenameCustom: "Custom…",
     filenameAutotag: "Artist - Title (auto-tag)",

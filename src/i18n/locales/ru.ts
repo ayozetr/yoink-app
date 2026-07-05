@@ -227,6 +227,8 @@ export const ru = {
     videoCodecAny: "Лучший доступный",
     audioBitrate: "Битрейт аудио",
     audioBitrateBest: "Лучший доступный",
+    normalizeAudio: "Автоматически нормализовать громкость",
+    normalizeAudioHint: "Приводит каждый трек к -14 LUFS (уровень Spotify/YouTube), чтобы всё звучало одинаково громко.",
     filenameTemplate: "Шаблон имени файла",
     filenameCustom: "Свой…",
     filenameAutotag: "Исполнитель - Название (авто-теги)",

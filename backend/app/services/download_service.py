@@ -30,7 +30,7 @@ from app.core.ytdlp_options import (
 )
 from app.services.embedded_vr_extractor import register as register_embedded_vr
 from app.services.threads_extractor import register as register_threads_ie
-from app.services import nfo
+from app.services import audio_normalize, nfo
 from app.services.vr import apply_vr, detect_vr
 from app.models.media import (
     AudioFormat,
@@ -618,6 +618,15 @@ async def download_events(
                     file = Path(path)
                     if file.exists():
                         path = str(apply_vr(file, layout))
+            # Loudness-normalize audio to -14 LUFS so every track plays at the
+            # same volume. Re-encodes in place (best-effort); runs before auto-
+            # tagging, which then writes tags onto the normalized file.
+            if path and request.kind == "audio" and settings.normalize_audio:
+                audio_file = Path(path)
+                if audio_file.exists():
+                    audio_normalize.normalize(
+                        audio_file, request.audio_format, settings.audio_bitrate
+                    )
             # Optional Kodi/Jellyfin .nfo sidecar, next to the final file. Audio
             # auto-tagging rewrites it later with the tagged metadata.
             if path and settings.nfo_sidecars:
