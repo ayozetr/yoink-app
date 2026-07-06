@@ -11,6 +11,16 @@
 
 ## 📍 Status
 
+- **In progress (unreleased):** in `main`, post-v2.8.0 — **loudness normalization**
+  (opt-in −14 LUFS), a **whole-queue progress bar** ("N of M downloaded"), a thumbnail
+  **`hqdefault` fallback** for YouTube's grey placeholder, a smarter **auto-tag
+  title swap** ("Song – Artist"), and a **history hover-reveal** fix. On the
+  `redesign/settings-modal` branch: a **redesigned Settings modal** (7-category
+  sidebar + content panel, a branded **About**, brand icons in the cookie- and
+  tag-source dropdowns + a **Whale** browser entry, **language flags**, and "?" help
+  on the audio-format / subtitles / proxy fields), a **"notify on complete"** toggle,
+  **brand logos** in the YouTube↔SoundCloud search toggle, and the **favicon** pointed
+  at the current app logo.
 - **Current release:** **v2.8.0** — an **"Artist – Title (auto-tag)" filename
   template**: pick it in Settings and a downloaded track is renamed to its *tagged*
   name (the one already shown in history), carrying its `.nfo`/`.lrc` sidecars along
@@ -67,7 +77,7 @@
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
   one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 341) green · frontend build + e2e (21) + vitest (44) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 343) green · frontend build + e2e (21) + vitest (44) green · `npm audit` 0 · strict TS.
 
 ---
 
@@ -114,18 +124,18 @@ playlist titles).
 app + yt-dlp version.
 
 **Platform & polish** — Tauri desktop (Linux + Windows), **signed self-update**,
-desktop notifications, taskbar/title progress, global shortcuts, **EN/ES** i18n,
+desktop notifications, taskbar/title progress, global shortcuts, **14-language** i18n,
 **WCAG-AA** pass (contrast, reduced-motion, ARIA incl. the search combobox),
 security-hardened (path guards, SSRF-safe thumbnail proxy w/ pinned DNS, settings
 validation), strict TS + tests.
 
 ---
 
-## 🎯 Next up — toward v2.1.0
+## 🎯 The v2.0.0 / v2.1.0 push — ✅ shipped
 
-The highest value/effort work, in order. Most surfaced from the v1.9.0 audit.
-*(Music import, SoundCloud search, 14 languages, logging, resume and the
-release polish shipped in v2.0.0.)*
+The highest value/effort work from the v1.9.0 audit — all shipped in v2.0.0/v2.1.0
+(kept here as the record). *(Music import, SoundCloud search, 14 languages, logging,
+resume and the release polish shipped in v2.0.0.)*
 
 1. ✅ **Backend logging & observability** (M · **high**) *(v2.0.0)* — a
    structured `app`-namespace logger writes to a rotating `~/.yoink/logs/yoink.log`
@@ -195,11 +205,11 @@ Not committed and not release-ordered — picked from as capacity allows.
   a "Downloaded" badge and stay re-selectable.
 - ⬜ **Sidecar exports** (S) — `.info.json` / thumbnail / loose `.srt`/`.vtt`.
 - ⬜ **Subtitles as separate files + auto-translate** (M).
-- 🚧 **Loudness normalization** — an optional (off by default) leveling of every
-  audio download to **-14 LUFS** (EBU R128, the Spotify/YouTube target) via a
-  **two-pass ffmpeg `loudnorm`** (measure → re-encode with the measured values,
-  preserving the source sample rate); runs before auto-tagging and is best-effort,
-  so a failure leaves the original untouched.
+- ✅ **Loudness normalization** *(post-v2.8.0, in `main`)* — an optional (off by
+  default) leveling of every audio download to **-14 LUFS** (EBU R128, the
+  Spotify/YouTube target) via a **two-pass ffmpeg `loudnorm`** (measure → re-encode
+  with the measured values, preserving the source sample rate); runs before
+  auto-tagging and is best-effort, so a failure leaves the original untouched.
 - ✅ **Download presets/profiles** *(next)* — save the preview's format selection
   as a named preset (`lib/presets`, localStorage) and apply it in one click; chips
   to apply/delete and an inline "save current" in the preview card.
@@ -324,6 +334,19 @@ also in *Next up* are the urgent ones.)
 - ⬜ **ruff + mypy in CI** (S) — currently only `pytest` runs (CI itself paused on billing).
 - ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
   frontend `estimatedSizeBytes`/`formatBytes`.
+- ⬜ **Render perf: memoize the main-column panels** (M) — `DownloaderPanel` /
+  `PreviewCard` / `PlaylistCard` / `UrlInput` aren't wrapped in `React.memo`, so
+  every progress tick (several/sec, state held at the top of the panel) reconciles
+  all of them though they don't depend on `progress`. Isolate the progress state in
+  a dedicated child (ref/subscription or a context selector) and `React.memo` the
+  three with `useCallback`-stabilized props; optionally throttle to ~10/s. *(Carried
+  over from the v1.9.0 audit — the last real perf item.)*
+- ⬜ **Defer the playlist lossless probe** (S) — analyzing a playlist runs a second
+  full `extract_info` on the first entry (`ytdlp_service._probe_first_entry_audio`,
+  in series on the blocking thread) just to learn `source_lossless`/`best_audio_abr`
+  for the FLAC/WAV gate, doubling latency (flat ~1s + full resolve ~1–3s). Return the
+  flat list immediately and compute it lazily (a light endpoint the UI hits only if
+  the user picks audio), or cache it. *(Carried over from the v1.9.0 audit.)*
 - ✅ **PyInstaller `--onedir`** (M) — the backend ships as a one-folder Tauri
   resource spawned by `main.rs` (std::process, stdin-pipe shutdown watchdog),
   not a onefile sidecar, so it starts without re-extracting ~180 MB each launch.
