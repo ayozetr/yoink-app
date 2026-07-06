@@ -198,6 +198,7 @@ export const ko = {
     nfoSidecars: ".nfo 파일 생성",
     nfoSidecarsHelp: "각 다운로드 옆에 Kodi/Jellyfin 형식의 .nfo 메타데이터 파일을 생성해 미디어 서버가 정확한 정보를 읽도록 합니다.",
     defaultEmbedSubs: "기본적으로 자막 포함",
+    defaultEmbedSubsHint: "MKV 동영상 형식에서만 지원됩니다. MP4나 MOV 등 다른 형식은 허용하지 않습니다.",
     defaultEmbedChapters: "기본적으로 챕터 포함",
     secDownloads: "다운로드",
     catGeneral: "일반",
@@ -216,13 +217,12 @@ export const ko = {
     qualityBest: "사용 가능한 최고",
     defaultContainer: "기본 동영상 형식",
     defaultAudioFormat: "기본 오디오 형식",
-    defaultAudioFormatHint:
-      "FLAC와 WAV는 원본이 이미 무손실일 때만 진짜 무손실이며, 거의 모든 플랫폼(YouTube 등)은 압축 오디오만 제공합니다. 그렇지 않으면 분석 시 경고가 표시되고 Yoink가 대신 MP3를 사용합니다(음질 향상 없는 거대한 파일 방지).",
+    defaultAudioFormatHint: "FLAC와 WAV는 무손실 오디오용입니다. 대부분의 사이트는 호환 콘텐츠를 제공하지 않으므로 그런 경우 MP3가 사용됩니다.",
     rateLimit: "대역폭 제한",
     rateLimitNone: "제한 없음",
     proxy: "프록시",
     proxyHelp:
-      "메타데이터와 다운로드를 HTTP/HTTPS/SOCKS 프록시(예: socks5://127.0.0.1:1080)를 통해 라우팅합니다. 직접 연결하려면 비워 두세요.",
+      "메타데이터와 다운로드를 HTTP/HTTPS/SOCKS 프록시를 통해 라우팅합니다. 직접 연결하려면 비워 두세요.",
     videoCodec: "영상 코덱",
     videoCodecAny: "사용 가능한 최고",
     audioBitrate: "오디오 비트레이트",

@@ -198,6 +198,7 @@ export const ja = {
     nfoSidecars: ".nfo ファイルを作成",
     nfoSidecarsHelp: "ダウンロードごとに Kodi/Jellyfin 形式の .nfo メタデータファイルを作成し、メディアサーバーが正確な情報を読み取れるようにします。",
     defaultEmbedSubs: "デフォルトで字幕を埋め込む",
+    defaultEmbedSubsHint: "動画形式 MKV のみ対応。MP4 や MOV など他の形式では利用できません。",
     defaultEmbedChapters: "デフォルトでチャプターを埋め込む",
     secDownloads: "ダウンロード",
     catGeneral: "一般",
@@ -216,13 +217,12 @@ export const ja = {
     qualityBest: "利用可能な最高",
     defaultContainer: "デフォルトの動画形式",
     defaultAudioFormat: "デフォルトの音声形式",
-    defaultAudioFormatHint:
-      "FLAC と WAV が本当に無劣化になるのは元が無劣化のときだけで、ほぼすべてのプラットフォーム（YouTube など）は圧縮音声しか提供しません。そうでなければ解析時に警告が表示され、Yoink は代わりに MP3 を使います（音質が変わらない巨大ファイルを防ぎます）。",
+    defaultAudioFormatHint: "FLAC と WAV は無劣化音声用です。ほとんどのサイトは対応コンテンツを提供しないため、その場合は MP3 が使われます。",
     rateLimit: "帯域幅の制限",
     rateLimitNone: "制限なし",
     proxy: "プロキシ",
     proxyHelp:
-      "メタデータとダウンロードを HTTP/HTTPS/SOCKS プロキシ経由で行います（例：socks5://127.0.0.1:1080）。空欄にすると直接接続します。",
+      "メタデータとダウンロードを HTTP/HTTPS/SOCKS プロキシ経由で行います。空欄にすると直接接続します。",
     videoCodec: "動画コーデック",
     videoCodecAny: "利用可能な最高",
     audioBitrate: "音声ビットレート",

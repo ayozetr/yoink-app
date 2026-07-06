@@ -198,6 +198,7 @@ export const id = {
     nfoSidecars: "Buat berkas .nfo",
     nfoSidecarsHelp: "Membuat berkas metadata .nfo (gaya Kodi/Jellyfin) di samping setiap unduhan, agar server media membaca data Anda yang tepat.",
     defaultEmbedSubs: "Sematkan subtitle secara default",
+    defaultEmbedSubsHint: "Hanya didukung oleh format video MKV; format lain seperti MP4 atau MOV tidak mengizinkannya.",
     defaultEmbedChapters: "Sematkan bab secara default",
     secDownloads: "Unduhan",
     catGeneral: "Umum",
@@ -216,13 +217,12 @@ export const id = {
     qualityBest: "Terbaik yang tersedia",
     defaultContainer: "Format video bawaan",
     defaultAudioFormat: "Format audio bawaan",
-    defaultAudioFormatHint:
-      "FLAC dan WAV benar-benar lossless hanya jika sumbernya sudah lossless, dan hampir semua platform (YouTube, dll.) hanya menyediakan audio terkompresi. Jika bukan, saat menganalisis Yoink memperingatkan dan memakai MP3 (tanpa berkas besar tanpa kualitas lebih baik).",
+    defaultAudioFormatHint: "FLAC dan WAV untuk audio lossless; sebagian besar situs tidak menyediakan konten yang kompatibel, jadi MP3 digunakan dalam kasus tersebut.",
     rateLimit: "Batas lebar pita",
     rateLimitNone: "Tanpa batas",
     proxy: "Proxy",
     proxyHelp:
-      "Salurkan metadata dan unduhan melalui proxy HTTP/HTTPS/SOCKS (mis. socks5://127.0.0.1:1080). Biarkan kosong untuk koneksi langsung.",
+      "Salurkan metadata dan unduhan melalui proxy HTTP/HTTPS/SOCKS. Biarkan kosong untuk koneksi langsung.",
     videoCodec: "Codec video",
     videoCodecAny: "Terbaik yang tersedia",
     audioBitrate: "Bitrate audio",

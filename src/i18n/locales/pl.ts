@@ -202,6 +202,7 @@ export const pl = {
     nfoSidecars: "Twórz pliki .nfo",
     nfoSidecarsHelp: "Tworzy plik metadanych .nfo (styl Kodi/Jellyfin) obok każdego pobrania, aby serwery multimediów czytały dokładne dane.",
     defaultEmbedSubs: "Domyślnie osadzaj napisy",
+    defaultEmbedSubsHint: "Obsługiwane tylko przez format wideo MKV; inne, jak MP4 czy MOV, na to nie pozwalają.",
     defaultEmbedChapters: "Domyślnie osadzaj rozdziały",
     secDownloads: "Pobieranie",
     catGeneral: "Ogólne",
@@ -220,13 +221,12 @@ export const pl = {
     qualityBest: "Najlepsza dostępna",
     defaultContainer: "Domyślny format wideo",
     defaultAudioFormat: "Domyślny format audio",
-    defaultAudioFormatHint:
-      "FLAC i WAV są naprawdę bezstratne tylko wtedy, gdy źródło już takie jest, a niemal wszystkie platformy (YouTube itd.) udostępniają jedynie dźwięk skompresowany. Jeśli tak nie jest, analiza cię ostrzeże, a Yoink użyje MP3 (bez ogromnego pliku bez lepszej jakości).",
+    defaultAudioFormatHint: "FLAC i WAV służą do dźwięku bezstratnego; większość witryn nie oferuje zgodnej zawartości, więc w takich przypadkach używany jest MP3.",
     rateLimit: "Limit przepustowości",
     rateLimitNone: "Bez limitu",
     proxy: "Proxy",
     proxyHelp:
-      "Kieruj metadane i pobierania przez proxy HTTP/HTTPS/SOCKS (np. socks5://127.0.0.1:1080). Pozostaw puste dla połączenia bezpośredniego.",
+      "Kieruj metadane i pobierania przez proxy HTTP/HTTPS/SOCKS. Pozostaw puste dla połączenia bezpośredniego.",
     videoCodec: "Kodek wideo",
     videoCodecAny: "Najlepszy dostępny",
     audioBitrate: "Bitrate audio",
