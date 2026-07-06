@@ -459,6 +459,7 @@ export function SettingsModal({
               checked={form.default_embed_subs}
               onChange={(v) => set("default_embed_subs", v)}
               label={t("settings.defaultEmbedSubs")}
+              help={<EmbedSubsHelp />}
               className="w-full"
             />
             <Toggle
@@ -1080,6 +1081,16 @@ function AudioFormatHelp() {
   return (
     <HelpPopover label={t("settings.defaultAudioFormat")}>
       {t("settings.defaultAudioFormatHint")}
+    </HelpPopover>
+  );
+}
+
+/** "?" help for embed-subtitles: only MKV can carry them cleanly. */
+function EmbedSubsHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.defaultEmbedSubs")}>
+      {t("settings.defaultEmbedSubsHint")}
     </HelpPopover>
   );
 }

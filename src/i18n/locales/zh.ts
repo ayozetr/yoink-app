@@ -198,6 +198,7 @@ export const zh = {
     nfoSidecars: "生成 .nfo 文件",
     nfoSidecarsHelp: "在每个下载文件旁生成 Kodi/Jellyfin 风格的 .nfo 元数据文件，让媒体服务器读取你的准确信息。",
     defaultEmbedSubs: "默认嵌入字幕",
+    defaultEmbedSubsHint: "仅 MKV 视频格式支持；MP4 或 MOV 等其他格式不允许。",
     defaultEmbedChapters: "默认嵌入章节",
     secDownloads: "下载",
     catGeneral: "常规",
@@ -216,13 +217,12 @@ export const zh = {
     qualityBest: "最佳可用",
     defaultContainer: "默认视频格式",
     defaultAudioFormat: "默认音频格式",
-    defaultAudioFormatHint:
-      "只有当源本身无损时，FLAC 和 WAV 才真正无损，而几乎所有平台（YouTube 等）只提供压缩音频。若内容并非无损，分析时会提示你，Yoink 会改用 MP3（避免音质无提升的超大文件）。",
+    defaultAudioFormatHint: "FLAC 和 WAV 用于无损音频；大多数网站不提供兼容内容，因此这些情况下将使用 MP3。",
     rateLimit: "带宽限制",
     rateLimitNone: "不限制",
     proxy: "代理",
     proxyHelp:
-      "通过 HTTP/HTTPS/SOCKS 代理转发元数据和下载（例如 socks5://127.0.0.1:1080）。留空则使用直接连接。",
+      "通过 HTTP/HTTPS/SOCKS 代理转发元数据和下载。留空则使用直接连接。",
     videoCodec: "视频编码",
     videoCodecAny: "最佳可用",
     audioBitrate: "音频比特率",
