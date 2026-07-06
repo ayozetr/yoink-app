@@ -1,6 +1,6 @@
 [package]
 name = "yoink"
-version = "2.8.0"
+version = "2.9.0"
 description = "Yoink — local high-fidelity media downloader"
 authors = ["Ayoze Torres"]
 edition = "2021"
