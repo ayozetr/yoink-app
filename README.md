@@ -11,100 +11,54 @@
 
 ![Yoink — analyzing a video with the YouTube/SoundCloud search toggle, format/quality picker and download history sidebar](docs/screenshot_v2.0.0.png)
 
-Yoink is a **local** desktop/web app for downloading high-fidelity video and
-audio from many platforms, powered exclusively by
-[yt-dlp](https://github.com/yt-dlp/yt-dlp) (with [ffmpeg](https://ffmpeg.org/)
-for merging high-quality streams).
-
-It is split into two layers that communicate asynchronously:
-
-- **Frontend** — React + TypeScript + Tailwind CSS (Vite). A reactive, dark-mode
-  UI (14 languages) that shows previews, lets you pick the container/format,
-  quality, subtitles and chapters, and reflects download progress in real time.
-- **Backend** — Python + FastAPI (in `backend/`). Wraps yt-dlp, manages the local
-  filesystem, and invokes ffmpeg. Metadata is served over REST (`POST /api/info`);
-  downloads stream live progress to the UI over a WebSocket (`/api/ws/download`).
+**Yoink** is a **local** desktop app for downloading high-fidelity video and audio
+from ~1800 sites — a clean, dark UI over
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/). Paste a
+link (or a whole Spotify / YouTube playlist), pick your format, and it's yours: real
+previews, live progress, and automatic music tagging. **Nothing leaves your machine
+but the download itself** — no account, no telemetry, no cloud.
 
 ## Features
 
-- **Analyze any URL** (with a **paste-from-clipboard** button) → preview (title,
-  thumbnail, duration) with the real available formats. ~1800 sites via yt-dlp.
-- **Search from the URL field** — type a query instead of a URL and pick a result
-  from the live dropdown (thumbnail, channel, views); a header toggle switches the
-  search between **YouTube** and **SoundCloud**.
-- **Import from music services** — paste a track/album/playlist URL from
-  **Spotify, Deezer, Apple Music, Tidal or Amazon Music** (no account or API key);
-  Yoink finds the best YouTube match for each song, downloads the audio, and tags
-  it with the *exact* source metadata + cover art. ~99.5% match rate on real
-  playlists. The audio is never taken from the service — only its metadata.
-- **Live downloads** over WebSocket (percent / speed / ETA), with **cancel**
-  and **retry**.
-- **Output formats, your choice:**
-  - Video — **MP4**, **MOV** or **MKV** (ffmpeg merge), with optional
-    **embedded subtitles** (language picker) and **chapters/metadata**.
-  - Audio — **MP3**, **M4A**, plus **FLAC**/**WAV** that are only offered when
-    the source is genuinely lossless (no fake upscaling).
-- **Trim / clip** — a scissors button to download only a time range (e.g.
-  `0:30 → 2:10`) of a video or audio.
-- **Download presets** — save a format/quality/container/subtitles combo as a
-  named preset and apply it to any video in one click.
-- **Immersive / VR video** — detects 180°/360° clips (SBS · TB · mono ·
-  fisheye / MKX / RF5.2) and tags the file so VR players (Quest / DeoVR /
-  Heresphere) show it in 3D: a projection name suffix **plus injected Spherical
-  Video V2 metadata** (`st3d`/`sv3d`). Shown only when detected; you confirm or
-  fix the layout, and it's remembered per channel.
-- **Playlists** — pick which items to download (a cover, a **filter** for long
-  lists, **Shift+click** range selection); they download sequentially with
-  "X of N" progress, **resume** if interrupted, and offer **retry-failed** when
-  some items don't finish. Re-analyzing a growing playlist **pre-selects only what's
-  new** (a "Downloaded" badge on the rest — *playlist sync*). VR tagging applies to
-  the whole batch.
-- **Download queue** — paste many links, or a whole **album/playlist**, with the
-  queue's own **format picker**. A music-service or video **playlist URL becomes one
-  collapsible group** whose tracks you **select individually** — music is routed
-  through the importer (match → audio → tag), so DRM-protected links don't fail — and
-  every row is labelled with its source. **Skip** the current item (vs **Stop** the
-  whole run), **drag to reorder** live, follow the batch on a **whole-queue progress
-  bar** ("N of M downloaded"), and it **persists across restarts** and **resumes**
-  interrupted items.
-- **Audio auto-tagging** — after an audio download, an inline card tags the file
-  with real artist / album / title / year + **cover art** from **Apple Music,
-  Deezer or MusicBrainz** (free, no account; pick one — or Automatic — in
-  Settings); you review, edit or search before anything is written. Works per
-  song and across whole playlists.
-- **Lyrics** (optional, off by default) — during auto-tagging, look the song up
-  on **LRCLIB** (free, keyless) and embed its lyrics in the file, with an
-  in-card indicator + a "view lyrics" popup and an optional synced **`.lrc`
-  sidecar** for karaoke-capable players.
-- **Loudness normalization** (optional, off by default) — level every audio
-  download to **-14 LUFS** (EBU R128, the Spotify/YouTube target) with a two-pass
-  ffmpeg `loudnorm`, so quiet and loud tracks all play back at the same volume.
-- **SponsorBlock** (optional, off by default) — strip or just mark sponsor /
-  intro / outro segments on YouTube downloads, chosen in Settings.
-- **History & stats** persisted locally (SQLite), with quality (resolution /
-  bitrate), re-tagging, and **cover art** for tagged
-  audio, open file / folder, and clear.
-- **Settings** — download folder (defaults to your OS Downloads folder, whatever
-  its localized name), default format/quality (up to **4K / best**), **default
-  subtitles/chapters embedding**, **lyrics** and **`.nfo` sidecars**, **filename
-  template**, **video codec**, **audio bitrate** & optional **loudness
-  normalization**, **bandwidth limit**, **proxy**
-  (http/socks), **language**, and cookies (browser — with icons — or
-  `cookies.txt`; the browser store falls back to the file if it can't be read).
-- **Desktop notifications** when a download finishes, **taskbar/title progress**,
-  and keyboard shortcuts (Ctrl/Cmd+L focus URL, Ctrl/Cmd+Shift+V paste-and-analyze,
-  Ctrl/Cmd+, settings).
-- **14 UI languages** (react-i18next: EN/ES/FR/DE/IT/PT-BR/RU/PL/UK/ID/HI/ZH/JA/KO), auto-detected from your system
-  language and switchable in Settings.
-- **Automatic updates** (on by default, togglable off — the app only; yt-dlp stays
-  owner-managed) — checks the latest GitHub release on launch and, when a newer one
-  exists, shows an in-app **banner + desktop notification** and can **self-update in
-  place** behind a progress popup, plus a **"What's new"** popup after updating.
-  Settings also shows the bundled **yt-dlp version** and whether a newer one is out.
-- **Self-contained desktop app** (Tauri, Linux & Windows): bundles the backend
-  **and ffmpeg** in a one-folder build — no Python or ffmpeg install needed.
+**⬇️ Download**
+- **Paste any URL** or **search from the field** — preview with the real formats,
+  from ~1800 sites; a header toggle searches **YouTube** or **SoundCloud**.
+- **Any format** — MP4 / MOV / MKV video (optional subtitles + chapters) or
+  MP3 / M4A / FLAC / WAV audio, up to **4K**.
+- **Trim** a clip, save **presets**, and follow **live progress** (speed / ETA,
+  with cancel + retry).
+- **VR / 180°–360°** auto-detected and tagged so Quest / DeoVR / Heresphere play
+  it in 3D.
 
-## Quick start
+**🎵 Music**
+- **Import from Spotify, Deezer, Apple Music, Tidal or Amazon** (no account) —
+  Yoink finds the best YouTube match and tags it with the *exact* source
+  metadata and cover art.
+- **Auto-tag** audio downloads (artist / album / cover) from Apple Music, Deezer
+  or MusicBrainz, with a review step.
+- **Lyrics** (LRCLIB) and **loudness normalization** to −14 LUFS — both optional.
+
+**📋 Batches & library**
+- **Playlists & a paste-many queue** — pick items, download in order, **resume**
+  after a crash, drag to reorder or skip live; *playlist sync* pre-selects only
+  what's new.
+- **History & stats** kept locally (SQLite), with re-tagging, cover art and
+  one-click open.
+
+**🖥️ The app**
+- **Self-contained desktop app** (Tauri · Linux + Windows) — bundles the backend
+  **and ffmpeg**, so there's nothing else to install.
+- **14 languages**, dark UI, desktop notifications, keyboard shortcuts,
+  **auto-updates**, SponsorBlock, and cookies / proxy support.
+
+## Install
+
+**Just want the app?** Download the installer for your OS from the
+**[latest release](https://github.com/ayozetr/yoink-app/releases/latest)** — Linux
+(AppImage · deb · rpm) or Windows (msi · NSIS). It's self-contained (no Python or
+ffmpeg to install) and updates itself.
+
+## Run from source
 
 ```bash
 python scripts/setup.py    # one-time: venv + backend deps + npm install
@@ -127,6 +81,10 @@ Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1); on Windows,
 WebView2 + MSVC build tools. Full flow in [`docs/releasing.md`](docs/releasing.md).
 
 ## Project structure
+
+Two layers that talk asynchronously — a **React + TypeScript + Tailwind** frontend and
+a local **Python + FastAPI + yt-dlp** backend (metadata over REST `POST /api/info`,
+downloads streamed live over a WebSocket `/api/ws/download`):
 
 ```
 src/                      # frontend (React + TS + Tailwind)
