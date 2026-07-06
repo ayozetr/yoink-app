@@ -310,6 +310,13 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **`yoink://` deep link** (M · **high**) — enables "send to Yoink" from anywhere,
   sidestepping the local-CORS lock; single-instance already focuses the window.
 - ⬜ **System tray + close-to-tray + autostart** (S/M) — a true always-on manager.
+- ⬜ **Global hotkey (Tauri `globalShortcut`)** (S) — a system-wide shortcut (e.g.
+  paste-and-analyze the clipboard URL) that fires with Yoink in the background, not
+  only when focused. Today's shortcuts are all in-window keydown listeners. Pairs
+  well with the tray + `yoink://` items above.
+- ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
+  read-only today (it lists the fixed bindings); let the user **rebind** them
+  (persisted), and surface any global hotkey there too.
 - ⬜ **Thin CLI over the local API** (S/M) — `yoink <url>` for scripts.
 - ⬜ **Browser extension** "Download with Yoink" (M) — context-menu → `yoink://`.
 - ⬜ **More distribution channels** — AUR (S) / Flatpak (M) / winget + Chocolatey (M).

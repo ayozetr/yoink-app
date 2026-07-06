@@ -12,6 +12,7 @@ import {
   Globe,
   HelpCircle,
   Info,
+  Keyboard,
   Languages,
   Loader2,
   Monitor,
@@ -162,8 +163,24 @@ const SECTIONS = [
   { id: "processing", labelKey: "settings.secProcessing", icon: <Music size={16} /> },
   { id: "sponsorblock", labelKey: "settings.sponsorblock", icon: <Shield size={16} /> },
   { id: "network", labelKey: "settings.secNetwork", icon: <Globe size={16} /> },
+  { id: "shortcuts", labelKey: "settings.catShortcuts", icon: <Keyboard size={16} /> },
   { id: "about", labelKey: "settings.catAbout", icon: <Info size={16} /> },
 ] as const;
+
+// Keyboard shortcuts shown (read-only) in the Shortcuts section. `mod` is the
+// platform modifier (⌘ on macOS, Ctrl elsewhere); "⇧" is Shift.
+const SHORTCUTS = [
+  { labelKey: "settings.shortcutFocusUrl", keys: (mod: string) => [mod, "L"] },
+  { labelKey: "settings.shortcutSettings", keys: (mod: string) => [mod, ","] },
+  {
+    labelKey: "settings.shortcutPasteAnalyze",
+    keys: (mod: string) => [mod, "⇧", "V"],
+  },
+  { labelKey: "settings.shortcutCloseModal", keys: () => ["Esc"] },
+] as const;
+const IS_MAC =
+  typeof navigator !== "undefined" && /mac/i.test(navigator.userAgent);
+const SHORTCUT_MOD = IS_MAC ? "⌘" : "Ctrl";
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
@@ -716,6 +733,32 @@ export function SettingsModal({
             />
           </Field>
                 </>
+              )}
+
+              {section === "shortcuts" && (
+                <div className="flex flex-col gap-0.5">
+                  {SHORTCUTS.map((s) => (
+                    <div
+                      key={s.labelKey}
+                      className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm"
+                    >
+                      <span className="text-zinc-200">{t(s.labelKey)}</span>
+                      <span className="flex items-center gap-1">
+                        {s.keys(SHORTCUT_MOD).map((k, i) => (
+                          <kbd
+                            key={i}
+                            className="inline-flex min-w-[1.75rem] items-center justify-center rounded-md border border-white/15 bg-white/[0.06] px-1.5 py-0.5 font-sans text-xs text-zinc-300 shadow-sm"
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </span>
+                    </div>
+                  ))}
+                  <p className="mt-2 px-3 text-xs text-zinc-500">
+                    {t("settings.shortcutsNote")}
+                  </p>
+                </div>
               )}
 
               {section === "about" && (
