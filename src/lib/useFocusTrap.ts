@@ -23,7 +23,25 @@ export function useFocusTrap<T extends HTMLElement>(active = true) {
         (el) => el.offsetParent !== null,
       );
 
-    (items()[0] ?? container).focus();
+    const focusables = items();
+    (focusables[0] ?? container).focus();
+
+    // When nothing is focusable yet — a dialog whose fields mount later (a cold
+    // React.lazy chunk, or content gated behind a fetch) — focus parks on the
+    // container. Watch for the first field to appear and move focus to it once it
+    // does, as long as focus is still on the container (don't yank it from the user).
+    let fieldWatcher: MutationObserver | null = null;
+    if (!focusables.length) {
+      fieldWatcher = new MutationObserver(() => {
+        const first = items()[0];
+        if (first && document.activeElement === container) {
+          first.focus();
+          fieldWatcher?.disconnect();
+          fieldWatcher = null;
+        }
+      });
+      fieldWatcher.observe(container, { childList: true, subtree: true });
+    }
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
@@ -46,6 +64,7 @@ export function useFocusTrap<T extends HTMLElement>(active = true) {
     container.addEventListener("keydown", onKey);
     return () => {
       container.removeEventListener("keydown", onKey);
+      fieldWatcher?.disconnect();
       previouslyFocused?.focus?.();
     };
   }, [active]);
