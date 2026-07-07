@@ -36,7 +36,12 @@ import {
 import { setWindowProgress } from "../../lib/windowProgress";
 import { notify } from "../../lib/notify";
 import { useEventCallback } from "../../lib/useEventCallback";
-import { onGlobalHotkey } from "../../lib/desktop";
+import {
+  onGlobalCancel,
+  onGlobalHotkey,
+  onGlobalPaste,
+  onGlobalQuickDownload,
+} from "../../lib/desktop";
 import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
@@ -383,6 +388,48 @@ export function DownloaderPanel({
     }
   });
 
+  // Focus + paste, no analyze (global Ctrl/⌘+Shift+P): drop the clipboard into the
+  // URL field so the user can edit it before analyzing.
+  const focusPaste = useEventCallback(async () => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (text) setUrl(text);
+    } catch {
+      // Clipboard unavailable / blocked — ignore.
+    }
+  });
+
+  // Quick-download the clipboard URL with the default settings, without opening the
+  // window (global Ctrl/⌘+Shift+D). The finish notification reports the result.
+  const quickDownload = useEventCallback(async () => {
+    try {
+      const url = (await navigator.clipboard.readText()).trim();
+      if (!url) return;
+      const kind = defaultKind ?? "video";
+      setLastKind(kind);
+      startQueue([
+        {
+          request: {
+            url,
+            kind,
+            quality: defaultQuality ?? "best",
+            container: "mp4",
+            audio_format: defaultAudioFormat ?? "mp3",
+            embed_subs: defaultEmbedSubs ?? false,
+            embed_chapters: defaultEmbedChapters ?? false,
+            audio_multistreams: false,
+            is_vr: false,
+            vr_layout: "180_sbs",
+            auto_vr: kind === "video",
+          },
+          title: url,
+        },
+      ]);
+    } catch {
+      // Clipboard unavailable / blocked — ignore.
+    }
+  });
+
   // Paste-and-analyze via Ctrl/Cmd+Shift+V.
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
@@ -395,15 +442,22 @@ export function DownloaderPanel({
     return () => window.removeEventListener("keydown", onKeydown);
   }, [pasteAndAnalyze]);
 
-  // Desktop global hotkey (Ctrl/⌘+Shift+Y): Rust brings the window to the front and
-  // fires this event, which paste-and-analyzes the clipboard. No-op in the browser.
+  // Cancel the active download (global Ctrl/⌘+Shift+X). Stable identity so the
+  // listener effect below doesn't re-subscribe every render.
+  const cancelActive = useEventCallback(() => handleCancel());
+
+  // Desktop global hotkeys: Rust fires an event per shortcut; wire each to its
+  // action. No-op in the browser.
   useEffect(() => {
-    let unlisten = () => {};
-    void onGlobalHotkey(() => void pasteAndAnalyze()).then((fn) => {
-      unlisten = fn;
-    });
-    return () => unlisten();
-  }, [pasteAndAnalyze]);
+    const unlisteners: Array<() => void> = [];
+    void Promise.all([
+      onGlobalHotkey(() => void pasteAndAnalyze()),
+      onGlobalPaste(() => void focusPaste()),
+      onGlobalQuickDownload(() => void quickDownload()),
+      onGlobalCancel(() => cancelActive()),
+    ]).then((fns) => unlisteners.push(...fns));
+    return () => unlisteners.forEach((fn) => fn());
+  }, [pasteAndAnalyze, focusPaste, quickDownload, cancelActive]);
 
   const handleDownload = (selection: DownloadSelection) => {
     // The analyzed source URL, not the live field (which the user may have

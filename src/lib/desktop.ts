@@ -40,28 +40,43 @@ export async function setGlobalHotkey(enabled: boolean): Promise<void> {
   await call("set_global_hotkey", { enabled });
 }
 
-/** Push the three desktop settings to the Rust shell (called on load + on save). */
+/** Push the desktop settings to the Rust shell (called on load + on save). */
 export async function syncDesktopSettings(s: {
   minimize_to_tray: boolean;
   launch_at_startup: boolean;
-  global_hotkey: boolean;
+  disable_global_hotkeys: boolean;
 }): Promise<void> {
   if (!isTauri()) return;
   await setMinimizeToTray(s.minimize_to_tray);
   await setAutostart(s.launch_at_startup);
-  await setGlobalHotkey(s.global_hotkey);
+  // Inverted setting: global shortcuts are off by default, so register only when the
+  // user has NOT disabled them.
+  await setGlobalHotkey(!s.disable_global_hotkeys);
 }
 
 /**
- * Subscribe to the global-shortcut trigger emitted by Rust. Returns an unlisten
+ * Subscribe to a Tauri event emitted by the Rust shell. Returns an unlisten
  * function; no-ops (returns a no-op) outside Tauri.
  */
-export async function onGlobalHotkey(handler: () => void): Promise<() => void> {
+async function onEvent(name: string, handler: () => void): Promise<() => void> {
   if (!isTauri()) return () => {};
   try {
     const { listen } = await import("@tauri-apps/api/event");
-    return await listen("global-hotkey", () => handler());
+    return await listen(name, () => handler());
   } catch {
     return () => {};
   }
 }
+
+/** Global "bring to front + paste-and-analyze" (Ctrl/⌘+Shift+Y). */
+export const onGlobalHotkey = (h: () => void) => onEvent("global-hotkey", h);
+/** Global "quick-download the clipboard without showing the window" (Ctrl/⌘+Shift+D). */
+export const onGlobalQuickDownload = (h: () => void) =>
+  onEvent("global-quick-download", h);
+/** Global "bring to front + paste, no analyze" (Ctrl/⌘+Shift+P). */
+export const onGlobalPaste = (h: () => void) => onEvent("global-paste", h);
+/** Global "cancel the current download" (Ctrl/⌘+Shift+X). */
+export const onGlobalCancel = (h: () => void) => onEvent("global-cancel", h);
+/** Global "open the downloads folder" (Ctrl/⌘+Shift+F). */
+export const onGlobalOpenFolder = (h: () => void) =>
+  onEvent("global-open-folder", h);

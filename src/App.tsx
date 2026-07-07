@@ -8,7 +8,7 @@ import { UpdatingModal } from "./components/ui/UpdatingModal";
 import { useFocusTrap } from "./lib/useFocusTrap";
 import { checkForUpdate, installUpdate, type UpdateCheck } from "./lib/updater";
 import { notify } from "./lib/notify";
-import { syncDesktopSettings } from "./lib/desktop";
+import { onGlobalOpenFolder, syncDesktopSettings } from "./lib/desktop";
 import type { Update } from "@tauri-apps/plugin-updater";
 
 /** The "available" variant of an update check (carries the installable Update). */
@@ -173,6 +173,18 @@ export default function App() {
   useEffect(() => {
     if (settings) void syncDesktopSettings(settings);
   }, [settings]);
+
+  // Desktop global shortcut "open downloads folder" (Ctrl/⌘+Shift+F): reveal the
+  // configured download directory in the OS file manager. No-op in the browser.
+  useEffect(() => {
+    let unlisten = () => {};
+    void onGlobalOpenFolder(() => {
+      void openInFileManager(settings?.download_dir ?? null, true);
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten();
+  }, [settings?.download_dir]);
 
   // Download + install the update (from the banner or Settings). The app relaunches
   // on success, so the "downloading" modal stays up until then; dismiss it on error.

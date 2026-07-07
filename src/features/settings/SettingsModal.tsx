@@ -13,7 +13,6 @@ import {
   HelpCircle,
   Info,
   Keyboard,
-  Languages,
   Loader2,
   Monitor,
   Music,
@@ -159,13 +158,12 @@ const COOKIE_BROWSERS = [
 
 /** Left-rail categories for the settings modal (sidebar + content panel). */
 const SECTIONS = [
-  { id: "general", labelKey: "settings.catGeneral", icon: <Languages size={16} /> },
+  { id: "general", labelKey: "settings.catGeneral", icon: <Monitor size={16} /> },
   { id: "downloads", labelKey: "settings.secDownloads", icon: <Download size={16} /> },
   { id: "quality", labelKey: "settings.secQuality", icon: <SlidersHorizontal size={16} /> },
   { id: "processing", labelKey: "settings.secProcessing", icon: <Music size={16} /> },
   { id: "sponsorblock", labelKey: "settings.sponsorblock", icon: <Shield size={16} /> },
   { id: "network", labelKey: "settings.secNetwork", icon: <Globe size={16} /> },
-  { id: "system", labelKey: "settings.catSystem", icon: <Monitor size={16} /> },
   { id: "shortcuts", labelKey: "settings.catShortcuts", icon: <Keyboard size={16} /> },
   { id: "about", labelKey: "settings.catAbout", icon: <Info size={16} /> },
 ] as const;
@@ -181,9 +179,34 @@ const SHORTCUTS = [
     desktopOnly: false,
   },
   {
-    // Global (desktop-only, opt-in): mirrors the `global_hotkey` toggle in Desktop.
+    // Global (desktop-only): the Tauri shell registers these when enabled.
     labelKey: "settings.shortcutGlobalPaste",
     keys: (mod: string) => [mod, "⇧", "Y"],
+    desktopOnly: true,
+  },
+  {
+    labelKey: "settings.shortcutGlobalToggle",
+    keys: (mod: string) => [mod, "⇧", "O"],
+    desktopOnly: true,
+  },
+  {
+    labelKey: "settings.shortcutGlobalQuick",
+    keys: (mod: string) => [mod, "⇧", "D"],
+    desktopOnly: true,
+  },
+  {
+    labelKey: "settings.shortcutGlobalFocusPaste",
+    keys: (mod: string) => [mod, "⇧", "P"],
+    desktopOnly: true,
+  },
+  {
+    labelKey: "settings.shortcutGlobalCancel",
+    keys: (mod: string) => [mod, "⇧", "X"],
+    desktopOnly: true,
+  },
+  {
+    labelKey: "settings.shortcutGlobalFolder",
+    keys: (mod: string) => [mod, "⇧", "F"],
     desktopOnly: true,
   },
   { labelKey: "settings.shortcutCloseModal", keys: () => ["Esc"], desktopOnly: false },
@@ -192,6 +215,26 @@ const IS_MAC =
   typeof navigator !== "undefined" && /mac/i.test(navigator.userAgent);
 const SHORTCUT_MOD = IS_MAC ? "⌘" : "Ctrl";
 type SectionId = (typeof SECTIONS)[number]["id"];
+
+/** One shortcut row: its label + the key combo as <kbd> chips. */
+function ShortcutRow({ shortcut }: { shortcut: (typeof SHORTCUTS)[number] }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm">
+      <span className="text-zinc-200">{t(shortcut.labelKey)}</span>
+      <span className="flex items-center gap-1">
+        {shortcut.keys(SHORTCUT_MOD).map((k, i) => (
+          <kbd
+            key={i}
+            className="inline-flex min-w-[1.75rem] items-center justify-center rounded-md border border-white/15 bg-white/[0.06] px-1.5 py-0.5 font-sans text-xs text-zinc-300 shadow-sm"
+          >
+            {k}
+          </kbd>
+        ))}
+      </span>
+    </div>
+  );
+}
 
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
 export function SettingsModal({
@@ -318,7 +361,7 @@ export function SettingsModal({
 
         <div className="flex min-h-0 flex-1">
           <nav className="flex w-44 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-white/10 p-3">
-            {SECTIONS.filter((s) => s.id !== "system" || isTauri()).map((s) => (
+            {SECTIONS.map((s) => (
               <button
                 key={s.id}
                 type="button"
@@ -376,6 +419,23 @@ export function SettingsModal({
                     label={t("settings.notifyOnComplete")}
                     className="w-full"
                   />
+                  {isTauri() && (
+                    <>
+                      <Toggle
+                        checked={form.minimize_to_tray}
+                        onChange={(v) => set("minimize_to_tray", v)}
+                        label={t("settings.minimizeToTray")}
+                        help={<MinimizeToTrayHelp />}
+                        className="w-full"
+                      />
+                      <Toggle
+                        checked={form.launch_at_startup}
+                        onChange={(v) => set("launch_at_startup", v)}
+                        label={t("settings.launchAtStartup")}
+                        className="w-full"
+                      />
+                    </>
+                  )}
                 </>
               )}
 
@@ -749,58 +809,27 @@ export function SettingsModal({
                 </>
               )}
 
-              {section === "system" && (
-                <>
-                  <p className="text-xs text-zinc-500">
-                    {t("settings.systemIntro")}
-                  </p>
-                  <Toggle
-                    checked={form.minimize_to_tray}
-                    onChange={(v) => set("minimize_to_tray", v)}
-                    label={t("settings.minimizeToTray")}
-                    help={<MinimizeToTrayHelp />}
-                    className="w-full"
-                  />
-                  <Toggle
-                    checked={form.launch_at_startup}
-                    onChange={(v) => set("launch_at_startup", v)}
-                    label={t("settings.launchAtStartup")}
-                    className="w-full"
-                  />
-                  <Toggle
-                    checked={form.global_hotkey}
-                    onChange={(v) => set("global_hotkey", v)}
-                    label={t("settings.globalHotkey")}
-                    help={<GlobalHotkeyHelp />}
-                    className="w-full"
-                  />
-                </>
-              )}
-
               {section === "shortcuts" && (
                 <div className="flex flex-col gap-0.5">
-                  {SHORTCUTS.filter((s) => !s.desktopOnly || isTauri()).map((s) => (
-                    <div
-                      key={s.labelKey}
-                      className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm"
-                    >
-                      <span className="text-zinc-200">{t(s.labelKey)}</span>
-                      <span className="flex items-center gap-1">
-                        {s.keys(SHORTCUT_MOD).map((k, i) => (
-                          <kbd
-                            key={i}
-                            className="inline-flex min-w-[1.75rem] items-center justify-center rounded-md border border-white/15 bg-white/[0.06] px-1.5 py-0.5 font-sans text-xs text-zinc-300 shadow-sm"
-                          >
-                            {k}
-                          </kbd>
-                        ))}
-                      </span>
-                    </div>
+                  {SHORTCUTS.filter((s) => !s.desktopOnly).map((s) => (
+                    <ShortcutRow key={s.labelKey} shortcut={s} />
                   ))}
                   {isTauri() && (
-                    <p className="mt-1 px-3 text-xs text-zinc-500">
-                      {t("settings.shortcutGlobalNote")}
-                    </p>
+                    <>
+                      <p className="mb-0.5 mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {t("settings.shortcutsGlobal")}
+                      </p>
+                      {SHORTCUTS.filter((s) => s.desktopOnly).map((s) => (
+                        <ShortcutRow key={s.labelKey} shortcut={s} />
+                      ))}
+                      <Toggle
+                        checked={form.disable_global_hotkeys}
+                        onChange={(v) => set("disable_global_hotkeys", v)}
+                        label={t("settings.disableGlobalHotkeys")}
+                        help={<DisableGlobalHotkeysHelp />}
+                        className="mt-1.5 w-full"
+                      />
+                    </>
                   )}
                   <p className="mt-2 px-3 text-xs text-zinc-500">
                     {t("settings.shortcutsNote")}
@@ -1183,14 +1212,15 @@ function MinimizeToTrayHelp() {
   );
 }
 
-function GlobalHotkeyHelp() {
+function DisableGlobalHotkeysHelp() {
   const { t } = useTranslation();
   return (
-    <HelpPopover label={t("settings.globalHotkey")}>
-      {t("settings.globalHotkeyHelp")}
+    <HelpPopover label={t("settings.disableGlobalHotkeys")}>
+      {t("settings.disableGlobalHotkeysHelp")}
     </HelpPopover>
   );
 }
+
 
 /** "?" help for the default audio format: FLAC/WAV availability caveat. */
 function AudioFormatHelp() {
