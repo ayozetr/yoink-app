@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { videoQualities } from "./formatOptions";
+import { videoQualities, estimatedSizeBytes } from "./formatOptions";
 import type { VideoInfo } from "../../types/download";
 
 /** Minimal VideoInfo carrying only the fields videoQualities reads. */
@@ -40,5 +40,75 @@ describe("videoQualities", () => {
     // The tier normalisation is YouTube-only; elsewhere the height is untouched.
     expect(videoQualities(info(["1920x818"], "generic"))).toEqual(["818p"]);
     expect(videoQualities(info(["1920x1080"], "vimeo"))).toEqual(["1080p"]);
+  });
+});
+
+/** VideoInfo carrying full format objects (sizes + audio flags) for size estimation. */
+function withFormats(
+  formats: Array<Record<string, unknown>>,
+  extractor = "youtube",
+): VideoInfo {
+  return { extractor, formats } as unknown as VideoInfo;
+}
+
+describe("estimatedSizeBytes", () => {
+  it("returns null for lossless audio (compressed source ≠ output size)", () => {
+    const i = withFormats([
+      { has_audio: true, has_video: false, filesize: 5_000_000 },
+    ]);
+    expect(estimatedSizeBytes(i, "audio", undefined, "flac")).toBeNull();
+    expect(estimatedSizeBytes(i, "audio", undefined, "wav")).toBeNull();
+  });
+
+  it("returns the largest audio-only size for lossy audio", () => {
+    const i = withFormats([
+      { has_audio: true, has_video: false, filesize: 3_000_000 },
+      { has_audio: true, has_video: false, filesize: 5_000_000 },
+      { has_audio: true, has_video: true, filesize: 9_000_000 }, // progressive, ignored
+    ]);
+    expect(estimatedSizeBytes(i, "audio", undefined, "mp3")).toBe(5_000_000);
+  });
+
+  it("returns null for audio when no sizes are known", () => {
+    const i = withFormats([{ has_audio: true, has_video: false, filesize: null }]);
+    expect(estimatedSizeBytes(i, "audio", undefined, "mp3")).toBeNull();
+  });
+
+  it("uses only the video stream when the match is progressive", () => {
+    const i = withFormats([
+      { resolution: "1280x720", has_video: true, has_audio: true, filesize: 8_000_000 },
+      { has_video: false, has_audio: true, filesize: 2_000_000 },
+    ]);
+    expect(estimatedSizeBytes(i, "video", "720p")).toBe(8_000_000);
+  });
+
+  it("adds the best audio-only stream to an adaptive (video-only) match", () => {
+    const i = withFormats([
+      { resolution: "1920x1080", has_video: true, has_audio: false, filesize: 20_000_000 },
+      { has_video: false, has_audio: true, filesize: 4_000_000 },
+    ]);
+    expect(estimatedSizeBytes(i, "video", "1080p")).toBe(24_000_000);
+  });
+
+  it("returns the video-only size when there's no audio stream to add", () => {
+    const i = withFormats([
+      { resolution: "1920x1080", has_video: true, has_audio: false, filesize: 20_000_000 },
+    ]);
+    expect(estimatedSizeBytes(i, "video", "1080p")).toBe(20_000_000);
+  });
+
+  it("returns null when no video format has a known size", () => {
+    const i = withFormats([
+      { resolution: "1920x1080", has_video: true, has_audio: false, filesize: null },
+    ]);
+    expect(estimatedSizeBytes(i, "video", "1080p")).toBeNull();
+  });
+
+  it("picks the largest video stream when no quality target is given", () => {
+    const i = withFormats([
+      { resolution: "1280x720", has_video: true, has_audio: true, filesize: 8_000_000 },
+      { resolution: "1920x1080", has_video: true, has_audio: true, filesize: 15_000_000 },
+    ]);
+    expect(estimatedSizeBytes(i, "video", undefined)).toBe(15_000_000);
   });
 });
