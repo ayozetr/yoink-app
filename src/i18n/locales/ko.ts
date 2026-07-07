@@ -298,6 +298,7 @@ export const ko = {
     autoCheckUpdates: "자동으로 업데이트 확인",
     notifyOnComplete: "다운로드 완료 시 알림",
     donate: "원하신다면 후원해 주실 수 있습니다",
+    terms: "이용약관",
   },
   splash: {
     preparing: "모든 준비를 마치는 중…",

@@ -298,6 +298,7 @@ export const zh = {
     autoCheckUpdates: "自动检查更新",
     notifyOnComplete: "下载完成时通知",
     donate: "如果愿意，你可以进行捐赠",
+    terms: "使用条款与条件",
   },
   splash: {
     preparing: "正在准备一切…",

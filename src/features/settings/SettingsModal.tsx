@@ -32,6 +32,7 @@ import { BrowserIcon } from "../../components/ui/BrowserIcon";
 import { AutotagSourceIcon } from "../../components/ui/AutotagSourceIcon";
 import { WhaleIcon } from "../../components/ui/WhaleIcon";
 import { FlagIcon } from "../../components/ui/FlagIcon";
+import { TermsModal } from "./TermsModal";
 import logoUrl from "../../assets/logo.png";
 import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
@@ -209,6 +210,7 @@ export function SettingsModal({
   );
   // Which sidebar category is showing in the content panel.
   const [section, setSection] = useState<SectionId>("general");
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const pickFolder = async () => {
     const dir = await pickDirectory(form.download_dir);
@@ -274,6 +276,7 @@ export function SettingsModal({
   };
 
   return (
+    <>
     <div
       role="presentation"
       onClick={onClose}
@@ -322,7 +325,7 @@ export function SettingsModal({
           </nav>
 
           <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
-            <div className="flex flex-col gap-4">
+            <div className="flex min-h-full flex-col gap-4">
               {section === "general" && (
                 <>
                   <Field label={t("settings.language")}>
@@ -894,6 +897,13 @@ export function SettingsModal({
             {t("settings.donate")}
           </a>
         </div>
+        <button
+          type="button"
+          onClick={() => setTermsOpen(true)}
+          className="mt-auto self-start px-3 text-[11px] text-zinc-500 transition hover:text-zinc-300"
+        >
+          {t("settings.terms")}
+        </button>
                 </>
               )}
             </div>
@@ -923,6 +933,8 @@ export function SettingsModal({
         </div>
       </GlassPanel>
     </div>
+    {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
+    </>
   );
 }
 

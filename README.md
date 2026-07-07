@@ -117,6 +117,14 @@ share-alike) — see [`LICENSE`](LICENSE). Bundled third-party components keep
 their own licenses (ffmpeg = LGPL, yt-dlp = Unlicense); see
 [`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md).
 
+## Disclaimer
+
+Yoink is a personal tool for downloading media you are **entitled to access**
+(content you own, public-domain, openly licensed, or with the rights holder's
+permission). It is **not** for piracy or copyright infringement, and by using it you
+accept that **you alone** are responsible for how you use it and for complying with
+all applicable laws and platform terms. Full text: [`DISCLAIMER.md`](DISCLAIMER.md).
+
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions

@@ -298,6 +298,7 @@ export const ja = {
     autoCheckUpdates: "自動的に更新を確認",
     notifyOnComplete: "ダウンロード完了時に通知",
     donate: "よろしければ、寄付でご支援いただけます",
+    terms: "利用規約",
   },
   splash: {
     preparing: "準備しています…",

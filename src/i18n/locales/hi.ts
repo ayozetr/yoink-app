@@ -298,6 +298,7 @@ export const hi = {
     autoCheckUpdates: "स्वचालित रूप से अपडेट जांचें",
     notifyOnComplete: "डाउनलोड पूरा होने पर सूचित करें",
     donate: "अगर आप चाहें, तो दान कर सकते हैं",
+    terms: "उपयोग की शर्तें",
   },
   splash: {
     preparing: "सब कुछ तैयार किया जा रहा है…",

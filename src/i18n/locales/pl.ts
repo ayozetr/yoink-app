@@ -302,6 +302,7 @@ export const pl = {
     autoCheckUpdates: "Automatycznie sprawdzaj aktualizacje",
     notifyOnComplete: "Powiadamiaj o zakończeniu pobierania",
     donate: "Jeśli chcesz, możesz przekazać darowiznę",
+    terms: "Warunki korzystania",
   },
   splash: {
     preparing: "Przygotowywanie wszystkiego…",

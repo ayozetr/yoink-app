@@ -298,6 +298,7 @@ export const de = {
     autoCheckUpdates: "Automatisch nach Updates suchen",
     notifyOnComplete: "Benachrichtigen, wenn ein Download fertig ist",
     donate: "Wenn du möchtest, kannst du eine Spende machen",
+    terms: "Nutzungsbedingungen",
   },
   splash: {
     preparing: "Bereite alles vor…",

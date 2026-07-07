@@ -54,8 +54,11 @@ function inline(text: string, keyBase: string): ReactNode[] {
 export function Markdown({ source }: { source: string }) {
   const blocks: ReactNode[] = [];
   let bullets: string[] = [];
+  // Wrapped source lines belonging to one paragraph are collected here and joined
+  // before inline parsing, so `**bold**` that spans two lines still renders.
+  let para: string[] = [];
 
-  const flush = (key: string) => {
+  const flushBullets = (key: string) => {
     if (!bullets.length) return;
     const items = bullets;
     bullets = [];
@@ -67,45 +70,59 @@ export function Markdown({ source }: { source: string }) {
       </ul>,
     );
   };
+  const flushPara = (key: string) => {
+    if (!para.length) return;
+    const text = para.join(" ");
+    para = [];
+    blocks.push(
+      <p key={key} className="my-2 leading-relaxed">
+        {inline(text, key)}
+      </p>,
+    );
+  };
+  const flushAll = (key: string) => {
+    flushPara(`${key}p`);
+    flushBullets(`${key}l`);
+  };
 
   source.split("\n").forEach((raw, idx) => {
     const line = raw.trimEnd();
     const key = `b${idx}`;
     if (/^###\s+/.test(line)) {
-      flush(`${key}l`);
+      flushAll(key);
       blocks.push(
         <h4 key={key} className="mb-1 mt-4 text-sm font-semibold text-white">
           {inline(line.replace(/^###\s+/, ""), key)}
         </h4>,
       );
     } else if (/^##\s+/.test(line)) {
-      flush(`${key}l`);
+      flushAll(key);
       blocks.push(
         <h3 key={key} className="mb-1.5 mt-5 text-base font-semibold text-white">
           {inline(line.replace(/^##\s+/, ""), key)}
         </h3>,
       );
     } else if (/^#\s+/.test(line)) {
-      flush(`${key}l`);
+      flushAll(key);
       blocks.push(
         <h2 key={key} className="mb-2 mt-5 text-lg font-bold text-white">
           {inline(line.replace(/^#\s+/, ""), key)}
         </h2>,
       );
+    } else if (/^-{3,}$/.test(line.trim())) {
+      flushAll(key);
+      blocks.push(<hr key={key} className="my-4 border-white/10" />);
     } else if (/^\s*[-*]\s+/.test(line)) {
+      flushPara(`${key}p`);
       bullets.push(line.replace(/^\s*[-*]\s+/, ""));
     } else if (line.trim() === "") {
-      flush(`${key}l`);
+      flushAll(key);
     } else {
-      flush(`${key}l`);
-      blocks.push(
-        <p key={key} className="my-2 leading-relaxed">
-          {inline(line, key)}
-        </p>,
-      );
+      flushBullets(`${key}l`);
+      para.push(line);
     }
   });
-  flush("bend");
+  flushAll("bend");
 
   return <div className="text-sm text-zinc-300">{blocks}</div>;
 }

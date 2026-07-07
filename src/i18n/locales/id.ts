@@ -298,6 +298,7 @@ export const id = {
     autoCheckUpdates: "Periksa pembaruan otomatis",
     notifyOnComplete: "Beri tahu saat unduhan selesai",
     donate: "Jika berkenan, Anda dapat memberikan donasi",
+    terms: "Syarat & Ketentuan Penggunaan",
   },
   splash: {
     preparing: "Menyiapkan semuanya…",
