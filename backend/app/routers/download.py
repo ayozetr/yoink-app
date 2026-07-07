@@ -35,8 +35,17 @@ logger = logging.getLogger(__name__)
 _origin_pattern = re.compile(settings.cors_origin_regex)
 
 
-async def _watch_for_cancel(websocket: WebSocket, cancel_event: threading.Event) -> None:
-    """Set the cancel flag as soon as the client closes the socket."""
+async def _watch_for_cancel(
+    websocket: WebSocket,
+    cancel_event: threading.Event,
+    disconnect_signal: asyncio.Event,
+) -> None:
+    """Set the cancel flags as soon as the client closes the socket.
+
+    ``cancel_event`` (a threading event) stops the running yt-dlp worker;
+    ``disconnect_signal`` (asyncio-awaitable) also wakes a job still queued on the
+    download lock so it doesn't hang on a dead socket until the first job finishes.
+    """
     try:
         while True:
             message = await websocket.receive()
@@ -45,6 +54,7 @@ async def _watch_for_cancel(websocket: WebSocket, cancel_event: threading.Event)
     except (WebSocketDisconnect, RuntimeError):
         pass
     cancel_event.set()
+    disconnect_signal.set()
 
 
 def _title_from_url(url: str) -> str:
@@ -132,11 +142,14 @@ async def download_ws(websocket: WebSocket) -> None:
         return
 
     cancel_event = threading.Event()
-    watcher = asyncio.create_task(_watch_for_cancel(websocket, cancel_event))
+    disconnect_signal = asyncio.Event()
+    watcher = asyncio.create_task(
+        _watch_for_cancel(websocket, cancel_event, disconnect_signal)
+    )
     url = str(request.url)
 
     try:
-        async for event in download_events(request, cancel_event):
+        async for event in download_events(request, cancel_event, disconnect_signal):
             if event.type == "completed":
                 # Persist the history row *before* announcing completion: the
                 # client refreshes its history on `completed`, so the finished
@@ -179,6 +192,7 @@ async def download_ws(websocket: WebSocket) -> None:
                     logger.exception("Failed to persist failed download to history")
     except WebSocketDisconnect:
         cancel_event.set()
+        disconnect_signal.set()
         return
     finally:
         watcher.cancel()

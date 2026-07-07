@@ -532,9 +532,41 @@ def friendly_download_error(raw: str) -> str:
     return first[:300] or raw.strip()
 
 
+async def _acquire_or_disconnect(disconnect_signal: asyncio.Event | None) -> bool:
+    """Acquire the download lock, racing a client-disconnect signal.
+
+    Returns True once the lock is held (the caller must release it), or False if the
+    client disconnected while the job was still queued behind another download — in
+    which case nothing was acquired and the caller should bail without touching disk.
+    """
+    if disconnect_signal is None:
+        await _download_lock.acquire()
+        return True
+    acquire_task = asyncio.ensure_future(_download_lock.acquire())
+    disconnect_task = asyncio.ensure_future(disconnect_signal.wait())
+    try:
+        done, _ = await asyncio.wait(
+            {acquire_task, disconnect_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+    finally:
+        disconnect_task.cancel()
+    if acquire_task in done:
+        return True
+    # Disconnect won the race. Cancel the acquire; if it won the cancel race anyway
+    # (both became ready at once), release the lock we just took so it isn't leaked.
+    acquire_task.cancel()
+    try:
+        await acquire_task
+    except asyncio.CancelledError:
+        return False
+    _download_lock.release()
+    return False
+
+
 async def download_events(
     request: DownloadRequest,
     cancel_event: threading.Event | None = None,
+    disconnect_signal: asyncio.Event | None = None,
 ) -> AsyncIterator[_Event]:
     """Run the download, yielding progress events and a terminal event.
 
@@ -655,8 +687,11 @@ async def download_events(
 
     # Hold the process-wide lock for the whole job so a second download can't run
     # concurrently. Acquired before the worker thread starts (yt-dlp writes
-    # immediately) and released in the finally below.
-    await _download_lock.acquire()
+    # immediately) and released in the finally below. A second concurrent job can
+    # queue here for a long time, so race the acquire against a client disconnect —
+    # otherwise a job on a dead socket would hang until the first one finishes.
+    if not await _acquire_or_disconnect(disconnect_signal):
+        return
     lock_held = True
     worker = asyncio.create_task(asyncio.to_thread(blocking))
 

@@ -17,7 +17,7 @@ client = TestClient(app)
 
 
 def test_ws_streams_progress_then_completed(monkeypatch):
-    async def fake_events(request, cancel_event):
+    async def fake_events(request, cancel_event, disconnect_signal=None):
         yield ProgressEvent(status="downloading", percent=42.0)
         yield CompletedEvent(
             filename="song.mp3", filepath="/tmp/song.mp3", total_bytes=123
