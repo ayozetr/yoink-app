@@ -436,49 +436,6 @@ def _build_playlist(
     )
 
 
-def _probe_first_entry_audio(info: dict[str, Any]) -> tuple[bool, float | None]:
-    """Resolve the first playlist entry to learn if the source is lossless.
-
-    Playlists are listed flat (no per-item formats), so to gate FLAC/WAV like a
-    single video we resolve just the first entry and assume the list is
-    homogeneous in source quality. Best-effort: any failure → (False, None).
-    """
-    entries = [e for e in (info.get("entries") or []) if isinstance(e, dict)]
-    first_url = next(
-        (
-            e.get("url") or e.get("webpage_url")
-            for e in entries
-            if e.get("url") or e.get("webpage_url")
-        ),
-        None,
-    )
-    if not isinstance(first_url, str):
-        return False, None
-
-    def _probe(net: dict[str, Any]) -> dict[str, Any]:
-        options: dict[str, Any] = {
-            "quiet": True,
-            "no_warnings": True,
-            "skip_download": True,
-            "noplaylist": True,
-            **net,
-        }
-        with YoutubeDL(options) as ydl:
-            register_threads_ie(ydl)
-            register_embedded_vr(ydl)
-            raw = ydl.extract_info(normalize_url(first_url), download=False)
-            return cast(dict[str, Any], ydl.sanitize_info(raw))
-
-    try:
-        entry = with_cookie_fallback(_probe)
-    except Exception:  # noqa: BLE001 — best-effort probe; any failure just skips the hint
-        return False, None
-    if not isinstance(entry, dict):
-        return False, None
-    _has_audio, lossless, abr = _audio_summary(entry.get("formats"))
-    return lossless, abr
-
-
 def extract_info(url: str) -> InfoResponse:
     """Extract clean metadata for a URL — a single video or a playlist.
 
@@ -554,13 +511,11 @@ def extract_info(url: str) -> InfoResponse:
         raise MediaExtractionError("yt-dlp returned no metadata for this URL.")
 
     if info.get("_type") == "playlist" or info.get("entries") is not None:
-        lossless, abr = _probe_first_entry_audio(info)
-        return InfoResponse(
-            type="playlist",
-            playlist=_build_playlist(
-                info, source_lossless=lossless, best_audio_abr=abr
-            ),
-        )
+        # Return the flat listing immediately. We deliberately don't resolve the
+        # first entry here to learn source_lossless — that full extra extract
+        # doubles playlist-analysis latency. The frontend probes the first entry
+        # lazily (only when the user picks audio) to gate FLAC/WAV.
+        return InfoResponse(type="playlist", playlist=_build_playlist(info))
     return InfoResponse(type="video", video=_build_video(info))
 
 

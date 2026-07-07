@@ -1,4 +1,4 @@
-import {
+import { memo,
   useEffect,
   useMemo,
   useRef,
@@ -51,7 +51,7 @@ interface MusicImportCardProps {
  * The audio is never taken from the source — only its metadata. Each track is
  * matched to a YouTube video (spotDL-ported ranking), downloaded as audio, and
  * tagged with the exact source fields. Runs sequentially like the queue. */
-export function MusicImportCard({
+export const MusicImportCard = memo(function MusicImportCard({
   info,
   defaultAudioFormat,
   onDownloadFinished,
@@ -664,4 +664,4 @@ export function MusicImportCard({
       )}
     </GlassPanel>
   );
-}
+});

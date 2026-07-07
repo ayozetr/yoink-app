@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   AlertCircle,
   BookmarkPlus,
@@ -98,7 +98,7 @@ interface PreviewCardProps {
 }
 
 /** Preview of the analyzed media: thumbnail, info and download controls. */
-export function PreviewCard({
+export const PreviewCard = memo(function PreviewCard({
   info,
   onDownload,
   defaultKind,
@@ -661,4 +661,4 @@ export function PreviewCard({
       </div>
     </GlassPanel>
   );
-}
+});

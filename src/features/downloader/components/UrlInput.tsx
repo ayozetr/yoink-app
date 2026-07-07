@@ -1,5 +1,5 @@
 import { ClipboardPaste, Link2, Loader2, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
@@ -69,7 +69,7 @@ function isSearchQuery(s: string): boolean {
 }
 
 /** URL field with live search (YouTube/SoundCloud): type a query → pick a result. */
-export function UrlInput({
+export const UrlInput = memo(function UrlInput({
   value,
   onChange,
   onAnalyze,
@@ -362,4 +362,4 @@ export function UrlInput({
       </div>
     </GlassPanel>
   );
-}
+});

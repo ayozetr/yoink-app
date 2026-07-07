@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { memo, lazy, Suspense, useState } from "react";
 import { ListPlus, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SearchSourceToggle } from "./SearchSourceToggle";
@@ -23,7 +23,7 @@ interface DownloaderHeaderProps {
 }
 
 /** Page title plus the search-source toggle, download-queue and settings buttons. */
-export function DownloaderHeader({
+export const DownloaderHeader = memo(function DownloaderHeader({
   queueCount,
   queueOpen,
   onToggleQueue,
@@ -91,4 +91,4 @@ export function DownloaderHeader({
       </div>
     </div>
   );
-}
+});

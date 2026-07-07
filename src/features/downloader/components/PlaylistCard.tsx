@@ -1,4 +1,4 @@
-import {
+import { memo,
   useEffect,
   useMemo,
   useRef,
@@ -39,6 +39,7 @@ import {
   VR_LAYOUTS,
 } from "../formatOptions";
 import { rememberLayout, rememberedLayout } from "../../../lib/vrPrefs";
+import { fetchInfo } from "../../../lib/api";
 import type { DownloadSelection } from "./PreviewCard";
 
 interface PlaylistCardProps {
@@ -87,7 +88,7 @@ function freshSelection(entries: PlaylistEntry[]): Set<string> {
 }
 
 /** Preview of an analyzed playlist: pick which items to download. */
-export function PlaylistCard({
+export const PlaylistCard = memo(function PlaylistCard({
   playlist,
   onDownload,
   busy,
@@ -106,9 +107,14 @@ export function PlaylistCard({
   // entry list itself changes — React's "adjust state during render" pattern
   // (track the entries we've seen), not an effect.
   const [seenEntries, setSeenEntries] = useState(playlist.entries);
+  // The listing comes back without the lossless probe (deferred to keep analysis
+  // fast); the first entry is resolved lazily when the user is on audio. null until
+  // probed — reset when the entry list changes so a re-analyzed playlist re-probes.
+  const [probedLossless, setProbedLossless] = useState<boolean | null>(null);
   if (seenEntries !== playlist.entries) {
     setSeenEntries(playlist.entries);
     setSelected(freshSelection(playlist.entries));
+    setProbedLossless(null);
   }
   // Free-text filter over the entry list (titles); selection persists across it.
   const [filter, setFilter] = useState("");
@@ -150,20 +156,45 @@ export function PlaylistCard({
   );
 
   const isVideo = kind === "video";
+
+  // Lazily resolve the first entry (only on audio) to learn if the source is
+  // lossless — the listing skips this probe for speed. Assumes a homogeneous list.
+  useEffect(() => {
+    if (isVideo || probedLossless !== null) return;
+    const first = playlist.entries[0]?.url;
+    if (!first) return;
+    let cancelled = false;
+    void fetchInfo(first)
+      .then((data) => {
+        if (!cancelled && data.type === "video" && data.video) {
+          setProbedLossless(data.video.source_lossless);
+        }
+      })
+      .catch(() => {
+        // Probe failed (network / unsupported) — leave FLAC/WAV gated off.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isVideo, probedLossless, playlist.entries]);
+
   const embedSubs = subtitle !== SUBS_NONE;
   // Subtitles embed cleanly only into MKV, so offer the picker for MKV only.
   const showSubtitles = isVideo && container === "mkv";
   // A flat playlist has no per-item audio_langs, so gate the toggle on MKV only.
   const showMultiAudio = isVideo && container === "mkv";
-  // Probed from the first entry (assumes a homogeneous playlist): gate FLAC/WAV
-  // like a single video.
-  const losslessAllowed = playlist.source_lossless;
+  // Probed lazily from the first entry (assumes a homogeneous playlist): gate
+  // FLAC/WAV like a single video. Falls back to the deferred listing value while
+  // the probe is in flight (null → treated as "not lossless yet").
+  const losslessAllowed = probedLossless ?? playlist.source_lossless;
   const effectiveAudioFormat: AudioFormat =
     !losslessAllowed &&
     AUDIO_FORMATS.find((o) => o.value === audioFormat)?.lossless
       ? DEFAULT_AUDIO_FORMAT
       : audioFormat;
-  const showLosslessWarning = !isVideo && !losslessAllowed;
+  // Only warn once we know the source isn't lossless — not while the probe is still
+  // loading (probedLossless === null), which would flash a wrong warning.
+  const showLosslessWarning = !isVideo && probedLossless === false;
   // Entries shown after the title filter (selection itself is unaffected by it).
   const query = filter.trim().toLowerCase();
   const visible = useMemo(
@@ -536,4 +567,4 @@ export function PlaylistCard({
       </div>
     </GlassPanel>
   );
-}
+});

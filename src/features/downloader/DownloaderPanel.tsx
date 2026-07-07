@@ -35,6 +35,7 @@ import {
 } from "../../lib/downloadLock";
 import { setWindowProgress } from "../../lib/windowProgress";
 import { notify } from "../../lib/notify";
+import { useEventCallback } from "../../lib/useEventCallback";
 import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
@@ -351,12 +352,9 @@ export function DownloaderPanel({
     }
   };
 
-  // Paste-and-analyze: Ctrl/Cmd+Shift+V grabs a URL from the clipboard and
-  // analyzes it in one go (a keyboard gesture lets the clipboard read through).
-  const analyzeRef = useRef(handleAnalyze);
-  useEffect(() => {
-    analyzeRef.current = handleAnalyze;
-  });
+  // A stable analyze identity: used by the effects below and passed to the memoized
+  // UrlInput without a fresh identity on every render.
+  const stableAnalyze = useEventCallback(handleAnalyze);
 
   // External "analyze this URL" requests: re-analyze from history, drag-and-drop.
   // The parent bumps `nonce` so the same URL re-triggers; the ref keeps the
@@ -366,9 +364,11 @@ export function DownloaderPanel({
     const target = analyzeRequest.url;
     void (async () => {
       setUrl(target);
-      await analyzeRef.current(target);
+      await stableAnalyze(target);
     })();
-  }, [analyzeRequest]);
+  }, [analyzeRequest, stableAnalyze]);
+  // Paste-and-analyze: Ctrl/Cmd+Shift+V grabs a URL from the clipboard and analyzes
+  // it in one go (a keyboard gesture lets the clipboard read through).
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
@@ -378,7 +378,7 @@ export function DownloaderPanel({
             const text = (await navigator.clipboard.readText()).trim();
             if (text) {
               setUrl(text);
-              void analyzeRef.current(text);
+              void stableAnalyze(text);
             }
           } catch {
             // Clipboard unavailable / blocked — ignore.
@@ -388,7 +388,7 @@ export function DownloaderPanel({
     };
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
-  }, []);
+  }, [stableAnalyze]);
 
   const handleDownload = (selection: DownloadSelection) => {
     // The analyzed source URL, not the live field (which the user may have
@@ -463,6 +463,19 @@ export function DownloaderPanel({
     if (retryJobs.length > 0) startQueue(retryJobs);
   };
 
+  // Stable handler identities passed to the memoized panels below, so a download-
+  // progress tick (setProgress, several times a second) doesn't reconcile them.
+  const onDownload = useEventCallback(handleDownload);
+  const onDownloadPlaylist = useEventCallback(handleDownloadPlaylist);
+  const onSelectResult = useEventCallback((entry: PlaylistEntry) => {
+    setUrl(entry.url);
+    void stableAnalyze(entry.url);
+  });
+  const onSearchSourceChange = useEventCallback((source: SearchSource) => {
+    setSearchSource(source);
+    persistSearchSource(source);
+  });
+
   return (
     <>
       <DownloaderHeader
@@ -471,19 +484,13 @@ export function DownloaderPanel({
         onToggleQueue={onToggleQueue}
         onOpenSettings={onOpenSettings}
         searchSource={searchSource}
-        onSearchSourceChange={(source) => {
-          setSearchSource(source);
-          persistSearchSource(source);
-        }}
+        onSearchSourceChange={onSearchSourceChange}
       />
       <UrlInput
         value={url}
         onChange={setUrl}
-        onAnalyze={handleAnalyze}
-        onSelectResult={(entry) => {
-          setUrl(entry.url);
-          void handleAnalyze(entry.url);
-        }}
+        onAnalyze={stableAnalyze}
+        onSelectResult={onSelectResult}
         searchSource={searchSource}
         loading={loading}
       />
@@ -558,7 +565,7 @@ export function DownloaderPanel({
         <PreviewCard
           key={info.video.id}
           info={info.video}
-          onDownload={handleDownload}
+          onDownload={onDownload}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
           defaultEmbedSubs={defaultEmbedSubs}
@@ -571,7 +578,7 @@ export function DownloaderPanel({
         <PlaylistCard
           key={info.playlist.id}
           playlist={info.playlist}
-          onDownload={handleDownloadPlaylist}
+          onDownload={onDownloadPlaylist}
           busy={downloading || lockedByOther}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
