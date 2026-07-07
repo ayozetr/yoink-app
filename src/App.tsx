@@ -8,6 +8,7 @@ import { UpdatingModal } from "./components/ui/UpdatingModal";
 import { useFocusTrap } from "./lib/useFocusTrap";
 import { checkForUpdate, installUpdate, type UpdateCheck } from "./lib/updater";
 import { notify } from "./lib/notify";
+import { syncDesktopSettings } from "./lib/desktop";
 import type { Update } from "@tauri-apps/plugin-updater";
 
 /** The "available" variant of an update check (carries the installable Update). */
@@ -166,6 +167,12 @@ export default function App() {
       );
     });
   }, [settings?.check_updates, t]);
+
+  // Desktop app: push the tray / autostart / global-shortcut settings to the Rust
+  // shell whenever they load or change (no-op in the browser).
+  useEffect(() => {
+    if (settings) void syncDesktopSettings(settings);
+  }, [settings]);
 
   // Download + install the update (from the banner or Settings). The app relaunches
   // on success, so the "downloading" modal stays up until then; dismiss it on error.

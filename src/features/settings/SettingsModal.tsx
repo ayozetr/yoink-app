@@ -38,6 +38,7 @@ import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
 import { useFocusTrap } from "../../lib/useFocusTrap";
+import { isTauri } from "../../lib/desktop";
 import { checkForUpdate, RELEASES_URL, type UpdateCheck } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import {
@@ -164,6 +165,7 @@ const SECTIONS = [
   { id: "processing", labelKey: "settings.secProcessing", icon: <Music size={16} /> },
   { id: "sponsorblock", labelKey: "settings.sponsorblock", icon: <Shield size={16} /> },
   { id: "network", labelKey: "settings.secNetwork", icon: <Globe size={16} /> },
+  { id: "system", labelKey: "settings.catSystem", icon: <Monitor size={16} /> },
   { id: "shortcuts", labelKey: "settings.catShortcuts", icon: <Keyboard size={16} /> },
   { id: "about", labelKey: "settings.catAbout", icon: <Info size={16} /> },
 ] as const;
@@ -171,13 +173,20 @@ const SECTIONS = [
 // Keyboard shortcuts shown (read-only) in the Shortcuts section. `mod` is the
 // platform modifier (⌘ on macOS, Ctrl elsewhere); "⇧" is Shift.
 const SHORTCUTS = [
-  { labelKey: "settings.shortcutFocusUrl", keys: (mod: string) => [mod, "L"] },
-  { labelKey: "settings.shortcutSettings", keys: (mod: string) => [mod, ","] },
+  { labelKey: "settings.shortcutFocusUrl", keys: (mod: string) => [mod, "L"], desktopOnly: false },
+  { labelKey: "settings.shortcutSettings", keys: (mod: string) => [mod, ","], desktopOnly: false },
   {
     labelKey: "settings.shortcutPasteAnalyze",
     keys: (mod: string) => [mod, "⇧", "V"],
+    desktopOnly: false,
   },
-  { labelKey: "settings.shortcutCloseModal", keys: () => ["Esc"] },
+  {
+    // Global (desktop-only, opt-in): mirrors the `global_hotkey` toggle in Desktop.
+    labelKey: "settings.shortcutGlobalPaste",
+    keys: (mod: string) => [mod, "⇧", "Y"],
+    desktopOnly: true,
+  },
+  { labelKey: "settings.shortcutCloseModal", keys: () => ["Esc"], desktopOnly: false },
 ] as const;
 const IS_MAC =
   typeof navigator !== "undefined" && /mac/i.test(navigator.userAgent);
@@ -266,6 +275,8 @@ export function SettingsModal({
         cookies_from_browser: form.cookies_from_browser || null,
         cookies_file: form.cookies_file || null,
       });
+      // App.tsx applies the desktop (Tauri) behaviours reactively when `settings`
+      // updates (covers both this save and the initial load).
       onSaved(saved);
       onClose();
     } catch {
@@ -307,7 +318,7 @@ export function SettingsModal({
 
         <div className="flex min-h-0 flex-1">
           <nav className="flex w-44 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-white/10 p-3">
-            {SECTIONS.map((s) => (
+            {SECTIONS.filter((s) => s.id !== "system" || isTauri()).map((s) => (
               <button
                 key={s.id}
                 type="button"
@@ -738,9 +749,37 @@ export function SettingsModal({
                 </>
               )}
 
+              {section === "system" && (
+                <>
+                  <p className="text-xs text-zinc-500">
+                    {t("settings.systemIntro")}
+                  </p>
+                  <Toggle
+                    checked={form.minimize_to_tray}
+                    onChange={(v) => set("minimize_to_tray", v)}
+                    label={t("settings.minimizeToTray")}
+                    help={<MinimizeToTrayHelp />}
+                    className="w-full"
+                  />
+                  <Toggle
+                    checked={form.launch_at_startup}
+                    onChange={(v) => set("launch_at_startup", v)}
+                    label={t("settings.launchAtStartup")}
+                    className="w-full"
+                  />
+                  <Toggle
+                    checked={form.global_hotkey}
+                    onChange={(v) => set("global_hotkey", v)}
+                    label={t("settings.globalHotkey")}
+                    help={<GlobalHotkeyHelp />}
+                    className="w-full"
+                  />
+                </>
+              )}
+
               {section === "shortcuts" && (
                 <div className="flex flex-col gap-0.5">
-                  {SHORTCUTS.map((s) => (
+                  {SHORTCUTS.filter((s) => !s.desktopOnly || isTauri()).map((s) => (
                     <div
                       key={s.labelKey}
                       className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm"
@@ -758,6 +797,11 @@ export function SettingsModal({
                       </span>
                     </div>
                   ))}
+                  {isTauri() && (
+                    <p className="mt-1 px-3 text-xs text-zinc-500">
+                      {t("settings.shortcutGlobalNote")}
+                    </p>
+                  )}
                   <p className="mt-2 px-3 text-xs text-zinc-500">
                     {t("settings.shortcutsNote")}
                   </p>
@@ -1126,6 +1170,24 @@ function NormalizeAudioHelp() {
   return (
     <HelpPopover label={t("settings.normalizeAudio")}>
       {t("settings.normalizeAudioHint")}
+    </HelpPopover>
+  );
+}
+
+function MinimizeToTrayHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.minimizeToTray")}>
+      {t("settings.minimizeToTrayHelp")}
+    </HelpPopover>
+  );
+}
+
+function GlobalHotkeyHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.globalHotkey")}>
+      {t("settings.globalHotkeyHelp")}
     </HelpPopover>
   );
 }

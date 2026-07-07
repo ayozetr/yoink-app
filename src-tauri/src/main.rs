@@ -3,9 +3,12 @@
 
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
-use tauri::Manager;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 
 /// Holds the backend process handle so we can kill it when the app exits.
 struct BackendProcess(Mutex<Option<Child>>);
@@ -16,6 +19,23 @@ struct BackendPort(u16);
 
 /// The canonical port the bundled frontend expects by default.
 const DEFAULT_PORT: u16 = 8756;
+
+/// Whether closing the window hides it to the tray instead of quitting. Mirrors the
+/// `minimize_to_tray` setting; the frontend syncs it via `set_minimize_to_tray`.
+struct MinimizeToTray(AtomicBool);
+
+/// Opt-in global shortcut: brings Yoink to the front + paste-and-analyzes the
+/// clipboard. Registered/unregistered from the frontend via `set_global_hotkey`.
+const GLOBAL_HOTKEY: &str = "CmdOrCtrl+Shift+Y";
+
+/// Reveal + focus the main window — it may be hidden by close-to-tray, or minimized.
+fn show_and_focus(app: &tauri::AppHandle) {
+    if let Some(window) = app.webview_windows().values().next() {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
 
 /// Pick a port for the backend: the canonical 8756 when it's free, otherwise an
 /// OS-assigned free port.
@@ -168,6 +188,41 @@ fn backend_port(state: tauri::State<'_, BackendPort>) -> u16 {
     state.0
 }
 
+/// Sync the close-to-tray behaviour from the frontend (persisted in AppSettings).
+#[tauri::command]
+fn set_minimize_to_tray(state: tauri::State<'_, MinimizeToTray>, enabled: bool) {
+    state.0.store(enabled, Ordering::Relaxed);
+}
+
+/// Enable/disable launching Yoink at system startup (tauri-plugin-autostart).
+#[tauri::command]
+fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    let result = if enabled { manager.enable() } else { manager.disable() };
+    result.map_err(|e| e.to_string())
+}
+
+/// Whether Yoink is currently registered to launch at startup.
+#[tauri::command]
+fn is_autostart_enabled(app: tauri::AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+/// Register/unregister the opt-in global shortcut.
+#[tauri::command]
+fn set_global_hotkey(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    let shortcut = app.global_shortcut();
+    let result = if enabled {
+        shortcut.register(GLOBAL_HOTKEY)
+    } else {
+        shortcut.unregister(GLOBAL_HOTKEY)
+    };
+    result.map_err(|e| e.to_string())
+}
+
 fn main() {
     // WebKitGTK's DMABUF renderer leaves a blank window (or crashes with
     // "Gdk-Message: Error 71") on many Wayland sessions. Force the GL backend
@@ -189,18 +244,55 @@ fn main() {
         // while an orphaned instance is still up) focuses the existing window
         // instead of starting a second sidecar that can't bind port 8756.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.webview_windows().values().next() {
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            // Reveal the existing window (it may be hidden in the tray, not just
+            // minimized) instead of starting a second instance.
+            show_and_focus(app);
         }))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![]),
+        ))
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    use tauri_plugin_global_shortcut::ShortcutState;
+                    if event.state() == ShortcutState::Pressed {
+                        show_and_focus(app);
+                        // Ask the frontend to paste-and-analyze the clipboard.
+                        let _ = app.emit("global-hotkey", ());
+                    }
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![is_appimage, backend_port])
+        .invoke_handler(tauri::generate_handler![
+            is_appimage,
+            backend_port,
+            set_minimize_to_tray,
+            set_autostart,
+            is_autostart_enabled,
+            set_global_hotkey
+        ])
+        .on_window_event(|window, event| {
+            // Close-to-tray: when enabled, closing the window hides it instead of
+            // quitting. A real quit comes from the tray "Quit" item (app.exit(0)).
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let minimize = window
+                    .app_handle()
+                    .state::<MinimizeToTray>()
+                    .0
+                    .load(Ordering::Relaxed);
+                if minimize {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .setup(|app| {
             let port = pick_backend_port();
             let child = spawn_backend(app, port);
@@ -210,6 +302,35 @@ fn main() {
             let advertised = if child.is_some() { port } else { DEFAULT_PORT };
             app.manage(BackendProcess(Mutex::new(child)));
             app.manage(BackendPort(advertised));
+            // Close-to-tray defaults off; the frontend syncs the real setting on load.
+            app.manage(MinimizeToTray(AtomicBool::new(false)));
+
+            // Always-on system tray. Left-click or "Open Yoink" reveals the window;
+            // "Quit" exits (triggering the backend cleanup in .run below).
+            let open = MenuItem::with_id(app, "open", "Open Yoink", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open, &quit])?;
+            TrayIconBuilder::new()
+                .icon(app.default_window_icon().cloned().expect("bundled window icon"))
+                .tooltip("Yoink")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "open" => show_and_focus(app),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        show_and_focus(tray.app_handle());
+                    }
+                })
+                .build(app)?;
             Ok(())
         })
         .build(tauri::generate_context!())

@@ -36,6 +36,7 @@ import {
 import { setWindowProgress } from "../../lib/windowProgress";
 import { notify } from "../../lib/notify";
 import { useEventCallback } from "../../lib/useEventCallback";
+import { onGlobalHotkey } from "../../lib/desktop";
 import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
@@ -367,28 +368,42 @@ export function DownloaderPanel({
       await stableAnalyze(target);
     })();
   }, [analyzeRequest, stableAnalyze]);
-  // Paste-and-analyze: Ctrl/Cmd+Shift+V grabs a URL from the clipboard and analyzes
-  // it in one go (a keyboard gesture lets the clipboard read through).
+  // Read a URL from the clipboard and analyze it — shared by the Ctrl/Cmd+Shift+V
+  // shortcut and the desktop global hotkey. A keyboard/hotkey gesture lets the
+  // clipboard read through.
+  const pasteAndAnalyze = useEventCallback(async () => {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (text) {
+        setUrl(text);
+        void stableAnalyze(text);
+      }
+    } catch {
+      // Clipboard unavailable / blocked — ignore.
+    }
+  });
+
+  // Paste-and-analyze via Ctrl/Cmd+Shift+V.
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         e.preventDefault();
-        void (async () => {
-          try {
-            const text = (await navigator.clipboard.readText()).trim();
-            if (text) {
-              setUrl(text);
-              void stableAnalyze(text);
-            }
-          } catch {
-            // Clipboard unavailable / blocked — ignore.
-          }
-        })();
+        void pasteAndAnalyze();
       }
     };
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
-  }, [stableAnalyze]);
+  }, [pasteAndAnalyze]);
+
+  // Desktop global hotkey (Ctrl/⌘+Shift+Y): Rust brings the window to the front and
+  // fires this event, which paste-and-analyzes the clipboard. No-op in the browser.
+  useEffect(() => {
+    let unlisten = () => {};
+    void onGlobalHotkey(() => void pasteAndAnalyze()).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten();
+  }, [pasteAndAnalyze]);
 
   const handleDownload = (selection: DownloadSelection) => {
     // The analyzed source URL, not the live field (which the user may have

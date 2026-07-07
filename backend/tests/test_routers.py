@@ -132,6 +132,10 @@ def test_settings_get_and_put(temp_dirs):
         "video_codec": "h264",
         "audio_bitrate": "320",
         "proxy": "socks5://127.0.0.1:1080",
+        "check_updates": False,
+        "minimize_to_tray": True,
+        "launch_at_startup": True,
+        "disable_global_hotkeys": True,
     }
     saved = client.put("/api/settings", json=payload)
     assert saved.status_code == 200
@@ -149,6 +153,11 @@ def test_settings_get_and_put(temp_dirs):
     assert saved.json()["video_codec"] == "h264"
     assert saved.json()["audio_bitrate"] == "320"
     assert saved.json()["proxy"] == "socks5://127.0.0.1:1080"
+    # Desktop toggles + the previously-unpersisted check_updates now round-trip.
+    assert saved.json()["check_updates"] is False
+    assert saved.json()["minimize_to_tray"] is True
+    assert saved.json()["launch_at_startup"] is True
+    assert saved.json()["disable_global_hotkeys"] is True
     # Persisted to disk.
     assert (temp_dirs / "data" / "settings.json").exists()
 

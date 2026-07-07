@@ -409,6 +409,21 @@ class AppSettings(BaseModel):
         description="Send a desktop notification when a download finishes "
         "(on by default; toggle off in Settings).",
     )
+    minimize_to_tray: bool = Field(
+        default=False,
+        description="Desktop app: closing the window hides it to the system tray "
+        "instead of quitting.",
+    )
+    launch_at_startup: bool = Field(
+        default=False,
+        description="Desktop app: launch Yoink automatically when the system starts.",
+    )
+    disable_global_hotkeys: bool = Field(
+        default=False,
+        description="Desktop app: disable the global shortcut (Ctrl/Cmd+Shift+Y). Off "
+        "by default (global shortcuts are on); turn on to disable them if they clash "
+        "with another app.",
+    )
 
 
 class VersionInfo(BaseModel):

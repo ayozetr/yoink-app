@@ -71,6 +71,14 @@ def _apply(data: dict[str, Any]) -> None:
         settings.normalize_audio = data["normalize_audio"]
     if isinstance(data.get("notify_on_complete"), bool):
         settings.notify_on_complete = data["notify_on_complete"]
+    if isinstance(data.get("check_updates"), bool):
+        settings.check_updates = data["check_updates"]
+    if isinstance(data.get("minimize_to_tray"), bool):
+        settings.minimize_to_tray = data["minimize_to_tray"]
+    if isinstance(data.get("launch_at_startup"), bool):
+        settings.launch_at_startup = data["launch_at_startup"]
+    if isinstance(data.get("disable_global_hotkeys"), bool):
+        settings.disable_global_hotkeys = data["disable_global_hotkeys"]
 
 
 def load_overrides() -> None:
@@ -116,6 +124,10 @@ def get_current() -> AppSettings:
         audio_bitrate=settings.audio_bitrate,
         normalize_audio=settings.normalize_audio,
         notify_on_complete=settings.notify_on_complete,
+        check_updates=settings.check_updates,
+        minimize_to_tray=settings.minimize_to_tray,
+        launch_at_startup=settings.launch_at_startup,
+        disable_global_hotkeys=settings.disable_global_hotkeys,
     )
 
 

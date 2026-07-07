@@ -176,6 +176,18 @@ class Settings(BaseSettings):
     # (the backend only stores it so it persists + rides the settings contract).
     notify_on_complete: bool = True
 
+    # Check GitHub for a newer app release on launch (the app only — yt-dlp stays
+    # owner-managed). Stored here so the toggle persists across restarts.
+    check_updates: bool = True
+
+    # Desktop-only (Tauri) behaviours. The backend only stores them so they persist
+    # and ride the settings contract; the Tauri shell reads + applies them.
+    minimize_to_tray: bool = False
+    launch_at_startup: bool = False
+    # Global shortcuts are on by default; if the Ctrl/Cmd+Shift+Y combo clashes with
+    # another app, the user turns this on to disable them.
+    disable_global_hotkeys: bool = False
+
     def ensure_download_dir(self) -> Path:
         """Create the download directory if missing and return it."""
         self.download_dir.mkdir(parents=True, exist_ok=True)

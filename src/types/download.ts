@@ -271,6 +271,12 @@ export interface AppSettings {
   check_updates: boolean;
   /** Send a desktop notification when a download finishes. */
   notify_on_complete: boolean;
+  /** Desktop app: closing the window hides it to the system tray. */
+  minimize_to_tray: boolean;
+  /** Desktop app: launch Yoink when the system starts. */
+  launch_at_startup: boolean;
+  /** Desktop app: disable the global shortcut (on by default — opt in by turning off). */
+  disable_global_hotkeys: boolean;
 }
 
 /** A release's "what's new" notes for the after-update popup (mirrors backend). */
