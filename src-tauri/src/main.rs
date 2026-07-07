@@ -24,9 +24,14 @@ const DEFAULT_PORT: u16 = 8756;
 /// `minimize_to_tray` setting; the frontend syncs it via `set_minimize_to_tray`.
 struct MinimizeToTray(AtomicBool);
 
-/// Opt-in global shortcut: brings Yoink to the front + paste-and-analyzes the
-/// clipboard. Registered/unregistered from the frontend via `set_global_hotkey`.
-const GLOBAL_HOTKEY: &str = "CmdOrCtrl+Shift+Y";
+/// Opt-in global shortcuts (all Ctrl/Cmd+Shift+…), registered/unregistered together
+/// from the frontend via `set_global_hotkey`.
+const HK_ANALYZE: &str = "CmdOrCtrl+Shift+Y"; // bring to front + paste-and-analyze
+const HK_TOGGLE: &str = "CmdOrCtrl+Shift+O"; // show/hide the window
+const HK_QUICK: &str = "CmdOrCtrl+Shift+D"; // quick-download the clipboard (no window)
+const HK_PASTE: &str = "CmdOrCtrl+Shift+P"; // bring to front + paste (no analyze)
+const HK_CANCEL: &str = "CmdOrCtrl+Shift+X"; // cancel the current download
+const HK_FOLDER: &str = "CmdOrCtrl+Shift+F"; // open the downloads folder
 
 /// Reveal + focus the main window — it may be hidden by close-to-tray, or minimized.
 fn show_and_focus(app: &tauri::AppHandle) {
@@ -34,6 +39,19 @@ fn show_and_focus(app: &tauri::AppHandle) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+    }
+}
+
+/// Show/hide the main window: hide it if it's visible + focused, otherwise reveal it.
+fn toggle_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.webview_windows().values().next() {
+        if window.is_visible().unwrap_or(true) && window.is_focused().unwrap_or(false) {
+            let _ = window.hide();
+        } else {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        }
     }
 }
 
@@ -210,17 +228,56 @@ fn is_autostart_enabled(app: tauri::AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
 }
 
-/// Register/unregister the opt-in global shortcut.
+/// Register/unregister the opt-in global shortcuts (all four together).
 #[tauri::command]
 fn set_global_hotkey(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
-    use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    let shortcut = app.global_shortcut();
-    let result = if enabled {
-        shortcut.register(GLOBAL_HOTKEY)
-    } else {
-        shortcut.unregister(GLOBAL_HOTKEY)
-    };
-    result.map_err(|e| e.to_string())
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+    let gs = app.global_shortcut();
+    if !enabled {
+        for hk in [HK_ANALYZE, HK_TOGGLE, HK_QUICK, HK_PASTE, HK_CANCEL, HK_FOLDER] {
+            let _ = gs.unregister(hk);
+        }
+        return Ok(());
+    }
+    gs.on_shortcut(HK_ANALYZE, |app, _s, e| {
+        if e.state() == ShortcutState::Pressed {
+            show_and_focus(app);
+            let _ = app.emit("global-hotkey", ()); // paste + analyze
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    gs.on_shortcut(HK_TOGGLE, |app, _s, e| {
+        if e.state() == ShortcutState::Pressed {
+            toggle_window(app);
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    gs.on_shortcut(HK_QUICK, |app, _s, e| {
+        if e.state() == ShortcutState::Pressed {
+            let _ = app.emit("global-quick-download", ()); // download without showing
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    gs.on_shortcut(HK_PASTE, |app, _s, e| {
+        if e.state() == ShortcutState::Pressed {
+            show_and_focus(app);
+            let _ = app.emit("global-paste", ()); // paste, no analyze
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    gs.on_shortcut(HK_CANCEL, |app, _s, e| {
+        if e.state() == ShortcutState::Pressed {
+            let _ = app.emit("global-cancel", ()); // cancel the current download
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    gs.on_shortcut(HK_FOLDER, |app, _s, e| {
+        if e.state() == ShortcutState::Pressed {
+            let _ = app.emit("global-open-folder", ()); // open the downloads folder
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn main() {
@@ -252,18 +309,7 @@ fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
         ))
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    use tauri_plugin_global_shortcut::ShortcutState;
-                    if event.state() == ShortcutState::Pressed {
-                        show_and_focus(app);
-                        // Ask the frontend to paste-and-analyze the clipboard.
-                        let _ = app.emit("global-hotkey", ());
-                    }
-                })
-                .build(),
-        )
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
