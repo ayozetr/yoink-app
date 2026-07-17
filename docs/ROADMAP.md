@@ -11,17 +11,24 @@
 
 ## 📍 Status
 
-- **In progress (unreleased):** in `main`, post-v2.8.0 — **loudness normalization**
-  (opt-in −14 LUFS), a **whole-queue progress bar** ("N of M downloaded"), a thumbnail
-  **`hqdefault` fallback** for YouTube's grey placeholder, a smarter **auto-tag
-  title swap** ("Song – Artist"), and a **history hover-reveal** fix. On the
-  `redesign/settings-modal` branch: a **redesigned Settings modal** (7-category
-  sidebar + content panel, a branded **About**, brand icons in the cookie- and
-  tag-source dropdowns + a **Whale** browser entry, **language flags**, and "?" help
-  on the audio-format / subtitles / proxy fields), a **"notify on complete"** toggle,
-  **brand logos** in the YouTube↔SoundCloud search toggle, and the **favicon** pointed
-  at the current app logo.
-- **Current release:** **v2.8.0** — an **"Artist – Title (auto-tag)" filename
+- **In progress (unreleased):** in `main`, post-v2.9.0 — **desktop integration**:
+  a **system tray** with close-to-tray, **launch-at-startup**, and six opt-in
+  **global shortcuts** (paste-and-analyze, quick-download, cancel, open folder, …),
+  each with its Settings toggle; a **`yoink://` deep link** so the browser — or
+  anything — can hand a URL to the running app, plus a companion **"Send to Yoink"
+  browser extension** (Firefox + Chromium) that feeds it from a right-click; a
+  **Terms of Use & disclaimer**; a batch of **quality work** (memoized main-column
+  panels, a deferred playlist lossless probe, cancel-a-queued-download-on-disconnect,
+  re-tag dialog focus a11y, more tests); and an **audio-detection fix** for
+  Twitter/X clips whose HLS audio track carries a null `acodec`.
+- **Current release:** **v2.9.0** — **loudness normalization** (opt-in −14 LUFS),
+  a **whole-queue progress bar** ("N of M downloaded"), a **redesigned Settings
+  modal** (sidebar + content panel, a branded **About**, brand icons + **language
+  flags**, "?" help on the format/subtitles/proxy fields, a read-only **Shortcuts**
+  section), a **"notify on complete"** toggle, a thumbnail **`hqdefault` fallback**
+  for YouTube's grey placeholder, and a smarter **auto-tag title swap** ("Song –
+  Artist").
+- **Previously:** **v2.8.0** — an **"Artist – Title (auto-tag)" filename
   template**: pick it in Settings and a downloaded track is renamed to its *tagged*
   name (the one already shown in history), carrying its `.nfo`/`.lrc` sidecars along
   and never clobbering an existing file. Bundles **yt-dlp 2026.07.04** (verified
@@ -77,7 +84,7 @@
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
 - **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
   one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 343) green · frontend build + e2e (21) + vitest (44) green · `npm audit` 0 · strict TS.
+- **Health:** backend (pytest, 350) green · frontend build + e2e (21) + vitest (56) green · `npm audit` 0 · strict TS · Rust `cargo check`/deep-link tests green.
 
 ---
 
@@ -307,18 +314,25 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   rows, so the raw failure text is one click away.
 
 ### 🔌 OS & integrations
-- ⬜ **`yoink://` deep link** (M · **high**) — enables "send to Yoink" from anywhere,
-  sidestepping the local-CORS lock; single-instance already focuses the window.
-- ⬜ **System tray + close-to-tray + autostart** (S/M) — a true always-on manager.
-- ⬜ **Global hotkey (Tauri `globalShortcut`)** (S) — a system-wide shortcut (e.g.
-  paste-and-analyze the clipboard URL) that fires with Yoink in the background, not
-  only when focused. Today's shortcuts are all in-window keydown listeners. Pairs
-  well with the tray + `yoink://` items above.
+- ✅ **`yoink://` deep link** *(next)* — a `yoink://download?url=<encoded>` scheme
+  (tauri-plugin-deep-link + the single-instance `deep-link` feature) lets the browser
+  or anything hand a URL to the running app, sidestepping the local-CORS lock. Only
+  the `url` param is read and a malformed link is ignored; a cold-start URL is drained
+  by the frontend and routed through the same analyze path as drag-and-drop.
+- ✅ **System tray + close-to-tray + autostart** *(next)* — an always-on manager: a
+  tray (open / quit), close-to-tray, and launch-at-startup, each a Settings toggle.
+- ✅ **Global hotkey (Tauri `globalShortcut`)** *(next)* — six opt-in system-wide
+  shortcuts (all Ctrl/⌘+Shift+…): paste-and-analyze, quick-download, show/hide,
+  paste-only, cancel, open-folder — firing with Yoink in the background, toggleable.
+- ✅ **Browser extension** "Send to Yoink" *(next)* — a MV3 companion (Firefox +
+  Chromium) with a context-menu item + toolbar button that fire the `yoink://` deep
+  link; strips YouTube's auto Radio mix so a single video isn't sent as a playlist.
+  Built + validated in both engines; **not yet on the stores** (manual/self-host for
+  now — Firefox AMO free, Chrome $5 one-time).
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
-  read-only today (it lists the fixed bindings); let the user **rebind** them
-  (persisted), and surface any global hotkey there too.
+  read-only today (it lists the fixed bindings, now split into local + global); let
+  the user **rebind** them (persisted).
 - ⬜ **Thin CLI over the local API** (S/M) — `yoink <url>` for scripts.
-- ⬜ **Browser extension** "Download with Yoink" (M) — context-menu → `yoink://`.
 - ⬜ **More distribution channels** — AUR (S) / Flatpak (M) / winget + Chocolatey (M).
 
 ---
@@ -339,21 +353,17 @@ also in *Next up* are the urgent ones.)
 - ✅ **Pin yt-dlp exactly per release** — already pinned
   (`yt-dlp[default,curl-cffi]==2026.06.09` in `requirements.txt`).
 - ⬜ **ruff + mypy in CI** (S) — currently only `pytest` runs (CI itself paused on billing).
-- ⬜ **More tests** (S) — `_host_is_blocked`, queue/VR integration in the WS,
-  frontend `estimatedSizeBytes`/`formatBytes`.
-- ⬜ **Render perf: memoize the main-column panels** (M) — `DownloaderPanel` /
-  `PreviewCard` / `PlaylistCard` / `UrlInput` aren't wrapped in `React.memo`, so
-  every progress tick (several/sec, state held at the top of the panel) reconciles
-  all of them though they don't depend on `progress`. Isolate the progress state in
-  a dedicated child (ref/subscription or a context selector) and `React.memo` the
-  three with `useCallback`-stabilized props; optionally throttle to ~10/s. *(Carried
-  over from the v1.9.0 audit — the last real perf item.)*
-- ⬜ **Defer the playlist lossless probe** (S) — analyzing a playlist runs a second
-  full `extract_info` on the first entry (`ytdlp_service._probe_first_entry_audio`,
-  in series on the blocking thread) just to learn `source_lossless`/`best_audio_abr`
-  for the FLAC/WAV gate, doubling latency (flat ~1s + full resolve ~1–3s). Return the
-  flat list immediately and compute it lazily (a light endpoint the UI hits only if
-  the user picks audio), or cache it. *(Carried over from the v1.9.0 audit.)*
+- ✅ **More tests** *(next)* — `_host_is_blocked` cases, queue/VR integration in the
+  WS, and the frontend `estimatedSizeBytes`/`formatBytes` size helpers.
+- ✅ **Render perf: memoize the main-column panels** *(next)* — `DownloaderPanel` /
+  `PreviewCard` / `PlaylistCard` / `UrlInput` (+ header, music card) are now wrapped
+  in `React.memo` with `useEventCallback`-stabilized props, so a progress tick no
+  longer reconciles the whole column. *(Carried over from the v1.9.0 audit — the last
+  real perf item.)*
+- ✅ **Defer the playlist lossless probe** *(next)* — analyzing a playlist returns the
+  flat listing immediately; `source_lossless`/`best_audio_abr` are computed lazily
+  (only when the user picks audio) instead of a second full `extract_info` up front,
+  halving playlist-analysis latency. *(Carried over from the v1.9.0 audit.)*
 - ✅ **PyInstaller `--onedir`** (M) — the backend ships as a one-folder Tauri
   resource spawned by `main.rs` (std::process, stdin-pipe shutdown watchdog),
   not a onefile sidecar, so it starts without re-extracting ~180 MB each launch.
@@ -385,12 +395,14 @@ also in *Next up* are the urgent ones.)
   `_final_url` now use `core/safe_http` (`fetch_public` + the pinned `OPENER`): the
   resolved public IP is pinned and every redirect hop re-validated, on top of the
   host-anchored URL detection.
-- ⬜ **Cancel a queued download blocked on the download lock when the client disconnects**
-  (S) — a second concurrent job (e.g. a second web tab) currently awaits the process-wide
-  lock without noticing a disconnect; race the acquire against the cancel signal.
-- ⬜ **Re-tag dialog initial focus with a cold lazy chunk** (S · a11y) — when
-  `AutoTagPanel`'s lazy chunk isn't loaded yet, `useFocusTrap` focuses the container
-  instead of the first field; re-run the focus pass once the panel mounts.
+- ✅ **Cancel a queued download blocked on the download lock when the client disconnects**
+  *(next)* — a second concurrent job now races the lock acquire against the disconnect
+  signal (`_acquire_or_disconnect`), so it aborts cleanly instead of hanging on a
+  disconnect it never noticed.
+- ✅ **Re-tag dialog initial focus with a cold lazy chunk** *(next · a11y)* — when
+  `AutoTagPanel`'s lazy chunk isn't loaded yet, `useFocusTrap` re-runs the focus pass
+  (via a `MutationObserver`) once the panel mounts, so the first field gets focus
+  instead of the container.
 
 ## 🥽 VR follow-ups
 
