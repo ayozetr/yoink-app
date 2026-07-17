@@ -61,20 +61,64 @@ def _is_lossless_acodec(acodec: Any) -> bool:
     return normalized.startswith(_LOSSLESS_ACODEC_PREFIXES)
 
 
+def _looks_like_audio_track(fmt: dict[str, Any]) -> bool:
+    """True if a format is an audio track even though its ``acodec`` is unset.
+
+    yt-dlp sometimes leaves ``acodec`` null on HLS/DASH audio-only renditions it
+    didn't fully probe — Twitter/X's ``hls-audio-*`` tracks are the canonical
+    case (``acodec: None`` yet ``resolution: "audio only"``, ``abr: 128``). We
+    recognise such a track by its unmistakable audio signals so the "no audio"
+    heuristic doesn't false-warn on a video that downloads *with* sound.
+    """
+    resolution = fmt.get("resolution")
+    if isinstance(resolution, str) and resolution.strip().lower() == "audio only":
+        return True
+    note = fmt.get("format_note")
+    if isinstance(note, str) and "audio" in note.lower():
+        return True
+    for key in ("abr", "asr", "audio_channels"):
+        value = fmt.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            return True
+    return False
+
+
+def _format_carries_audio(fmt: dict[str, Any]) -> bool | None:
+    """Three-state audio verdict for a single format.
+
+    Returns ``True`` when the format carries audio (a real ``acodec`` name, or an
+    audio track yt-dlp left ``acodec``-less — see :func:`_looks_like_audio_track`),
+    ``False`` when yt-dlp *confirms* it carries none (``acodec == "none"`` with no
+    audio signals), and ``None`` when it's simply unknown (``acodec`` missing on a
+    muxed mp4 yt-dlp never probed).
+    """
+    acodec = fmt.get("acodec")
+    if isinstance(acodec, str) and acodec and acodec != "none":
+        return True
+    if _looks_like_audio_track(fmt):
+        return True
+    if acodec == "none":
+        return False
+    return None
+
+
 def _audio_summary(raw_formats: Any) -> tuple[bool, bool, float | None]:
     """Compute (has_audio, source_lossless, best_audio_abr) across all formats.
 
-    A format "has audio" when its `acodec` is present and not "none". The result
-    flags whether any format carries audio at all, whether any such format is
-    lossless, and reports the maximum `abr` (kbps) seen, or None if no audio
-    bitrate is known. Defensive against missing or malformed entries.
+    A format "has audio" when its `acodec` is a real codec name, or when it's an
+    audio track yt-dlp left `acodec`-less (Twitter/X `hls-audio-*` — recognised
+    by `resolution: "audio only"` / a positive `abr`). The result flags whether
+    any format carries audio at all, whether any such format is lossless, and
+    reports the maximum `abr` (kbps) seen, or None if no audio bitrate is known.
+    Defensive against missing or malformed entries.
 
     `has_audio` is conservative: it is only False when yt-dlp *confirms* the
-    source has no audio (a format whose `acodec` is the literal string "none")
-    and nothing carries audio. A missing/`None` `acodec` means yt-dlp never
-    characterised the stream (e.g. a muxed mp4 it didn't probe) — that file most
-    likely *does* carry audio, so we assume it does rather than warn. Likewise an
-    absent/empty format list is unknown -> assume audio.
+    source has no audio (every format whose state is known is the literal
+    ``acodec: "none"``) and nothing carries audio. A missing/`None` `acodec` with
+    no audio signals means yt-dlp never characterised the stream (e.g. a muxed
+    mp4 it didn't probe) — that file most likely *does* carry audio, so we assume
+    it does rather than warn. Likewise an absent/empty format list is unknown ->
+    assume audio.
     """
     if not isinstance(raw_formats, list) or not raw_formats:
         return True, False, None
@@ -86,19 +130,19 @@ def _audio_summary(raw_formats: Any) -> tuple[bool, bool, float | None]:
     for fmt in raw_formats:
         if not isinstance(fmt, dict):
             continue
-        acodec = fmt.get("acodec")
-        if isinstance(acodec, str) and acodec and acodec != "none":
+        state = _format_carries_audio(fmt)
+        if state is True:
             has_real_audio = True
-            if _is_lossless_acodec(acodec):
+            if _is_lossless_acodec(fmt.get("acodec")):
                 lossless = True
             abr = fmt.get("abr")
-            if isinstance(abr, (int, float)):
+            if isinstance(abr, (int, float)) and abr > 0:
                 abr_value = float(abr)
                 if best_abr is None or abr_value > best_abr:
                     best_abr = abr_value
-        elif acodec == "none":
+        elif state is False:
             explicit_silent = True
-        # acodec None / missing -> unknown, not a no-audio signal.
+        # state None -> unknown, not a no-audio signal.
     has_audio = has_real_audio or not explicit_silent
     return has_audio, lossless, best_abr
 

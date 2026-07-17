@@ -465,6 +465,46 @@ def test_audio_summary_audio_detection():
     assert _audio_summary([]) == (True, False, None)
 
 
+def test_audio_summary_twitter_null_acodec_audio_track():
+    # Regression: Twitter/X serves audio-only HLS renditions with `acodec: None`
+    # (not the string "none") alongside video-only tracks that ARE `acodec:
+    # "none"`. The old scan saw no real acodec + an explicit-silent video track
+    # and false-warned "no audio", though the merged download has sound.
+    formats = [
+        {
+            "format_id": "hls-audio-128000-Audio",
+            "vcodec": "none",
+            "acodec": None,
+            "abr": 128,
+            "resolution": "audio only",
+            "format_note": "Audio, high",
+        },
+        {"format_id": "http-2176", "vcodec": None, "acodec": None, "abr": None},
+        {"format_id": "hls-1339", "vcodec": "avc1.640028", "acodec": "none", "abr": 0},
+    ]
+    has_audio, lossless, best_abr = _audio_summary(formats)
+    assert has_audio is True
+    assert lossless is False
+    assert best_abr == 128.0
+
+
+def test_audio_summary_audio_only_signals():
+    # An audio-only track flagged solely by `resolution: "audio only"`.
+    assert _audio_summary([{"acodec": None, "resolution": "audio only"}]) == (
+        True,
+        False,
+        None,
+    )
+    # A positive `abr` on an acodec-less track marks it audio-bearing.
+    assert _audio_summary([{"acodec": None, "abr": 96}]) == (True, False, 96.0)
+    # abr == 0 is not a positive audio signal (video-only tracks report it).
+    assert _audio_summary([{"acodec": "none", "abr": 0, "vcodec": "avc1"}]) == (
+        False,
+        False,
+        None,
+    )
+
+
 def test_with_transient_retry():
     from yt_dlp.utils import DownloadError
 
