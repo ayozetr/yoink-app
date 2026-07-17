@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Send to Yoink",
+  "version": "0.1.0",
+  "description": "Send the current page or a link to your local Yoink app to download it.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yoink-companion@ayoze.dev",
+      "strict_min_version": "128.0"
+    }
+  },
+  "permissions": ["contextMenus", "activeTab", "scripting"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_title": "Send to Yoink",
+    "default_icon": {
+      "32": "icons/icon-32.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "32": "icons/icon-32.png",
+    "128": "icons/icon-128.png"
+  }
+}
