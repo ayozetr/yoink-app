@@ -48,8 +48,10 @@ but the download itself** — no account, no telemetry, no cloud.
 **🖥️ The app**
 - **Self-contained desktop app** (Tauri · Linux + Windows) — bundles the backend
   **and ffmpeg**, so there's nothing else to install.
-- **14 languages**, dark UI, desktop notifications, keyboard shortcuts,
-  **auto-updates**, SponsorBlock, and cookies / proxy support.
+- **14 languages**, dark UI, **system tray** + launch-at-startup, global shortcuts,
+  desktop notifications, **auto-updates**, SponsorBlock, and cookies / proxy support.
+- **Send from your browser** — a `yoink://` deep link and a **"Send to Yoink"
+  (beta)** extension (Firefox + Chromium) grab the page you're on with a right-click.
 
 ## Install
 
@@ -101,6 +103,7 @@ src/                      # frontend (React + TS + Tailwind)
 
 backend/                  # FastAPI + yt-dlp engine (see backend/README.md)
 src-tauri/                # Tauri desktop shell
+extension/                # "Send to Yoink" (beta) browser extension (Firefox + Chromium)
 scripts/                  # setup.py, dev.py, fetch_ffmpeg.py, build_backend.py
 e2e/                      # Playwright end-to-end tests
 ```

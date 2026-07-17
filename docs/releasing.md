@@ -145,6 +145,25 @@ src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb
 src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm   # from §3b
 ```
 
+### 3c. Package the browser extension (beta)
+
+The **"Send to Yoink" browser extension** (`extension/`) ships as a **beta** release
+asset — a per-engine `.zip` a user loads unpacked (it's not on the Chrome Web Store /
+AMO yet). Build both:
+
+```bash
+cd extension && ./build.sh package && cd ..
+# -> extension/dist/send-to-yoink-<extver>-firefox.zip
+# -> extension/dist/send-to-yoink-<extver>-chromium.zip
+```
+
+`build.sh package` assembles `dist/<browser>/` (the shared `src/` + the per-browser
+manifest) and zips each with `manifest.json` at the archive root. The zips live under
+the git-ignored `dist/`. Attach both to the GitHub release (§5) and mark the extension
+**(beta)** in the notes — the extension's own name (the manifest) stays plain "Send to
+Yoink"; only the release/GitHub copy carries the beta label. `<extver>` is the
+extension's own `manifest.*.json` version, independent of the app version.
+
 ## 4. Smoke-test
 
 ```bash
@@ -180,8 +199,14 @@ gh release create v<ver> \
   "src-tauri/target/release/bundle/appimage/Yoink_<ver>_amd64.AppImage" \
   "src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb" \
   "src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm" \
+  "extension/dist/send-to-yoink-<extver>-firefox.zip" \
+  "extension/dist/send-to-yoink-<extver>-chromium.zip" \
   --title "Yoink v<ver>" --notes "<release notes>"
 ```
+
+The two `send-to-yoink-*.zip` assets are the **(beta)** browser extension (§3c) —
+call it out as beta in the notes (e.g. *"Browser extension (beta) — load unpacked;
+see extension/README.md"*).
 
 Verify with `gh release view v<ver> --json assets`.
 

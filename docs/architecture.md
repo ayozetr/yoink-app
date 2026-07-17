@@ -141,6 +141,23 @@ a tiny built-in Markdown renderer (`components/ui/Markdown.tsx`).
 `GET /api/ytdlp-version` reports the bundled yt-dlp version but is informational
 only (no in-app yt-dlp update).
 
+### 5. Deep link & browser extension — desktop (implemented)
+
+Besides pasting or dropping a URL, the running app can be fed one from outside via a
+`yoink://download?url=<encoded>` deep link the Tauri shell registers with the OS
+(`tauri-plugin-deep-link` + the single-instance `deep-link` feature, so a second
+launch forwards its URL to the live instance instead of starting a new one).
+`main.rs` reads the `url` param, ignores a malformed link, focuses the window, and
+emits a `deep-link` event; the frontend (`lib/desktop.ts` → `App.tsx`) analyzes it
+through the same path as drag-and-drop. A cold-start URL is stashed and drained via
+`take_pending_deep_link`.
+
+The **"Send to Yoink" browser extension (beta)** (`extension/`, Firefox + Chromium)
+is just a thin trigger: a context-menu item / toolbar button that fires that deep
+link for the current page (stripping YouTube's auto Radio mix so a single video isn't
+sent as a playlist). It needs no host access or network — the download stays entirely
+in the local app. It ships as a beta release asset, not on the stores yet.
+
 ## Cross-platform notes
 
 - Save paths use `pathlib` so they work natively on Linux and Windows.

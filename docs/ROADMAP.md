@@ -16,7 +16,7 @@
   **global shortcuts** (paste-and-analyze, quick-download, cancel, open folder, …),
   each with its Settings toggle; a **`yoink://` deep link** so the browser — or
   anything — can hand a URL to the running app, plus a companion **"Send to Yoink"
-  browser extension** (Firefox + Chromium) that feeds it from a right-click; a
+  browser extension (beta)** (Firefox + Chromium) that feeds it from a right-click; a
   **Terms of Use & disclaimer**; a batch of **quality work** (memoized main-column
   panels, a deferred playlist lossless probe, cancel-a-queued-download-on-disconnect,
   re-tag dialog focus a11y, more tests); and an **audio-detection fix** for
@@ -324,11 +324,12 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ✅ **Global hotkey (Tauri `globalShortcut`)** *(next)* — six opt-in system-wide
   shortcuts (all Ctrl/⌘+Shift+…): paste-and-analyze, quick-download, show/hide,
   paste-only, cancel, open-folder — firing with Yoink in the background, toggleable.
-- ✅ **Browser extension** "Send to Yoink" *(next)* — a MV3 companion (Firefox +
-  Chromium) with a context-menu item + toolbar button that fire the `yoink://` deep
-  link; strips YouTube's auto Radio mix so a single video isn't sent as a playlist.
-  Built + validated in both engines; **not yet on the stores** (manual/self-host for
-  now — Firefox AMO free, Chrome $5 one-time).
+- ✅ **Browser extension** "Send to Yoink" — **(beta)** *(next)* — a MV3 companion
+  (Firefox + Chromium) with a context-menu item + toolbar button that fire the
+  `yoink://` deep link; strips YouTube's auto Radio mix so a single video isn't sent
+  as a playlist. Built + validated in both engines, shipped as a release asset;
+  **not yet on the stores** (manual/self-host for now — Firefox AMO free, Chrome $5
+  one-time).
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).

@@ -69,6 +69,13 @@ Two layers communicating asynchronously:
   via the Tauri updater (a live-progress "Downloading…" popup). `GET /api/release-notes`
   returns the current version's release `body` — trimmed to the part before a hidden
   `<!-- /whatsnew -->` marker — for the first-launch-after-update "What's new" popup.
+- **Deep link (`yoink://`, desktop):** the Tauri shell registers a
+  `yoink://download?url=<encoded>` scheme so the browser — or the **"Send to Yoink"
+  (beta)** extension in `extension/` — can hand a URL to the running app without going
+  through the CORS-locked local API. `main.rs` reads the `url` param, ignores a
+  malformed link, and emits a `deep-link` event (a cold-start URL is drained via
+  `take_pending_deep_link`); the frontend (`lib/desktop.ts` → `App.tsx`) routes it
+  through the same analyze path as drag-and-drop.
 
 The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
 `backend/app/models/media.py` (and `src/types/autotag.ts` ↔
@@ -97,8 +104,9 @@ literal OpenAPI types on demand.
 │   │   ├── history/          # download history + stats (sidebar)
 │   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version + auto-update)
 │   ├── i18n/                 # react-i18next setup + 14 lazy-loaded locale files
-│   ├── lib/                  # API client (+ runtime backend-port resolve) + download WebSocket + single-download lock + queue store + search-source pref + VR-layout memory + native dialogs
+│   ├── lib/                  # API client (+ runtime backend-port resolve) + download WebSocket + single-download lock + queue store + search-source pref + VR-layout memory + native dialogs + deep-link/desktop bridge
 │   └── types/                # shared domain types (backend JSON contract)
+├── extension/                # "Send to Yoink" (beta) browser extension (Firefox + Chromium) — fires the yoink:// deep link
 └── backend/                  # FastAPI + yt-dlp engine
     └── app/
         ├── main.py           # app factory, logging setup, CORS, router mounting

@@ -62,5 +62,7 @@ backend/vendor/
 # Generated OpenAPI types (reference only; the enforced guard is the contract test)
 src/types/api.generated.ts
 
-# Browser-extension build output
+# Browser-extension build output + packaged release zips (redundant with the bare
+# `dist` above, kept explicit for clarity)
 extension/dist/
+extension/web-ext-artifacts/
