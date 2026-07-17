@@ -80,3 +80,34 @@ export const onGlobalCancel = (h: () => void) => onEvent("global-cancel", h);
 /** Global "open the downloads folder" (Ctrl/⌘+Shift+F). */
 export const onGlobalOpenFolder = (h: () => void) =>
   onEvent("global-open-folder", h);
+
+/**
+ * Subscribe to the `yoink://` deep link: the Rust shell emits the target media
+ * URL when the already-running app is handed one (single-instance forwards it).
+ * Unlike the global hotkeys, this carries a payload. Returns an unlisten function;
+ * no-ops outside Tauri.
+ */
+export async function onDeepLink(
+  handler: (url: string) => void,
+): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    return await listen<string>("deep-link", (event) => {
+      if (typeof event.payload === "string" && event.payload) {
+        handler(event.payload);
+      }
+    });
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * Drain any `yoink://` URL the app was cold-started with (captured before the
+ * webview existed). Returns null on a normal launch or in the browser.
+ */
+export async function takePendingDeepLink(): Promise<string | null> {
+  const url = await call<string | null>("take_pending_deep_link");
+  return url ?? null;
+}

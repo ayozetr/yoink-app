@@ -9,6 +9,7 @@ use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager, WindowEvent};
+use tauri_plugin_deep_link::DeepLinkExt;
 
 /// Holds the backend process handle so we can kill it when the app exits.
 struct BackendProcess(Mutex<Option<Child>>);
@@ -24,6 +25,12 @@ const DEFAULT_PORT: u16 = 8756;
 /// `minimize_to_tray` setting; the frontend syncs it via `set_minimize_to_tray`.
 struct MinimizeToTray(AtomicBool);
 
+/// A `yoink://` URL the app was cold-started with, captured before the webview
+/// exists. The frontend drains it once on mount via `take_pending_deep_link`; a
+/// deep link that arrives while the app is already running is pushed live instead
+/// (the `deep-link` event).
+struct PendingDeepLink(Mutex<Option<String>>);
+
 /// Opt-in global shortcuts (all Ctrl/Cmd+Shift+…), registered/unregistered together
 /// from the frontend via `set_global_hotkey`.
 const HK_ANALYZE: &str = "CmdOrCtrl+Shift+Y"; // bring to front + paste-and-analyze
@@ -32,6 +39,24 @@ const HK_QUICK: &str = "CmdOrCtrl+Shift+D"; // quick-download the clipboard (no 
 const HK_PASTE: &str = "CmdOrCtrl+Shift+P"; // bring to front + paste (no analyze)
 const HK_CANCEL: &str = "CmdOrCtrl+Shift+X"; // cancel the current download
 const HK_FOLDER: &str = "CmdOrCtrl+Shift+F"; // open the downloads folder
+
+/// Pull the target media URL out of an incoming `yoink://` deep link.
+///
+/// Contract: `yoink://download?url=<percent-encoded target>` (the `download` host
+/// is cosmetic; only the `url` query param is read). `query_pairs()` percent-
+/// decodes it for us. Any link without a non-empty `url` param yields `None` and
+/// is ignored, so a stray or malformed deep link can't drive a bogus analyze.
+fn deep_link_target(link: &url::Url) -> Option<String> {
+    for (key, value) in link.query_pairs() {
+        if &*key == "url" {
+            let target = value.trim();
+            if !target.is_empty() {
+                return Some(target.to_string());
+            }
+        }
+    }
+    None
+}
 
 /// Reveal + focus the main window — it may be hidden by close-to-tray, or minimized.
 fn show_and_focus(app: &tauri::AppHandle) {
@@ -206,6 +231,14 @@ fn backend_port(state: tauri::State<'_, BackendPort>) -> u16 {
     state.0
 }
 
+/// Hand the frontend any `yoink://` URL the app was cold-started with, clearing it
+/// so it's consumed once. Returns `None` on a normal launch. (A deep link while the
+/// app is already running arrives via the `deep-link` event, not here.)
+#[tauri::command]
+fn take_pending_deep_link(state: tauri::State<'_, PendingDeepLink>) -> Option<String> {
+    state.0.lock().ok().and_then(|mut guard| guard.take())
+}
+
 /// Sync the close-to-tray behaviour from the frontend (persisted in AppSettings).
 #[tauri::command]
 fn set_minimize_to_tray(state: tauri::State<'_, MinimizeToTray>, enabled: bool) {
@@ -302,9 +335,14 @@ fn main() {
         // instead of starting a second sidecar that can't bind port 8756.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // Reveal the existing window (it may be hidden in the tray, not just
-            // minimized) instead of starting a second instance.
+            // minimized) instead of starting a second instance. A yoink:// URL in
+            // `_args` is forwarded to the deep-link handler by the plugin's
+            // `deep-link` feature, so we don't parse it here.
             show_and_focus(app);
         }))
+        // Must come after single-instance so a second launch's yoink:// URL reaches
+        // this (already-running) instance's `on_open_url` handler.
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
@@ -322,7 +360,8 @@ fn main() {
             set_minimize_to_tray,
             set_autostart,
             is_autostart_enabled,
-            set_global_hotkey
+            set_global_hotkey,
+            take_pending_deep_link
         ])
         .on_window_event(|window, event| {
             // Close-to-tray: when enabled, closing the window hides it instead of
@@ -350,6 +389,35 @@ fn main() {
             app.manage(BackendPort(advertised));
             // Close-to-tray defaults off; the frontend syncs the real setting on load.
             app.manage(MinimizeToTray(AtomicBool::new(false)));
+
+            // Deep link (yoink://download?url=…). Register the scheme at runtime —
+            // needed on Linux/Windows in dev, and on Linux it (re)writes the running
+            // binary's user-level x-scheme-handler so an AppImage is reachable too;
+            // the installer covers the packaged case. Idempotent, so it's harmless.
+            #[cfg(any(windows, target_os = "linux"))]
+            let _ = app.deep_link().register_all();
+
+            // Cold start: the launching yoink:// URL arrives via argv before the
+            // webview exists, so stash it for the frontend to drain once on mount.
+            app.manage(PendingDeepLink(Mutex::new(
+                app.deep_link()
+                    .get_current()
+                    .ok()
+                    .flatten()
+                    .and_then(|urls| urls.iter().find_map(deep_link_target)),
+            )));
+
+            // Already-running: single-instance forwards a second launch's URL here.
+            // Reveal the window and push the target to the frontend to analyze.
+            let dl_handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    if let Some(target) = deep_link_target(&url) {
+                        show_and_focus(&dl_handle);
+                        let _ = dl_handle.emit("deep-link", target);
+                    }
+                }
+            });
 
             // Always-on system tray. Left-click or "Open Yoink" reveals the window;
             // "Quit" exits (triggering the backend cleanup in .run below).
@@ -397,4 +465,38 @@ fn main() {
                 }
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::deep_link_target;
+    use url::Url;
+
+    fn target(link: &str) -> Option<String> {
+        deep_link_target(&Url::parse(link).expect("valid test URL"))
+    }
+
+    #[test]
+    fn extracts_percent_decoded_url_param() {
+        assert_eq!(
+            target("yoink://download?url=https%3A%2F%2Fx.com%2Fa%2Fstatus%2F1"),
+            Some("https://x.com/a/status/1".to_string())
+        );
+    }
+
+    #[test]
+    fn ignores_links_without_a_usable_url_param() {
+        assert_eq!(target("yoink://download"), None);
+        assert_eq!(target("yoink://download?foo=bar"), None);
+        assert_eq!(target("yoink://download?url="), None); // empty -> ignored
+        assert_eq!(target("yoink://download?url=%20%20"), None); // whitespace only
+    }
+
+    #[test]
+    fn trims_surrounding_whitespace() {
+        assert_eq!(
+            target("yoink://download?url=%20https%3A%2F%2Fy.com%20"),
+            Some("https://y.com".to_string())
+        );
+    }
 }

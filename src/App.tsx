@@ -8,7 +8,12 @@ import { UpdatingModal } from "./components/ui/UpdatingModal";
 import { useFocusTrap } from "./lib/useFocusTrap";
 import { checkForUpdate, installUpdate, type UpdateCheck } from "./lib/updater";
 import { notify } from "./lib/notify";
-import { onGlobalOpenFolder, syncDesktopSettings } from "./lib/desktop";
+import {
+  onDeepLink,
+  onGlobalOpenFolder,
+  syncDesktopSettings,
+  takePendingDeepLink,
+} from "./lib/desktop";
 import type { Update } from "@tauri-apps/plugin-updater";
 
 /** The "available" variant of an update check (carries the installable Update). */
@@ -173,6 +178,20 @@ export default function App() {
   useEffect(() => {
     if (settings) void syncDesktopSettings(settings);
   }, [settings]);
+
+  // Deep link (yoink://download?url=…): analyze the incoming URL. A cold-start URL
+  // is drained once on mount; a link handed to the already-running app arrives via
+  // the event. Both route through the same external-analyze path as drag-and-drop.
+  useEffect(() => {
+    let unlisten = () => {};
+    void takePendingDeepLink().then((url) => {
+      if (url) requestAnalyze(url);
+    });
+    void onDeepLink((url) => requestAnalyze(url)).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten();
+  }, [requestAnalyze]);
 
   // Desktop global shortcut "open downloads folder" (Ctrl/⌘+Shift+F): reveal the
   // configured download directory in the OS file manager. No-op in the browser.

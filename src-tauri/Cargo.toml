@@ -17,13 +17,18 @@ tauri-plugin-os = "2"
 tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Parse an incoming yoink:// deep link (query_pairs percent-decodes the target).
+url = "2"
 
 [target."cfg(any(target_os = \"windows\", target_os = \"linux\", target_os = \"macos\"))".dependencies]
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-tauri-plugin-single-instance = "2"
+# The `deep-link` feature forwards a second launch's yoink:// URL (in argv) to the
+# already-running instance's deep-link handler, so "send to Yoink" works live.
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-deep-link = "2"
 
 [profile.release]
 opt-level = "s"
