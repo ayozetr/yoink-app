@@ -20,8 +20,8 @@ Prefer the stores — they auto-update. To install manually instead, grab the `.
 from the [`ext-latest`](https://github.com/ayozetr/yoink-app/releases/tag/ext-latest)
 release and follow [*Load it*](#load-it-unsigned-for-testing) below.
 
-Requires the [Yoink desktop app](https://github.com/ayozetr/yoink-app/releases/latest),
-which registers the `yoink://` link.
+Requires **[Yoink v3.0.0](https://github.com/ayozetr/yoink-app/releases/latest) or
+newer** — that's the release that registers the `yoink://` link the extension fires.
 
 ## Layout
 
