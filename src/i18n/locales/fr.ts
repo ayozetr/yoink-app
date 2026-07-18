@@ -206,7 +206,6 @@ export const fr = {
     catExtension: "Extension",
     extensionIntro: "Ajoutez l'extension du navigateur pour envoyer du contenu à Yoink directement depuis le web.",
     extensionGet: "Installer",
-    extensionSoon: "Bientôt disponible",
     extensionManual: "Ou, si vous préférez, installez-la manuellement",
     extensionUsage: "Une fois installée, il suffit d'un clic droit sur le web → Download with Yoink et le contenu est envoyé automatiquement à l'app pour être téléchargé.",
     catShortcuts: "Raccourcis",

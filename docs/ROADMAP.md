@@ -327,9 +327,12 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ✅ **Browser extension** "Send to Yoink" — **(beta)** *(next)* — a MV3 companion
   (Firefox + Chromium) with a context-menu item + toolbar button that fire the
   `yoink://` deep link; strips YouTube's auto Radio mix so a single video isn't sent
-  as a playlist. Built + validated in both engines, shipped as a release asset;
-  **not yet on the stores** (manual/self-host for now — Firefox AMO free, Chrome $5
-  one-time).
+  as a playlist. Built + validated in both engines and **submitted to both stores** —
+  [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/send-to-yoink/) and the
+  [Chrome Web Store](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp)
+  — with the rolling [`ext-latest`](https://github.com/ayozetr/yoink-app/releases/tag/ext-latest)
+  pre-release as the manual-install channel. Both listings link from **Settings ▸
+  Extension** in the app.
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).

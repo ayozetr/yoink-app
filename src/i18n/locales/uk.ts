@@ -210,7 +210,6 @@ export const uk = {
     catExtension: "Розширення",
     extensionIntro: "Встановіть розширення браузера, щоб надсилати контент у Yoink прямо зі сторінки.",
     extensionGet: "Встановити",
-    extensionSoon: "Незабаром",
     extensionManual: "Або, якщо бажаєте, встановіть вручну",
     extensionUsage: "Після встановлення достатньо правого кліку на сайті → Download with Yoink, і контент автоматично надсилається в застосунок для завантаження.",
     catShortcuts: "Комбінації клавіш",

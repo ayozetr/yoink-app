@@ -206,7 +206,6 @@ export const id = {
     catExtension: "Ekstensi",
     extensionIntro: "Tambahkan ekstensi browser untuk mengirim konten ke Yoink langsung dari web.",
     extensionGet: "Pasang",
-    extensionSoon: "Segera hadir",
     extensionManual: "Atau, jika mau, pasang secara manual",
     extensionUsage: "Setelah terpasang, cukup klik kanan di web → Download with Yoink dan konten otomatis dikirim ke aplikasi untuk diunduh.",
     catShortcuts: "Pintasan",

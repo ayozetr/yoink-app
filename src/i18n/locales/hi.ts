@@ -206,7 +206,6 @@ export const hi = {
     catExtension: "एक्सटेंशन",
     extensionIntro: "वेब से सीधे Yoink को सामग्री भेजने के लिए ब्राउज़र एक्सटेंशन जोड़ें।",
     extensionGet: "इंस्टॉल करें",
-    extensionSoon: "जल्द आ रहा है",
     extensionManual: "या चाहें तो इसे मैन्युअल रूप से इंस्टॉल करें",
     extensionUsage: "इंस्टॉल करने के बाद, बस वेब पर राइट-क्लिक करें → Download with Yoink और सामग्री डाउनलोड के लिए अपने आप ऐप को भेज दी जाएगी।",
     catShortcuts: "शॉर्टकट",

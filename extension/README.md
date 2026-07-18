@@ -9,6 +9,20 @@ Because the download happens entirely in your own local app, the extension needs
 only `contextMenus`, `activeTab` and `scripting` — no broad host access, no
 network, no server.
 
+## Install
+
+| Browser | Store |
+| --- | --- |
+| Firefox / Zen / LibreWolf … | [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/send-to-yoink/) |
+| Chrome / Brave / Edge / Opera / Vivaldi … | [Chrome Web Store](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp) |
+
+Prefer the stores — they auto-update. To install manually instead, grab the `.zip`
+from the [`ext-latest`](https://github.com/ayozetr/yoink-app/releases/tag/ext-latest)
+release and follow [*Load it*](#load-it-unsigned-for-testing) below.
+
+Requires the [Yoink desktop app](https://github.com/ayozetr/yoink-app/releases/latest),
+which registers the `yoink://` link.
+
 ## Layout
 
 ```
@@ -96,11 +110,18 @@ Needs `data_collection_permissions` (declared as `none`) and `strict_min_version
 
 ### Chromium — Chrome Web Store ($5 one-time)
 
-Register a developer account, upload `dist/chromium` (zipped), fill the listing, and
-submit. Updates: upload a higher-versioned zip. Can be scripted with
-`chrome-webstore-upload-cli` (needs a Google Cloud OAuth client). Keep the listing
-framed as *”send links to your local Yoink app”* — Chrome is strict about downloaders,
-and this extension does not download.
+Listing: <https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp>
+(item id `ccbngfpojjboddajeialdgppooagdhkp` — permanent; the id-only URL redirects to
+the slugged one).
+
+Updates: upload a higher-versioned `dist/chromium` zip to the same item in the
+Developer Dashboard. Can be scripted with `chrome-webstore-upload-cli` (needs a Google
+Cloud OAuth client id/secret + refresh token).
+
+Keep the listing framed as *"send links to your local Yoink app"* — Chrome is strict
+about downloaders, and this extension does not download. The **single purpose**,
+per-permission justifications and the "no data collected" disclosure are what the
+review looks at; the privacy policy lives in [`PRIVACY.md`](PRIVACY.md).
 
 ### Manual install — the `ext-latest` channel
 

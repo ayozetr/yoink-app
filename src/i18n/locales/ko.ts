@@ -206,7 +206,6 @@ export const ko = {
     catExtension: "확장 프로그램",
     extensionIntro: "브라우저 확장 프로그램을 추가하면 웹에서 바로 콘텐츠를 Yoink로 보낼 수 있습니다.",
     extensionGet: "설치",
-    extensionSoon: "곧 출시",
     extensionManual: "또는 원하시면 수동으로 설치하세요",
     extensionUsage: "설치한 뒤에는 웹에서 우클릭 → Download with Yoink만 하면 콘텐츠가 자동으로 앱으로 전송되어 다운로드됩니다.",
     catShortcuts: "단축키",

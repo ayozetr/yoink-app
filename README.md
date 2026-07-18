@@ -50,8 +50,10 @@ but the download itself** — no account, no telemetry, no cloud.
   **and ffmpeg**, so there's nothing else to install.
 - **14 languages**, dark UI, **system tray** + launch-at-startup, global shortcuts,
   desktop notifications, **auto-updates**, SponsorBlock, and cookies / proxy support.
-- **Send from your browser** — a `yoink://` deep link and a **"Send to Yoink"
-  (beta)** extension (Firefox + Chromium) grab the page you're on with a right-click.
+- **Send from your browser** — a `yoink://` deep link and the **"Send to Yoink"
+  (beta)** extension grab the page you're on with a right-click:
+  [Firefox](https://addons.mozilla.org/firefox/addon/send-to-yoink/) ·
+  [Chrome](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp).
 
 ## Install
 

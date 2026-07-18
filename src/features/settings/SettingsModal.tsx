@@ -871,12 +871,21 @@ export function SettingsModal({
                     </div>
                     <div className="flex items-center justify-between gap-3 px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <BrowserIcon browser="chrome" className="size-5 text-zinc-500" />
-                        <div className="text-sm font-medium text-zinc-400">Chrome</div>
+                        <BrowserIcon browser="chrome" className="size-5 text-zinc-200" />
+                        <div className="text-sm font-medium">Chrome</div>
                       </div>
-                      <span className="rounded-lg border border-white/10 px-2.5 py-1 text-xs text-zinc-500">
-                        {t("settings.extensionSoon")}
-                      </span>
+                      <a
+                        href={EXT_CHROME_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          void openExternal(EXT_CHROME_URL);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
+                      >
+                        <Download size={13} /> {t("settings.extensionGet")}
+                      </a>
                     </div>
                   </div>
                   <a
@@ -1144,6 +1153,10 @@ const COOKIES_EXT_FIREFOX =
 
 // "Send to Yoink" companion extension — the generic AMO path auto-localizes.
 const EXT_FIREFOX_URL = "https://addons.mozilla.org/firefox/addon/send-to-yoink/";
+// Chrome Web Store — the item id is permanent; the id-only path redirects to the
+// slugged listing, so it stays valid regardless of the store's display slug.
+const EXT_CHROME_URL =
+  "https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp";
 // Manual-install builds: a rolling pre-release with stable, version-less asset
 // URLs, so this link never changes across Yoink app releases.
 const EXT_MANUAL_URL =

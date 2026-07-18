@@ -206,7 +206,6 @@ export const zh = {
     catExtension: "扩展",
     extensionIntro: "添加浏览器扩展，直接从网页将内容发送到 Yoink。",
     extensionGet: "安装",
-    extensionSoon: "即将推出",
     extensionManual: "或者，如果你愿意，可以手动安装",
     extensionUsage: "安装后，只需在网页上右键点击 → Download with Yoink，内容就会自动发送到应用进行下载。",
     catShortcuts: "快捷键",

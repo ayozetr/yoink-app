@@ -206,7 +206,6 @@ export const ja = {
     catExtension: "拡張機能",
     extensionIntro: "ブラウザー拡張機能を追加して、ウェブページから直接コンテンツを Yoink に送信できます。",
     extensionGet: "インストール",
-    extensionSoon: "近日公開",
     extensionManual: "または、お好みで手動でインストール",
     extensionUsage: "インストール後は、ウェブ上で右クリック → Download with Yoink を選ぶだけで、コンテンツが自動的にアプリに送られてダウンロードされます。",
     catShortcuts: "ショートカット",
