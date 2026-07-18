@@ -66,3 +66,5 @@ src/types/api.generated.ts
 # `dist` above, kept explicit for clarity)
 extension/dist/
 extension/web-ext-artifacts/
+# AMO / Web Store API credentials (never commit) — template is .env.example
+extension/.env

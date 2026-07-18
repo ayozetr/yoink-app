@@ -15,7 +15,9 @@ import {
   Keyboard,
   Loader2,
   Monitor,
+  MousePointerClick,
   Music,
+  Puzzle,
   Settings as SettingsIcon,
   Shield,
   SlidersHorizontal,
@@ -32,6 +34,7 @@ import { AutotagSourceIcon } from "../../components/ui/AutotagSourceIcon";
 import { WhaleIcon } from "../../components/ui/WhaleIcon";
 import { FlagIcon } from "../../components/ui/FlagIcon";
 import { TermsModal } from "./TermsModal";
+import { LicensesModal } from "./LicensesModal";
 import logoUrl from "../../assets/logo.png";
 import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
@@ -165,6 +168,7 @@ const SECTIONS = [
   { id: "sponsorblock", labelKey: "settings.sponsorblock", icon: <Shield size={16} /> },
   { id: "network", labelKey: "settings.secNetwork", icon: <Globe size={16} /> },
   { id: "shortcuts", labelKey: "settings.catShortcuts", icon: <Keyboard size={16} /> },
+  { id: "extension", labelKey: "settings.catExtension", icon: <Puzzle size={16} /> },
   { id: "about", labelKey: "settings.catAbout", icon: <Info size={16} /> },
 ] as const;
 
@@ -263,6 +267,7 @@ export function SettingsModal({
   // Which sidebar category is showing in the content panel.
   const [section, setSection] = useState<SectionId>("general");
   const [termsOpen, setTermsOpen] = useState(false);
+  const [licensesOpen, setLicensesOpen] = useState(false);
 
   const pickFolder = async () => {
     const dir = await pickDirectory(form.download_dir);
@@ -837,6 +842,81 @@ export function SettingsModal({
                 </div>
               )}
 
+              {section === "extension" && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col items-center gap-2 pt-1 text-center">
+                    <Puzzle size={30} className="text-violet-400" />
+                    <p className="max-w-xs text-sm text-zinc-400">
+                      {t("settings.extensionIntro")}
+                    </p>
+                  </div>
+                  <div className="w-full divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+                    <div className="flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <BrowserIcon browser="firefox" className="size-5 text-zinc-200" />
+                        <div className="text-sm font-medium">Firefox</div>
+                      </div>
+                      <a
+                        href={EXT_FIREFOX_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          void openExternal(EXT_FIREFOX_URL);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
+                      >
+                        <Download size={13} /> {t("settings.extensionGet")}
+                      </a>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <BrowserIcon browser="chrome" className="size-5 text-zinc-500" />
+                        <div className="text-sm font-medium text-zinc-400">Chrome</div>
+                      </div>
+                      <span className="rounded-lg border border-white/10 px-2.5 py-1 text-xs text-zinc-500">
+                        {t("settings.extensionSoon")}
+                      </span>
+                    </div>
+                  </div>
+                  <a
+                    href={EXT_MANUAL_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void openExternal(EXT_MANUAL_URL);
+                    }}
+                    className="px-1 text-center text-xs text-zinc-500 transition hover:text-violet-300"
+                  >
+                    {t("settings.extensionManual")}
+                  </a>
+                  <div className="mt-1 flex items-start gap-2.5 rounded-xl border border-violet-500/15 bg-violet-500/[0.06] px-3.5 py-3">
+                    <MousePointerClick
+                      size={16}
+                      className="mt-0.5 shrink-0 text-violet-400"
+                    />
+                    <p className="text-xs leading-relaxed text-zinc-300">
+                      {t("settings.extensionUsage")
+                        .split("Download with Yoink")
+                        .flatMap((part, i) =>
+                          i === 0
+                            ? [part]
+                            : [
+                                <span
+                                  key={i}
+                                  className="font-medium text-violet-300"
+                                >
+                                  Download with Yoink
+                                </span>,
+                                part,
+                              ],
+                        )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {section === "about" && (
                 <>
         <div className="flex flex-col items-center gap-3 pt-1 text-center">
@@ -970,13 +1050,22 @@ export function SettingsModal({
             {t("settings.donate")}
           </a>
         </div>
-        <button
-          type="button"
-          onClick={() => setTermsOpen(true)}
-          className="mt-auto self-start px-3 text-[11px] text-zinc-500 transition hover:text-zinc-300"
-        >
-          {t("settings.terms")}
-        </button>
+        <div className="mt-auto flex flex-col items-start gap-1">
+          <button
+            type="button"
+            onClick={() => setLicensesOpen(true)}
+            className="self-start px-3 text-[11px] text-zinc-500 transition hover:text-zinc-300"
+          >
+            {t("settings.openSourceLicenses")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTermsOpen(true)}
+            className="self-start px-3 text-[11px] text-zinc-500 transition hover:text-zinc-300"
+          >
+            {t("settings.terms")}
+          </button>
+        </div>
                 </>
               )}
             </div>
@@ -1007,6 +1096,7 @@ export function SettingsModal({
       </GlassPanel>
     </div>
     {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
+    {licensesOpen && <LicensesModal onClose={() => setLicensesOpen(false)} />}
     </>
   );
 }
@@ -1051,6 +1141,13 @@ const COOKIES_EXT_CHROMIUM =
   "https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc?utm_source=item-share-cb";
 const COOKIES_EXT_FIREFOX =
   "https://addons.mozilla.org/es-ES/firefox/addon/get-cookies-txt-locally/";
+
+// "Send to Yoink" companion extension — the generic AMO path auto-localizes.
+const EXT_FIREFOX_URL = "https://addons.mozilla.org/firefox/addon/send-to-yoink/";
+// Manual-install builds: a rolling pre-release with stable, version-less asset
+// URLs, so this link never changes across Yoink app releases.
+const EXT_MANUAL_URL =
+  "https://github.com/ayozetr/yoink-app/releases/tag/ext-latest";
 
 /** A "?" button that reveals `children` in a popover, anchored with `fixed` so
  *  the modal's overflow can't clip it. */

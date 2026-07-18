@@ -52,6 +52,23 @@ number across these files before building to catch a stray one.
 
 Commit the bump together with any docs/README/icon updates.
 
+### 1b. Refresh the open-source licenses
+
+`OPEN_SOURCE_LICENSES.md` (repo root) is the list shown under **Settings › About →
+Open-source licenses**. It is **inlined into the frontend bundle at build time** (a
+Vite `?raw` import in `LicensesModal.tsx`) — the app never fetches it at runtime, so
+whatever is in the file when you run the build is what ships. Regenerate it so the
+listed versions match this release, with deps in sync with the lockfiles:
+
+```bash
+python scripts/gen_licenses.py   # reads node_modules/, `cargo metadata`, backend/.venv
+```
+
+It reports **installed** versions, so run it *after* any `npm install` / `cargo update`
+/ `pip install -U`. Commit the result; the frontend build (§3, via `npm run build`)
+bakes it into the bundle. (`backend/.venv` needs `pip-licenses`:
+`backend/.venv/bin/pip install pip-licenses`.)
+
 ## 2. Rebuild the backend
 
 Whenever the backend changed since the last release, rebuild it so the bundles
@@ -145,24 +162,23 @@ src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb
 src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm   # from §3b
 ```
 
-### 3c. Package the browser extension (beta)
+### 3c. Browser extension — NOT an app-release asset
 
-The **"Send to Yoink" browser extension** (`extension/`) ships as a **beta** release
-asset — a per-engine `.zip` a user loads unpacked (it's not on the Chrome Web Store /
-AMO yet). Build both:
+The **"Send to Yoink" browser extension** (`extension/`) ships on its **own channels**,
+**decoupled** from app releases — you do **not** re-attach it to every Yoink release:
 
-```bash
-cd extension && ./build.sh package && cd ..
-# -> extension/dist/send-to-yoink-<extver>-firefox.zip
-# -> extension/dist/send-to-yoink-<extver>-chromium.zip
-```
+- **Stores** — Firefox AMO / Chrome Web Store (`./build.sh publish-firefox`, etc.).
+- **Manual install** — the rolling **`ext-latest`** GitHub *pre-release* with stable,
+  version-less `.zip` URLs, refreshed only when the extension changes:
+  ```bash
+  cd extension && ./build.sh publish-manual && cd ..   # gh release upload ext-latest … --clobber
+  ```
 
-`build.sh package` assembles `dist/<browser>/` (the shared `src/` + the per-browser
-manifest) and zips each with `manifest.json` at the archive root. The zips live under
-the git-ignored `dist/`. Attach both to the GitHub release (§5) and mark the extension
-**(beta)** in the notes — the extension's own name (the manifest) stays plain "Send to
-Yoink"; only the release/GitHub copy carries the beta label. `<extver>` is the
-extension's own `manifest.*.json` version, independent of the app version.
+`ext-latest` is a **pre-release on purpose** so it stays out of `releases/latest` and
+can't shadow the app's updater. The app's **Settings ▸ Extension** tab links to it. Full
+flow + first-time setup: [`extension/README.md`](../extension/README.md). *(v3.0.0
+shipped the extension zips as app-release assets for the launch; from then on it's the
+`ext-latest` channel.)*
 
 ## 4. Smoke-test
 
@@ -199,14 +215,12 @@ gh release create v<ver> \
   "src-tauri/target/release/bundle/appimage/Yoink_<ver>_amd64.AppImage" \
   "src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb" \
   "src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm" \
-  "extension/dist/send-to-yoink-<extver>-firefox.zip" \
-  "extension/dist/send-to-yoink-<extver>-chromium.zip" \
   --title "Yoink v<ver>" --notes "<release notes>"
 ```
 
-The two `send-to-yoink-*.zip` assets are the **(beta)** browser extension (§3c) —
-call it out as beta in the notes (e.g. *"Browser extension (beta) — load unpacked;
-see extension/README.md"*).
+The browser extension is **not** an asset here — it lives on its own channel
+(`ext-latest` + the stores; see §3c). Update it with `./build.sh publish-manual` only
+when the extension itself changes.
 
 Verify with `gh release view v<ver> --json assets`.
 
