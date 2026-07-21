@@ -11,17 +11,23 @@
 
 ## 📍 Status
 
-- **In progress (unreleased):** in `main`, post-v2.9.0 — **desktop integration**:
-  a **system tray** with close-to-tray, **launch-at-startup**, and six opt-in
-  **global shortcuts** (paste-and-analyze, quick-download, cancel, open folder, …),
-  each with its Settings toggle; a **`yoink://` deep link** so the browser — or
-  anything — can hand a URL to the running app, plus a companion **"Send to Yoink"
-  browser extension (beta)** (Firefox + Chromium) that feeds it from a right-click; a
-  **Terms of Use & disclaimer**; a batch of **quality work** (memoized main-column
-  panels, a deferred playlist lossless probe, cancel-a-queued-download-on-disconnect,
-  re-tag dialog focus a11y, more tests); and an **audio-detection fix** for
-  Twitter/X clips whose HLS audio track carries a null `acodec`.
-- **Current release:** **v2.9.0** — **loudness normalization** (opt-in −14 LUFS),
+- **Current release:** **v3.1.0** — the **"Send to Yoink" browser extension (beta)** is
+  **live on both stores**
+  ([Firefox](https://addons.mozilla.org/firefox/addon/send-to-yoink/) ·
+  [Chrome](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp)),
+  installable from a new **Settings ▸ Extension** tab — with a manual-install channel
+  and a right-click usage tip — plus **Open-source licenses** under **Settings ▸ About**
+  listing Yoink's direct dependencies and their licenses.
+- **Previously:** **v3.0.0** — **desktop integration**: a **system tray** with
+  close-to-tray, **launch-at-startup**, and six opt-in **global shortcuts**
+  (paste-and-analyze, quick-download, cancel, open folder, …), each with its Settings
+  toggle; a **`yoink://` deep link** so the browser — or anything — can hand a URL to
+  the running app; a **Terms of Use & disclaimer**; a batch of **quality work**
+  (memoized main-column panels, a deferred playlist lossless probe,
+  cancel-a-queued-download-on-disconnect, re-tag dialog focus a11y, more tests); and an
+  **audio-detection fix** for Twitter/X clips whose HLS audio track carries a null
+  `acodec`.
+- **Previously:** **v2.9.0** — **loudness normalization** (opt-in −14 LUFS),
   a **whole-queue progress bar** ("N of M downloaded"), a **redesigned Settings
   modal** (sidebar + content panel, a branded **About**, brand icons + **language
   flags**, "?" help on the format/subtitles/proxy fields, a read-only **Shortcuts**
@@ -327,12 +333,13 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ✅ **Browser extension** "Send to Yoink" — **(beta)** *(next)* — a MV3 companion
   (Firefox + Chromium) with a context-menu item + toolbar button that fire the
   `yoink://` deep link; strips YouTube's auto Radio mix so a single video isn't sent
-  as a playlist. Built + validated in both engines and **submitted to both stores** —
+  as a playlist. **Published on both stores** *(v3.1.0)* —
   [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/send-to-yoink/) and the
   [Chrome Web Store](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp)
   — with the rolling [`ext-latest`](https://github.com/ayozetr/yoink-app/releases/tag/ext-latest)
   pre-release as the manual-install channel. Both listings link from **Settings ▸
-  Extension** in the app.
+  Extension** in the app. Still labelled **(beta)** on purpose until it has had real
+  use; dropping the label is a follow-up.
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).
