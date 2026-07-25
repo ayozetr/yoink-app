@@ -355,13 +355,18 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).
-- ✅ **Thin CLI** *(next)* — `scripts/yoink <url>` drives the same engine in-process (no
-  server): reuses saved settings, writes to the same history DB. Handles single URLs,
-  **playlists** (`--items 1,3-5` / `--filter` / `--skip-existing` / `--list`) and
-  **music-service imports** (Spotify/Deezer/Apple/Tidal/Amazon — matched on YouTube and
-  tagged with the exact source metadata), plus **VR** (`--vr`/`--vr-layout`) and
-  catalogue **auto-tagging** (`--tag`) for plain audio. Also `--info`/`--json`. See
-  [`docs/cli.md`](cli.md). *(Trim / subtitle-lang flags remain follow-ups.)*
+- ✅ **Thin CLI** *(next)* — `scripts/yoink <url>...` drives the same engine in-process
+  (no server): reuses saved settings, writes to the same history DB. Handles single URLs,
+  **batch input** (several URLs, `-a`/`--batch-file`, or stdin `-` — only the links are
+  taken from arbitrary text), **playlists** (`--items 1,3-5` / `--filter` /
+  `--skip-existing` / `--list`) and **music-service imports** (Spotify/Deezer/Apple/
+  Tidal/Amazon — matched on YouTube and tagged with the exact source metadata), plus
+  **VR** (`--vr`/`--vr-layout`), **trim** (`--trim-start`/`--trim-end`), **subtitles**
+  (`--subs LANG`), **chapters** (`--chapters`/`--no-chapters`), catalogue **auto-tagging**
+  (`--tag`), and per-run **overrides** (`-o`, `-t`, `--rate-limit`, `--proxy`,
+  `--cookies-*`, `--sponsorblock`, `--normalize`). Also `--info`/`--json`/`--quiet`,
+  `--version` and **shell completion** (`--print-completion bash|zsh|fish`). See
+  [`docs/cli.md`](cli.md).
 - ⬜ **More distribution channels** — AUR (S) / Flatpak (M) / winget + Chocolatey (M).
 
 ---
