@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from app.services.matching import best_match, name_match, score, time_match
+from app.services.matching import (
+    artist_match,
+    best_match,
+    name_match,
+    score,
+    time_match,
+)
 
 
 def _track(**kw):
@@ -56,6 +62,41 @@ def test_duration_far_off_lowers_or_rejects():
     assert near is not None
     # 6+ minutes vs 3:33 → time_match collapses → rejected or far lower.
     assert far is None or far < near
+
+
+def test_unknown_source_duration_keeps_the_pick():
+    # A no-duration source (Amazon-style) must still pick the same candidate the
+    # scorer would have — duration is a neutral constant across all candidates, so
+    # it can't reorder them. This guards the change that stops the neutral 100 from
+    # inflating the score.
+    t = dict(track_title="Never Gonna Give You Up", track_artists="Rick Astley",
+             track_duration_ms=None)
+    cands = [
+        {"title": "Rick Astley - Never Gonna Give You Up (Official Music Video)",
+         "channel": "Rick Astley", "duration": 213, "url": "good"},
+        {"title": "Never Gonna Give You Up - Lo-Fi Remix",
+         "channel": "SomeDJ", "duration": 200, "url": "remix"},
+    ]
+    best = best_match(**t, candidates=cands)
+    assert best is not None and best["url"] == "good"
+
+
+def test_unknown_source_duration_is_not_inflated():
+    # Without a source duration the score is a plain name/artist average, not lifted
+    # by a flat +50 floor (the old `(nm+am)/4 + 50`).
+    t = dict(track_title="Despechá", track_artists="ROSALÍA", track_duration_ms=None)
+    cand = {"title": "ROSALÍA - DESPECHÁ (Official Video)", "channel": "ROSALÍA",
+            "duration": 165}
+    nm = name_match(t["track_title"], cand["title"])
+    am = artist_match(t["track_artists"], cand["title"], cand["channel"])
+    s = score(**t, cand=cand)
+    assert s is not None
+    assert abs(s - (nm + am) / 2) < 0.6            # honest average
+    assert nm + am >= 199 or s < (nm + am) / 4 + 50  # strictly below the old floor
+    # A track *with* a duration is unchanged (duration still folded in).
+    with_dur = score(track_title="Despechá", track_artists="ROSALÍA",
+                     track_duration_ms=165000, cand=cand)
+    assert with_dur is not None and abs(with_dur - (( (nm + am) / 2 ) + 100) / 2) < 0.6
 
 
 def test_time_match_curve():

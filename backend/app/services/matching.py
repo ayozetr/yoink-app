@@ -195,7 +195,14 @@ def score(
         return None
 
     avg = (nm + am) / 2
-    avg = (avg + tm) / 2  # fold in duration closeness
+    # Fold in duration closeness only when the source track actually has a duration
+    # to compare against. When it doesn't (e.g. Amazon embeds carry none), time_match
+    # returns a neutral 100 for *every* candidate, so folding it in just adds a flat
+    # +50 that inflates the score without telling candidates apart. Skipping it keeps
+    # the exact same pick (tm is constant across candidates, so it can't reorder them)
+    # while reporting an honest score. Tracks that do carry a duration are unchanged.
+    if track_secs is not None:
+        avg = (avg + tm) / 2
     return min(avg, 100.0)
 
 
