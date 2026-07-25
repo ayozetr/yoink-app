@@ -69,7 +69,9 @@ python scripts/setup.py    # one-time: venv + backend deps + npm install
 python scripts/dev.py      # run backend (:8756) + frontend (:5173) together
 ```
 
-Then open <http://localhost:5173>. For development you need **ffmpeg** on your
+Then open <http://localhost:5173>. There's also a **command line**:
+`scripts/yoink <url>` downloads from the terminal with the same engine — see
+[`docs/cli.md`](docs/cli.md). For development you need **ffmpeg** on your
 PATH; the packaged desktop app bundles it. See [`CLAUDE.md`](CLAUDE.md) for
 per-layer commands.
 

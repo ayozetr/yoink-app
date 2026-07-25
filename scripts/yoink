@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Thin CLI over Yoink's own engine — `yoink <url>`. Runs the same yt-dlp + ffmpeg
+# pipeline the app uses, in-process, with no running server. Reuses the project's
+# backend venv. See docs/cli.md.
+#
+# Symlink it onto your PATH for a bare `yoink`:
+#   ln -s "$(pwd)/scripts/yoink" ~/.local/bin/yoink
+set -euo pipefail
+here="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+py="$here/backend/.venv/bin/python"
+if [ ! -x "$py" ]; then
+  echo "yoink: backend venv not found — run 'python scripts/setup.py' first" >&2
+  exit 1
+fi
+# PYTHONPATH (not cd) so relative -o paths resolve against the user's cwd.
+exec env PYTHONPATH="$here/backend${PYTHONPATH:+:$PYTHONPATH}" "$py" -m app.cli "$@"

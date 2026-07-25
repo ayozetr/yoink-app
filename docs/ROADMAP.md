@@ -257,6 +257,18 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   that failed (results are in job order) and the summary offers "Retry failed (N)".
 
 ### 🎵 Audio library
+- ⬜ **Recalibrate the YouTube-match duration weight** (M · needs a test set) — the
+  `matching.score` fold `((nm+am)/2 + tm)/2` weights duration **50%** of the final
+  score, and `time_match`'s `exp(-0.1·Δ)` decay is steep (a 10 s intro on an official
+  video → tm 37 → score 68). That can misrank an exact-length lyric video above the
+  official-with-intro cut. *Already fixed (v3.1.0-ish): a no-duration source no longer
+  folds in the neutral `tm=100`, so Amazon-style scores aren't inflated by a flat +50 —
+  and it's provably pick-neutral.* The **weight/decay** itself is the open part: lowering
+  it (e.g. `0.4·nm + 0.4·am + 0.2·tm`, or duration as a tiebreaker) or softening the
+  decay must be **measured against a bench of real songs** (the matcher hit ~99.5% on
+  2,300+ tracks) before shipping — a naive change risks regressing that. Also note there
+  is **no ISRC** to match on: keyless sources mostly don't expose it, and `ytsearch`
+  results carry none, so the match is inherently fuzzy.
 - ✅ **Auto-tag title parsing for non-Western formats** *(next)* — on top of the
   noise stripper (~93% of titles), the no-dash path now reads two more shapes:
   K-pop `ARTIST 'TITLE'` / `ARTIST "TITLE"` (quoted run = title, preceded text =
@@ -343,7 +355,13 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).
-- ⬜ **Thin CLI over the local API** (S/M) — `yoink <url>` for scripts.
+- ✅ **Thin CLI** *(next)* — `scripts/yoink <url>` drives the same engine in-process (no
+  server): reuses saved settings, writes to the same history DB. Handles single URLs,
+  **playlists** (`--items 1,3-5` / `--filter` / `--skip-existing` / `--list`) and
+  **music-service imports** (Spotify/Deezer/Apple/Tidal/Amazon — matched on YouTube and
+  tagged with the exact source metadata), plus **VR** (`--vr`/`--vr-layout`) and
+  catalogue **auto-tagging** (`--tag`) for plain audio. Also `--info`/`--json`. See
+  [`docs/cli.md`](cli.md). *(Trim / subtitle-lang flags remain follow-ups.)*
 - ⬜ **More distribution channels** — AUR (S) / Flatpak (M) / winget + Chocolatey (M).
 
 ---
