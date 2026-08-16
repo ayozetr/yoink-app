@@ -91,13 +91,22 @@ export const MusicImportCard = memo(function MusicImportCard({
   // bottom lines up with the format selector on any card (title/subtitle length
   // varies). The column is `self-start` so its measured height is the content's,
   // not the row's — and the cover doesn't feed back into it.
+  const rowRef = useRef<HTMLDivElement>(null);
   const infoColRef = useRef<HTMLDivElement>(null);
   const [coverSize, setCoverSize] = useState<number>();
   useEffect(() => {
-    const el = infoColRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => setCoverSize(el.offsetHeight));
-    observer.observe(el);
+    const info = infoColRef.current;
+    const row = rowRef.current;
+    if (!info || !row) return;
+    // Cap the square cover to a share of the row width so it can't feed back on the
+    // controls' height (a narrower row wraps the controls taller, which would widen
+    // the square cover, which narrows the controls further — until they overlap).
+    const update = () =>
+      setCoverSize(Math.min(info.offsetHeight, row.clientWidth * 0.42));
+    const observer = new ResizeObserver(update);
+    observer.observe(info);
+    observer.observe(row);
+    update();
     return () => observer.disconnect();
   }, []);
 
@@ -427,7 +436,7 @@ export const MusicImportCard = memo(function MusicImportCard({
         )}
       </div>
 
-      <div className="mt-3 flex flex-col gap-5 sm:flex-row">
+      <div ref={rowRef} className="mt-3 flex flex-col gap-5 sm:flex-row">
         {/* Square cover */}
         <div
           style={{ "--cover-h": `${coverSize ?? 180}px` } as CSSProperties}

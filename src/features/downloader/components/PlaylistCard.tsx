@@ -121,13 +121,23 @@ export const PlaylistCard = memo(function PlaylistCard({
   // The cover is a square whose side tracks the info column's own height, so its
   // bottom lines up with the format selector whatever the title/meta length. The
   // column is `self-start` so its measured height is the content's (not the row's).
+  const rowRef = useRef<HTMLDivElement>(null);
   const infoColRef = useRef<HTMLDivElement>(null);
   const [coverSize, setCoverSize] = useState<number>();
   useEffect(() => {
-    const el = infoColRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => setCoverSize(el.offsetHeight));
-    observer.observe(el);
+    const info = infoColRef.current;
+    const row = rowRef.current;
+    if (!info || !row) return;
+    // Match the square cover to the controls' height — but never let it exceed a
+    // share of the row width. Without that cap the two feed back on each other: a
+    // narrower row wraps the controls taller, which widens the (square) cover,
+    // which narrows the controls further… until the labels overlap the toggles.
+    const update = () =>
+      setCoverSize(Math.min(info.offsetHeight, row.clientWidth * 0.42));
+    const observer = new ResizeObserver(update);
+    observer.observe(info);
+    observer.observe(row);
+    update();
     return () => observer.disconnect();
   }, []);
   // Last checkbox toggled, for shift-click range selection (by id, so it survives
@@ -308,7 +318,7 @@ export const PlaylistCard = memo(function PlaylistCard({
         </button>
       </div>
 
-      <div className="flex flex-col gap-5 sm:flex-row">
+      <div ref={rowRef} className="flex flex-col gap-5 sm:flex-row">
         {/* Big square cover — same look as the music-import header. */}
         <div
           style={{ "--cover-h": `${coverSize ?? 180}px` } as CSSProperties}

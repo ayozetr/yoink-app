@@ -43,7 +43,7 @@ interface AutoTagPanelProps {
 }
 
 const INPUT =
-  "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm " +
+  "w-full min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm " +
   "text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50";
 
 type Stage = "loading" | "review" | "applying" | "done" | "error";

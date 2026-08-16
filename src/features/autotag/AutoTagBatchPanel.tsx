@@ -22,7 +22,7 @@ interface AutoTagBatchPanelProps {
 }
 
 const INPUT =
-  "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm " +
+  "w-full min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm " +
   "text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50";
 
 type TrackStatus = "loading" | "ready" | "nomatch" | "applied" | "error";
@@ -301,7 +301,7 @@ export function AutoTagBatchPanel({
 
               {expanded === i && tr.status !== "loading" && (
                 <div className="border-t border-white/5 px-3 py-3 space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <label className="block">
                       <span className="text-xs text-zinc-400">
                         {t("autotag.fieldTitle")}

@@ -225,8 +225,8 @@ function ShortcutRow({ shortcut }: { shortcut: (typeof SHORTCUTS)[number] }) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm">
-      <span className="text-zinc-200">{t(shortcut.labelKey)}</span>
-      <span className="flex items-center gap-1">
+      <span className="min-w-0 truncate text-zinc-200">{t(shortcut.labelKey)}</span>
+      <span className="flex shrink-0 items-center gap-1">
         {shortcut.keys(SHORTCUT_MOD).map((k, i) => (
           <kbd
             key={i}
@@ -511,7 +511,7 @@ export function SettingsModal({
             </span>
           </p>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t("settings.defaultFormat")} className="col-span-2">
               <Select
                 ariaLabel={t("settings.defaultFormat")}
@@ -570,7 +570,7 @@ export function SettingsModal({
 
               {section === "quality" && (
                 <>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t("settings.defaultQuality")}>
               <Select
                 ariaLabel={t("settings.defaultQuality")}

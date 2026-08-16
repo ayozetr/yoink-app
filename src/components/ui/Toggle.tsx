@@ -27,13 +27,16 @@ export function Toggle({
 }: ToggleProps) {
   return (
     <div
-      className={`flex h-11 items-center justify-between gap-3 rounded-xl border border-white/10 bg-surface px-4 text-sm ${
+      className={`flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/10 bg-surface px-4 py-2 text-sm ${
         className ?? ""
       }`}
     >
-      <span className="flex items-center gap-2">
+      {/* min-w-0 + wrapping so a long label (some locales run 40+ chars) grows the
+          row height instead of overflowing the fixed box and colliding with the
+          switch / the next toggle. */}
+      <span className="flex min-w-0 items-center gap-2">
         {icon}
-        {label}
+        <span className="min-w-0 break-words">{label}</span>
         {help}
       </span>
       <button
