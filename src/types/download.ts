@@ -184,6 +184,8 @@ export interface DownloadRequest {
   auto_vr?: boolean;
   /** Client-estimated final size (bytes), for the pre-flight disk check. */
   estimated_size?: number;
+  /** Override %(title)s in the output filename (single wrapped story/post item). */
+  output_title?: string | null;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */

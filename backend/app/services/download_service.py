@@ -270,6 +270,20 @@ def _parse_rate_limit(value: str | None) -> float | None:
     return result
 
 
+def _apply_title_override(name_template: str, output_title: str | None) -> str:
+    """Substitute a client-supplied title for the ``%(title)s`` field in the output
+    template. Used for a single wrapped item (Instagram story/post) whose container
+    title ("Story by X") is friendlier than the item's own ("Video by X"). The
+    override is sanitized to a safe path segment and its ``%`` escaped so yt-dlp
+    treats it as a literal, not another field."""
+    if not output_title:
+        return name_template
+    from yt_dlp.utils import sanitize_filename
+
+    safe = sanitize_filename(output_title, restricted=False) or "download"
+    return name_template.replace("%(title)s", safe.replace("%", "%%"))
+
+
 def _build_options(
     request: DownloadRequest,
     hook: Any,
@@ -296,6 +310,9 @@ def _build_options(
         name_template = "%(title)s"
     name_template = name_template.replace("\\", "/").replace("..", "").strip("/")
     name_template = name_template or "%(title)s"
+    # Optional per-download title override (single wrapped item, e.g. a story/post).
+    # Applied before the containment check so the substituted literal is validated too.
+    name_template = _apply_title_override(name_template, request.output_title)
     # Defense in depth: confirm the resolved template path stays inside the
     # download dir (the %(...)s fields are treated as literal segments here).
     try:

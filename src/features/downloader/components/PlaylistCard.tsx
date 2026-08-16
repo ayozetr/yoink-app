@@ -256,6 +256,21 @@ export const PlaylistCard = memo(function PlaylistCard({
     lastIdRef.current = entry.url;
   };
 
+  // A single-item "playlist" is really one wrapped video (an Instagram story/post,
+  // a one-video list…). Label the eyebrow by what the URL actually is, hide the
+  // batch chapters toggle (a lone wrapped clip's chapters aren't resolved and it's
+  // almost never chaptered, so the toggle only misleads), and — for a story/post —
+  // name the file after the container title ("Story by X") since the item's own is
+  // the less useful "Video by X".
+  const isStory = /instagram\.com\/stories\//i.test(sourceUrl ?? "");
+  const isPost = /instagram\.com\/p\//i.test(sourceUrl ?? "");
+  const singleItem = playlist.entries.length <= 1;
+  const listingLabel = isStory
+    ? t("playlist.story")
+    : isPost
+      ? t("playlist.post")
+      : t("playlist.label");
+
   const handleDownload = () => {
     const chosen = playlist.entries.filter((entry) => selected.has(entry.url));
     if (chosen.length === 0) return;
@@ -272,19 +287,10 @@ export const PlaylistCard = memo(function PlaylistCard({
       audio_multistreams: showMultiAudio ? audioMultistreams : undefined,
       is_vr: tagVr ? true : undefined,
       vr_layout: tagVr ? vrLayout : undefined,
+      output_title:
+        singleItem && (isStory || isPost) ? playlist.title : undefined,
     });
   };
-
-  // A single-item "playlist" is really one wrapped video (an Instagram story/post,
-  // a one-video list…). Label the eyebrow by what the URL actually is, and hide the
-  // batch chapters toggle — a lone wrapped clip's chapters aren't resolved and it's
-  // almost never chaptered, so the toggle only misleads.
-  const singleItem = playlist.entries.length <= 1;
-  const listingLabel = /instagram\.com\/stories\//i.test(sourceUrl ?? "")
-    ? t("playlist.story")
-    : /instagram\.com\/p\//i.test(sourceUrl ?? "")
-      ? t("playlist.post")
-      : t("playlist.label");
 
   return (
     <GlassPanel className="p-5">

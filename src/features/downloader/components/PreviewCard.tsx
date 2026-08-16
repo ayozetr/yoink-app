@@ -70,6 +70,8 @@ export interface DownloadSelection {
   vr_layout?: VRLayout;
   /** Estimated final size in bytes (for the backend pre-flight disk check). */
   estimated_size?: number;
+  /** Override the output filename's title (single wrapped story/post item). */
+  output_title?: string;
 }
 
 /** Sentinel value for the "no subtitles" entry in the language picker. */

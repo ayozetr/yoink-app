@@ -508,6 +508,7 @@ export function DownloaderPanel({
           audio_multistreams: selection.audio_multistreams,
           is_vr: selection.is_vr,
           vr_layout: selection.vr_layout,
+          output_title: selection.output_title,
         },
         title: entry.title,
       })),

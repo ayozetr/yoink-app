@@ -244,6 +244,15 @@ class DownloadRequest(BaseModel):
             "absent (e.g. queue/playlist items)."
         ),
     )
+    output_title: str | None = Field(
+        default=None,
+        description=(
+            "Override the %(title)s used for the output filename. Set by the client "
+            "for a single wrapped item (e.g. an Instagram story/post) so the file is "
+            "named after the friendlier container title ('Story by X') instead of the "
+            "item's own ('Video by X'). Ignored when absent."
+        ),
+    )
 
     @model_validator(mode="after")
     def _check_trim_range(self) -> "DownloadRequest":
