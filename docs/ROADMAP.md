@@ -11,7 +11,15 @@
 
 ## 📍 Status
 
-- **Current release:** **v3.1.0** — the **"Send to Yoink" browser extension (beta)** is
+- **Current release:** **v3.2.0** — a **command-line interface** (`scripts/yoink <url>`)
+  driving the same engine in-process: single URLs, **batch input** (many URLs / a file /
+  stdin, taking only the links), **playlists**, **music-service imports**, **VR**, **trim**,
+  **subtitles**, **chapters**, catalogue **auto-tagging**, per-run **overrides**
+  (rate limit / proxy / cookies / SponsorBlock / normalize / filename), and **shell
+  completion** — see [`docs/cli.md`](cli.md). Plus UI polish for **single wrapped items**
+  (an Instagram **story/post** is labelled as such, drops the batch chapters toggle, and
+  saves under its container title instead of "Video by …").
+- **Previously:** **v3.1.0** — the **"Send to Yoink" browser extension (beta)** is
   **live on both stores**
   ([Firefox](https://addons.mozilla.org/firefox/addon/send-to-yoink/) ·
   [Chrome](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp)),
