@@ -9,7 +9,7 @@
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-lightgrey)](LICENSE)
 [![React Doctor](https://www.react.doctor/share/badge?p=yoink&s=92&w=26&f=10)](https://www.react.doctor/share?p=yoink&s=92&w=26&f=10)
 
-![Yoink — analyzing a video with the YouTube/SoundCloud search toggle, format/quality picker and download history sidebar](docs/screenshot_v2.0.0.png)
+![Yoink — analyzing a video with the YouTube/SoundCloud search toggle, format/quality picker and download history sidebar](docs/screenshot_v3.0.0.png)
 
 **Yoink** is a **local** desktop app for downloading high-fidelity video and audio
 from ~1800 sites — a clean, dark UI over
