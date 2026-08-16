@@ -74,6 +74,8 @@ export const zh = {
     filter: "筛选曲目…",
     noMatches: "没有匹配的曲目。",
     label: "播放列表",
+    story: "Story",
+    post: "Post",
     selectAll: "全选",
     deselectAll: "取消全选",
     downloaded: "已下载",

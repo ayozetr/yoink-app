@@ -74,6 +74,8 @@ export const hi = {
     filter: "ट्रैक फ़िल्टर करें…",
     noMatches: "कोई मिलान वाला ट्रैक नहीं।",
     label: "प्लेलिस्ट",
+    story: "Story",
+    post: "Post",
     selectAll: "सभी चुनें",
     deselectAll: "सभी अचयनित करें",
     downloaded: "डाउनलोड किया",

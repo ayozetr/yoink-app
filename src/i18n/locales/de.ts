@@ -74,6 +74,8 @@ export const de = {
     filter: "Titel filtern…",
     noMatches: "Keine passenden Titel.",
     label: "Playlist",
+    story: "Story",
+    post: "Post",
     selectAll: "Alle auswählen",
     deselectAll: "Alle abwählen",
     downloaded: "Geladen",

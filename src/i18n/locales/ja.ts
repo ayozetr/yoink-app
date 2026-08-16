@@ -74,6 +74,8 @@ export const ja = {
     filter: "トラックを絞り込み…",
     noMatches: "一致するトラックがありません。",
     label: "プレイリスト",
+    story: "Story",
+    post: "Post",
     selectAll: "すべて選択",
     deselectAll: "選択をすべて解除",
     downloaded: "取得済み",

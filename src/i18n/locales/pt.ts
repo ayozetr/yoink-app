@@ -74,6 +74,8 @@ export const pt = {
     filter: "Filtrar faixas…",
     noMatches: "Nenhuma faixa correspondente.",
     label: "Playlist",
+    story: "Story",
+    post: "Post",
     selectAll: "Selecionar tudo",
     deselectAll: "Desmarcar tudo",
     downloaded: "Baixada",

@@ -74,6 +74,8 @@ export const pl = {
     filter: "Filtruj utwory…",
     noMatches: "Brak pasujących utworów.",
     label: "Playlista",
+    story: "Story",
+    post: "Post",
     selectAll: "Zaznacz wszystko",
     deselectAll: "Odznacz wszystko",
     downloaded: "Pobrano",

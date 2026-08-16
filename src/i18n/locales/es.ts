@@ -74,6 +74,8 @@ export const es = {
     filter: "Filtrar pistas…",
     noMatches: "No hay pistas que coincidan.",
     label: "Playlist",
+    story: "Story",
+    post: "Post",
     selectAll: "Seleccionar todo",
     deselectAll: "Deseleccionar todo",
     downloaded: "Descargada",

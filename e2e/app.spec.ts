@@ -85,6 +85,22 @@ const PLAYLIST_INFO = {
   },
 };
 
+/** A single-item flat listing — how yt-dlp wraps an Instagram story / post. */
+const SINGLE_ITEM_INFO = {
+  type: "playlist",
+  video: null,
+  playlist: {
+    id: "S1",
+    title: "Wrapped Clip",
+    uploader: null,
+    entry_count: 1,
+    truncated: false,
+    entries: [
+      { id: "s", title: "Only Clip", url: "http://x/s", duration_string: "0:15", thumbnail_url: null, uploader: null },
+    ],
+  },
+};
+
 test("shows the empty history state on load", async ({ page }) => {
   await mockBase(page);
   await page.goto("/");
@@ -170,6 +186,31 @@ test("analyzes a playlist with per-item selection", async ({ page }) => {
   // Deselect one item (by name, so the chapters checkbox doesn't interfere).
   await page.getByRole("checkbox", { name: /First Clip/ }).uncheck();
   await expect(page.getByRole("button", { name: /Descargar \(1\)/ })).toBeVisible();
+});
+
+test("an Instagram story (single item): 'Story' label, no chapters toggle", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: SINGLE_ITEM_INFO }));
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://www.instagram.com/stories/user/123/");
+  await page.getByRole("button", { name: "Analizar" }).click();
+
+  await expect(page.getByText("Wrapped Clip")).toBeVisible();
+  // Eyebrow reads "Story" (not "Playlist"), and the batch chapters toggle is gone.
+  await expect(page.getByText("Story", { exact: true })).toBeVisible();
+  await expect(page.getByText("Incrustar capítulos")).toHaveCount(0);
+});
+
+test("an Instagram post (single item) shows the 'Post' label", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: SINGLE_ITEM_INFO }));
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://www.instagram.com/p/ABC123/");
+  await page.getByRole("button", { name: "Analizar" }).click();
+
+  await expect(page.getByText("Post", { exact: true })).toBeVisible();
 });
 
 test("playlist sync: pre-selects only items you don't already have", async ({ page }) => {

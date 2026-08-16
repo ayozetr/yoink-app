@@ -74,6 +74,8 @@ export const uk = {
     filter: "Фільтр треків…",
     noMatches: "Немає відповідних треків.",
     label: "Плейлист",
+    story: "Story",
+    post: "Post",
     selectAll: "Вибрати все",
     deselectAll: "Зняти вибір",
     downloaded: "Завантажено",

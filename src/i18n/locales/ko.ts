@@ -74,6 +74,8 @@ export const ko = {
     filter: "트랙 필터…",
     noMatches: "일치하는 트랙이 없습니다。",
     label: "재생목록",
+    story: "Story",
+    post: "Post",
     selectAll: "모두 선택",
     deselectAll: "선택 해제",
     downloaded: "다운로드됨",

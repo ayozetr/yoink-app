@@ -74,6 +74,8 @@ export const it = {
     filter: "Filtra i brani…",
     noMatches: "Nessun brano corrispondente.",
     label: "Playlist",
+    story: "Story",
+    post: "Post",
     selectAll: "Seleziona tutto",
     deselectAll: "Deseleziona tutto",
     downloaded: "Scaricata",

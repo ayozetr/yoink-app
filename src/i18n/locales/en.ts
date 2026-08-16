@@ -74,6 +74,8 @@ export const en = {
     filter: "Filter tracks…",
     noMatches: "No matching tracks.",
     label: "Playlist",
+    story: "Story",
+    post: "Post",
     selectAll: "Select all",
     deselectAll: "Deselect all",
     downloaded: "Downloaded",

@@ -275,12 +275,23 @@ export const PlaylistCard = memo(function PlaylistCard({
     });
   };
 
+  // A single-item "playlist" is really one wrapped video (an Instagram story/post,
+  // a one-video list…). Label the eyebrow by what the URL actually is, and hide the
+  // batch chapters toggle — a lone wrapped clip's chapters aren't resolved and it's
+  // almost never chaptered, so the toggle only misleads.
+  const singleItem = playlist.entries.length <= 1;
+  const listingLabel = /instagram\.com\/stories\//i.test(sourceUrl ?? "")
+    ? t("playlist.story")
+    : /instagram\.com\/p\//i.test(sourceUrl ?? "")
+      ? t("playlist.post")
+      : t("playlist.label");
+
   return (
     <GlassPanel className="p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
         <span className="text-xs uppercase tracking-wider text-violet-400 flex items-center gap-2">
           <ListVideo size={14} />
-          {t("playlist.label")}
+          {listingLabel}
         </span>
         <button
           type="button"
@@ -410,11 +421,13 @@ export const PlaylistCard = memo(function PlaylistCard({
                     className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
                   />
                 )}
-                <Toggle
-                  checked={embedChapters}
-                  onChange={setEmbedChapters}
-                  label={t("preview.chapters")}
-                />
+                {!singleItem && (
+                  <Toggle
+                    checked={embedChapters}
+                    onChange={setEmbedChapters}
+                    label={t("preview.chapters")}
+                  />
+                )}
                 {showMultiAudio && (
                   <Toggle
                     checked={audioMultistreams}

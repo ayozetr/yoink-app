@@ -74,6 +74,8 @@ export const id = {
     filter: "Filter trek…",
     noMatches: "Tidak ada trek yang cocok.",
     label: "Playlist",
+    story: "Story",
+    post: "Post",
     selectAll: "Pilih semua",
     deselectAll: "Batalkan semua pilihan",
     downloaded: "Terunduh",

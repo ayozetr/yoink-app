@@ -74,6 +74,8 @@ export const ru = {
     filter: "Фильтр треков…",
     noMatches: "Нет совпадающих треков.",
     label: "Плейлист",
+    story: "Story",
+    post: "Post",
     selectAll: "Выбрать всё",
     deselectAll: "Снять выделение",
     downloaded: "Скачано",

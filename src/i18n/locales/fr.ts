@@ -74,6 +74,8 @@ export const fr = {
     filter: "Filtrer les titres…",
     noMatches: "Aucun titre correspondant.",
     label: "Playlist",
+    story: "Story",
+    post: "Post",
     selectAll: "Tout sélectionner",
     deselectAll: "Tout désélectionner",
     downloaded: "Téléchargée",
