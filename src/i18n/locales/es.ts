@@ -55,6 +55,7 @@ export const es = {
     trimEnd: "Fin (m:ss)",
     trimHint: "p. ej. 0:30 → 2:10. Deja el fin vacío para el resto.",
     trimError: "El fin debe ser posterior al inicio.",
+    trimInvalid: "Hora no válida — usa m:ss.",
     vrBadge: "VR",
     vr: "VR (inmersivo)",
     vrLayout: "Formato VR",
@@ -89,6 +90,7 @@ export const es = {
   },
   progress: {
     downloading: "Descargando…",
+    preparing: "Preparando…",
     processing: "Procesando…",
     eta: "ETA",
     merging: "Uniendo pistas",
@@ -110,6 +112,10 @@ export const es = {
       "La fuente no está disponible ahora mismo. Inténtalo de nuevo en un momento.",
     blockedHint:
       "Si el sitio bloquea la descarga, prueba a indicar tu navegador en Ajustes → cookies.",
+
+    loginHint:
+
+      "Este contenido requiere iniciar sesión. Activa las cookies del navegador en Ajustes → Red y acceso.",
     downloadingOf: "Descargando {{current}} de {{total}}:",
     summaryDone: "{{count}} completadas",
     summaryFailed: " · {{count}} con error",

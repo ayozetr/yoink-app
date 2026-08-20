@@ -55,6 +55,7 @@ export const hi = {
     trimEnd: "अंत (m:ss)",
     trimHint: "जैसे 0:30 → 2:10। बाकी हिस्से के लिए अंत खाली छोड़ दें।",
     trimError: "अंत शुरुआत के बाद होना चाहिए।",
+    trimInvalid: "अमान्य समय — m:ss का उपयोग करें।",
     vrBadge: "VR",
     vr: "VR (इमर्सिव)",
     vrLayout: "VR लेआउट",
@@ -89,6 +90,7 @@ export const hi = {
   },
   progress: {
     downloading: "डाउनलोड हो रहा है…",
+    preparing: "तैयार हो रहा है…",
     processing: "प्रोसेस हो रहा है…",
     eta: "ETA",
     merging: "ट्रैक मर्ज हो रहे हैं",
@@ -110,6 +112,10 @@ export const hi = {
       "स्रोत फ़िलहाल अनुपलब्ध है। थोड़ी देर बाद दोबारा कोशिश करें।",
     blockedHint:
       "अगर साइट डाउनलोड को ब्लॉक करती है, तो सेटिंग्स → cookies में अपना ब्राउज़र सेट करके देखें।",
+
+    loginHint:
+
+      "इस सामग्री के लिए लॉगिन आवश्यक है। सेटिंग्स → नेटवर्क और एक्सेस में ब्राउज़र कुकीज़ चालू करें।",
     downloadingOf: "{{total}} में से {{current}} डाउनलोड हो रहा है:",
     summaryDone: "{{count}} पूरे हुए",
     summaryFailed: " · {{count}} विफल",

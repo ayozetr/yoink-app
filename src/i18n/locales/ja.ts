@@ -55,6 +55,7 @@ export const ja = {
     trimEnd: "終了 (m:ss)",
     trimHint: "例：0:30 → 2:10。終了を空欄にすると最後まで残します。",
     trimError: "終了は開始より後にしてください。",
+    trimInvalid: "無効な時間です — m:ss 形式で入力してください。",
     vrBadge: "VR",
     vr: "VR（没入型）",
     vrLayout: "VR レイアウト",
@@ -89,6 +90,7 @@ export const ja = {
   },
   progress: {
     downloading: "ダウンロード中…",
+    preparing: "準備中…",
     processing: "処理中…",
     eta: "ETA",
     merging: "トラックを結合中",
@@ -110,6 +112,10 @@ export const ja = {
       "ソースが一時的に利用できません。しばらくしてからもう一度お試しください。",
     blockedHint:
       "サイトがダウンロードをブロックする場合は、設定 → cookies でブラウザを指定してみてください。",
+
+    loginHint:
+
+      "このコンテンツはログインが必要です。設定 → ネットワークとアクセスでブラウザの Cookie を有効にしてください。",
     downloadingOf: "{{total}} 件中 {{current}} 件目をダウンロード中：",
     summaryDone: "{{count}} 件完了",
     summaryFailed: " · {{count}} 件失敗",

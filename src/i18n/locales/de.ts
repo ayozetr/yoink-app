@@ -55,6 +55,7 @@ export const de = {
     trimEnd: "Ende (m:ss)",
     trimHint: "z. B. 0:30 → 2:10. Lasse das Ende leer für den Rest.",
     trimError: "Das Ende muss nach dem Anfang liegen.",
+    trimInvalid: "Ungültige Zeit — verwende m:ss.",
     vrBadge: "VR",
     vr: "VR (immersiv)",
     vrLayout: "VR-Layout",
@@ -89,6 +90,7 @@ export const de = {
   },
   progress: {
     downloading: "Lade herunter…",
+    preparing: "Wird vorbereitet…",
     processing: "Verarbeite…",
     eta: "ETA",
     merging: "Spuren werden zusammengeführt",
@@ -110,6 +112,10 @@ export const de = {
       "Die Quelle ist vorübergehend nicht verfügbar. Versuche es gleich noch einmal.",
     blockedHint:
       "Wenn die Seite den Download blockiert, gib deinen Browser unter Einstellungen → Cookies an.",
+
+    loginHint:
+
+      "Dieser Inhalt erfordert eine Anmeldung. Aktiviere die Browser-Cookies unter Einstellungen → Netzwerk und Zugriff.",
     downloadingOf: "Lade {{current}} von {{total}} herunter:",
     summaryDone: "{{count}} abgeschlossen",
     summaryFailed: " · {{count}} fehlgeschlagen",

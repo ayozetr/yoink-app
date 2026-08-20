@@ -55,6 +55,7 @@ export const id = {
     trimEnd: "Akhir (m:ss)",
     trimHint: "mis. 0:30 → 2:10. Biarkan akhir kosong untuk sisanya.",
     trimError: "Akhir harus setelah awal.",
+    trimInvalid: "Waktu tidak valid — gunakan m:dd.",
     vrBadge: "VR",
     vr: "VR (imersif)",
     vrLayout: "Tata letak VR",
@@ -89,6 +90,7 @@ export const id = {
   },
   progress: {
     downloading: "Mengunduh…",
+    preparing: "Menyiapkan…",
     processing: "Memproses…",
     eta: "ETA",
     merging: "Menggabungkan trek",
@@ -110,6 +112,10 @@ export const id = {
       "Sumber tidak tersedia untuk sementara. Coba lagi sebentar lagi.",
     blockedHint:
       "Jika situs memblokir unduhan, coba atur peramban Anda di Pengaturan → cookies.",
+
+    loginHint:
+
+      "Konten ini memerlukan login. Aktifkan cookie browser di Pengaturan → Jaringan & akses.",
     downloadingOf: "Mengunduh {{current}} dari {{total}}:",
     summaryDone: "{{count}} selesai",
     summaryFailed: " · {{count}} gagal",

@@ -99,12 +99,23 @@ export function DownloadProgressCard({
   if (!progress) return null;
 
   const isProcessing = progress.status === "processing";
-  const label = isProcessing ? t("progress.processing") : t("progress.downloading");
-  const detail = isProcessing
-    ? t("progress.merging")
-    : [progress.speed, progress.eta && `${t("progress.eta")} ${progress.eta}`]
-        .filter(Boolean)
-        .join(" • ");
+  // Before yt-dlp reports the first byte (extraction / format resolution / an
+  // ffmpeg seek to the trim point), percent sits at 0 with no speed. Show
+  // "Preparing…" so the bar doesn't look frozen at 0%.
+  const isPreparing = !isProcessing && progress.percent === 0 && !progress.speed;
+  const label = isProcessing
+    ? t("progress.processing")
+    : isPreparing
+      ? t("progress.preparing")
+      : t("progress.downloading");
+  const detail =
+    isProcessing || isPreparing
+      ? isProcessing
+        ? t("progress.merging")
+        : ""
+      : [progress.speed, progress.eta && `${t("progress.eta")} ${progress.eta}`]
+          .filter(Boolean)
+          .join(" • ");
 
   return (
     <GlassPanel className="p-5">

@@ -55,6 +55,7 @@ export const ko = {
     trimEnd: "끝 (m:ss)",
     trimHint: "예: 0:30 → 2:10. 끝을 비워 두면 나머지 전체가 포함됩니다.",
     trimError: "끝이 시작보다 뒤여야 합니다.",
+    trimInvalid: "잘못된 시간 — m:ss 형식을 사용하세요.",
     vrBadge: "VR",
     vr: "VR (몰입형)",
     vrLayout: "VR 레이아웃",
@@ -89,6 +90,7 @@ export const ko = {
   },
   progress: {
     downloading: "다운로드 중…",
+    preparing: "준비 중…",
     processing: "처리 중…",
     eta: "ETA",
     merging: "트랙 병합 중",
@@ -110,6 +112,10 @@ export const ko = {
       "소스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
     blockedHint:
       "사이트가 다운로드를 차단하면 설정 → cookies에서 브라우저를 지정해 보세요.",
+
+    loginHint:
+
+      "이 콘텐츠는 로그인이 필요합니다. 설정 → 네트워크 및 액세스에서 브라우저 쿠키를 켜세요.",
     downloadingOf: "{{total}}개 중 {{current}}번째 다운로드 중:",
     summaryDone: "{{count}}개 완료",
     summaryFailed: " · {{count}}개 실패",

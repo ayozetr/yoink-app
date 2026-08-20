@@ -365,20 +365,23 @@ export function SettingsModal({
         </div>
 
         <div className="flex min-h-0 flex-1">
-          <nav className="flex w-44 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-white/10 p-3">
+          {/* Icon-only rail on a narrow window (collapses below sm so it doesn't
+              eat the content width); full labels once there's room. */}
+          <nav className="flex w-14 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-white/10 p-2 sm:w-44 sm:p-3">
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => setSection(s.id)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition ${
+                title={t(s.labelKey)}
+                className={`flex items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition sm:justify-start ${
                   section === s.id
                     ? "bg-violet-600/15 font-medium text-white"
                     : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
                 }`}
               >
                 <span className="shrink-0">{s.icon}</span>
-                {t(s.labelKey)}
+                <span className="hidden truncate sm:inline">{t(s.labelKey)}</span>
               </button>
             ))}
           </nav>

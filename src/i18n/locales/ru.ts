@@ -55,6 +55,7 @@ export const ru = {
     trimEnd: "Конец (m:ss)",
     trimHint: "например 0:30 → 2:10. Оставьте конец пустым, чтобы взять остаток.",
     trimError: "Конец должен быть позже начала.",
+    trimInvalid: "Неверное время — используйте м:сс.",
     vrBadge: "VR",
     vr: "VR (иммерсивное)",
     vrLayout: "Формат VR",
@@ -91,6 +92,7 @@ export const ru = {
   },
   progress: {
     downloading: "Загрузка…",
+    preparing: "Подготовка…",
     processing: "Обработка…",
     eta: "ETA",
     merging: "Объединение дорожек",
@@ -112,6 +114,10 @@ export const ru = {
       "Источник временно недоступен. Попробуйте снова через мгновение.",
     blockedHint:
       "Если сайт блокирует загрузку, попробуйте указать ваш браузер в Настройки → cookies.",
+
+    loginHint:
+
+      "Для этого контента нужен вход. Включите cookies браузера в Настройках → Сеть и доступ.",
     downloadingOf: "Загрузка {{current}} из {{total}}:",
     summaryDone: "{{count}} завершено",
     summaryFailed: " · {{count}} с ошибкой",

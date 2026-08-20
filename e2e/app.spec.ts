@@ -154,6 +154,46 @@ test("collapses secondary controls under Advanced options", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Recortar" })).toBeVisible();
 });
 
+test("an invalid trim time blocks Download; a dot separator is accepted", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) => route.fulfill({ json: VIDEO_INFO }));
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://x.com/v");
+  await page.getByRole("button", { name: "Analizar" }).click();
+  await expect(page.getByRole("heading", { name: "My Test Video" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Opciones avanzadas" }).click();
+  await page.getByRole("button", { name: "Recortar" }).click();
+
+  const start = page.getByRole("textbox", { name: "Inicio (m:ss)" });
+  const download = page.getByRole("button", { name: "Descargar" });
+  // A bad value is flagged and blocks Download instead of being silently ignored.
+  await start.fill("12a");
+  await expect(download).toBeDisabled();
+  await expect(page.getByText(/no válida/i)).toBeVisible();
+  // A dot is accepted as the m:ss separator, so "12.20" (= 12:20) re-enables it.
+  await start.fill("12.20");
+  await expect(download).toBeEnabled();
+});
+
+test("a login-required error suggests enabling cookies", async ({ page }) => {
+  await mockBase(page);
+  await page.route("**/api/info", (route) =>
+    route.fulfill({
+      status: 422,
+      json: { detail: "ERROR: You need to log in to access this content." },
+    }),
+  );
+
+  await page.goto("/");
+  await page.getByPlaceholder(/Pega aquí la URL/).fill("https://instagram.com/p/x");
+  await page.getByRole("button", { name: "Analizar" }).click();
+
+  await expect(page.getByText(/log in to access/i)).toBeVisible();
+  await expect(page.getByText(/cookies del navegador/i)).toBeVisible();
+});
+
 test("auto-expands Advanced options for a VR video", async ({ page }) => {
   await mockBase(page);
   await page.route("**/api/info", (route) => route.fulfill({ json: VR_VIDEO_INFO }));

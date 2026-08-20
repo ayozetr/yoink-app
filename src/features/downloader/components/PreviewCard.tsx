@@ -80,10 +80,12 @@ const SUBS_NONE = "__none__";
 /** Parse "ss", "mm:ss" or "hh:mm:ss" into seconds (undefined if blank/invalid). */
 function parseTime(value: string): number | undefined {
   const t = value.trim();
-  // Strictly digits in 1–3 colon-separated groups: "ss", "mm:ss", "hh:mm:ss".
-  // A regex avoids Number() coercion accepting "1:", "::", "0x10", "1e3", etc.
-  if (!/^\d+(:\d+){0,2}$/.test(t)) return undefined;
-  return t.split(":").reduce((acc, p) => acc * 60 + Number(p), 0);
+  // Digits in 1–3 groups separated by ':' or '.': "ss", "mm:ss", "hh:mm:ss".
+  // A '.' is accepted as the separator too — this is a clock field, so a typed
+  // "12.20" means 12:20 (people mistype the colon). A regex avoids Number()
+  // coercion accepting "1:", "::", "0x10", "1e3", etc.
+  if (!/^\d+([:.]\d+){0,2}$/.test(t)) return undefined;
+  return t.split(/[.:]/).reduce((acc, p) => acc * 60 + Number(p), 0);
 }
 
 interface PreviewCardProps {
@@ -200,6 +202,12 @@ export const PreviewCard = memo(function PreviewCard({
   // lone end of 0, which would otherwise be an empty (0,0) range. Computed from
   // the values, not panel state, so the range is validated even when collapsed.
   const trimError = trimEndSec != null && trimEndSec <= (trimStartSec ?? 0);
+  // A non-empty field that doesn't parse (e.g. "1a", "1:2:3:4") would otherwise be
+  // silently ignored — the clip would run to the end. Flag it so the field turns
+  // red and the Download button is blocked, instead of downloading the wrong range.
+  const trimStartInvalid = trimStart.trim() !== "" && trimStartSec === undefined;
+  const trimEndInvalid = trimEnd.trim() !== "" && trimEndSec === undefined;
+  const trimInvalid = trimStartInvalid || trimEndInvalid;
 
   // Apply a saved preset to the selectors (best-effort: quality/kind are only
   // set when this media can offer them).
@@ -451,7 +459,7 @@ export const PreviewCard = memo(function PreviewCard({
             >
               <SlidersHorizontal size={16} />
               {t("preview.advanced")}
-              {trimError && !advancedOpen && (
+              {(trimError || trimInvalid) && !advancedOpen && (
                 // Surface that a control inside (the trim range) is invalid, so
                 // the disabled Download button below isn't a mystery.
                 <AlertCircle size={14} className="text-red-400" />
@@ -586,7 +594,9 @@ export const PreviewCard = memo(function PreviewCard({
                       placeholder={t("preview.trimStart")}
                       value={trimStart}
                       onChange={(e) => setTrimStart(e.target.value)}
-                      className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
+                      className={`h-11 w-28 rounded-xl bg-surface border px-3 text-sm outline-none focus:border-violet-500 ${
+                        trimStartInvalid ? "border-red-500/60" : "border-white/10"
+                      }`}
                     />
                     <span className="text-zinc-500">→</span>
                     <input
@@ -596,7 +606,9 @@ export const PreviewCard = memo(function PreviewCard({
                       placeholder={t("preview.trimEnd")}
                       value={trimEnd}
                       onChange={(e) => setTrimEnd(e.target.value)}
-                      className="h-11 w-28 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500"
+                      className={`h-11 w-28 rounded-xl bg-surface border px-3 text-sm outline-none focus:border-violet-500 ${
+                        trimEndInvalid ? "border-red-500/60" : "border-white/10"
+                      }`}
                     />
                     <span className="text-xs text-zinc-400">
                       {t("preview.trimHint")}
@@ -609,10 +621,10 @@ export const PreviewCard = memo(function PreviewCard({
                   </span>
                 )}
               </div>
-              {trimError && (
+              {(trimError || trimInvalid) && (
                 <p className="flex items-center gap-2 text-xs text-red-300">
                   <Info size={14} className="shrink-0" />
-                  {t("preview.trimError")}
+                  {trimInvalid ? t("preview.trimInvalid") : t("preview.trimError")}
                 </p>
               )}
             </div>
@@ -620,7 +632,7 @@ export const PreviewCard = memo(function PreviewCard({
 
             <Button
               variant="gradient"
-              disabled={locked || trimError}
+              disabled={locked || trimError || trimInvalid}
               title={locked ? t("common.busy") : undefined}
               onClick={() => {
                 // Remember the layout choice for this studio so the next
@@ -638,8 +650,8 @@ export const PreviewCard = memo(function PreviewCard({
                   audio_multistreams: showMultiAudio
                     ? audioMultistreams
                     : undefined,
-                  trim_start: !trimError ? trimStartSec : undefined,
-                  trim_end: !trimError ? trimEndSec : undefined,
+                  trim_start: !trimError && !trimInvalid ? trimStartSec : undefined,
+                  trim_end: !trimError && !trimInvalid ? trimEndSec : undefined,
                   is_vr: isVideo ? isVr : undefined,
                   vr_layout: isVideo && isVr ? vrLayout : undefined,
                   // Only when not trimming — the estimate is for the full video,

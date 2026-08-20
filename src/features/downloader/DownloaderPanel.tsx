@@ -623,10 +623,18 @@ export function DownloaderPanel({
             <AlertCircle size={18} className="shrink-0" />
             <span className="text-sm">{error}</span>
           </div>
-          {/forbidden|\b403\b/i.test(error) && (
+          {/(log ?in|logged.?in|cookies|private|members?.only|sign ?in|account)/i.test(
+            error,
+          ) ? (
             <p className="mt-2 pl-[30px] text-xs text-zinc-400">
-              {t("panel.blockedHint")}
+              {t("panel.loginHint")}
             </p>
+          ) : (
+            /forbidden|\b403\b/i.test(error) && (
+              <p className="mt-2 pl-[30px] text-xs text-zinc-400">
+                {t("panel.blockedHint")}
+              </p>
+            )
           )}
         </GlassPanel>
       )}

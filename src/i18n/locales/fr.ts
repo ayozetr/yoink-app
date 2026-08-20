@@ -55,6 +55,7 @@ export const fr = {
     trimEnd: "Fin (m:ss)",
     trimHint: "p. ex. 0:30 → 2:10. Laissez la fin vide pour le reste.",
     trimError: "La fin doit être après le début.",
+    trimInvalid: "Heure invalide — utilisez m:ss.",
     vrBadge: "VR",
     vr: "VR (immersif)",
     vrLayout: "Disposition VR",
@@ -89,6 +90,7 @@ export const fr = {
   },
   progress: {
     downloading: "Téléchargement…",
+    preparing: "Préparation…",
     processing: "Traitement…",
     eta: "ETA",
     merging: "Fusion des pistes",
@@ -110,6 +112,10 @@ export const fr = {
       "La source est temporairement indisponible. Réessayez dans un instant.",
     blockedHint:
       "Si le site bloque le téléchargement, essayez de définir votre navigateur dans Paramètres → cookies.",
+
+    loginHint:
+
+      "Ce contenu nécessite une connexion. Activez les cookies du navigateur dans Paramètres → Réseau et accès.",
     downloadingOf: "Téléchargement de {{current}} sur {{total}} :",
     summaryDone: "{{count}} terminés",
     summaryFailed: " · {{count}} échoués",

@@ -55,6 +55,7 @@ export const uk = {
     trimEnd: "Кінець (m:ss)",
     trimHint: "напр. 0:30 → 2:10. Залиште кінець порожнім, щоб узяти решту.",
     trimError: "Кінець має бути після початку.",
+    trimInvalid: "Невірний час — використовуйте х:сс.",
     vrBadge: "VR",
     vr: "VR (імерсивне)",
     vrLayout: "Формат VR",
@@ -91,6 +92,7 @@ export const uk = {
   },
   progress: {
     downloading: "Завантаження…",
+    preparing: "Підготовка…",
     processing: "Обробка…",
     eta: "ETA",
     merging: "Об'єднання доріжок",
@@ -112,6 +114,10 @@ export const uk = {
       "Джерело тимчасово недоступне. Спробуйте за мить.",
     blockedHint:
       "Якщо сайт блокує завантаження, спробуйте вказати свій браузер у Налаштування → cookies.",
+
+    loginHint:
+
+      "Цей вміст потребує входу. Увімкніть cookies браузера в Налаштуваннях → Мережа та доступ.",
     downloadingOf: "Завантаження {{current}} з {{total}}:",
     summaryDone: "{{count}} завершено",
     summaryFailed: " · {{count}} з помилкою",

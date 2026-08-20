@@ -55,6 +55,7 @@ export const zh = {
     trimEnd: "终点 (m:ss)",
     trimHint: "例如 0:30 → 2:10。终点留空则截取至结尾。",
     trimError: "终点必须晚于起点。",
+    trimInvalid: "时间无效 — 请使用 m:ss。",
     vrBadge: "VR",
     vr: "VR（沉浸式）",
     vrLayout: "VR 布局",
@@ -89,6 +90,7 @@ export const zh = {
   },
   progress: {
     downloading: "下载中…",
+    preparing: "准备中…",
     processing: "处理中…",
     eta: "ETA",
     merging: "合并音视频轨",
@@ -110,6 +112,10 @@ export const zh = {
       "该来源暂时不可用，请稍后重试。",
     blockedHint:
       "如果网站阻止下载，请尝试在设置 → cookies 中指定你的浏览器。",
+
+    loginHint:
+
+      "此内容需要登录。请在设置 → 网络与访问中启用浏览器 Cookie。",
     downloadingOf: "正在下载第 {{current}}/{{total}} 个：",
     summaryDone: "{{count}} 个已完成",
     summaryFailed: " · {{count}} 个失败",
