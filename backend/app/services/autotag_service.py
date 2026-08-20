@@ -744,7 +744,11 @@ def _write_mp3(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
         audio.delall("APIC")
         audio.add(APIC(encoding=3, mime=ctype, type=3, desc="Cover", data=data))
         embedded = True
-    audio.save(path)
+    # Save as ID3v2.3, not mutagen's default v2.4: Windows Explorer and Windows
+    # Media Player don't read v2.4 reliably — the embedded cover (APIC) and some
+    # tags simply don't show there, though Linux/foobar/etc. read v2.4 fine.
+    # mutagen down-converts the v2.4-only frames (e.g. TDRC -> TYER/TDAT) for us.
+    audio.save(path, v2_version=3)
     return embedded
 
 
@@ -809,7 +813,7 @@ def _write_wav(path: Path, tags: dict[str, Any]) -> bool:
         audio.tags.setall(
             "USLT", [USLT(encoding=3, lang="eng", desc="", text=str(tags["lyrics"]))]
         )
-    audio.save()
+    audio.save(v2_version=3)  # ID3v2.3 for Windows (see _write_mp3)
     return False
 
 

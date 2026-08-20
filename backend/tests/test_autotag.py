@@ -402,6 +402,16 @@ def test_write_and_reread_tags(tmp_path, ext):
     assert reread["artist"][0] == "Artist"
     assert reread["album"][0] == "Album"
 
+    # MP3 must be saved as ID3v2.3, not mutagen's default v2.4: Windows Explorer
+    # and Media Player don't read v2.4 reliably, so the embedded cover + tags
+    # wouldn't show there (they do on Linux). Lock the version + a surviving cover.
+    if ext == "mp3":
+        from mutagen.id3 import ID3
+
+        id3 = ID3(str(path))
+        assert id3.version[:2] == (2, 3)
+        assert id3.getall("APIC")
+
 
 @pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
 @pytest.mark.parametrize("ext", ["mp3", "m4a", "flac"])
