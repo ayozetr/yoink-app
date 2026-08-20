@@ -11,7 +11,16 @@
 
 ## 📍 Status
 
-- **Current release:** **v3.2.0** — a **command-line interface** (`scripts/yoink <url>`)
+- **Current release:** **v3.3.0** — a **quality & reliability** pass: **trims no
+  longer re-encode** (a forced-keyframe cut fell back to ffmpeg's low-bitrate mpeg4
+  on the bundled LGPL build — pixelated; now a stream copy keeps the source
+  AV1/VP9/H.264, sharp + fast), **yt-dlp bumped to 2026.08.19** (drops the blocked
+  `android_vr` YouTube client that stalled downloads), MP3 tags written as **ID3v2.3**
+  so **Windows** shows the embedded cover, a **responsive-layout** hardening pass
+  (cover cards, toggles, Settings grids + icon-rail nav), and UX touches — **trim-input
+  validation** (accepts `m.ss`, flags bad values), a **"Preparing…"** state before the
+  first byte, and an **actionable login/cookies hint** on gated content.
+- **Previously:** **v3.2.0** — a **command-line interface** (`scripts/yoink <url>`)
   driving the same engine in-process: single URLs, **batch input** (many URLs / a file /
   stdin, taking only the links), **playlists**, **music-service imports**, **VR**, **trim**,
   **subtitles**, **chapters**, catalogue **auto-tagging**, per-run **overrides**

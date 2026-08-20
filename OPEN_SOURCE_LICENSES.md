@@ -47,4 +47,4 @@ pulls in further open-source libraries under the same permissive licenses.
 - **pydantic** v2.13.4 — MIT
 - **pydantic-settings** v2.14.1 — MIT
 - **uvicorn** v0.48.0 — BSD-3-Clause
-- **yt-dlp** v2026.7.4 — Unlicense
+- **yt-dlp** v2026.8.19 — Unlicense
