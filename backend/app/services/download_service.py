@@ -463,12 +463,15 @@ def _build_options(
     )
     if start > 0 or end != float("inf"):
         options["download_ranges"] = download_range_func(None, [(start, end)])
-        # force_keyframes_at_cuts re-encodes at the marks for a frame-accurate cut,
-        # but that re-encode fails for the VP9 streams VR videos ship (ffmpeg exits
-        # 234 muxing VP9 into mp4 at a forced keyframe). VR is tagged as mp4 with
-        # injected spherical boxes, so fall back to a keyframe-accurate stream-copy
-        # cut there instead of failing the whole download.
-        options["force_keyframes_at_cuts"] = not (request.is_vr or request.auto_vr)
+        # Cut by stream copy — never force_keyframes_at_cuts. Forcing keyframes
+        # re-encodes the clip, and the bundled ffmpeg is an LGPL build with no
+        # libx264/x265 (those are GPL), so ffmpeg falls back to its built-in
+        # `mpeg4` (MPEG-4 Part 2 / DivX) encoder at a low default bitrate — a
+        # visibly pixelated 1080p, and slower. A stream copy keeps YouTube's
+        # original AV1/VP9/H.264 untouched (sharp, smaller, faster); the only
+        # trade-off is the cut lands on the nearest keyframe rather than the exact
+        # frame. (VR already relied on this to avoid an ffmpeg VP9-in-mp4 crash.)
+        options["force_keyframes_at_cuts"] = False
 
     return options
 

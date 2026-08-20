@@ -39,4 +39,6 @@ def test_build_options_treats_zero_trim_end_as_no_trim(temp_dirs):
 
     real = DownloadRequest(url="https://x.com/v", kind="video", trim_start=5, trim_end=10)
     opts = _build_options(real, noop)
-    assert "download_ranges" in opts and opts.get("force_keyframes_at_cuts") is True
+    # Stream-copy cut (never a re-encode — the bundled LGPL ffmpeg would fall back
+    # to mpeg4 and pixelate); see test_build_options_trim_always_stream_copies.
+    assert "download_ranges" in opts and opts.get("force_keyframes_at_cuts") is False

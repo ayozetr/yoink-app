@@ -322,24 +322,20 @@ def test_build_options_video_quality_selector(temp_dirs):
     )
 
 
-def test_build_options_trim_force_keyframes_except_vr(temp_dirs):
-    # A normal trim is frame-accurate (re-encode at the cut marks).
-    normal = _build_options(
-        DownloadRequest(url="http://x/v", kind="video", trim_start=10, trim_end=20),
-        hook=lambda raw: None,
-    )
-    assert "download_ranges" in normal
-    assert normal["force_keyframes_at_cuts"] is True
-    # VR trims fall back to a keyframe-accurate stream copy: forcing keyframes
-    # re-encodes the VP9 stream into mp4 and ffmpeg exits 234.
-    for kw in ({"is_vr": True}, {"auto_vr": True}):
-        vr = _build_options(
+def test_build_options_trim_always_stream_copies(temp_dirs):
+    # Every trim cuts by stream copy (force_keyframes_at_cuts is never True): the
+    # bundled LGPL ffmpeg has no libx264/x265, so a forced-keyframe re-encode falls
+    # back to the mpeg4 encoder and pixelates the output. Holds for VR too (a forced
+    # keyframe re-encodes VR's VP9 into mp4 and ffmpeg exits 234).
+    for kw in ({}, {"is_vr": True}, {"auto_vr": True}):
+        opts = _build_options(
             DownloadRequest(
                 url="http://x/v", kind="video", trim_start=10, trim_end=20, **kw
             ),
             hook=lambda raw: None,
         )
-        assert vr["force_keyframes_at_cuts"] is False
+        assert "download_ranges" in opts
+        assert opts["force_keyframes_at_cuts"] is False
 
 
 @pytest.mark.parametrize(
@@ -814,7 +810,7 @@ def test_build_options_trim_range(temp_dirs):
         hook=lambda raw: None,
     )
     assert "download_ranges" in options
-    assert options["force_keyframes_at_cuts"] is True
+    assert options["force_keyframes_at_cuts"] is False
 
 
 def test_build_options_no_trim_by_default(temp_dirs):
