@@ -115,7 +115,7 @@ export const de = {
 
     loginHint:
 
-      "Dieser Inhalt erfordert eine Anmeldung. Aktiviere die Browser-Cookies unter Einstellungen → Netzwerk und Zugriff.",
+      "Dieser Inhalt erfordert eine Anmeldung. Aktiviere die Browser-Cookies unter Einstellungen → Netzwerk und Zugriff — falls bereits geschehen, schließe diesen Browser oder füge stattdessen eine cookies.txt-Datei hinzu.",
     downloadingOf: "Lade {{current}} von {{total}} herunter:",
     summaryDone: "{{count}} abgeschlossen",
     summaryFailed: " · {{count}} fehlgeschlagen",
@@ -339,6 +339,7 @@ export const de = {
   },
   update: {
     available: "Yoink {{version}} verfügbar",
+    backendMismatch: "Ein älteres Backend (v{{backend}}) läuft noch — starte Yoink neu, um das Update auf v{{app}} abzuschließen.",
     action: "Aktualisieren",
     dismiss: "Verwerfen",
     notifyBody: "Zum Installieren die Einstellungen öffnen.",

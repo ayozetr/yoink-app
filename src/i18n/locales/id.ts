@@ -115,7 +115,7 @@ export const id = {
 
     loginHint:
 
-      "Konten ini memerlukan login. Aktifkan cookie browser di Pengaturan → Jaringan & akses.",
+      "Konten ini memerlukan login. Aktifkan cookie browser di Pengaturan → Jaringan & akses — jika sudah, pastikan browser tersebut ditutup, atau tambahkan file cookies.txt.",
     downloadingOf: "Mengunduh {{current}} dari {{total}}:",
     summaryDone: "{{count}} selesai",
     summaryFailed: " · {{count}} gagal",
@@ -339,6 +339,7 @@ export const id = {
   },
   update: {
     available: "Yoink {{version}} tersedia",
+    backendMismatch: "Backend lama (v{{backend}}) masih berjalan — mulai ulang Yoink untuk menyelesaikan pembaruan ke v{{app}}.",
     action: "Perbarui",
     dismiss: "Tutup",
     notifyBody: "Buka Pengaturan untuk memasang.",

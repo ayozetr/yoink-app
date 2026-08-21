@@ -117,7 +117,7 @@ export const ru = {
 
     loginHint:
 
-      "Для этого контента нужен вход. Включите cookies браузера в Настройках → Сеть и доступ.",
+      "Для этого контента нужен вход. Включите cookies браузера в Настройках → Сеть и доступ — если уже сделали, убедитесь, что этот браузер закрыт, или добавьте файл cookies.txt.",
     downloadingOf: "Загрузка {{current}} из {{total}}:",
     summaryDone: "{{count}} завершено",
     summaryFailed: " · {{count}} с ошибкой",
@@ -343,6 +343,7 @@ export const ru = {
   },
   update: {
     available: "Доступен Yoink {{version}}",
+    backendMismatch: "Всё ещё работает старый бэкенд (v{{backend}}) — перезапустите Yoink, чтобы завершить обновление до v{{app}}.",
     action: "Обновить",
     dismiss: "Скрыть",
     notifyBody: "Откройте настройки, чтобы установить.",

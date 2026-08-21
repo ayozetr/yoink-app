@@ -196,6 +196,16 @@ export async function searchYoutube(
   return ((await response.json()) as SearchResponse).results;
 }
 
+/** The running backend's app version (+ update check), via `GET /api/version`.
+ * Compared against the frontend's `__APP_VERSION__` to catch a stale backend
+ * left running after a self-update. */
+export async function fetchAppVersion(
+  signal?: AbortSignal,
+): Promise<VersionInfo> {
+  const response = await request("/version", { signal });
+  return (await response.json()) as VersionInfo;
+}
+
 /** The bundled yt-dlp version + whether a newer one is published, via
  * `GET /api/ytdlp-version`. */
 export async function fetchYtdlpVersion(

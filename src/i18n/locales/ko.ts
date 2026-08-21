@@ -115,7 +115,7 @@ export const ko = {
 
     loginHint:
 
-      "이 콘텐츠는 로그인이 필요합니다. 설정 → 네트워크 및 액세스에서 브라우저 쿠키를 켜세요.",
+      "이 콘텐츠는 로그인이 필요합니다. 설정 → 네트워크 및 액세스에서 브라우저 쿠키를 켜세요 — 이미 켰다면 해당 브라우저를 닫거나 cookies.txt 파일을 대신 추가하세요.",
     downloadingOf: "{{total}}개 중 {{current}}번째 다운로드 중:",
     summaryDone: "{{count}}개 완료",
     summaryFailed: " · {{count}}개 실패",
@@ -339,6 +339,7 @@ export const ko = {
   },
   update: {
     available: "Yoink {{version}} 사용 가능",
+    backendMismatch: "이전 백엔드(v{{backend}})가 아직 실행 중입니다 — Yoink를 다시 시작하여 v{{app}} 업데이트를 완료하세요.",
     action: "업데이트",
     dismiss: "닫기",
     notifyBody: "설정에서 업데이트를 설치하세요.",

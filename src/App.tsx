@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
+import { BackendMismatchBanner } from "./components/ui/BackendMismatchBanner";
 import { UpdateBanner } from "./components/ui/UpdateBanner";
 import { UpdatingModal } from "./components/ui/UpdatingModal";
 import { useFocusTrap } from "./lib/useFocusTrap";
@@ -41,6 +42,7 @@ const WhatsNewModal = lazy(() =>
 );
 import {
   clearHistory,
+  fetchAppVersion,
   fetchHistory,
   fetchSettings,
   fetchStats,
@@ -94,6 +96,11 @@ export default function App() {
   );
   const [updating, setUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
+  // A backend left over from a previous version (self-update didn't kill it)
+  // reports an older version than this frontend — warn so a stale yt-dlp / stale
+  // fixes don't silently cause failures. Holds the backend's version, or null.
+  const [staleBackend, setStaleBackend] = useState<string | null>(null);
+  const [staleDismissed, setStaleDismissed] = useState(false);
   // Show "what's new" once when the version changed since last run — but not on a
   // fresh install (nothing recorded yet). Computed at mount from localStorage.
   const [whatsNewOpen, setWhatsNewOpen] = useState(() => {
@@ -157,6 +164,24 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("yoink-last-seen-version", __APP_VERSION__);
   }, []);
+
+  // Once the backend answers, compare its version with this frontend's. A
+  // mismatch means a stale backend from a previous version is still serving
+  // (a self-update that didn't kill the old process) — warn the user to restart.
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    void fetchAppVersion()
+      .then((v) => {
+        if (!cancelled && v.current && v.current !== __APP_VERSION__) {
+          setStaleBackend(v.current);
+        }
+      })
+      .catch(() => {}); // best-effort — a fetch failure isn't a mismatch
+    return () => {
+      cancelled = true;
+    };
+  }, [ready]);
 
   // Opt-in: once settings load, check GitHub for a newer release (once per run)
   // and, if found, raise the banner + a desktop notification.
@@ -419,6 +444,14 @@ export default function App() {
             }
           }}
           onDismiss={() => setAvailableUpdate(null)}
+        />
+      )}
+
+      {staleBackend && !staleDismissed && (
+        <BackendMismatchBanner
+          backendVersion={staleBackend}
+          appVersion={__APP_VERSION__}
+          onDismiss={() => setStaleDismissed(true)}
         />
       )}
 

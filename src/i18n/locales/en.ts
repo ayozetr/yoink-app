@@ -115,7 +115,7 @@ export const en = {
 
     loginHint:
 
-      "This content requires a login. Turn on your browser's cookies under Settings → Network & access.",
+      "This content requires a login. Turn on your browser's cookies in Settings → Network & access — if you already did, make sure that browser is closed, or add a cookies.txt file instead.",
     downloadingOf: "Downloading {{current}} of {{total}}:",
     summaryDone: "{{count}} completed",
     summaryFailed: " · {{count}} failed",
@@ -339,6 +339,7 @@ export const en = {
   },
   update: {
     available: "Yoink {{version}} available",
+    backendMismatch: "An older backend (v{{backend}}) is still running — restart Yoink to finish updating to v{{app}}.",
     action: "Update",
     dismiss: "Dismiss",
     notifyBody: "Open Settings to install the update.",

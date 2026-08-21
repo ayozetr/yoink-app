@@ -115,7 +115,7 @@ export const zh = {
 
     loginHint:
 
-      "此内容需要登录。请在设置 → 网络与访问中启用浏览器 Cookie。",
+      "此内容需要登录。请在设置 → 网络与访问中启用浏览器 Cookie — 如果已启用，请确保该浏览器已关闭，或改为添加 cookies.txt 文件。",
     downloadingOf: "正在下载第 {{current}}/{{total}} 个：",
     summaryDone: "{{count}} 个已完成",
     summaryFailed: " · {{count}} 个失败",
@@ -339,6 +339,7 @@ export const zh = {
   },
   update: {
     available: "Yoink {{version}} 可用",
+    backendMismatch: "仍在运行较旧的后端 (v{{backend}}) — 重启 Yoink 以完成更新到 v{{app}}。",
     action: "更新",
     dismiss: "忽略",
     notifyBody: "打开设置以安装更新。",

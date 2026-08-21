@@ -115,7 +115,7 @@ export const ja = {
 
     loginHint:
 
-      "このコンテンツはログインが必要です。設定 → ネットワークとアクセスでブラウザの Cookie を有効にしてください。",
+      "このコンテンツはログインが必要です。設定 → ネットワークとアクセスでブラウザの Cookie を有効にしてください — すでに有効な場合は、そのブラウザを閉じるか、代わりに cookies.txt ファイルを追加してください。",
     downloadingOf: "{{total}} 件中 {{current}} 件目をダウンロード中：",
     summaryDone: "{{count}} 件完了",
     summaryFailed: " · {{count}} 件失敗",
@@ -339,6 +339,7 @@ export const ja = {
   },
   update: {
     available: "Yoink {{version}} が利用可能",
+    backendMismatch: "古いバックエンド (v{{backend}}) がまだ動作しています — Yoink を再起動して v{{app}} への更新を完了してください。",
     action: "更新",
     dismiss: "閉じる",
     notifyBody: "設定を開いて更新をインストール。",

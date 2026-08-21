@@ -115,7 +115,7 @@ export const es = {
 
     loginHint:
 
-      "Este contenido requiere iniciar sesión. Activa las cookies del navegador en Ajustes → Red y acceso.",
+      "Este contenido requiere iniciar sesión. Activa las cookies del navegador en Ajustes → Red y acceso — si ya lo hiciste, asegúrate de que ese navegador esté cerrado, o añade un archivo cookies.txt.",
     downloadingOf: "Descargando {{current}} de {{total}}:",
     summaryDone: "{{count}} completadas",
     summaryFailed: " · {{count}} con error",
@@ -339,6 +339,7 @@ export const es = {
   },
   update: {
     available: "Yoink {{version}} disponible",
+    backendMismatch: "Sigue corriendo un backend antiguo (v{{backend}}) — reinicia Yoink para completar la actualización a v{{app}}.",
     action: "Actualizar",
     dismiss: "Descartar",
     notifyBody: "Ábrelo en Ajustes para instalar la actualización.",

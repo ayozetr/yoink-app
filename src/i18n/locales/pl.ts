@@ -117,7 +117,7 @@ export const pl = {
 
     loginHint:
 
-      "Ta treść wymaga logowania. Włącz pliki cookie przeglądarki w Ustawieniach → Sieć i dostęp.",
+      "Ta treść wymaga logowania. Włącz pliki cookie przeglądarki w Ustawieniach → Sieć i dostęp — jeśli już to zrobiłeś, upewnij się, że przeglądarka jest zamknięta, albo dodaj plik cookies.txt.",
     downloadingOf: "Pobieranie {{current}} z {{total}}:",
     summaryDone: "{{count}} zakończonych",
     summaryFailed: " · {{count}} z błędem",
@@ -343,6 +343,7 @@ export const pl = {
   },
   update: {
     available: "Dostępny Yoink {{version}}",
+    backendMismatch: "Wciąż działa starszy backend (v{{backend}}) — uruchom Yoink ponownie, aby dokończyć aktualizację do v{{app}}.",
     action: "Aktualizuj",
     dismiss: "Odrzuć",
     notifyBody: "Otwórz Ustawienia, aby zainstalować.",
