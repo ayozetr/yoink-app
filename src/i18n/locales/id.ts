@@ -340,6 +340,8 @@ export const id = {
   update: {
     available: "Yoink {{version}} tersedia",
     backendMismatch: "Backend lama (v{{backend}}) masih berjalan — mulai ulang Yoink untuk menyelesaikan pembaruan ke v{{app}}.",
+    backendMismatchTitle: "Backend usang",
+    restart: "Mulai ulang",
     action: "Perbarui",
     dismiss: "Tutup",
     notifyBody: "Buka Pengaturan untuk memasang.",

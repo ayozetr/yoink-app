@@ -344,6 +344,8 @@ export const uk = {
   update: {
     available: "Доступний Yoink {{version}}",
     backendMismatch: "Досі працює старіший бекенд (v{{backend}}) — перезапустіть Yoink, щоб завершити оновлення до v{{app}}.",
+    backendMismatchTitle: "Застарілий бекенд",
+    restart: "Перезапустити",
     action: "Оновити",
     dismiss: "Відхилити",
     notifyBody: "Відкрийте налаштування, щоб встановити.",

@@ -340,6 +340,8 @@ export const zh = {
   update: {
     available: "Yoink {{version}} 可用",
     backendMismatch: "仍在运行较旧的后端 (v{{backend}}) — 重启 Yoink 以完成更新到 v{{app}}。",
+    backendMismatchTitle: "后端已过时",
+    restart: "重启",
     action: "更新",
     dismiss: "忽略",
     notifyBody: "打开设置以安装更新。",

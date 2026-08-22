@@ -344,6 +344,8 @@ export const pl = {
   update: {
     available: "Dostępny Yoink {{version}}",
     backendMismatch: "Wciąż działa starszy backend (v{{backend}}) — uruchom Yoink ponownie, aby dokończyć aktualizację do v{{app}}.",
+    backendMismatchTitle: "Nieaktualny backend",
+    restart: "Uruchom ponownie",
     action: "Aktualizuj",
     dismiss: "Odrzuć",
     notifyBody: "Otwórz Ustawienia, aby zainstalować.",

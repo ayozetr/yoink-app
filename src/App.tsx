@@ -451,6 +451,11 @@ export default function App() {
         <BackendMismatchBanner
           backendVersion={staleBackend}
           appVersion={__APP_VERSION__}
+          onRestart={() => {
+            void import("@tauri-apps/plugin-process").then(({ relaunch }) =>
+              relaunch(),
+            );
+          }}
           onDismiss={() => setStaleDismissed(true)}
         />
       )}

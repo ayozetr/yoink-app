@@ -344,6 +344,8 @@ export const ru = {
   update: {
     available: "Доступен Yoink {{version}}",
     backendMismatch: "Всё ещё работает старый бэкенд (v{{backend}}) — перезапустите Yoink, чтобы завершить обновление до v{{app}}.",
+    backendMismatchTitle: "Устаревший бэкенд",
+    restart: "Перезапустить",
     action: "Обновить",
     dismiss: "Скрыть",
     notifyBody: "Откройте настройки, чтобы установить.",

@@ -340,6 +340,8 @@ export const hi = {
   update: {
     available: "Yoink {{version}} उपलब्ध",
     backendMismatch: "पुराना बैकएंड (v{{backend}}) अब भी चल रहा है — v{{app}} में अपडेट पूरा करने के लिए Yoink पुनः प्रारंभ करें।",
+    backendMismatchTitle: "पुराना बैकएंड",
+    restart: "पुनः प्रारंभ करें",
     action: "अपडेट करें",
     dismiss: "खारिज करें",
     notifyBody: "इंस्टॉल करने के लिए सेटिंग्स खोलें।",

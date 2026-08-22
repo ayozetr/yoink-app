@@ -340,6 +340,8 @@ export const ja = {
   update: {
     available: "Yoink {{version}} が利用可能",
     backendMismatch: "古いバックエンド (v{{backend}}) がまだ動作しています — Yoink を再起動して v{{app}} への更新を完了してください。",
+    backendMismatchTitle: "バックエンドが古い",
+    restart: "再起動",
     action: "更新",
     dismiss: "閉じる",
     notifyBody: "設定を開いて更新をインストール。",

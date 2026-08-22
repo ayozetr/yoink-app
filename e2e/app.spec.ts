@@ -696,3 +696,26 @@ test("clears the history", async ({ page }) => {
   await page.getByRole("button", { name: "¿Confirmar?" }).click();
   await deleteRequest;
 });
+
+test("stale-backend banner: shown on a frontend/backend version mismatch", async ({
+  page,
+}) => {
+  await mockBase(page);
+  // Backend reports a different version than the frontend was built as → the
+  // self-update left an older backend running.
+  await page.route("**/api/version", (route) =>
+    route.fulfill({
+      json: {
+        current: "0.0.0-stale",
+        latest: null,
+        update_available: false,
+        release_url: null,
+        error: null,
+      },
+    }),
+  );
+
+  await page.goto("/");
+  await expect(page.getByText("Backend desactualizado")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reiniciar" })).toBeVisible();
+});

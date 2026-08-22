@@ -340,6 +340,8 @@ export const ko = {
   update: {
     available: "Yoink {{version}} 사용 가능",
     backendMismatch: "이전 백엔드(v{{backend}})가 아직 실행 중입니다 — Yoink를 다시 시작하여 v{{app}} 업데이트를 완료하세요.",
+    backendMismatchTitle: "오래된 백엔드",
+    restart: "다시 시작",
     action: "업데이트",
     dismiss: "닫기",
     notifyBody: "설정에서 업데이트를 설치하세요.",
