@@ -10,10 +10,12 @@ from app.cli import (
     _apply_cli_overrides,
     _build_parser,
     _build_request,
+    _coerce_setting,
     _collect_urls,
     _completion_script,
     _extract_urls,
     _parse_items,
+    _run_config,
     _selected,
     _timestamp,
     main,
@@ -248,3 +250,40 @@ def test_sponsorblock_bare_defaults_to_remove():
 def test_quiet_and_no_progress_parse():
     a = _build_parser().parse_args(["u", "--quiet", "--no-progress"])
     assert a.quiet is True and a.no_progress is True
+
+
+def test_video_codec_and_audio_bitrate_overrides():
+    s = types.SimpleNamespace()
+    a = _build_parser().parse_args(
+        ["u", "--video-codec", "av1", "--audio-bitrate", "192"]
+    )
+    _apply_cli_overrides(a, s)
+    assert s.video_codec == "av1"
+    assert s.audio_bitrate == "192"
+
+
+def test_list_formats_flag_parses():
+    assert _build_parser().parse_args(["u", "--list-formats"]).list_formats is True
+
+
+def test_coerce_setting_types():
+    assert _coerce_setting(True, "false") is False
+    assert _coerce_setting(True, "on") is True
+    assert _coerce_setting("x", "none") is None
+    assert _coerce_setting("x", "") is None
+    assert _coerce_setting("x", "hello") == "hello"
+
+
+def test_config_get_set_and_errors(temp_dirs, capsys):
+    # set persists and get reads it back (isolated to the temp data dir).
+    assert _run_config(["set", "default_kind", "audio"], as_json=False) == 0
+    capsys.readouterr()
+    assert _run_config(["get", "default_kind"], as_json=False) == 0
+    assert capsys.readouterr().out.strip() == "audio"
+    # unknown key and invalid value both fail cleanly (exit 2).
+    assert _run_config(["get", "nope"], as_json=False) == 2
+    assert _run_config(["set", "default_kind", "bogus"], as_json=False) == 2
+    # bare `config` prints every setting.
+    capsys.readouterr()
+    assert _run_config([], as_json=False) == 0
+    assert "download_dir = " in capsys.readouterr().out

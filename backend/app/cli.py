@@ -81,7 +81,9 @@ class _PrintVersion(argparse.Action):
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="yoink", description="Download media with Yoink's engine."
+        prog="yoink", description="Download media with Yoink's engine.",
+        epilog="settings: 'yoink config' prints them; "
+               "'yoink config get|set KEY [VALUE]' reads/edits them.",
     )
     p.add_argument("urls", nargs="*", metavar="URL",
                    help="one or more media / playlist / music-service URLs "
@@ -115,6 +117,10 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="SponsorBlock (YouTube): remove or mark segments (bare = remove)")
     p.add_argument("--normalize", action="store_true",
                    help="loudness-normalize audio to -14 LUFS (re-encodes)")
+    p.add_argument("--video-codec", choices=["any", "h264", "vp9", "av1"],
+                   help="prefer a video codec when picking the format")
+    p.add_argument("--audio-bitrate", choices=["best", "320", "256", "192", "128"],
+                   metavar="KBPS", help="lossy audio bitrate in kbps, or 'best'")
     # Trim / clip a time range (seconds or MM:SS / HH:MM:SS)
     p.add_argument("--trim-start", type=_timestamp, metavar="TS",
                    help="clip start, e.g. 90 or 1:30 (seconds or MM:SS / HH:MM:SS)")
@@ -153,6 +159,8 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="print metadata and exit (no download)")
     p.add_argument("--list", action="store_true",
                    help="list a playlist/album's entries and exit (no download)")
+    p.add_argument("--list-formats", action="store_true",
+                   help="list a single video's available formats and exit (no download)")
     p.add_argument("--json", action="store_true", help="machine-readable JSON output")
     p.add_argument("--quiet", action="store_true",
                    help="only errors + final paths (no progress bar, no summaries)")
@@ -581,6 +589,32 @@ def _print_video_info(v, as_json: bool) -> int:
     return 0
 
 
+def _print_formats(v, as_json: bool) -> int:
+    """List a single video's available formats (id / ext / resolution / codecs / size)."""
+    from app.core.humanize import humanize_bytes
+
+    if as_json:
+        print(json.dumps({
+            "title": v.title,
+            "formats": [
+                {"format_id": f.format_id, "ext": f.ext, "resolution": f.resolution,
+                 "fps": f.fps, "vcodec": f.vcodec, "acodec": f.acodec,
+                 "filesize": f.filesize}
+                for f in v.formats
+            ],
+        }))
+        return 0
+    print(f"{v.title} — {len(v.formats)} format(s)")
+    print(f"  {'ID':<8} {'EXT':<5} {'RESOLUTION':<12} {'FPS':>4} "
+          f"{'VCODEC':<10} {'ACODEC':<10} SIZE")
+    for f in v.formats:
+        size = humanize_bytes(f.filesize) if f.filesize else "—"
+        fps = str(int(f.fps)) if f.fps else ""
+        print(f"  {f.format_id:<8} {f.ext:<5} {(f.resolution or '—'):<12} "
+              f"{fps:>4} {(f.vcodec or '—'):<10} {(f.acodec or '—'):<10} {size}")
+    return 0
+
+
 def _print_entries(title: str, count: int, rows: list[tuple[str, str | None]],
                    as_json: bool) -> int:
     """Numbered list of entries — ``rows`` are (label, duration) pairs."""
@@ -652,6 +686,70 @@ def _apply_cli_overrides(args, settings) -> None:
         settings.sponsorblock_action = args.sponsorblock
     if args.normalize:
         settings.normalize_audio = True
+    if args.video_codec:
+        settings.video_codec = args.video_codec
+    if args.audio_bitrate:
+        settings.audio_bitrate = args.audio_bitrate
+
+
+# ------------------------------------------------------------------------- config
+
+
+def _coerce_setting(current: Any, value: str) -> Any:
+    """Coerce a CLI string to the setting's type (bool / None / str); pydantic
+    does the final validation on the whole model."""
+    low = value.strip().lower()
+    if isinstance(current, bool):
+        return low in ("1", "true", "yes", "on")
+    if low in ("none", "null", ""):
+        return None
+    return value
+
+
+def _run_config(rest: list[str], as_json: bool) -> int:
+    """``yoink config`` — read or edit the persisted settings.
+
+        yoink config                 # print all settings
+        yoink config get KEY         # print one
+        yoink config set KEY VALUE   # set + persist one
+    """
+    from pydantic import ValidationError
+
+    from app.models.media import AppSettings
+    from app.services import settings_store
+
+    data = settings_store.get_current().model_dump()
+    if not rest:
+        if as_json:
+            print(json.dumps(data, indent=2))
+        else:
+            for key in sorted(data):
+                print(f"{key} = {data[key]}")
+        return 0
+
+    action, *tail = rest
+    if action == "get":
+        if len(tail) != 1 or tail[0] not in data:
+            _fail("usage: yoink config get KEY", as_json)
+            return 2
+        val = data[tail[0]]
+        print(json.dumps(val) if as_json else ("" if val is None else val))
+        return 0
+    if action == "set":
+        if len(tail) < 2 or tail[0] not in data:
+            _fail("usage: yoink config set KEY VALUE", as_json)
+            return 2
+        key = tail[0]
+        data[key] = _coerce_setting(data[key], " ".join(tail[1:]))
+        try:
+            updated = settings_store.update(AppSettings(**data))
+        except ValidationError as exc:
+            _fail(f"invalid value for {key}: {exc}", as_json)
+            return 2
+        print(f"{key} = {updated.model_dump()[key]}")
+        return 0
+    _fail("usage: yoink config [get KEY | set KEY VALUE]", as_json)
+    return 2
 
 
 # --------------------------------------------------------------------------- main
@@ -681,7 +779,7 @@ def _dispatch_url(url: str, args) -> int:
         # --- everything else: analyze only when we might need the listing -------
         from app.services.ytdlp_service import MediaExtractionError, extract_info
 
-        if args.info or args.list or _looks_like_playlist(url):
+        if args.info or args.list or args.list_formats or _looks_like_playlist(url):
             try:
                 resp = extract_info(url)
             except MediaExtractionError as exc:
@@ -689,13 +787,20 @@ def _dispatch_url(url: str, args) -> int:
                 return 1
             if resp.type == "playlist" and resp.playlist:
                 pl = resp.playlist
+                if args.list_formats:
+                    _fail("--list-formats needs a single video, not a playlist",
+                          args.json)
+                    return 2
                 if args.info or args.list:
                     return _print_entries(
                         f"Playlist: {pl.title}", pl.entry_count,
                         [(e.title, e.duration_string) for e in pl.entries], args.json)
                 return asyncio.run(_run_playlist(pl.entries, args))
-            if resp.video is not None and (args.info or args.list):
-                return _print_video_info(resp.video, args.json)
+            if resp.video is not None:
+                if args.list_formats:
+                    return _print_formats(resp.video, args.json)
+                if args.info or args.list:
+                    return _print_video_info(resp.video, args.json)
 
         # --- single download ----------------------------------------------------
         from pydantic import ValidationError
@@ -713,15 +818,20 @@ def _dispatch_url(url: str, args) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
+    from app.core.config import settings
+    from app.services import settings_store
+
+    settings_store.load_overrides()
+
+    # `yoink config [...]` — a settings sub-command, no URL/download involved.
+    if args.urls and args.urls[0] == "config":
+        return _run_config(args.urls[1:], args.json)
+
     if (args.trim_start is not None and args.trim_end is not None
             and args.trim_end <= args.trim_start):
         _fail("--trim-end must be greater than --trim-start", args.json)
         return 2
 
-    from app.core.config import settings
-    from app.services import settings_store
-
-    settings_store.load_overrides()
     _apply_cli_overrides(args, settings)
 
     urls = _collect_urls(args)

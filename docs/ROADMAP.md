@@ -272,6 +272,20 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   longer fires ~200 proxy requests at once on render.
 - ✅ **Per-item retry in the batch summary** *(next)* — the panel keeps the jobs
   that failed (results are in job order) and the summary offers "Retry failed (N)".
+- ⬜ **Non-addressable sets (Instagram story-sets / highlights)** (L) — some sources
+  return a container that yt-dlp resolves into several **fully-embedded** items with
+  **no per-item URL** (`InstagramStoryIE` yields items with a unique `id` but no
+  `url`/`webpage_url`, so yt-dlp stamps them all with the **container's** `webpage_url`
+  and an identical `title`). Three bugs cascade from that: the card selects by `url`,
+  so the items **collapse to one selection** (can't check/uncheck individually);
+  Download then fires **one request per item to the same container URL** (each pulls the
+  whole set); and the identical title collides the output filename → most land as
+  "output file is missing". Fix (needs live testing with IG cookies): (1) select by a
+  **unique id**, not `url`; (2) download an item via the container URL + `playlist_items`
+  (its original 1-based index) with `noplaylist` off, so yt-dlp fetches just that clip;
+  (3) make the output name **unique** when items share a title (append `%(id)s` / an
+  index). Same-title collision (3) is general, not IG-only. A single story is fine via
+  its own `stories/<user>/<id>/` URL — only the highlight/all-stories container is affected.
 
 ### 🎵 Audio library
 - ⬜ **Recalibrate the YouTube-match duration weight** (M · needs a test set) — the
@@ -343,6 +357,12 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   re-openable from Settings) rendering that release's notes, trimmed to the part
   before a hidden `<!-- /whatsnew -->` marker (`GET /api/release-notes` + a small
   markdown renderer).
+- ⬜ **Cumulative "What's new"** (M) — the popup shows only the version you landed on.
+  When several releases were skipped (e.g. 3.0.0 → 3.2.0), show the notes for **every
+  version in between** (3.1.0 + 3.2.0), newest first. Needs the previously-installed
+  version remembered across the update, and `GET /api/release-notes` extended to return
+  the notes for a version range (each release's pre-`<!-- /whatsnew -->` section,
+  concatenated), instead of just the current tag.
 - ✅ **Paste-and-analyze keyboard gesture** *(v2.3.0)* — `Ctrl/Cmd+Shift+V` pastes a
   link from the clipboard and analyzes it in one shot, from anywhere in the window.
 - ✅ **"Copy error" button** *(v2.3.0)* — on a failed download and on history error
@@ -381,9 +401,11 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   **VR** (`--vr`/`--vr-layout`), **trim** (`--trim-start`/`--trim-end`), **subtitles**
   (`--subs LANG`), **chapters** (`--chapters`/`--no-chapters`), catalogue **auto-tagging**
   (`--tag`), and per-run **overrides** (`-o`, `-t`, `--rate-limit`, `--proxy`,
-  `--cookies-*`, `--sponsorblock`, `--normalize`). Also `--info`/`--json`/`--quiet`,
-  `--version` and **shell completion** (`--print-completion bash|zsh|fish`). See
-  [`docs/cli.md`](cli.md).
+  `--cookies-*`, `--sponsorblock`, `--normalize`, `--video-codec`, `--audio-bitrate`).
+  Also **format inspection** (`--list-formats`), a **`config`** sub-command that
+  reads/edits the saved settings (`yoink config [get|set KEY [VALUE]]`),
+  `--info`/`--json`/`--quiet`, `--version` and **shell completion**
+  (`--print-completion bash|zsh|fish`). See [`docs/cli.md`](cli.md).
 - ⬜ **More distribution channels** — AUR (S) / Flatpak (M) / winget + Chocolatey (M).
 
 ---

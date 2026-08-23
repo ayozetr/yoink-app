@@ -57,6 +57,8 @@ yoink <url>... [options]
 | `--cookies-file FILE` | Netscape `cookies.txt` (alternative to `--cookies-from-browser`). |
 | `--sponsorblock [ACTION]` | SponsorBlock (YouTube): `remove` or `mark` segments (bare = `remove`). |
 | `--normalize` | Loudness-normalize audio to −14 LUFS (re-encodes). |
+| `--video-codec {any,h264,vp9,av1}` | Prefer a video codec when picking the format. |
+| `--audio-bitrate {best,320,256,192,128}` | Lossy audio bitrate in kbps, or `best`. |
 | `--trim-start TS` / `--trim-end TS` | Clip a time range. `TS` is seconds (`90`) or a clock (`1:30`, `01:02:03`). `--trim-end` must be after `--trim-start`. |
 | `--subs [LANG]` | Embed subtitles (video). `LANG` is a code like `en`/`es`, or `all`; bare `--subs` means every track. |
 | `--no-subs` | Don't embed subtitles (overrides the saved default). |
@@ -70,6 +72,7 @@ yoink <url>... [options]
 | `--no-tag` | Don't tag (music-service imports are tagged by default; this turns it off). |
 | `--info` | Print metadata and exit — no download. |
 | `--list` | List a playlist/album's numbered entries and exit — no download. |
+| `--list-formats` | List a single video's available formats (id / ext / resolution / codecs / size) and exit. |
 | `--json` | Machine-readable JSON on stdout (for scripts/pipes). |
 | `--quiet` | Only errors + final paths (no progress bar, no summaries). |
 | `--no-progress` | Hide the progress bar but keep summaries. |
@@ -78,8 +81,10 @@ yoink <url>... [options]
 | `-h`, `--help` | Show help. |
 
 The per-run overrides (`-o`, `-t`, `--rate-limit`, `--proxy`, `--cookies-*`,
-`--sponsorblock`, `--normalize`) apply to this invocation only — they don't touch your
-saved Settings. Any option you don't pass falls back to your **Settings** defaults.
+`--sponsorblock`, `--normalize`, `--video-codec`, `--audio-bitrate`) apply to this
+invocation only — they don't touch your saved Settings. To change a saved setting, use
+`yoink config set` (below). Any option you don't pass falls back to your **Settings**
+defaults.
 
 ## Examples
 
@@ -101,9 +106,14 @@ yoink "https://youtu.be/VIDEO" --subs        # all tracks
 yoink "https://vr.example/clip" --vr
 yoink "https://vr.example/clip" --vr-layout 180_sbs
 
-# See a playlist's contents, then grab a subset
+# See a video's formats, or a playlist's contents, then grab a subset
+yoink "https://youtu.be/VIDEO" --list-formats
 yoink "https://youtube.com/playlist?list=…" --list
 yoink "https://youtube.com/playlist?list=…" --items 1,3-5 --skip-existing
+
+# Prefer a codec / cap the audio bitrate for this run
+yoink "https://youtu.be/VIDEO" --video-codec av1
+yoink "https://youtu.be/VIDEO" --audio -f mp3 --audio-bitrate 192
 
 # Import a whole album from a music service — matched on YouTube, tagged with the
 # EXACT source metadata (artist / title / album / year / cover)
@@ -118,6 +128,24 @@ yoink URL1 URL2 URL3 --rate-limit 2M --cookies-from-browser firefox
 # Script-friendly: JSON out + exit code
 if f=$(yoink "$1" --audio -f mp3 --json | jq -r .filepath); then echo "saved: $f"; fi
 ```
+
+## Settings from the terminal
+
+`yoink config` reads and edits the **same persisted settings** the app's Settings screen
+writes (`<data dir>/settings.json`) — so a change here shows up in the app, and vice
+versa. Unlike the per-run overrides above, `config set` is permanent.
+
+```bash
+yoink config                       # print every setting (key = value)
+yoink config get download_dir      # print one
+yoink config set download_dir ~/Videos
+yoink config set default_kind audio
+yoink config set cookies_from_browser firefox
+yoink config set cookies_from_browser none   # clear it (none/null/empty → unset)
+```
+
+An unknown key or an invalid value fails with exit code `2` and changes nothing. Add
+`--json` for machine-readable output (`yoink config --json`, `… get KEY --json`).
 
 ## Batch input
 
@@ -185,10 +213,11 @@ yoink --print-completion zsh > ~/.zfunc/_yoink
 ## Scope & follow-ups
 
 Still engine-backed, so more can be surfaced without new download logic. The CLI now
-covers trim ranges, subtitles, chapters, batch input, and per-run overrides
-(output dir, filename template, rate limit, proxy, cookies, SponsorBlock, loudness
-normalization). Engine settings **not yet surfaced as flags** — the preferred video
-codec and lossy audio bitrate — stay configurable in Settings, which the CLI honours.
+covers trim ranges, subtitles, chapters, batch input, per-run overrides (output dir,
+filename template, rate limit, proxy, cookies, SponsorBlock, loudness normalization,
+video codec, audio bitrate), format inspection (`--list-formats`), and reading/editing
+the saved settings (`yoink config`). Anything else the engine can do is a small
+addition away — open an issue if you want a specific yt-dlp option surfaced.
 
 ## How it fits
 
