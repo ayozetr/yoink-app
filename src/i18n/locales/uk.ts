@@ -93,6 +93,7 @@ export const uk = {
   progress: {
     downloading: "Завантаження…",
     preparing: "Підготовка…",
+    retrying: "Повторна спроба…",
     processing: "Обробка…",
     eta: "ETA",
     merging: "Об'єднання доріжок",

@@ -91,6 +91,7 @@ export const zh = {
   progress: {
     downloading: "下载中…",
     preparing: "准备中…",
+    retrying: "重试中…",
     processing: "处理中…",
     eta: "ETA",
     merging: "合并音视频轨",

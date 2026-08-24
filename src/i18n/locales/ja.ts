@@ -91,6 +91,7 @@ export const ja = {
   progress: {
     downloading: "ダウンロード中…",
     preparing: "準備中…",
+    retrying: "再試行中…",
     processing: "処理中…",
     eta: "ETA",
     merging: "トラックを結合中",

@@ -93,6 +93,7 @@ export const ru = {
   progress: {
     downloading: "Загрузка…",
     preparing: "Подготовка…",
+    retrying: "Повторная попытка…",
     processing: "Обработка…",
     eta: "ETA",
     merging: "Объединение дорожек",

@@ -91,6 +91,7 @@ export const ko = {
   progress: {
     downloading: "다운로드 중…",
     preparing: "준비 중…",
+    retrying: "다시 시도 중…",
     processing: "처리 중…",
     eta: "ETA",
     merging: "트랙 병합 중",

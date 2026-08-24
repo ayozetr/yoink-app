@@ -88,6 +88,20 @@ type TagItem = { path: string; filename: string };
 /** Audio extensions Yoink can tag (matched on the output filepath). */
 const AUDIO_EXT = /\.(mp3|m4a|flac|wav|opus|ogg|aac)$/i;
 
+// Auto-retry a failed download a few times with exponential backoff, but only for
+// TRANSIENT failures (a network blip, a momentary 403/429 rate-limit, a server
+// hiccup) — not permanent ones (private/removed/unsupported/no-format), where a
+// retry just wastes time. yt-dlp already retries at the fragment level; this is the
+// job level, re-running the whole extraction+download after a full failure.
+const MAX_RETRIES = 2; // 3 attempts total
+const RETRY_BASE_MS = 2000; // 2s, then 4s
+
+function isTransientError(message: string): boolean {
+  return /\b(403|408|409|429|500|502|503|504)\b|forbidden|timed?\s?out|timeout|temporar|try again|rate.?limit|throttl|connection|network|reset by peer|read error|unavailable|too many requests/i.test(
+    message,
+  );
+}
+
 function initialProgress(): DownloadProgressEvent {
   return {
     type: "progress",
@@ -162,6 +176,8 @@ export function DownloaderPanel({
   });
   // The jobs that failed in the last batch, for a "retry failed" action.
   const [retryJobs, setRetryJobs] = useState<DownloadJob[]>([]);
+  // True while waiting out the backoff before an auto-retry (drives the label).
+  const [retrying, setRetrying] = useState(false);
 
   const requestRef = useRef<AbortController | null>(null);
   const downloadRef = useRef<DownloadHandle | null>(null);
@@ -169,6 +185,7 @@ export function DownloaderPanel({
   const resultsRef = useRef<boolean[]>([]);
   const lastJobsRef = useRef<DownloadJob[]>([]);
   const audioPathsRef = useRef<TagItem[]>([]);
+  const retryTimerRef = useRef<number | null>(null);
 
   // Tear down the socket + free the lock if the panel unmounts mid-download.
   // Note: this does NOT clear the persisted batch — that's the point, so an
@@ -176,6 +193,7 @@ export function DownloaderPanel({
   useEffect(
     () => () => {
       downloadRef.current?.cancel();
+      if (retryTimerRef.current !== null) clearTimeout(retryTimerRef.current);
       releaseDownloadLock("downloader");
     },
     [],
@@ -184,6 +202,12 @@ export function DownloaderPanel({
   const resetDownload = (opts?: { keepBatch?: boolean }) => {
     downloadRef.current?.cancel();
     downloadRef.current = null;
+    // Kill a pending auto-retry so a cancel / new-analyze can't fire it later.
+    if (retryTimerRef.current !== null) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    setRetrying(false);
     releaseDownloadLock("downloader");
     // Analyzing a new URL mid-download cancels the active job; keep the persisted
     // batch so the in-progress run stays resumable instead of being silently lost.
@@ -215,7 +239,7 @@ export function DownloaderPanel({
     onDownloadFinished?.();
   };
 
-  const runJob = (index: number) => {
+  const runJob = (index: number, attempt = 0) => {
     const jobs = queueRef.current;
     if (index >= jobs.length) {
       releaseDownloadLock("downloader");
@@ -252,7 +276,26 @@ export function DownloaderPanel({
     setQueueIndex(index);
     setCurrentTitle(job.title);
     setDownloading(true);
+    setRetrying(false);
     setProgress(initialProgress());
+
+    // Give up (record the failure + advance) or, for a transient failure with
+    // attempts left, wait out an exponential backoff and re-run the same job.
+    const failOrRetry = (message: string, transient: boolean) => {
+      if (transient && attempt < MAX_RETRIES) {
+        setRetrying(true);
+        setProgress(initialProgress()); // reset the bar; the label shows "Retrying…"
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          runJob(index, attempt + 1);
+        }, RETRY_BASE_MS * 2 ** attempt);
+        return;
+      }
+      resultsRef.current.push(false);
+      if (jobs.length === 1) setDownloadError(message);
+      saveBatch(jobs, resultsRef.current.length);
+      runJob(index + 1);
+    };
 
     let settled = false;
     downloadRef.current = startDownload(job.request, {
@@ -276,25 +319,20 @@ export function DownloaderPanel({
               filename: event.filename,
             });
           }
+          // Persist progress so a close/crash resumes from the next item.
+          saveBatch(jobs, resultsRef.current.length);
+          runJob(index + 1);
         } else {
-          resultsRef.current.push(false);
-          if (jobs.length === 1) setDownloadError(event.message);
+          failOrRetry(event.message, isTransientError(event.message));
         }
-        // Persist progress so a close/crash resumes from the next item.
-        saveBatch(jobs, resultsRef.current.length);
-        runJob(index + 1);
       },
       onClose: () => {
         // Socket closed with no terminal event (backend crash / dropped
         // connection): fail this job so the queue doesn't spin forever.
         if (settled) return;
         settled = true;
-        resultsRef.current.push(false);
-        if (jobs.length === 1) {
-          setDownloadError(t("errors.downloadConnectionLost"));
-        }
-        saveBatch(jobs, resultsRef.current.length);
-        runJob(index + 1);
+        // A dropped connection with no terminal event is treated as transient.
+        failOrRetry(t("errors.downloadConnectionLost"), true);
       },
     });
   };
@@ -683,6 +721,7 @@ export function DownloaderPanel({
       <DownloadProgressCard
         progress={progress}
         completed={completed}
+        retrying={retrying}
         onCancel={handleCancel}
         onDismiss={() => setCompleted(null)}
       />

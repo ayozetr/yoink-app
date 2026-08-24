@@ -91,6 +91,7 @@ export const id = {
   progress: {
     downloading: "Mengunduh…",
     preparing: "Menyiapkan…",
+    retrying: "Mencoba lagi…",
     processing: "Memproses…",
     eta: "ETA",
     merging: "Menggabungkan trek",

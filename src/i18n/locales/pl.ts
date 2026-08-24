@@ -93,6 +93,7 @@ export const pl = {
   progress: {
     downloading: "Pobieranie…",
     preparing: "Przygotowywanie…",
+    retrying: "Ponawianie…",
     processing: "Przetwarzanie…",
     eta: "ETA",
     merging: "Łączenie ścieżek",

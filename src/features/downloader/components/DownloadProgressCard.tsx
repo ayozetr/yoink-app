@@ -18,6 +18,8 @@ import type {
 interface DownloadProgressCardProps {
   progress: DownloadProgressEvent | null;
   completed: DownloadCompletedEvent | null;
+  /** True while waiting out the backoff before an auto-retry. */
+  retrying?: boolean;
   onCancel?: () => void;
   onDismiss?: () => void;
 }
@@ -26,6 +28,7 @@ interface DownloadProgressCardProps {
 export function DownloadProgressCard({
   progress,
   completed,
+  retrying = false,
   onCancel,
   onDismiss,
 }: DownloadProgressCardProps) {
@@ -103,13 +106,15 @@ export function DownloadProgressCard({
   // ffmpeg seek to the trim point), percent sits at 0 with no speed. Show
   // "Preparing…" so the bar doesn't look frozen at 0%.
   const isPreparing = !isProcessing && progress.percent === 0 && !progress.speed;
-  const label = isProcessing
-    ? t("progress.processing")
-    : isPreparing
-      ? t("progress.preparing")
-      : t("progress.downloading");
+  const label = retrying
+    ? t("progress.retrying")
+    : isProcessing
+      ? t("progress.processing")
+      : isPreparing
+        ? t("progress.preparing")
+        : t("progress.downloading");
   const detail =
-    isProcessing || isPreparing
+    retrying || isProcessing || isPreparing
       ? isProcessing
         ? t("progress.merging")
         : ""

@@ -272,6 +272,11 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   longer fires ~200 proxy requests at once on render.
 - ✅ **Per-item retry in the batch summary** *(next)* — the panel keeps the jobs
   that failed (results are in job order) and the summary offers "Retry failed (N)".
+- ✅ **Auto-retry with backoff** — a failed job now re-runs itself automatically (up
+  to 2 retries, exponential backoff 2s→4s, "Retrying…" on the bar) — but only for
+  **transient** failures (a network blip, a momentary 403/429/5xx, a dropped socket),
+  never permanent ones (private/removed/unsupported/no-format). Complements yt-dlp's
+  fragment-level retries; the manual "Retry failed" stays for what still doesn't land.
 - ⬜ **Non-addressable sets (Instagram story-sets / highlights)** (L) — some sources
   return a container that yt-dlp resolves into several **fully-embedded** items with
   **no per-item URL** (`InstagramStoryIE` yields items with a unique `id` but no

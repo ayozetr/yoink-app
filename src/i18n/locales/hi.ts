@@ -91,6 +91,7 @@ export const hi = {
   progress: {
     downloading: "डाउनलोड हो रहा है…",
     preparing: "तैयार हो रहा है…",
+    retrying: "पुनः प्रयास…",
     processing: "प्रोसेस हो रहा है…",
     eta: "ETA",
     merging: "ट्रैक मर्ज हो रहे हैं",

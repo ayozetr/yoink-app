@@ -91,6 +91,7 @@ export const es = {
   progress: {
     downloading: "Descargando…",
     preparing: "Preparando…",
+    retrying: "Reintentando…",
     processing: "Procesando…",
     eta: "ETA",
     merging: "Uniendo pistas",
