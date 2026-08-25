@@ -11,7 +11,14 @@
 
 ## 📍 Status
 
-- **Current release:** **v3.3.0** — a **quality & reliability** pass: **trims no
+- **Current release:** **v3.4.0** — **resilience & control**: downloads that fail for a
+  **transient** reason (a network blip, a momentary 403/429/5xx, a dropped socket)
+  now **auto-retry with exponential backoff** instead of going straight to the failed
+  pile; a **stale-backend banner** (with a one-click **Restart**) warns when a
+  self-update left an older backend running; the **login/cookies hint** now also covers
+  a locked browser cookie store; and the **CLI** gains `--video-codec` / `--audio-bitrate`,
+  `--list-formats`, and a **`config`** sub-command to read/edit the saved settings.
+- **Previously:** **v3.3.0** — a **quality & reliability** pass: **trims no
   longer re-encode** (a forced-keyframe cut fell back to ffmpeg's low-bitrate mpeg4
   on the bundled LGPL build — pixelated; now a stream copy keeps the source
   AV1/VP9/H.264, sharp + fast), **yt-dlp bumped to 2026.08.19** (drops the blocked
