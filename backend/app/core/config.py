@@ -126,6 +126,11 @@ class Settings(BaseSettings):
     # or "http://host:port"). Applied to every yt-dlp request when set.
     proxy: str | None = Field(default=None)
 
+    # Optional YouTube PO token(s) passed through to yt-dlp (youtube:po_token) —
+    # an anonymous proof-of-origin that can pass the "confirm you're not a bot"
+    # wall without cookies. Comma-separated; each is CLIENT.CONTEXT+TOKEN.
+    po_token: str | None = Field(default=None)
+
     # User-editable defaults (persisted via the settings store / settings UI).
     default_kind: Literal["video", "audio"] = "video"
     default_quality: str = "best"

@@ -250,6 +250,10 @@ export const ja = {
     proxy: "プロキシ",
     proxyHelp:
       "メタデータとダウンロードを HTTP/HTTPS/SOCKS プロキシ経由で行います。空欄にすると直接接続します。",
+    poToken: "PO token (YouTube)",
+    poTokenPlaceholder: "web.gvs+…",
+    poTokenHelp:
+      "YouTube 用の匿名の「本物のクライアントである証明」トークン — Cookie なしでボット確認を通過できます。上級者向け・任意：PO token プロバイダーから 1 つ以上（カンマ区切り）を貼り付けるか、空のままにします。",
     videoCodec: "動画コーデック",
     videoCodecAny: "利用可能な最高",
     audioBitrate: "音声ビットレート",

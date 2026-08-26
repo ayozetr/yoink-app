@@ -380,6 +380,15 @@ class AppSettings(BaseModel):
         default=None,
         description="Proxy URL (http/https/socks) for metadata + downloads.",
     )
+    po_token: str | None = Field(
+        default=None,
+        description=(
+            "Optional YouTube PO token(s) to pass through to yt-dlp "
+            "(youtube:po_token extractor arg) — an anonymous proof-of-origin that "
+            "can get past the 'confirm you're not a bot' wall without cookies. "
+            "Comma-separated; each is CLIENT.CONTEXT+TOKEN. Empty = off."
+        ),
+    )
     autotag_source: AutotagSource = Field(
         default="auto", description="Catalogue for audio auto-tagging."
     )

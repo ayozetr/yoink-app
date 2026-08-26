@@ -250,6 +250,10 @@ export const id = {
     proxy: "Proxy",
     proxyHelp:
       "Salurkan metadata dan unduhan melalui proxy HTTP/HTTPS/SOCKS. Biarkan kosong untuk koneksi langsung.",
+    poToken: "PO token (YouTube)",
+    poTokenPlaceholder: "web.gvs+…",
+    poTokenHelp:
+      "Token anonim 'bukti kamu klien asli' untuk YouTube — bisa lolos cek bot tanpa cookie. Lanjutan & opsional: tempel satu atau beberapa (dipisah koma) dari penyedia PO token, atau biarkan kosong.",
     videoCodec: "Codec video",
     videoCodecAny: "Terbaik yang tersedia",
     audioBitrate: "Bitrate audio",

@@ -814,6 +814,17 @@ export function SettingsModal({
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
+
+          <Field label={t("settings.poToken")} hint={<PoTokenHelp />}>
+            <input
+              type="text"
+              aria-label={t("settings.poToken")}
+              value={form.po_token ?? ""}
+              placeholder={t("settings.poTokenPlaceholder")}
+              onChange={(e) => set("po_token", e.target.value || null)}
+              className={`${INPUT_CLASS} w-full`}
+            />
+          </Field>
                 </>
               )}
 
@@ -1380,5 +1391,12 @@ function ProxyHelp() {
   const { t } = useTranslation();
   return (
     <HelpPopover label={t("settings.proxy")}>{t("settings.proxyHelp")}</HelpPopover>
+  );
+}
+
+function PoTokenHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.poToken")}>{t("settings.poTokenHelp")}</HelpPopover>
   );
 }

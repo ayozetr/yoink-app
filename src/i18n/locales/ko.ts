@@ -250,6 +250,10 @@ export const ko = {
     proxy: "프록시",
     proxyHelp:
       "메타데이터와 다운로드를 HTTP/HTTPS/SOCKS 프록시를 통해 라우팅합니다. 직접 연결하려면 비워 두세요.",
+    poToken: "PO token (YouTube)",
+    poTokenPlaceholder: "web.gvs+…",
+    poTokenHelp:
+      "YouTube용 익명 '실제 클라이언트임을 증명하는' 토큰 — 쿠키 없이 봇 검사를 통과할 수 있습니다. 고급·선택 사항: PO 토큰 공급자에서 하나 이상(쉼표로 구분) 붙여넣거나 비워 두세요.",
     videoCodec: "영상 코덱",
     videoCodecAny: "사용 가능한 최고",
     audioBitrate: "오디오 비트레이트",

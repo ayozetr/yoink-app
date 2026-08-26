@@ -126,7 +126,9 @@ A condensed map of what already works.
 - URL analysis (`POST /api/info`) → preview with the real available formats;
   **YouTube search** from the URL field; flat **playlists**.
 - **Anti-bot**: yt-dlp + `curl_cffi` browser impersonation (default) gets past most
-  Cloudflare/TLS-fingerprint blocks; custom **Threads (Meta)** extractor.
+  Cloudflare/TLS-fingerprint blocks; custom **Threads (Meta)** extractor; optional
+  **YouTube PO token** (Settings) passed as the native `youtube:po_token` extractor
+  arg to clear the "confirm you're not a bot" wall without cookies.
 - **Live downloads** over WebSocket (percent/speed/ETA), **cancel + retry**, off-thread.
 
 **Output & quality**
@@ -298,6 +300,11 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   (3) make the output name **unique** when items share a title (append `%(id)s` / an
   index). Same-title collision (3) is general, not IG-only. A single story is fine via
   its own `stories/<user>/<id>/` URL — only the highlight/all-stories container is affected.
+- ⬜ **Bundled zero-config PO token** (M) — the opt-in `youtube:po_token` setting still
+  makes the user mint a token by hand. Ship a **provider that generates one
+  automatically** (a bgutil-style HTTP provider + a bundled JS runtime, or an embedded
+  minter) so YouTube's bot-check is cleared out of the box with no cookies and no manual
+  token. Gate it behind real-world testing before it becomes the default.
 
 ### 🎵 Audio library
 - ⬜ **Recalibrate the YouTube-match duration weight** (M · needs a test set) — the

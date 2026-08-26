@@ -250,6 +250,10 @@ export const zh = {
     proxy: "代理",
     proxyHelp:
       "通过 HTTP/HTTPS/SOCKS 代理转发元数据和下载。留空则使用直接连接。",
+    poToken: "PO token (YouTube)",
+    poTokenPlaceholder: "web.gvs+…",
+    poTokenHelp:
+      "YouTube 的匿名「证明你是真实客户端」令牌 — 无需 Cookie 即可通过反机器人检查。高级且可选：从 PO token 提供方粘贴一个或多个（逗号分隔），或留空。",
     videoCodec: "视频编码",
     videoCodecAny: "最佳可用",
     audioBitrate: "音频比特率",

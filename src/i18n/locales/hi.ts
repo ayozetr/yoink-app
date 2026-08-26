@@ -250,6 +250,10 @@ export const hi = {
     proxy: "प्रॉक्सी",
     proxyHelp:
       "मेटाडेटा और डाउनलोड को HTTP/HTTPS/SOCKS प्रॉक्सी के ज़रिए रूट करें। सीधे कनेक्शन के लिए खाली छोड़ दें।",
+    poToken: "PO token (YouTube)",
+    poTokenPlaceholder: "web.gvs+…",
+    poTokenHelp:
+      "YouTube के लिए एक गुमनाम 'आप असली क्लाइंट हैं' टोकन — बिना कुकीज़ के बॉट-जाँच पास कर सकता है। उन्नत और वैकल्पिक: PO-token प्रोवाइडर से एक या अधिक (कॉमा-अलग) पेस्ट करें, या खाली छोड़ें।",
     videoCodec: "वीडियो कोडेक",
     videoCodecAny: "सर्वश्रेष्ठ उपलब्ध",
     audioBitrate: "ऑडियो बिटरेट",

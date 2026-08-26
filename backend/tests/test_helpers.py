@@ -119,6 +119,7 @@ def test_network_options(monkeypatch):
     monkeypatch.setattr(settings, "cookies_from_browser", None)
     monkeypatch.setattr(settings, "cookies_file", None)
     monkeypatch.setattr(settings, "proxy", None)
+    monkeypatch.setattr(settings, "po_token", None)
     assert network_options() == {}
 
     monkeypatch.setattr(settings, "cookies_from_browser", "firefox")
@@ -140,6 +141,15 @@ def test_network_options(monkeypatch):
     assert network_options() == {
         "cookiefile": "/tmp/c.txt",
         "proxy": "socks5://127.0.0.1:1080",
+    }
+
+    # PO token(s) → the native youtube:po_token extractor arg (comma-split → list);
+    # off (no extractor_args) when unset.
+    monkeypatch.setattr(settings, "cookies_file", None)
+    monkeypatch.setattr(settings, "proxy", None)
+    monkeypatch.setattr(settings, "po_token", "web.gvs+AAA, web.gvs+BBB")
+    assert network_options() == {
+        "extractor_args": {"youtube": {"po_token": ["web.gvs+AAA", "web.gvs+BBB"]}}
     }
 
 

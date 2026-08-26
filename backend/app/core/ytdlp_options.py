@@ -115,6 +115,14 @@ def network_options(*, use_browser: bool = True) -> dict[str, Any]:
         options["cookiefile"] = str(settings.cookies_file)
     if settings.proxy:
         options["proxy"] = settings.proxy
+    # Optional YouTube PO token(s): passed straight through as the native
+    # `youtube:po_token` extractor arg (no plugin needed). An anonymous
+    # proof-of-origin that can satisfy the "confirm you're not a bot" wall
+    # without cookies. Off (nothing added) unless the user configured one.
+    if settings.po_token:
+        tokens = [t.strip() for t in settings.po_token.split(",") if t.strip()]
+        if tokens:
+            options["extractor_args"] = {"youtube": {"po_token": tokens}}
     return options
 
 

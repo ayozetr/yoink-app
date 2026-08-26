@@ -256,6 +256,8 @@ export interface AppSettings {
   cookies_file: string | null;
   /** Proxy URL (http/https/socks) for metadata + downloads; null = none. */
   proxy: string | null;
+  /** Optional YouTube PO token(s) passed to yt-dlp (youtube:po_token); null = off. */
+  po_token: string | null;
   autotag_source: AutotagSource;
   sponsorblock_enabled: boolean;
   sponsorblock_action: SponsorblockAction;

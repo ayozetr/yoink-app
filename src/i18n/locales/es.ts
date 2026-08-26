@@ -250,6 +250,10 @@ export const es = {
     proxy: "Proxy",
     proxyHelp:
       "Enruta los metadatos y las descargas por un proxy HTTP/HTTPS/SOCKS. Déjalo vacío para conexión directa.",
+    poToken: "PO token (YouTube)",
+    poTokenPlaceholder: "web.gvs+…",
+    poTokenHelp:
+      "Un token anónimo de 'prueba de que eres un cliente real' para YouTube — puede pasar el anti-bot sin cookies. Avanzado y opcional: pega uno o varios (separados por comas) de un proveedor de PO tokens, o déjalo vacío.",
     videoCodec: "Códec de vídeo",
     videoCodecAny: "Mejor disponible",
     audioBitrate: "Bitrate de audio",
