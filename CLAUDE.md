@@ -196,6 +196,11 @@ as a Tauri `resources` entry, spawned by `main.rs` (`--onedir`, not a onefile
 sidecar: it starts faster with no per-launch extraction). It embeds
 ffmpeg/ffprobe (wired to yt-dlp via `ffmpeg_location`), so the shipped app needs
 no system ffmpeg.
+The bundled backend binary does **double duty**: launched with no arguments
+(how `main.rs` spawns it) it serves the API, but launched *with* arguments it
+runs the CLI (`app/cli.py`) in-process — so the Linux `.deb`/`.rpm` ship a
+`/usr/bin/yoink-cli` wrapper (`src-tauri/yoink-cli`) that forwards to it, giving a
+real command line with no second binary. Dispatch lives in `backend/run_backend.py`.
 Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1). Icons are
 generated with `npm run tauri icon`. See `docs/releasing.md` for the full
 release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.

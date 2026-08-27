@@ -162,6 +162,15 @@ src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb
 src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm   # from §3b
 ```
 
+The `.deb`/`.rpm` also ship the `yoink-cli` command-line wrapper at
+`/usr/bin/yoink-cli` (declared in `tauri.conf.json` → `bundle.linux.deb.files`;
+the rpm inherits it via `build_rpm.py`). To confirm it made it into the package:
+
+```bash
+bsdtar -xOf src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb data.tar.gz \
+  | bsdtar -tzf - | grep usr/bin        # expect: usr/bin/yoink  AND  usr/bin/yoink-cli
+```
+
 ### 3c. Browser extension — NOT an app-release asset
 
 The **"Send to Yoink" browser extension** (`extension/`) ships on its **own channels**,

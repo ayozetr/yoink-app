@@ -1,0 +1,24 @@
+#!/bin/sh
+# Yoink command-line interface — installed on the PATH by the .deb / .rpm.
+#
+# The packaged backend binary does double duty: with no arguments it serves the
+# local API for the desktop app, and with arguments it runs Yoink's command-line
+# engine. This wrapper forwards to it so `yoink-cli <url> ...` works system-wide
+# without shipping a second copy of the engine.
+#
+# The desktop GUI already owns /usr/bin/yoink, so the CLI installs as `yoink-cli`.
+set -eu
+
+for exe in \
+  /usr/lib/Yoink/backend/yoink-backend \
+  /usr/lib/yoink/backend/yoink-backend \
+  /opt/Yoink/backend/yoink-backend
+do
+  if [ -x "$exe" ]; then
+    exec "$exe" "$@"
+  fi
+done
+
+echo "yoink-cli: bundled backend not found (looked under /usr/lib/Yoink)." >&2
+echo "Is the Yoink desktop package installed?" >&2
+exit 1

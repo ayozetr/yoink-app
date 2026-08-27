@@ -1,7 +1,10 @@
-"""Entry point for the packaged backend (PyInstaller sidecar).
+"""Entry point for the packaged backend (PyInstaller onedir binary).
 
-The Tauri desktop shell launches this as a sidecar. The port defaults to 8756
-(what the bundled frontend expects) but can be overridden with YOINK_PORT.
+The Tauri desktop shell launches this with **no arguments** to serve the local
+API (port 8756 by default, override with ``YOINK_PORT``). Invoked **with**
+arguments, the very same binary runs Yoink's command-line interface instead — so
+the installed ``yoink-cli`` wrapper (``src-tauri/yoink-cli``) can offer a real
+command line on a packaged install without shipping a second copy of the engine.
 """
 
 from __future__ import annotations
@@ -9,10 +12,6 @@ from __future__ import annotations
 import os
 import sys
 import threading
-
-import uvicorn
-
-from app.main import app
 
 
 def _exit_when_parent_closes_stdin() -> None:
@@ -36,10 +35,27 @@ def _exit_when_parent_closes_stdin() -> None:
     os._exit(0)
 
 
-if __name__ == "__main__":
+def _serve() -> None:
+    """Serve the FastAPI app under uvicorn (how the desktop shell launches us)."""
+    import uvicorn
+
+    from app.main import app
+
     if getattr(sys, "frozen", False):
         threading.Thread(
             target=_exit_when_parent_closes_stdin, daemon=True
         ).start()
     port = int(os.environ.get("YOINK_PORT", "8756"))
     uvicorn.run(app, host="127.0.0.1", port=port)
+
+
+if __name__ == "__main__":
+    argv = sys.argv[1:]
+    if argv:
+        # Arguments present → run the command-line interface. The `yoink-cli`
+        # wrapper on a packaged install forwards here; Tauri always launches the
+        # binary with *no* arguments, so its path only ever hits _serve() below.
+        from app.cli import main as cli_main
+
+        raise SystemExit(cli_main(argv))
+    _serve()

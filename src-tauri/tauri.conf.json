@@ -39,6 +39,13 @@
     "resources": {
       "binaries/yoink-backend": "backend"
     },
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/bin/yoink-cli": "yoink-cli"
+        }
+      }
+    },
     "windows": {
       "nsis": {
         "installerHooks": "./installer-hooks.nsh"

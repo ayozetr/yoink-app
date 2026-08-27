@@ -287,3 +287,22 @@ def test_config_get_set_and_errors(temp_dirs, capsys):
     capsys.readouterr()
     assert _run_config([], as_json=False) == 0
     assert "download_dir = " in capsys.readouterr().out
+
+
+def test_run_backend_dispatches_to_cli_with_args():
+    """The packaged entry point runs the CLI when given arguments (server mode
+    otherwise). This is what lets the bundled binary double as `yoink-cli`."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    backend_dir = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "run_backend.py", "--version"],
+        cwd=backend_dir,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip().startswith("yoink ")

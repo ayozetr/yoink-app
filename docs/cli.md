@@ -35,6 +35,21 @@ Or invoke the module directly with the backend venv (from the `backend/` directo
 backend/.venv/bin/python -m app.cli <url>
 ```
 
+### On an installed package (`.deb` / `.rpm`)
+
+The desktop packages ship the CLI too — no separate install. The bundled backend
+binary does double duty (it serves the app with no arguments and runs the CLI with
+them), and the package puts a small wrapper on your `PATH` as **`yoink-cli`**:
+
+```bash
+yoink-cli <url>
+yoink-cli config
+```
+
+It's `yoink-cli`, not `yoink`, because the desktop app already owns `/usr/bin/yoink`.
+The AppImage is a self-contained bundle and does **not** install anything on the
+`PATH`, so use the source/venv methods above (or the `.deb`/`.rpm`) for the CLI.
+
 ## Commands
 
 ```
