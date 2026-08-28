@@ -103,10 +103,15 @@ export default function App() {
   const [staleDismissed, setStaleDismissed] = useState(false);
   // Show "what's new" once when the version changed since last run — but not on a
   // fresh install (nothing recorded yet). Computed at mount from localStorage.
-  const [whatsNewOpen, setWhatsNewOpen] = useState(() => {
-    const seen = localStorage.getItem("yoink-last-seen-version");
-    return seen !== null && seen !== __APP_VERSION__;
-  });
+  // Captured once at mount, *before* the effect below overwrites it — the
+  // version the app last ran as, so "what's new" can show every release since
+  // then (cumulative) rather than only the one just landed on.
+  const [previousVersion] = useState(() =>
+    localStorage.getItem("yoink-last-seen-version"),
+  );
+  const [whatsNewOpen, setWhatsNewOpen] = useState(
+    () => previousVersion !== null && previousVersion !== __APP_VERSION__,
+  );
   const updateCheckedRef = useRef(false);
   const { t } = useTranslation();
   // Trap focus inside the re-tag dialog while it's open (a11y).
@@ -388,7 +393,10 @@ export default function App() {
 
       {whatsNewOpen && (
         <Suspense fallback={null}>
-          <WhatsNewModal onClose={() => setWhatsNewOpen(false)} />
+          <WhatsNewModal
+            since={previousVersion}
+            onClose={() => setWhatsNewOpen(false)}
+          />
         </Suspense>
       )}
 

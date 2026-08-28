@@ -3,30 +3,38 @@ import { Loader2, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "./GlassPanel";
 import { Markdown } from "./Markdown";
-import { fetchReleaseNotes } from "../../lib/api";
+import { fetchWhatsNew } from "../../lib/api";
+import type { ReleaseNotes } from "../../types/download";
 
 /**
  * "What's new" popup shown once after an update (and re-openable from Settings).
- * Fetches this version's release notes (trimmed to the what's-new part) and
- * renders them; if they can't be loaded it says so rather than showing nothing.
+ * Fetches the release notes since `since` (the version last run) — cumulative,
+ * so skipping releases still shows every version's notes, newest first — and
+ * renders them; if none can be loaded it says so rather than showing nothing.
  */
-export function WhatsNewModal({ onClose }: { onClose: () => void }) {
+export function WhatsNewModal({
+  since,
+  onClose,
+}: {
+  since: string | null;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
-  const [notes, setNotes] = useState<string | null>(null);
-  const [version, setVersion] = useState("");
+  const [entries, setEntries] = useState<ReleaseNotes[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchReleaseNotes(controller.signal)
-      .then((r) => {
-        setNotes(r.notes);
-        setVersion(r.version);
-      })
-      .catch(() => setNotes(null))
+    fetchWhatsNew(since, controller.signal)
+      .then((r) => setEntries(r.entries))
+      .catch(() => setEntries([]))
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, []);
+  }, [since]);
+
+  // Header shows the newest version; each entry is labelled when there's more
+  // than one (a multi-version catch-up).
+  const version = entries[0]?.version ?? "";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -67,8 +75,19 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
                 <Loader2 size={15} className="animate-spin" />
                 {t("whatsNew.loading")}
               </p>
-            ) : notes ? (
-              <Markdown source={notes} />
+            ) : entries.length ? (
+              <div className="space-y-6">
+                {entries.map((entry) => (
+                  <section key={entry.version}>
+                    {entries.length > 1 && (
+                      <h3 className="mb-2 text-sm font-semibold text-violet-300">
+                        {entry.version}
+                      </h3>
+                    )}
+                    <Markdown source={entry.notes ?? ""} />
+                  </section>
+                ))}
+              </div>
             ) : (
               <p className="text-sm text-zinc-400">{t("whatsNew.unavailable")}</p>
             )}

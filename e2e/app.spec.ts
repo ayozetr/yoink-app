@@ -438,11 +438,15 @@ test("update experience: settings toggle opens the What's new popup", async ({
   page,
 }) => {
   await mockBase(page);
-  await page.route("**/api/release-notes", (route) =>
+  await page.route("**/api/release-notes*", (route) =>
     route.fulfill({
       json: {
-        version: "v2.6.0",
-        notes: "## New stuff\n\n- **Bold** thing\n- Another one",
+        entries: [
+          {
+            version: "v2.6.0",
+            notes: "## New stuff\n\n- **Bold** thing\n- Another one",
+          },
+        ],
       },
     }),
   );

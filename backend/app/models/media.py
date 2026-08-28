@@ -464,6 +464,17 @@ class ReleaseNotes(BaseModel):
     )
 
 
+class WhatsNew(BaseModel):
+    """Release notes for the after-update popup — one entry per version, newest
+    first. Cumulative: when the user skipped intermediate releases it carries all
+    of them, not just the version they landed on."""
+
+    entries: list[ReleaseNotes] = Field(
+        default_factory=list,
+        description="Notes for each new version since the last run, newest first.",
+    )
+
+
 class OpenRequest(BaseModel):
     """Body of POST /api/open — reveal a file/folder in the OS file manager."""
 

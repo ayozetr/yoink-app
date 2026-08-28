@@ -67,8 +67,11 @@ Two layers communicating asynchronously:
   owner-managed), the app checks the latest GitHub release on launch; if newer it
   shows an in-app banner + a desktop notification and can **self-update in place**
   via the Tauri updater (a live-progress "Downloading…" popup). `GET /api/release-notes`
-  returns the current version's release `body` — trimmed to the part before a hidden
-  `<!-- /whatsnew -->` marker — for the first-launch-after-update "What's new" popup.
+  returns a `WhatsNew` (a list of per-version release `body`s — each trimmed to the part
+  before a hidden `<!-- /whatsnew -->` marker) for the first-launch-after-update "What's
+  new" popup; with `?since=<version>` (the version last run, remembered in the
+  `yoink-last-seen-version` localStorage key) it's **cumulative** — every release in
+  `(since, current]`, newest first — so skipping versions doesn't hide their notes.
 - **Deep link (`yoink://`, desktop):** the Tauri shell registers a
   `yoink://download?url=<encoded>` scheme so the browser — or the **"Send to Yoink"
   (beta)** extension in `extension/` — can hand a URL to the running app without going

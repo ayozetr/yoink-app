@@ -39,6 +39,8 @@ _PAIRS: list[tuple[type[BaseModel], str, str]] = [
     (media.AppSettings, "AppSettings", "download.ts"),
     (media.HistoryStats, "DownloadStats", "download.ts"),  # TS interface renamed
     (media.VersionInfo, "VersionInfo", "download.ts"),
+    (media.ReleaseNotes, "ReleaseNotes", "download.ts"),
+    (media.WhatsNew, "WhatsNew", "download.ts"),
     (music.MusicTrack, "MusicTrack", "music.ts"),
     (music.MusicImportInfo, "MusicImportInfo", "music.ts"),
     # WS download events (TS prefixes them with "Download").

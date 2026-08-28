@@ -12,7 +12,7 @@ import urllib.request
 
 from app.core.config import settings
 from app.core.safe_http import SSL_CONTEXT
-from app.models.media import ReleaseNotes, VersionInfo
+from app.models.media import ReleaseNotes, VersionInfo, WhatsNew
 
 
 def _trim_notes(body: str) -> str:
@@ -54,6 +54,70 @@ def release_notes(tag: str, timeout: float = 8.0) -> ReleaseNotes:
     body = data.get("body")
     notes = _trim_notes(body) if isinstance(body, str) else None
     return ReleaseNotes(version=tag, notes=notes)
+
+
+def _release_list(timeout: float = 8.0) -> list[dict]:
+    """Every published release for the repo (newest first, per GitHub), or an
+    empty list on any failure. Unauthenticated, so drafts aren't returned."""
+    url = f"https://api.github.com/repos/{settings.github_repo}/releases?per_page=100"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": f"Yoink/{settings.app_version}",
+            "Accept": "application/vnd.github+json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(
+            request, timeout=timeout, context=SSL_CONTEXT
+        ) as response:
+            data = json.load(response)
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
+        return []
+    return data if isinstance(data, list) else []
+
+
+def whats_new(current: str, since: str | None = None, timeout: float = 8.0) -> WhatsNew:
+    """Release notes for every version in the range ``(since, current]``, newest
+    first — so a user who skipped releases sees all of them, not just the latest.
+
+    ``since`` is the version the app last ran as. When it's blank or not older
+    than ``current`` (a fresh launch of the same version, or a downgrade) only
+    this release is returned. Never raises: if the release list can't be fetched
+    or yields nothing in range, it falls back to just the current release (and an
+    empty ``entries`` when even that has no notes, so the popup simply hides)."""
+    current_tag = current if current[:1].lower() == "v" else f"v{current}"
+
+    def _single() -> WhatsNew:
+        one = release_notes(current_tag, timeout)
+        return WhatsNew(entries=[one] if one.notes else [])
+
+    if not since or not _is_newer(current, since):
+        return _single()
+
+    entries: list[ReleaseNotes] = []
+    for rel in _release_list(timeout):
+        if not isinstance(rel, dict) or rel.get("draft"):
+            continue
+        tag = rel.get("tag_name")
+        if not isinstance(tag, str):
+            continue
+        # Keep only ``since < version <= current``.
+        if _is_newer(tag, since) and not _is_newer(tag, current):
+            body = rel.get("body")
+            notes = _trim_notes(body) if isinstance(body, str) else None
+            if notes:
+                entries.append(ReleaseNotes(version=tag, notes=notes))
+    if not entries:
+        return _single()
+    entries.sort(key=lambda e: _parse_version(e.version), reverse=True)
+    return WhatsNew(entries=entries)
 
 
 def _parse_version(tag: str) -> tuple[int, ...]:

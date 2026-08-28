@@ -12,9 +12,9 @@ import type {
   HistoryEntry,
   InfoResponse,
   PlaylistEntry,
-  ReleaseNotes,
   SearchResponse,
   VersionInfo,
+  WhatsNew,
 } from "../types/download";
 import type {
   ApplyRequest,
@@ -215,12 +215,18 @@ export async function fetchYtdlpVersion(
   return (await response.json()) as VersionInfo;
 }
 
-/** This version's "what's new" release notes, via `GET /api/release-notes`. */
-export async function fetchReleaseNotes(
+/**
+ * "What's new" notes for the after-update popup, via `GET /api/release-notes`.
+ * Passing `since` (the version last run) makes it cumulative — every release
+ * newer than it, up to the current version, newest first.
+ */
+export async function fetchWhatsNew(
+  since: string | null,
   signal?: AbortSignal,
-): Promise<ReleaseNotes> {
-  const response = await request("/release-notes", { signal });
-  return (await response.json()) as ReleaseNotes;
+): Promise<WhatsNew> {
+  const query = since ? `?since=${encodeURIComponent(since)}` : "";
+  const response = await request(`/release-notes${query}`, { signal });
+  return (await response.json()) as WhatsNew;
 }
 
 /** Fetch recent download records via `GET /api/history`. */

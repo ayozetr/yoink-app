@@ -290,6 +290,14 @@ export interface ReleaseNotes {
   notes: string | null;
 }
 
+/**
+ * Cumulative "what's new" for the after-update popup (mirrors backend `WhatsNew`).
+ * One entry per version, newest first — carries every release the user skipped.
+ */
+export interface WhatsNew {
+  entries: ReleaseNotes[];
+}
+
 /** Aggregate stats shown at the bottom of the sidebar (mirrors backend). */
 export interface DownloadStats {
   total_downloads: number;

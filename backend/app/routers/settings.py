@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import settings as app_settings
-from app.models.media import AppSettings, ReleaseNotes, VersionInfo
+from app.models.media import AppSettings, VersionInfo, WhatsNew
 from app.services import settings_store, updates
 
 router = APIRouter(tags=["settings"])
@@ -29,13 +29,21 @@ def get_version() -> VersionInfo:
 
 @router.get(
     "/release-notes",
-    response_model=ReleaseNotes,
-    summary="This version's 'what's new' notes",
+    response_model=WhatsNew,
+    summary="'What's new' notes for the after-update popup",
 )
-def get_release_notes() -> ReleaseNotes:
-    """The current app version's release notes (trimmed to the what's-new part),
-    for the after-update popup. `notes` is null if they can't be fetched."""
-    return updates.release_notes(f"v{app_settings.app_version}")
+def get_release_notes(
+    since: str | None = Query(
+        default=None,
+        description="Version the app last ran as; returns every release in "
+        "(since, current], newest first. Omit for just this version.",
+    ),
+) -> WhatsNew:
+    """Release notes for the after-update popup, trimmed to the what's-new part.
+    With ``since`` the notes are **cumulative** — every release newer than it up
+    to the current version — so skipping versions doesn't hide their notes.
+    `entries` is empty if nothing can be fetched."""
+    return updates.whats_new(app_settings.app_version, since)
 
 
 @router.get(

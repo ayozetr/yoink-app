@@ -376,12 +376,13 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   re-openable from Settings) rendering that release's notes, trimmed to the part
   before a hidden `<!-- /whatsnew -->` marker (`GET /api/release-notes` + a small
   markdown renderer).
-- ⬜ **Cumulative "What's new"** (M) — the popup shows only the version you landed on.
-  When several releases were skipped (e.g. 3.0.0 → 3.2.0), show the notes for **every
-  version in between** (3.1.0 + 3.2.0), newest first. Needs the previously-installed
-  version remembered across the update, and `GET /api/release-notes` extended to return
-  the notes for a version range (each release's pre-`<!-- /whatsnew -->` section,
-  concatenated), instead of just the current tag.
+- ✅ **Cumulative "What's new"** — when several releases were skipped (e.g. 3.0.0 →
+  3.4.0) the popup now shows the notes for **every version in between**, newest first,
+  each under its version heading — not just the one landed on. The previously-run version
+  is captured from `yoink-last-seen-version` before it's overwritten and passed as
+  `GET /api/release-notes?since=<v>`, which returns a `WhatsNew` list for the range
+  `(since, current]` (each release's pre-`<!-- /whatsnew -->` section). Falls back to the
+  single current release when the range can't be resolved.
 - ✅ **Paste-and-analyze keyboard gesture** *(v2.3.0)* — `Ctrl/Cmd+Shift+V` pastes a
   link from the clipboard and analyzes it in one shot, from anywhere in the window.
 - ✅ **"Copy error" button** *(v2.3.0)* — on a failed download and on history error
