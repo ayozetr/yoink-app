@@ -206,6 +206,8 @@ export const id = {
     fetchLyricsHelp: "Saat auto-tag audio, cari lagu di LRCLIB (gratis, tanpa akun) dan sematkan liriknya ke berkas, agar pemutar yang membacanya bisa menampilkannya.",
     nfoSidecars: "Buat berkas .nfo",
     nfoSidecarsHelp: "Membuat berkas metadata .nfo (gaya Kodi/Jellyfin) di samping setiap unduhan, agar server media membaca data Anda yang tepat.",
+    musicFolders: "Atur musik ke folder Artis/Album",
+    musicFoldersHelp: "Memindahkan setiap trek yang di-tag otomatis ke folder <Artis>/<Album> (tata letak Jellyfin/Plex/Navidrome). Jika .nfo aktif, juga menulis album.nfo/artist.nfo di folder tersebut.",
     defaultEmbedSubs: "Sematkan subtitle secara default",
     defaultEmbedSubsHint: "Hanya didukung oleh format video MKV; format lain seperti MP4 atau MOV tidak mengizinkannya.",
     defaultEmbedChapters: "Sematkan bab secara default",

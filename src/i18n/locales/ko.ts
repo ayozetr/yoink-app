@@ -206,6 +206,8 @@ export const ko = {
     fetchLyricsHelp: "오디오 자동 태깅 시 LRCLIB(무료, 계정 불필요)에서 곡을 찾아 가사를 파일에 삽입해, 가사를 읽는 플레이어에서 표시할 수 있습니다.",
     nfoSidecars: ".nfo 파일 생성",
     nfoSidecarsHelp: "각 다운로드 옆에 Kodi/Jellyfin 형식의 .nfo 메타데이터 파일을 생성해 미디어 서버가 정확한 정보를 읽도록 합니다.",
+    musicFolders: "음악을 아티스트/앨범 폴더로 정리",
+    musicFoldersHelp: "자동 태그된 각 트랙을 <아티스트>/<앨범> 폴더(Jellyfin/Plex/Navidrome 레이아웃)로 이동합니다. .nfo가 켜져 있으면 해당 폴더에 album.nfo/artist.nfo도 씁니다.",
     defaultEmbedSubs: "기본적으로 자막 포함",
     defaultEmbedSubsHint: "MKV 동영상 형식에서만 지원됩니다. MP4나 MOV 등 다른 형식은 허용하지 않습니다.",
     defaultEmbedChapters: "기본적으로 챕터 포함",

@@ -32,6 +32,7 @@ from app.services.autotag_service import (
     apply,
     identify,
     lyrics_preview,
+    organize_music_library,
     rename_to_tagged,
     search,
 )
@@ -112,7 +113,23 @@ def apply_endpoint(request: ApplyRequest) -> ApplyResponse:
             renamed = f"{title} - {artist}"
     if new_title:
         try:
-            if renamed:
+            # Media-server layout: move the tagged track into <Artist>/<Album>/ (and
+            # write album/artist .nfo there). Uses the tagged name — the reorder
+            # template, when set, else the default "Artist - Title".
+            if settings.music_folders and artist and title:
+                stem = renamed or new_title
+                new_path = organize_music_library(
+                    path,
+                    artist=artist,
+                    album=(request.album or "").strip(),
+                    year=(request.year or "").strip(),
+                    stem=stem,
+                    cover_url=request.cover_url,
+                )
+                history_store.update_after_tag(
+                    str(path), str(new_path), new_path.name, stem
+                )
+            elif renamed:
                 new_path = rename_to_tagged(path, renamed)
                 history_store.update_after_tag(
                     str(path), str(new_path), new_path.name, renamed

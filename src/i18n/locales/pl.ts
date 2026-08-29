@@ -210,6 +210,8 @@ export const pl = {
     fetchLyricsHelp: "Podczas auto-tagowania audio wyszukuje utwór w LRCLIB (za darmo, bez konta) i osadza tekst w pliku, by odtwarzacze mogły go pokazać.",
     nfoSidecars: "Twórz pliki .nfo",
     nfoSidecarsHelp: "Tworzy plik metadanych .nfo (styl Kodi/Jellyfin) obok każdego pobrania, aby serwery multimediów czytały dokładne dane.",
+    musicFolders: "Porządkuj muzykę w folderach Wykonawca/Album",
+    musicFoldersHelp: "Przenosi każdy automatycznie otagowany utwór do folderów <Wykonawca>/<Album> (układ Jellyfin/Plex/Navidrome). Przy włączonych plikach .nfo zapisuje tam także album.nfo/artist.nfo.",
     defaultEmbedSubs: "Domyślnie osadzaj napisy",
     defaultEmbedSubsHint: "Obsługiwane tylko przez format wideo MKV; inne, jak MP4 czy MOV, na to nie pozwalają.",
     defaultEmbedChapters: "Domyślnie osadzaj rozdziały",

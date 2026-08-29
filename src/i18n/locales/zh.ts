@@ -206,6 +206,8 @@ export const zh = {
     fetchLyricsHelp: "在音频自动标记时，从 LRCLIB（免费、无需账号）查找歌曲并将歌词嵌入文件，支持歌词的播放器即可显示。",
     nfoSidecars: "生成 .nfo 文件",
     nfoSidecarsHelp: "在每个下载文件旁生成 Kodi/Jellyfin 风格的 .nfo 元数据文件，让媒体服务器读取你的准确信息。",
+    musicFolders: "将音乐整理到 艺术家/专辑 文件夹",
+    musicFoldersHelp: "将每个自动标记的曲目移动到 <艺术家>/<专辑> 文件夹（Jellyfin/Plex/Navidrome 布局）。启用 .nfo 时，还会在这些文件夹中写入 album.nfo/artist.nfo。",
     defaultEmbedSubs: "默认嵌入字幕",
     defaultEmbedSubsHint: "仅 MKV 视频格式支持；MP4 或 MOV 等其他格式不允许。",
     defaultEmbedChapters: "默认嵌入章节",

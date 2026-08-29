@@ -248,6 +248,8 @@ export interface AppSettings {
   default_embed_chapters: boolean;
   /** Write a Kodi/Jellyfin-style .nfo metadata file next to each download. */
   nfo_sidecars: boolean;
+  /** Organize auto-tagged music into <Artist>/<Album>/ folders (+ album/artist .nfo). */
+  music_folders: boolean;
   /** Fetch + embed song lyrics (LRCLIB) during audio auto-tagging. */
   fetch_lyrics: boolean;
   /** Also write a synced .lrc sidecar next to the audio. */

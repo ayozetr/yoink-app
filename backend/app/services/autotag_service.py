@@ -629,6 +629,78 @@ def rename_to_tagged(path: Path, new_title: str) -> Path:
     return target
 
 
+def organize_music_library(
+    path: Path,
+    *,
+    artist: str,
+    album: str,
+    year: str,
+    stem: str,
+    cover_url: str | None,
+) -> Path:
+    """Move a freshly-tagged track (+ its ``.nfo``/``.lrc`` sidecars) into the
+    media-server music layout ``<download dir>/<Artist>/<Album>/<stem>.ext`` — the
+    shared Jellyfin/Plex/Navidrome convention — and, when NFO sidecars are on,
+    write ``album.nfo``/``artist.nfo`` in the album/artist folders.
+
+    Uses the *tagged* metadata (reliable, unlike yt-dlp's raw YouTube fields).
+    Returns the new audio path, or the original when it can't move (no artist name,
+    a name collision with a *different* file, or a filesystem error). Best-effort:
+    never raises — a failure leaves the file where auto-tagging put it.
+    """
+    safe_artist = sanitize_filename(artist, restricted=False).strip()
+    safe_stem = sanitize_filename(stem, restricted=False).strip()
+    if not safe_artist or not safe_stem:
+        return path
+    safe_album = sanitize_filename(album, restricted=False).strip() if album else ""
+    folder = settings.ensure_download_dir() / safe_artist
+    if safe_album:
+        folder = folder / safe_album
+    target = folder / (safe_stem + path.suffix)
+    if target == path:
+        return path
+    if target.exists():
+        return path  # don't clobber a different file that already owns the name
+    prefix = path.stem + "."
+    try:
+        movable = [
+            p
+            for p in path.parent.iterdir()
+            if p.is_file() and p.name.startswith(prefix)
+        ]
+        folder.mkdir(parents=True, exist_ok=True)
+        for sib in movable:
+            sib.rename(folder / (safe_stem + sib.name[len(path.stem) :]))
+    except OSError as exc:
+        logger.warning("Could not organize %s into the library: %s", path.name, exc)
+        return path
+    if settings.nfo_sidecars:
+        _write_folder_nfo(folder, album=album, artist=artist, year=year, thumb=cover_url)
+    return target
+
+
+def _write_folder_nfo(
+    album_folder: Path, *, album: str, artist: str, year: str, thumb: str | None
+) -> None:
+    """Write ``album.nfo`` (in the album folder) and ``artist.nfo`` (in the artist
+    folder) for a media-server music library. Best-effort; never fatal."""
+    cover = thumb or ""
+    # With no album the track sits directly in the artist folder, so that folder is
+    # both the album- and artist-level directory; otherwise artist.nfo is one up.
+    artist_folder = album_folder.parent if album else album_folder
+    try:
+        if album:
+            (album_folder / "album.nfo").write_text(
+                nfo.build_album(album=album, artist=artist, year=year, thumb=cover),
+                encoding="utf-8",
+            )
+        (artist_folder / "artist.nfo").write_text(
+            nfo.build_artist(artist=artist, thumb=cover), encoding="utf-8"
+        )
+    except OSError as exc:
+        logger.warning("Could not write folder .nfo in %s: %s", album_folder, exc)
+
+
 def extract_cover(path: Path) -> tuple[bytes, str] | None:
     """Read embedded cover art (bytes, mime) from an audio file, or None."""
     ext = path.suffix.lower()

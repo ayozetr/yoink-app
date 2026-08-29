@@ -252,7 +252,12 @@ Not committed and not release-ordered — picked from as capacity allows.
 - ✅ **Download presets/profiles** *(next)* — save the preview's format selection
   as a named preset (`lib/presets`, localStorage) and apply it in one click; chips
   to apply/delete and an inline "save current" in the preview card.
-- ⬜ **Library subfolders** (M) — path templates (`%(uploader)s/%(title)s`).
+- ✅ **Library subfolders** — the **Filename template** setting already accepts path
+  separators, so `%(uploader)s/%(title)s` writes into subfolders. The download service
+  keeps interior `/` while neutralising traversal (`..`, absolute paths) and confirms
+  the resolved path stays inside the download dir, so a template can nest folders
+  safely. (A curated preset picker is the only thing left, tracked under the
+  media-server layout above.)
 
 ### 📋 Playlists
 *Surfaced testing real YouTube Music "Hits" mixes (`RD…`) and curated `PL` lists —
@@ -333,21 +338,26 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   lyrics (USLT / ©lyr / LYRICS), an optional synced **`.lrc` sidecar**, and an
   in-card **indicator + preview + per-track toggle**, with a fuzzy free-text
   fallback so multi-artist / accented titles still match.
-- ⬜ **Media-server naming presets** (S) — Jellyfin/Plex/Navidrome layouts.
+- ✅ **Media-server music layout** — an opt-in Settings toggle (*Organize music into
+  Artist/Album folders*) moves each **auto-tagged** track into
+  `<download dir>/<Artist>/<Album>/Artist - Title.ext` — the shared
+  Jellyfin/Plex/Navidrome music convention — using the reliable *tagged* metadata
+  (not yt-dlp's raw fields), at auto-tag time. Reuses the existing rename +
+  history-update plumbing, moves the `.nfo`/`.lrc` sidecars along, and is
+  collision-safe (never clobbers a different file). *(Generic per-field library
+  templates for **video** stay out — YouTube lacks the clean movie/year metadata a
+  Plex movie layout needs; the win is the music library.)*
 - ✅ **NFO sidecars** *(next)* — an optional Settings toggle writes a Kodi/Jellyfin
   `.nfo` (`<movie>`/`<musicvideo>`) next to each download with the source metadata;
   audio auto-tagging **rewrites** it from the tagged title/artist/album/cover.
-- ⬜ **Folder-level music `.nfo` (`album.nfo` / `artist.nfo`)** (M) — the audio
-  `.nfo` we write today is a *per-track* Kodi-style `<musicvideo>` file, but
-  Jellyfin (and Kodi) read a **song's** metadata from its **embedded tags**, not a
-  per-track `.nfo`. For music, `.nfo` only exists at the **album** (`album.nfo`)
-  and **artist** (`artist.nfo`) *folder* level — so the per-track audio `.nfo` is
-  effectively **ignored** by a Jellyfin music library (the embedded tags, which we
-  already write, do the work). To make a sidecar actually useful for music,
-  generate `album.nfo`/`artist.nfo` in the correct folders per the Jellyfin/Kodi
-  music convention — which first needs downloads organised into `Artist/Album/`
-  folders (a library-layout feature, hence the M). Until then the per-track `.nfo`
-  stays, since Kodi music-video libraries and other tools still read it.
+- ✅ **Folder-level music `.nfo` (`album.nfo` / `artist.nfo`)** — Jellyfin/Kodi read a
+  song from its **embedded tags** (which we already write), not a per-track `.nfo`; a
+  music sidecar is only useful at the **album** and **artist** *folder* level. Now that
+  the media-server music layout organises tracks into `Artist/Album/` folders, enabling
+  it **with** NFO sidecars on writes `album.nfo` (title/artist/year/cover) in the album
+  folder and `artist.nfo` (name/cover) in the artist folder, per the Jellyfin/Kodi music
+  convention. The per-track `<musicvideo>` `.nfo` still travels with the file, since Kodi
+  music-video libraries and other tools read it.
 
 ### 🖥️ UX / UI
 - ✅ **Drag-and-drop a link** onto the window — dropping a link anywhere analyzes

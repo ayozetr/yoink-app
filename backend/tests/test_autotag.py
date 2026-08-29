@@ -645,6 +645,80 @@ def test_rename_to_tagged_noop_when_already_named(tmp_path):
     assert svc.rename_to_tagged(audio, "Cruzzi - Amén") == audio
 
 
+# --- organize_music_library: media-server Artist/Album layout ---------------
+
+
+@pytest.fixture
+def dl_root(tmp_path, monkeypatch):
+    """Point the download dir at a temp folder for the library-layout tests."""
+    root = tmp_path / "dl"
+    root.mkdir()
+    monkeypatch.setattr(svc.settings, "download_dir", root)
+    return root
+
+
+def test_organize_moves_into_artist_album_and_writes_folder_nfo(dl_root, monkeypatch):
+    monkeypatch.setattr(svc.settings, "nfo_sidecars", True)
+    audio = dl_root / "raw.mp3"
+    audio.write_bytes(b"x")
+    (dl_root / "raw.nfo").write_text("track-nfo")  # per-track sidecar
+
+    new_path = svc.organize_music_library(
+        audio, artist="Don Omar", album="Meet the Orphans", year="2010",
+        stem="Don Omar - Danza Kuduro", cover_url="http://x/c.jpg",
+    )
+
+    album_dir = dl_root / "Don Omar" / "Meet the Orphans"
+    assert new_path == album_dir / "Don Omar - Danza Kuduro.mp3"
+    assert new_path.exists() and not audio.exists()
+    # The per-track sidecar travels with the audio into the album folder.
+    assert (album_dir / "Don Omar - Danza Kuduro.nfo").read_text() == "track-nfo"
+    # Folder-level nfos land in the right places.
+    assert "<title>Meet the Orphans</title>" in (album_dir / "album.nfo").read_text()
+    assert (dl_root / "Don Omar" / "artist.nfo").exists()
+
+
+def test_organize_without_album_uses_artist_folder(dl_root, monkeypatch):
+    monkeypatch.setattr(svc.settings, "nfo_sidecars", True)
+    audio = dl_root / "raw.mp3"
+    audio.write_bytes(b"x")
+
+    new_path = svc.organize_music_library(
+        audio, artist="Bad Bunny", album="", year="", stem="Bad Bunny - Diles",
+        cover_url=None,
+    )
+
+    artist_dir = dl_root / "Bad Bunny"
+    assert new_path == artist_dir / "Bad Bunny - Diles.mp3"
+    assert new_path.exists()
+    assert (artist_dir / "artist.nfo").exists()
+    assert not (artist_dir / "album.nfo").exists()  # no album → no album.nfo
+
+
+def test_organize_skips_on_target_collision(dl_root):
+    audio = dl_root / "raw.mp3"
+    audio.write_bytes(b"x")
+    album_dir = dl_root / "Artist" / "Album"
+    album_dir.mkdir(parents=True)
+    (album_dir / "Artist - Song.mp3").write_bytes(b"other")  # a different file owns it
+
+    result = svc.organize_music_library(
+        audio, artist="Artist", album="Album", year="", stem="Artist - Song",
+        cover_url=None,
+    )
+    assert result == audio and audio.exists()  # unchanged, never clobbered
+    assert (album_dir / "Artist - Song.mp3").read_bytes() == b"other"
+
+
+def test_organize_noop_without_artist(dl_root):
+    audio = dl_root / "raw.mp3"
+    audio.write_bytes(b"x")
+    result = svc.organize_music_library(
+        audio, artist="", album="Album", year="", stem="Song", cover_url=None,
+    )
+    assert result == audio and audio.exists()  # no artist → nowhere to file it
+
+
 # --- identify: "Song - Artist" backwards-title fallback ----------------------
 
 

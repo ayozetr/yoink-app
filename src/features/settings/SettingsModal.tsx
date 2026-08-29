@@ -673,6 +673,14 @@ export function SettingsModal({
             className="w-full"
           />
 
+          <Toggle
+            checked={form.music_folders}
+            onChange={(v) => set("music_folders", v)}
+            label={t("settings.musicFolders")}
+            help={<MusicFoldersHelp />}
+            className="w-full"
+          />
+
           <div className="flex flex-col gap-2">
             <Toggle
               checked={form.fetch_lyrics}
@@ -1313,6 +1321,16 @@ function NfoHelp() {
   return (
     <HelpPopover label={t("settings.nfoSidecars")}>
       {t("settings.nfoSidecarsHelp")}
+    </HelpPopover>
+  );
+}
+
+/** "?" help for the music-folders option — the Artist/Album layout + folder nfo. */
+function MusicFoldersHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.musicFolders")}>
+      {t("settings.musicFoldersHelp")}
     </HelpPopover>
   );
 }

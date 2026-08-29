@@ -56,3 +56,21 @@ def test_write_sidecar(tmp_path):
     out = tmp_path / "Song.nfo"
     assert out.exists()
     assert "<title>Song</title>" in out.read_text(encoding="utf-8")
+
+
+def test_build_album_folder_nfo():
+    xml = nfo.build_album(
+        album="Meet the Orphans", artist="Don Omar", year="2010",
+        thumb="http://x/c.jpg",
+    )
+    assert "<album>" in xml and "</album>" in xml
+    assert "<title>Meet the Orphans</title>" in xml
+    assert "<artist>Don Omar</artist>" in xml
+    assert "<year>2010</year>" in xml
+
+
+def test_build_artist_folder_nfo_uses_name_and_skips_empty():
+    xml = nfo.build_artist(artist="Don & Omar")
+    assert "<artist>" in xml and "</artist>" in xml
+    assert "<name>Don &amp; Omar</name>" in xml  # <name>, escaped
+    assert "<thumb>" not in xml  # empty field omitted

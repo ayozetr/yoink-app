@@ -206,6 +206,8 @@ export const en = {
     fetchLyricsHelp: "During audio auto-tagging, look the song up on LRCLIB (free, no account) and embed its lyrics in the file, so players that read lyrics can show them.",
     nfoSidecars: "Write .nfo sidecar files",
     nfoSidecarsHelp: "Write a Kodi/Jellyfin-style .nfo metadata file next to each download, so media servers read your exact title/artist/date instead of guessing.",
+    musicFolders: "Organize music into Artist/Album folders",
+    musicFoldersHelp: "Move each auto-tagged track into <Artist>/<Album> folders — the Jellyfin/Plex/Navidrome music layout. With .nfo sidecars on, also writes album.nfo/artist.nfo in those folders.",
     defaultEmbedSubs: "Embed subtitles by default",
     defaultEmbedSubsHint: "Only supported by the MKV video format; others like MP4 or MOV don't allow it.",
     defaultEmbedChapters: "Embed chapters by default",

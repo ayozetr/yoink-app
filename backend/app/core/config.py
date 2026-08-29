@@ -147,6 +147,10 @@ class Settings(BaseSettings):
     # Write a Kodi/Jellyfin-style ".nfo" metadata file next to each download.
     nfo_sidecars: bool = False
 
+    # Organize auto-tagged music into <Artist>/<Album>/ folders (media-server
+    # layout); writes album.nfo/artist.nfo in those folders when nfo_sidecars is on.
+    music_folders: bool = False
+
     # Fetch + embed song lyrics (from LRCLIB) during audio auto-tagging.
     fetch_lyrics: bool = False
 

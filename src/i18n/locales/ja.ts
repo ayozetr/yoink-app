@@ -206,6 +206,8 @@ export const ja = {
     fetchLyricsHelp: "オーディオの自動タグ付け時に LRCLIB（無料・アカウント不要）で曲を検索し、歌詞をファイルに埋め込みます。歌詞対応プレーヤーで表示できます。",
     nfoSidecars: ".nfo ファイルを作成",
     nfoSidecarsHelp: "ダウンロードごとに Kodi/Jellyfin 形式の .nfo メタデータファイルを作成し、メディアサーバーが正確な情報を読み取れるようにします。",
+    musicFolders: "音楽をアーティスト/アルバムのフォルダーに整理",
+    musicFoldersHelp: "自動タグ付けした各トラックを <アーティスト>/<アルバム> フォルダー（Jellyfin/Plex/Navidrome のレイアウト）に移動します。.nfo が有効な場合、それらのフォルダーに album.nfo/artist.nfo も書き込みます。",
     defaultEmbedSubs: "デフォルトで字幕を埋め込む",
     defaultEmbedSubsHint: "動画形式 MKV のみ対応。MP4 や MOV など他の形式では利用できません。",
     defaultEmbedChapters: "デフォルトでチャプターを埋め込む",

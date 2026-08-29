@@ -52,6 +52,27 @@ def build(
     return "".join(body)
 
 
+def _xml(root: str, fields: list[tuple[str, str]]) -> str:
+    """A small ``<root>`` document from ``(tag, value)`` pairs (empty ones skipped)."""
+    body = [f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<{root}>\n']
+    body += [f"  <{name}>{escape(value)}</{name}>\n" for name, value in fields if value]
+    body.append(f"</{root}>\n")
+    return "".join(body)
+
+
+def build_album(*, album: str, artist: str = "", year: str = "", thumb: str = "") -> str:
+    """A folder-level ``album.nfo`` (Jellyfin/Kodi music convention)."""
+    return _xml(
+        "album",
+        [("title", album), ("artist", artist), ("year", year), ("thumb", thumb)],
+    )
+
+
+def build_artist(*, artist: str, thumb: str = "") -> str:
+    """A folder-level ``artist.nfo`` (Jellyfin/Kodi music convention)."""
+    return _xml("artist", [("name", artist), ("thumb", thumb)])
+
+
 def from_info(info: dict[str, Any], kind: str) -> str:
     """Build an .nfo from yt-dlp's info dict (download time)."""
     upload_date = str(info.get("upload_date") or "")  # YYYYMMDD

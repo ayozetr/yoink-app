@@ -61,7 +61,11 @@ Two layers communicating asynchronously:
   art via `POST /api/autotag/{identify,search,apply}`; nothing is written until
   `apply`. When `fetch_lyrics` is on, `POST /api/autotag/lyrics` previews the
   LRCLIB match in the card and `apply` embeds the lyrics (plus an optional synced
-  `.lrc` sidecar); `apply` also rewrites the `.nfo` from the tagged metadata.
+  `.lrc` sidecar); `apply` also rewrites the `.nfo` from the tagged metadata. With
+  the `music_folders` setting on, `apply` then **relocates** the tagged track into a
+  media-server music layout (`<download dir>/<Artist>/<Album>/Artist - Title.ext`,
+  the shared Jellyfin/Plex/Navidrome convention — sidecars move with it, history
+  path updated) and, when `.nfo` is on too, writes folder-level `album.nfo`/`artist.nfo`.
 - **Update check (REST):** with the *"check for updates automatically"* setting on
   (`AppSettings.check_updates`, **on by default**; the app only — yt-dlp stays
   owner-managed), the app checks the latest GitHub release on launch; if newer it
@@ -137,7 +141,7 @@ literal OpenAPI types on demand.
         ├── services/matching.py        # spotDL-ported YouTube match ranking
         ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing (+ lyrics + .nfo)
         ├── services/lyrics.py          # LRCLIB lyrics lookup (plain + synced .lrc)
-        ├── services/nfo.py             # Kodi/Jellyfin .nfo sidecars (movie / musicvideo)
+        ├── services/nfo.py             # Kodi/Jellyfin .nfo sidecars (movie / musicvideo + folder-level album/artist)
         ├── services/vr.py              # VR detection + Spherical Video V2 (st3d/sv3d) tagging
         ├── services/history_store.py  # SQLite persistence (history + stats)
         ├── services/settings_store.py # persisted user settings overrides

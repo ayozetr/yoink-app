@@ -362,6 +362,11 @@ class AppSettings(BaseModel):
         default=False,
         description="Write a Kodi/Jellyfin-style .nfo metadata file per download.",
     )
+    music_folders: bool = Field(
+        default=False,
+        description="Organize auto-tagged music into <Artist>/<Album>/ folders "
+        "(media-server layout); writes album.nfo/artist.nfo there when NFO is on.",
+    )
     fetch_lyrics: bool = Field(
         default=False,
         description="Fetch + embed song lyrics (LRCLIB) during audio auto-tagging.",

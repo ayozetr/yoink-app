@@ -206,6 +206,8 @@ export const pt = {
     fetchLyricsHelp: "Ao auto-etiquetar áudio, procura a música no LRCLIB (grátis, sem conta) e incorpora a letra no ficheiro, para os leitores que as mostram.",
     nfoSidecars: "Criar ficheiros .nfo",
     nfoSidecarsHelp: "Cria um ficheiro .nfo de metadados (estilo Kodi/Jellyfin) junto a cada transferência, para os servidores de média lerem os teus dados exatos.",
+    musicFolders: "Organizar a música em pastas Artista/Álbum",
+    musicFoldersHelp: "Move cada faixa com etiquetas automáticas para pastas <Artista>/<Álbum> (o layout do Jellyfin/Plex/Navidrome). Com os ficheiros .nfo ativados, também cria album.nfo/artist.nfo nessas pastas.",
     defaultEmbedSubs: "Incorporar legendas por padrão",
     defaultEmbedSubsHint: "Suportado apenas pelo formato de vídeo MKV; outros como MP4 ou MOV não permitem.",
     defaultEmbedChapters: "Incorporar capítulos por padrão",
