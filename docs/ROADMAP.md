@@ -451,6 +451,31 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   pre-release as the manual-install channel. Both listings link from **Settings ▸
   Extension** in the app. Still labelled **(beta)** on purpose until it has had real
   use; dropping the label is a follow-up.
+- ⬜ **Extension → auto-send cookies to the app** (L · **eyed for 4.0.0**) — let the
+  "Send to Yoink" extension grab the current site's cookies (like *Get cookies.txt
+  LOCALLY*) and hand them to the desktop app automatically, so gated/age-restricted
+  content works without the fragile `cookies_from_browser` DB read (locked DB / DPAPI /
+  per-OS decryption). **Feasible.** Two halves:
+  - *Read + format (extension):* add the `cookies` permission + host permissions; on the
+    download gesture, `chrome.cookies.getAll({domain})` for the **target domain only**
+    (plus its auth domain, e.g. `.google.com` for YouTube — not every cookie), format as
+    a Netscape **cookies.txt** (exactly what yt-dlp's `--cookies` wants). The app already
+    supports `cookies_file`, so the engine side is essentially free.
+  - *Transport (the new part):* **recommended — local HTTP.** A new `POST /api/cookies`
+    writes `~/.yoink/cookies.txt` and points `cookies_file` at it; the extension declares
+    `host_permissions: ["http://127.0.0.1:<port>/*"]` (extensions bypass CORS for
+    permitted hosts). Gate it with a **pairing token** (app shows a code, pasted into the
+    extension once, sent as a header) so no other local process/page can inject or
+    exfiltrate cookies; the backend stays bound to 127.0.0.1. One gesture then sends
+    **both** the `yoink://` URL (launches/focuses the app) and the cookies. *Alternative —
+    **native messaging*** (`nativeMessaging` + a host manifest the installer drops, pinned
+    to the extension ID): more OS-level trust and no port/CORS, but needs a per-OS manifest
+    install (registry on Windows, dirs on Linux/macOS) the AppImage can't easily do. *Not*
+    the `yoink://` deep link — cookies are large + secret and would leak via URL/args.
+  - *Caveats:* cookies are account-level secrets → **opt-in, explicit consent**, send only
+    the relevant domain, treat `cookies.txt` as sensitive (tight perms, easy "clear"),
+    update the extension's `PRIVACY.md`. The `cookies` + broad host permissions draw
+    **heavy Chrome Web Store / AMO review**, so budget for a slower listing update.
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).
