@@ -27,7 +27,8 @@
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-i18next": "^17.0.8"
+    "react-i18next": "^17.0.8",
+    "simple-icons": "^16.29.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

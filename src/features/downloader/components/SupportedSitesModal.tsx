@@ -1,9 +1,30 @@
 import { useEffect, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, X } from "lucide-react";
+import {
+  siYoutube, siDailymotion, siTiktok, siFacebook, siInstagram, siThreads,
+  siX, siReddit, siBluesky, siPinterest, siVk, siVimeo, siTwitch, siKick,
+  siYoutubemusic, siSpotify, siDeezer, siApplemusic, siTidal, siSoundcloud,
+  siBandlab, siBandcamp, type SimpleIcon,
+} from "simple-icons";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { openExternal } from "../../../lib/openExternal";
 import { useFocusTrap } from "../../../lib/useFocusTrap";
+
+/** Inline a bundled Simple Icons logo — no network, so it can't hit CDN rate
+ * limits or fail offline (the old `<img src=cdn.simpleicons.org…>` did both). */
+function BrandIcon({ icon, className }: { icon: SimpleIcon; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="currentColor"
+      className={className}
+    >
+      <path d={icon.path} />
+    </svg>
+  );
+}
 
 interface SupportedSitesModalProps {
   onClose: () => void;
@@ -14,9 +35,9 @@ interface SupportedSite {
   name: string;
   /** Page opened when the row is clicked. */
   url: string;
-  /** Simple Icons slug for the CDN logo. Omitted when there's no brand icon. */
-  slug?: string;
-  /** Inline logo for brands missing from Simple Icons (takes precedence over slug). */
+  /** Bundled Simple Icons logo, rendered inline. Omitted when there's no brand icon. */
+  icon?: SimpleIcon;
+  /** Inline logo for brands missing from Simple Icons (takes precedence over icon). */
   Icon?: ComponentType<{ className?: string }>;
   /** Optional size override for the inline Icon (e.g. wide wordmarks). */
   iconClass?: string;
@@ -75,35 +96,35 @@ function AmazonMusicIcon({ className }: { className?: string }) {
 
 /** Manually verified platforms. Typed array so it's easy to extend later. */
 const SUPPORTED_SITES: readonly SupportedSite[] = [
-  { name: "YouTube", url: "https://youtube.com", slug: "youtube" },
-  { name: "Dailymotion", url: "https://dailymotion.com", slug: "dailymotion" },
-  { name: "TikTok", url: "https://tiktok.com", slug: "tiktok" },
-  { name: "Facebook", url: "https://facebook.com", slug: "facebook" },
-  { name: "Instagram", url: "https://instagram.com", slug: "instagram" },
-  { name: "Threads", url: "https://threads.com", slug: "threads" },
-  { name: "X (Twitter)", url: "https://x.com", slug: "x" },
-  { name: "Reddit", url: "https://reddit.com", slug: "reddit" },
-  { name: "Bluesky", url: "https://bsky.app", slug: "bluesky" },
-  { name: "Pinterest", url: "https://pinterest.com", slug: "pinterest" },
-  { name: "VK", url: "https://vk.com", slug: "vk" },
-  { name: "Vimeo", url: "https://vimeo.com", slug: "vimeo" },
-  { name: "Twitch", url: "https://twitch.tv", slug: "twitch" },
-  { name: "Kick", url: "https://kick.com", slug: "kick" },
+  { name: "YouTube", url: "https://youtube.com", icon: siYoutube },
+  { name: "Dailymotion", url: "https://dailymotion.com", icon: siDailymotion },
+  { name: "TikTok", url: "https://tiktok.com", icon: siTiktok },
+  { name: "Facebook", url: "https://facebook.com", icon: siFacebook },
+  { name: "Instagram", url: "https://instagram.com", icon: siInstagram },
+  { name: "Threads", url: "https://threads.com", icon: siThreads },
+  { name: "X (Twitter)", url: "https://x.com", icon: siX },
+  { name: "Reddit", url: "https://reddit.com", icon: siReddit },
+  { name: "Bluesky", url: "https://bsky.app", icon: siBluesky },
+  { name: "Pinterest", url: "https://pinterest.com", icon: siPinterest },
+  { name: "VK", url: "https://vk.com", icon: siVk },
+  { name: "Vimeo", url: "https://vimeo.com", icon: siVimeo },
+  { name: "Twitch", url: "https://twitch.tv", icon: siTwitch },
+  { name: "Kick", url: "https://kick.com", icon: siKick },
   { name: "Medal", url: "https://medal.tv", Icon: MedalIcon, iconClass: "size-[26px]" },
-  { name: "YouTube Music", url: "https://music.youtube.com", slug: "youtubemusic" },
-  { name: "Spotify", url: "https://spotify.com", slug: "spotify" },
-  { name: "Deezer", url: "https://deezer.com", slug: "deezer" },
-  { name: "Apple Music", url: "https://music.apple.com", slug: "applemusic" },
-  { name: "Tidal", url: "https://tidal.com", slug: "tidal" },
+  { name: "YouTube Music", url: "https://music.youtube.com", icon: siYoutubemusic },
+  { name: "Spotify", url: "https://spotify.com", icon: siSpotify },
+  { name: "Deezer", url: "https://deezer.com", icon: siDeezer },
+  { name: "Apple Music", url: "https://music.apple.com", icon: siApplemusic },
+  { name: "Tidal", url: "https://tidal.com", icon: siTidal },
   {
     name: "Amazon Music",
     url: "https://music.amazon.com",
     Icon: AmazonMusicIcon,
     iconClass: "size-[27px]",
   },
-  { name: "SoundCloud", url: "https://soundcloud.com", slug: "soundcloud" },
-  { name: "BandLab", url: "https://bandlab.com", slug: "bandlab" },
-  { name: "Bandcamp", url: "https://bandcamp.com", slug: "bandcamp" },
+  { name: "SoundCloud", url: "https://soundcloud.com", icon: siSoundcloud },
+  { name: "BandLab", url: "https://bandlab.com", icon: siBandlab },
+  { name: "Bandcamp", url: "https://bandcamp.com", icon: siBandcamp },
 ];
 
 /** Modal listing the manually-verified sites (logo + name), each clickable. */
@@ -158,17 +179,10 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
               onClick={() => void openExternal(site.url)}
               className="flex flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3.5 text-center text-sm text-zinc-200 transition hover:bg-white/10 hover:text-white"
             >
-              {site.slug ? (
-                <img
-                  src={`https://cdn.simpleicons.org/${site.slug}/white`}
-                  alt=""
-                  aria-hidden="true"
-                  width={22}
-                  height={22}
-                  className="size-[22px] shrink-0"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
+              {site.icon ? (
+                <BrandIcon
+                  icon={site.icon}
+                  className="size-[22px] shrink-0 text-white"
                 />
               ) : site.Icon ? (
                 <site.Icon
