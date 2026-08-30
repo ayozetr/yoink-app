@@ -50,6 +50,12 @@ It's `yoink-cli`, not `yoink`, because the desktop app already owns `/usr/bin/yo
 The AppImage is a self-contained bundle and does **not** install anything on the
 `PATH`, so use the source/venv methods above (or the `.deb`/`.rpm`) for the CLI.
 
+> **Command name in the rest of this guide.** The examples below write the command as
+> **`yoink`** (the `scripts/yoink` wrapper or your own symlink — also what `--help`
+> prints). If you installed the `.deb`/`.rpm`, the command is **`yoink-cli`** instead:
+> just substitute it (`yoink-cli <url>`, `yoink-cli config`, …). Every flag and argument
+> is identical.
+
 ## Commands
 
 ```

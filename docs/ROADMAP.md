@@ -314,11 +314,34 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   (3) make the output name **unique** when items share a title (append `%(id)s` / an
   index). Same-title collision (3) is general, not IG-only. A single story is fine via
   its own `stories/<user>/<id>/` URL — only the highlight/all-stories container is affected.
-- ⬜ **Bundled zero-config PO token** (M) — the opt-in `youtube:po_token` setting still
-  makes the user mint a token by hand. Ship a **provider that generates one
-  automatically** (a bgutil-style HTTP provider + a bundled JS runtime, or an embedded
-  minter) so YouTube's bot-check is cleared out of the box with no cookies and no manual
-  token. Gate it behind real-world testing before it becomes the default.
+- ⬜ **Zero-config PO token — mint in a hidden WebView** (L) — the opt-in
+  `youtube:po_token` setting makes the user mint a token by hand, and (per the yt-dlp PO
+  Token Guide) web GVS/Player tokens are now **bound to the video ID**, so a *new token
+  per video* is needed — a single pasted token is of limited use. Auto-mint them instead,
+  reusing the app's **existing WebView** (webkit2gtk / WebView2) as the JS runtime so
+  **nothing extra is bundled** (~0 MB vs ~100 MB for a Deno/Node runtime).
+
+  *Spike done (2026-08-30) — feasible.* Confirmed in a real browser that `new Function`
+  (the BotGuard VM's mechanism) runs, the challenge (`interpreterUrl`/`globalName`/
+  `program`) is embedded in the youtube.com HTML (`window.ytAtN`), and `VISITOR_DATA` is
+  readable from `ytcfg`. The official [`bgutils-js`](https://github.com/LuanRT/BgUtils)
+  example already runs the *full* mint under **jsdom** (a fake DOM in Node), so a real
+  WebView (real DOM) runs it at least as well.
+
+  **Design** (from the bgutils-js v4.0.3 flow): a hidden Tauri WebView with web security
+  relaxed + `bgutils-js` bundled locally (a few KB) → fetch youtube HTML → extract the
+  challenge + `visitor_data` → load the interpreter VM (`new Function`) →
+  `BotGuardClient.snapshot()` → POST `GenerateIT` → **integrity token** (cache it, TTL
+  ~hours) → `WebPoMinter` → `mintAsWebsafeString(videoId)` **per video, local, no
+  network**. Integrate as a yt-dlp **GetPOT provider** so yt-dlp requests a token per
+  `(context, video)` and we mint on demand; a new `po_token_mode` setting (`auto` /
+  `manual` / `off`) picks the source, keeping the manual field as a fallback.
+
+  **Caveat (from the spike):** minting each per-video token needs the JS runtime, so
+  auto-PO is a **GUI feature** — the headless CLL (no WebView) can't mint on its own; it
+  falls back to a manual token / cookies, or mints via the running GUI's backend. CSP/CORS
+  seen when testing *on* youtube.com don't apply to our own security-relaxed WebView.
+  Gate behind real-world testing before it becomes the default.
 
 ### 🎵 Audio library
 - ⬜ **Recalibrate the YouTube-match duration weight** (M · needs a test set) — the
