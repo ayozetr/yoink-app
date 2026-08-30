@@ -11,7 +11,16 @@
 
 ## 📍 Status
 
-- **Current release:** **v3.4.0** — **resilience & control**: downloads that fail for a
+- **Current release:** **v3.5.0** — **library, CLI & access**: the **command line now
+  ships in the `.deb`/`.rpm`** as `yoink-cli` — the bundled backend binary does double
+  duty (serve the app with no args, run the CLI with them), so an installed package gives
+  a real command line with **no second install**; auto-tagged music can be **organized
+  into `Artist/Album/` folders** (the shared Jellyfin/Plex/Navidrome layout, with
+  folder-level `album.nfo`/`artist.nfo`); the after-update **"What's new" popup is now
+  cumulative** — it shows **every version you skipped**, newest first, not just the one
+  you landed on; and an **opt-in YouTube PO token** (Settings) can pass the "confirm
+  you're not a bot" wall **without cookies**.
+- **Previously:** **v3.4.0** — **resilience & control**: downloads that fail for a
   **transient** reason (a network blip, a momentary 403/429/5xx, a dropped socket)
   now **auto-retry with exponential backoff** instead of going straight to the failed
   pile; a **stale-backend banner** (with a one-click **Restart**) warns when a
