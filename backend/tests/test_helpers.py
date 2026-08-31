@@ -763,9 +763,18 @@ def test_build_options_sponsorblock_off_by_default(temp_dirs):
     ]
 
 
+def _sb_up(monkeypatch):
+    """Pretend the SponsorBlock API is reachable (no network in tests)."""
+    monkeypatch.setattr(
+        "app.services.download_service._sponsorblock_reachable",
+        lambda timeout=4.0: True,
+    )
+
+
 def test_build_options_sponsorblock_remove_audio(temp_dirs, monkeypatch):
     monkeypatch.setattr(settings, "sponsorblock_enabled", True)
     monkeypatch.setattr(settings, "sponsorblock_action", "remove")
+    _sb_up(monkeypatch)
     options = _build_options(
         DownloadRequest(url="http://x/a", kind="audio", audio_format="mp3"),
         hook=lambda raw: None,
@@ -785,6 +794,7 @@ def test_build_options_sponsorblock_remove_audio(temp_dirs, monkeypatch):
 def test_build_options_sponsorblock_mark_video(temp_dirs, monkeypatch):
     monkeypatch.setattr(settings, "sponsorblock_enabled", True)
     monkeypatch.setattr(settings, "sponsorblock_action", "mark")
+    _sb_up(monkeypatch)
     options = _build_options(
         DownloadRequest(url="http://x/v", kind="video"),
         hook=lambda raw: None,
@@ -804,6 +814,7 @@ def test_build_options_sponsorblock_remove_no_chapters_pp(temp_dirs, monkeypatch
     # "remove" cuts segments; it must NOT add the FFmpegMetadata chapters PP.
     monkeypatch.setattr(settings, "sponsorblock_enabled", True)
     monkeypatch.setattr(settings, "sponsorblock_action", "remove")
+    _sb_up(monkeypatch)
     options = _build_options(
         DownloadRequest(url="http://x/v", kind="video"),
         hook=lambda raw: None,
@@ -812,6 +823,22 @@ def test_build_options_sponsorblock_remove_no_chapters_pp(temp_dirs, monkeypatch
         "SponsorBlock",
         "ModifyChapters",
     ]
+
+
+def test_build_options_sponsorblock_skipped_when_api_down(temp_dirs, monkeypatch):
+    """A SponsorBlock outage must not block the download — skip it and proceed."""
+    monkeypatch.setattr(settings, "sponsorblock_enabled", True)
+    monkeypatch.setattr(settings, "sponsorblock_action", "remove")
+    monkeypatch.setattr(
+        "app.services.download_service._sponsorblock_reachable",
+        lambda timeout=4.0: False,
+    )
+    options = _build_options(
+        DownloadRequest(url="http://x/v", kind="video"),
+        hook=lambda raw: None,
+    )
+    keys = [pp["key"] for pp in options.get("postprocessors", [])]
+    assert "SponsorBlock" not in keys and "ModifyChapters" not in keys
 
 
 def test_build_options_trim_range(temp_dirs):

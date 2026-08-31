@@ -248,6 +248,31 @@ def _sponsorblock_postprocessors(action: str) -> list[dict[str, Any]]:
     ]
 
 
+def _sponsorblock_reachable(timeout: float = 4.0) -> bool:
+    """A quick liveness check on the SponsorBlock API.
+
+    SponsorBlock is a volunteer-run service that has outages. When it's down,
+    yt-dlp's SponsorBlock PP fails the **whole** download ("Unable to communicate
+    with SponsorBlock") — so we probe it first and, if it's unreachable, skip
+    SponsorBlock and still download the video. Any HTTP reply (even a 404) counts
+    as up; only a connection/timeout error counts as down.
+    """
+    import urllib.error
+    import urllib.request
+
+    request = urllib.request.Request(
+        "https://sponsor.ajay.app/api/skipSegments?videoID=yoink_ping",
+        headers={"User-Agent": f"Yoink/{settings.app_version}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout):
+            return True
+    except urllib.error.HTTPError:
+        return True  # the server answered (e.g. 404) — it's up
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
 def _parse_rate_limit(value: str | None) -> float | None:
     """Parse a speed cap like '1M' / '500K' / '2G' into bytes/s.
 
@@ -355,18 +380,21 @@ def _build_options(
         options["ffmpeg_location"] = location
 
     # SponsorBlock postprocessors (mark/remove) must run before audio extraction
-    # or subtitle/chapter embedding, so they prefix whichever list we build.
+    # or subtitle/chapter embedding, so they prefix whichever list we build. Skip
+    # them (and still download) when the SponsorBlock API is down, rather than
+    # letting it fail the whole job.
+    sponsorblock_on = settings.sponsorblock_enabled and _sponsorblock_reachable()
+    if settings.sponsorblock_enabled and not sponsorblock_on:
+        logger.warning("SponsorBlock API unreachable — downloading without it.")
     sponsorblock: list[dict[str, Any]] = (
         _sponsorblock_postprocessors(settings.sponsorblock_action)
-        if settings.sponsorblock_enabled
+        if sponsorblock_on
         else []
     )
     # SponsorBlock "mark" only computes chapter markers; an FFmpegMetadata PP is
     # what actually writes them to the file (yt-dlp's CLI auto-enables this for
     # --sponsorblock-mark). Without it, mark mode would be a silent no-op.
-    mark_chapters = (
-        settings.sponsorblock_enabled and settings.sponsorblock_action == "mark"
-    )
+    mark_chapters = sponsorblock_on and settings.sponsorblock_action == "mark"
     chapters_pp = {"key": "FFmpegMetadata", "add_chapters": True, "add_metadata": True}
 
     if request.kind == "audio":
