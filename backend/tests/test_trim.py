@@ -30,6 +30,15 @@ def test_valid_and_open_trim_ranges_accepted():
     DownloadRequest(url="https://x.com/v", trim_end=0)
 
 
+def test_build_options_sets_socket_timeout(temp_dirs):
+    """A stalled socket must time out so downloads can't hang "Preparing…" forever."""
+    from app.services.download_service import _build_options
+
+    noop = lambda _d: None  # noqa: E731 — trivial hook for the test
+    opts = _build_options(DownloadRequest(url="https://x.com/v", kind="video"), noop)
+    assert opts.get("socket_timeout")
+
+
 def test_build_options_treats_zero_trim_end_as_no_trim(temp_dirs):
     from app.services.download_service import _build_options
 

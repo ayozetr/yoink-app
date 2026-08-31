@@ -328,6 +328,10 @@ def _build_options(
         "retries": 10,
         "fragment_retries": 10,
         "extractor_retries": 3,
+        # Abort a stalled socket (connected but no data — common after a YouTube
+        # anti-bot/cookie stumble) instead of hanging "Preparing…" forever with no
+        # progress: a dead read now times out and the retries above kick in.
+        "socket_timeout": 30,
         # Fetch HLS/DASH fragments in parallel — a big speed-up for segmented
         # streams (common for VR and most platforms), with a modest cap.
         "concurrent_fragment_downloads": 4,

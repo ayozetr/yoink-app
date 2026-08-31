@@ -495,6 +495,9 @@ def extract_info(url: str) -> InfoResponse:
         "skip_download": True,
         # Flatten items *inside* a playlist, but fully resolve a single video.
         "extract_flat": "in_playlist",
+        # Abort a stalled socket so "Analyzing…" can't hang forever on a dead
+        # connection (a read that stalls this long is dead, not slow).
+        "socket_timeout": 30,
     }
 
     def _extract(opts: dict[str, Any]) -> dict[str, Any]:
