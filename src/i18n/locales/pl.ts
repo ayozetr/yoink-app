@@ -342,7 +342,7 @@ export const pl = {
   },
   whatsNew: {
     button: "Co nowego",
-    title: "Co nowego · {{version}}",
+    title: "Co nowego",
     close: "Zamknij",
     loading: "Wczytywanie informacji…",
     unavailable: "Nie udało się wczytać informacji.",

@@ -338,7 +338,7 @@ export const ja = {
   },
   whatsNew: {
     button: "新着情報",
-    title: "新着情報 · {{version}}",
+    title: "新着情報",
     close: "閉じる",
     loading: "読み込み中…",
     unavailable: "ノートを読み込めませんでした。",

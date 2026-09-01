@@ -57,7 +57,10 @@ export function WhatsNewModal({
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
             <span className="flex items-center gap-2 text-lg font-semibold">
               <Sparkles size={18} className="text-violet-400" />
-              {t("whatsNew.title", { version })}
+              {/* The " · version" only shows when we actually have notes — no
+                  dangling separator when the notes couldn't load. */}
+              {t("whatsNew.title")}
+              {version ? ` · ${version}` : ""}
             </span>
             <button
               type="button"

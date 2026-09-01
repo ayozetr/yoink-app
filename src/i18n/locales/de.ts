@@ -338,7 +338,7 @@ export const de = {
   },
   whatsNew: {
     button: "Neuigkeiten",
-    title: "Neu · {{version}}",
+    title: "Neu",
     close: "Schließen",
     loading: "Notizen werden geladen…",
     unavailable: "Notizen konnten nicht geladen werden.",

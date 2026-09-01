@@ -342,7 +342,7 @@ export const uk = {
   },
   whatsNew: {
     button: "Що нового",
-    title: "Що нового · {{version}}",
+    title: "Що нового",
     close: "Закрити",
     loading: "Завантаження нотаток…",
     unavailable: "Не вдалося завантажити нотатки.",

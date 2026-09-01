@@ -338,7 +338,7 @@ export const zh = {
   },
   whatsNew: {
     button: "新功能",
-    title: "新功能 · {{version}}",
+    title: "新功能",
     close: "关闭",
     loading: "正在加载…",
     unavailable: "无法加载说明。",

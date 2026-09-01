@@ -338,7 +338,7 @@ export const hi = {
   },
   whatsNew: {
     button: "नया क्या है",
-    title: "नया क्या है · {{version}}",
+    title: "नया क्या है",
     close: "बंद करें",
     loading: "नोट्स लोड हो रहे हैं…",
     unavailable: "नोट्स लोड नहीं हो सके।",

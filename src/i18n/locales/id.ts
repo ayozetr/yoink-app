@@ -338,7 +338,7 @@ export const id = {
   },
   whatsNew: {
     button: "Yang baru",
-    title: "Yang baru · {{version}}",
+    title: "Yang baru",
     close: "Tutup",
     loading: "Memuat catatan…",
     unavailable: "Tidak dapat memuat catatan.",

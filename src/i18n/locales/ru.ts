@@ -342,7 +342,7 @@ export const ru = {
   },
   whatsNew: {
     button: "Что нового",
-    title: "Что нового · {{version}}",
+    title: "Что нового",
     close: "Закрыть",
     loading: "Загрузка заметок…",
     unavailable: "Не удалось загрузить заметки.",

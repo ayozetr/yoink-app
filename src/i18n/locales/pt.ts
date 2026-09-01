@@ -338,7 +338,7 @@ export const pt = {
   },
   whatsNew: {
     button: "Novidades",
-    title: "Novidades · {{version}}",
+    title: "Novidades",
     close: "Fechar",
     loading: "Carregando notas…",
     unavailable: "Não foi possível carregar as notas.",

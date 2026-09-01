@@ -338,7 +338,7 @@ export const ko = {
   },
   whatsNew: {
     button: "새로운 기능",
-    title: "새로운 기능 · {{version}}",
+    title: "새로운 기능",
     close: "닫기",
     loading: "불러오는 중…",
     unavailable: "노트를 불러올 수 없습니다.",

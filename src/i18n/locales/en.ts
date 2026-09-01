@@ -338,7 +338,7 @@ export const en = {
   },
   whatsNew: {
     button: "What's new",
-    title: "What's new · {{version}}",
+    title: "What's new",
     close: "Close",
     loading: "Loading release notes…",
     unavailable: "Couldn't load the notes.",
