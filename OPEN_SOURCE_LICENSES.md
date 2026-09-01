@@ -9,7 +9,7 @@ pulls in further open-source libraries under the same permissive licenses.
 - **ffmpeg / ffprobe** — LGPL v2.1+ (dynamically bundled; see THIRD_PARTY_LICENSES.md)
 - **yt-dlp** — The Unlicense (public domain) — the download engine
 
-## Frontend — npm (12)
+## Frontend — npm (13)
 
 - **@tauri-apps/plugin-dialog** v2.7.1 — MIT OR Apache-2.0
 - **@tauri-apps/plugin-notification** v2.3.3 — MIT OR Apache-2.0
@@ -23,6 +23,7 @@ pulls in further open-source libraries under the same permissive licenses.
 - **react** v19.2.6 — MIT
 - **react-dom** v19.2.6 — MIT
 - **react-i18next** v17.0.8 — MIT
+- **simple-icons** v16.29.0 — CC0-1.0
 
 ## Desktop shell — Rust / cargo (14)
 

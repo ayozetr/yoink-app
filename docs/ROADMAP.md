@@ -11,7 +11,16 @@
 
 ## 📍 Status
 
-- **Current release:** **v3.5.0** — **library, CLI & access**: the **command line now
+- **Current release:** **v3.6.0** — **reliability & polish**: a download (or analyze) could
+  sit at **"Preparing…"** at 0% forever with no error when a socket connected but then
+  delivered no data — a `socket_timeout` now aborts a dead read so the retries fire or it
+  fails with a clear message. And a **SponsorBlock outage no longer blocks the download**:
+  the app probes the (volunteer-run) SponsorBlock API first and, if it's unreachable,
+  skips SponsorBlock and downloads the video anyway instead of failing with "Unable to
+  communicate with SponsorBlock". Also: the **"Supported sites" brand logos are bundled**
+  (Simple Icons) instead of pulled from a CDN, so they stop vanishing under the CDN's
+  rate-limit and work offline.
+- **Previously:** **v3.5.0** — **library, CLI & access**: the **command line now
   ships in the `.deb`/`.rpm`** as `yoink-cli` — the bundled backend binary does double
   duty (serve the app with no args, run the CLI with them), so an installed package gives
   a real command line with **no second install**; auto-tagged music can be **organized
