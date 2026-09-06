@@ -18,11 +18,12 @@ export function Splash({ visible }: SplashProps) {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(visible);
 
+  // Coming back into view: render immediately (adjusting state to a prop during
+  // render — the idiomatic way, and it avoids a synchronous setState in an effect).
+  if (visible && !mounted) setMounted(true);
+
   useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      return;
-    }
+    if (visible) return;
     // Keep it around for the fade-out, then remove it entirely.
     const timer = setTimeout(() => setMounted(false), 500); // matches duration-500
     return () => clearTimeout(timer);
