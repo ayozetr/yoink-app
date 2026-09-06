@@ -174,6 +174,7 @@ export const zh = {
     fieldArtist: "艺术家",
     fieldAlbum: "专辑",
     fieldYear: "年份",
+    fieldGenre: "流派",
     searchToggle: "不正确？手动搜索",
     searchAction: "搜索",
     cancel: "取消",

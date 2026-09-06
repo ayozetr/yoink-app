@@ -17,6 +17,7 @@ class TagCandidate(BaseModel):
     artist: str = Field(..., description="Track artist(s).")
     album: str | None = Field(default=None, description="Album / collection name.")
     year: str | None = Field(default=None, description="Release year (YYYY).")
+    genre: str | None = Field(default=None, description="Genre (e.g. 'Hip-Hop/Rap').")
     track_number: int | None = Field(default=None, description="Track number.")
     cover_url: str | None = Field(default=None, description="Cover art URL.")
 
@@ -48,6 +49,7 @@ class ApplyRequest(BaseModel):
     artist: str | None = Field(default=None)
     album: str | None = Field(default=None)
     year: str | None = Field(default=None)
+    genre: str | None = Field(default=None)
     track_number: int | None = Field(default=None)
     cover_url: str | None = Field(default=None, description="Cover art to embed.")
     embed_lyrics: bool | None = Field(

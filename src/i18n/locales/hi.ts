@@ -174,6 +174,7 @@ export const hi = {
     fieldArtist: "कलाकार",
     fieldAlbum: "एल्बम",
     fieldYear: "वर्ष",
+    fieldGenre: "शैली",
     searchToggle: "सही नहीं? मैन्युअल खोजें",
     searchAction: "खोजें",
     cancel: "रद्द करें",

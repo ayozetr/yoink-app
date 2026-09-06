@@ -174,6 +174,7 @@ export const ko = {
     fieldArtist: "아티스트",
     fieldAlbum: "앨범",
     fieldYear: "연도",
+    fieldGenre: "장르",
     searchToggle: "맞지 않나요? 직접 검색하기",
     searchAction: "검색",
     cancel: "취소",

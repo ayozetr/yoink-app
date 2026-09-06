@@ -37,6 +37,7 @@ interface Track {
   artist: string;
   album: string;
   year: string;
+  genre: string;
   coverUrl: string | null;
   included: boolean;
 }
@@ -52,6 +53,7 @@ function initTrack(item: TagItem): Track {
     artist: "",
     album: "",
     year: "",
+    genre: "",
     coverUrl: null,
     included: false,
   };
@@ -99,6 +101,7 @@ export function AutoTagBatchPanel({
       artist: c.artist,
       album: c.album ?? "",
       year: c.year ?? "",
+      genre: c.genre ?? "",
       coverUrl: c.cover_url,
       // Picking a candidate (manual search or clicking a result) means the user
       // wants it applied — mark it included, like the auto-identify path does,
@@ -131,6 +134,7 @@ export function AutoTagBatchPanel({
               artist: top.artist,
               album: top.album ?? "",
               year: top.year ?? "",
+              genre: top.genre ?? "",
               coverUrl: top.cover_url,
               included: true,
             });
@@ -197,6 +201,7 @@ export function AutoTagBatchPanel({
           artist: tr.artist.trim() || null,
           album: tr.album.trim() || null,
           year: tr.year.trim() || null,
+          genre: tr.genre.trim() || null,
           track_number: sel?.track_number ?? null,
           cover_url: tr.coverUrl,
         });
@@ -340,6 +345,16 @@ export function AutoTagBatchPanel({
                         className={INPUT}
                         value={tr.year}
                         onChange={(e) => patch(i, { year: e.target.value })}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-zinc-400">
+                        {t("autotag.fieldGenre")}
+                      </span>
+                      <input
+                        className={INPUT}
+                        value={tr.genre}
+                        onChange={(e) => patch(i, { genre: e.target.value })}
                       />
                     </label>
                   </div>

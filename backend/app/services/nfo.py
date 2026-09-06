@@ -21,6 +21,7 @@ def build(
     title: str,
     artist: str = "",
     album: str = "",
+    genre: str = "",
     plot: str = "",
     year: str = "",
     premiered: str = "",
@@ -40,6 +41,7 @@ def build(
     body.append(tag("artist" if kind == "audio" else "studio", artist))
     if kind == "audio":
         body.append(tag("album", album))
+    body.append(tag("genre", genre))
     body.append(tag("plot", plot))
     body.append(tag("year", year))
     body.append(tag("premiered", premiered))

@@ -33,6 +33,7 @@ from mutagen.id3 import (
     ID3,
     ID3NoHeaderError,
     TALB,
+    TCON,
     TDRC,
     TIT2,
     TPE1,
@@ -256,6 +257,7 @@ def _itunes_search_store(
                 artist=item.get("artistName", ""),
                 album=_clean_album(item.get("collectionName")),
                 year=(date[:4] or None),
+                genre=item.get("primaryGenreName") or None,
                 track_number=item.get("trackNumber"),
                 # bump the 100px thumb to a 1000px cover
                 cover_url=artwork.replace("100x100bb", "1000x1000bb") or None,
@@ -559,6 +561,7 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         "artist": request.artist,
         "album": request.album,
         "date": request.year,
+        "genre": request.genre,
         "tracknumber": request.track_number,
     }
     # The card's checkbox (embed_lyrics) overrides the global setting per track.
@@ -596,6 +599,7 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
                 title=request.title or "",
                 artist=request.artist or "",
                 album=request.album or "",
+                genre=request.genre or "",
                 year=request.year or "",
                 thumb=cover_url or "",
             ),
@@ -800,7 +804,7 @@ def _write_mp3(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
         audio = ID3(path)
     except ID3NoHeaderError:
         audio = ID3()
-    frames = {"title": TIT2, "artist": TPE1, "album": TALB, "date": TDRC}
+    frames = {"title": TIT2, "artist": TPE1, "album": TALB, "date": TDRC, "genre": TCON}
     for key, frame in frames.items():
         if tags.get(key):
             audio.setall(frame.__name__, [frame(encoding=3, text=str(tags[key]))])
@@ -826,7 +830,13 @@ def _write_mp3(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
 
 def _write_mp4(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None) -> bool:
     audio = MP4(path)
-    mapping = {"title": "\xa9nam", "artist": "\xa9ART", "album": "\xa9alb", "date": "\xa9day"}
+    mapping = {
+        "title": "\xa9nam",
+        "artist": "\xa9ART",
+        "album": "\xa9alb",
+        "date": "\xa9day",
+        "genre": "\xa9gen",
+    }
     for key, atom in mapping.items():
         if tags.get(key):
             audio[atom] = [str(tags[key])]
@@ -846,7 +856,7 @@ def _write_mp4(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
 
 def _write_flac(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None) -> bool:
     audio = FLAC(path)
-    for key in ("title", "artist", "album", "date", "tracknumber"):
+    for key in ("title", "artist", "album", "date", "genre", "tracknumber"):
         if tags.get(key):
             audio[key] = str(tags[key])
     if tags.get("lyrics"):
@@ -875,7 +885,7 @@ def _write_wav(path: Path, tags: dict[str, Any]) -> bool:
     audio = WAVE(path)
     if audio.tags is None:
         audio.add_tags()
-    frames = {"title": TIT2, "artist": TPE1, "album": TALB, "date": TDRC}
+    frames = {"title": TIT2, "artist": TPE1, "album": TALB, "date": TDRC, "genre": TCON}
     for key, frame in frames.items():
         if tags.get(key):
             audio.tags.setall(frame.__name__, [frame(encoding=3, text=str(tags[key]))])
@@ -894,7 +904,7 @@ def _write_generic(path: Path, tags: dict[str, Any]) -> bool:
     audio = mutagen.File(path, easy=True)
     if audio is None:
         raise AutotagError("Unsupported audio format for tagging.")
-    for key in ("title", "artist", "album", "date", "tracknumber"):
+    for key in ("title", "artist", "album", "date", "genre", "tracknumber"):
         if tags.get(key):
             audio[key] = str(tags[key])
     if tags.get("lyrics"):

@@ -12,6 +12,7 @@ export interface TagCandidate {
   artist: string;
   album: string | null;
   year: string | null;
+  genre: string | null;
   track_number: number | null;
   cover_url: string | null;
 }
@@ -28,6 +29,7 @@ export interface ApplyRequest {
   artist?: string | null;
   album?: string | null;
   year?: string | null;
+  genre?: string | null;
   track_number?: number | null;
   cover_url?: string | null;
   /** Embed lyrics for this track (omitted = use the global setting). */

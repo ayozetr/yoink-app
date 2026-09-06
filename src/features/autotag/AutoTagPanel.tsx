@@ -96,6 +96,7 @@ export function AutoTagPanel({
   const [artist, setArtist] = useState("");
   const [album, setAlbum] = useState("");
   const [year, setYear] = useState("");
+  const [genre, setGenre] = useState("");
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
 
   // Lyrics preview (LRCLIB) for the reviewed track + per-track embed toggle.
@@ -129,6 +130,7 @@ export function AutoTagPanel({
     setArtist(c.artist);
     setAlbum(c.album ?? "");
     setYear(c.year ?? "");
+    setGenre(c.genre ?? "");
     setCoverUrl(c.cover_url);
   }, []);
 
@@ -258,6 +260,7 @@ export function AutoTagPanel({
         artist: artist.trim() || null,
         album: album.trim() || null,
         year: year.trim() || null,
+        genre: genre.trim() || null,
         track_number: sel?.track_number ?? null,
         cover_url: coverUrl,
         embed_lyrics: lyrics?.found ? embedLyrics : false,
@@ -392,6 +395,17 @@ export function AutoTagPanel({
               />
             </label>
           </div>
+
+          <label className="mt-3 block">
+            <span className="text-xs text-zinc-400">
+              {t("autotag.fieldGenre")}
+            </span>
+            <input
+              className={INPUT}
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+            />
+          </label>
 
           {results.length > 1 && (
             <div className="mt-4">

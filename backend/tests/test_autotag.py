@@ -149,6 +149,7 @@ def test_itunes_search_maps_results(monkeypatch):
                 "collectionName": "#SKIT2025 - EP",
                 "releaseDate": "2025-12-10T12:00:00Z",
                 "trackNumber": 2,
+                "primaryGenreName": "Hip-Hop/Rap",
                 "artworkUrl100": "https://is1.example/abc/100x100bb.jpg",
             }
         ]
@@ -162,6 +163,7 @@ def test_itunes_search_maps_results(monkeypatch):
     assert c.artist == "Las Ninyas del Corro"
     assert c.album == "#SKIT2025"  # " - EP" stripped
     assert c.year == "2025"
+    assert c.genre == "Hip-Hop/Rap"  # primaryGenreName
     assert c.track_number == 2
     assert c.cover_url.endswith("1000x1000bb.jpg")  # bumped from 100px
 
@@ -392,7 +394,7 @@ def test_write_and_reread_tags(tmp_path, ext):
         check=True,
     )
     tags = {"title": "Title", "artist": "Artist", "album": "Album",
-            "date": "1999", "tracknumber": 3}
+            "date": "1999", "genre": "Hip-Hop/Rap", "tracknumber": 3}
 
     embedded = svc._write_tags(path, tags, FAKE_COVER)
     assert embedded is True
@@ -401,6 +403,7 @@ def test_write_and_reread_tags(tmp_path, ext):
     assert reread["title"][0] == "Title"
     assert reread["artist"][0] == "Artist"
     assert reread["album"][0] == "Album"
+    assert reread["genre"][0] == "Hip-Hop/Rap"
 
     # MP3 must be saved as ID3v2.3, not mutagen's default v2.4: Windows Explorer
     # and Media Player don't read v2.4 reliably, so the embedded cover + tags

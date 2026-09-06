@@ -178,6 +178,7 @@ export const ru = {
     fieldArtist: "Исполнитель",
     fieldAlbum: "Альбом",
     fieldYear: "Год",
+    fieldGenre: "Жанр",
     searchToggle: "Не то? Искать вручную",
     searchAction: "Найти",
     cancel: "Отмена",

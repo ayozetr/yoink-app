@@ -178,6 +178,7 @@ export const pl = {
     fieldArtist: "Wykonawca",
     fieldAlbum: "Album",
     fieldYear: "Rok",
+    fieldGenre: "Gatunek",
     searchToggle: "Coś nie tak? Wyszukaj ręcznie",
     searchAction: "Szukaj",
     cancel: "Anuluj",

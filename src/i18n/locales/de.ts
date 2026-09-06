@@ -174,6 +174,7 @@ export const de = {
     fieldArtist: "Künstler",
     fieldAlbum: "Album",
     fieldYear: "Jahr",
+    fieldGenre: "Genre",
     searchToggle: "Nicht korrekt? Manuell suchen",
     searchAction: "Suchen",
     cancel: "Abbrechen",

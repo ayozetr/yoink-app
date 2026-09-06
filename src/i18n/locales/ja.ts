@@ -174,6 +174,7 @@ export const ja = {
     fieldArtist: "アーティスト",
     fieldAlbum: "アルバム",
     fieldYear: "年",
+    fieldGenre: "ジャンル",
     searchToggle: "違いますか？手動で検索",
     searchAction: "検索",
     cancel: "キャンセル",

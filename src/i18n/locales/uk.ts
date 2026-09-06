@@ -178,6 +178,7 @@ export const uk = {
     fieldArtist: "Виконавець",
     fieldAlbum: "Альбом",
     fieldYear: "Рік",
+    fieldGenre: "Жанр",
     searchToggle: "Не те? Шукати вручну",
     searchAction: "Шукати",
     cancel: "Скасувати",

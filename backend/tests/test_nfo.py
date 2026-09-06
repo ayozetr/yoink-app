@@ -40,11 +40,13 @@ def test_build_audio_uses_tagged_fields():
     # The auto-tag path builds from explicit (tagged) fields, incl. <album>.
     xml = nfo.build(
         kind="audio", title="Danza Kuduro", artist="Don Omar",
-        album="Meet the Orphans", year="2010", thumb="http://x/cover.jpg",
+        album="Meet the Orphans", genre="Reggaeton", year="2010",
+        thumb="http://x/cover.jpg",
     )
     assert "<musicvideo>" in xml
     assert "<artist>Don Omar</artist>" in xml
     assert "<album>Meet the Orphans</album>" in xml
+    assert "<genre>Reggaeton</genre>" in xml
     assert "<year>2010</year>" in xml
     assert "<thumb>http://x/cover.jpg</thumb>" in xml
 

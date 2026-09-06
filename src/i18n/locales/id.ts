@@ -174,6 +174,7 @@ export const id = {
     fieldArtist: "Artis",
     fieldAlbum: "Album",
     fieldYear: "Tahun",
+    fieldGenre: "Genre",
     searchToggle: "Tidak tepat? Cari secara manual",
     searchAction: "Cari",
     cancel: "Batal",
