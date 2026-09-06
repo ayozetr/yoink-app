@@ -170,9 +170,12 @@ class Settings(BaseSettings):
     # Audio bitrate for lossy formats (kbps), or "best" for no target (default).
     audio_bitrate: Literal["best", "320", "256", "192", "128"] = "best"
 
-    # Loudness-normalize audio downloads to -14 LUFS (EBU R128) so every track
-    # plays at the same volume. Off by default (it re-encodes the audio).
+    # Loudness-normalize audio downloads (EBU R128) so every track plays at the
+    # same volume. Off by default (it re-encodes the audio).
     normalize_audio: bool = False
+    # Target integrated loudness in LUFS when normalize_audio is on. -14 is the
+    # streaming standard (Spotify/YouTube); -16 ≈ Apple Music; -23 = broadcast.
+    normalize_lufs: int = -14
 
     # Catalogue used by the audio auto-tagger ("auto" = cascade through all).
     autotag_source: Literal["auto", "apple", "deezer", "musicbrainz"] = "auto"

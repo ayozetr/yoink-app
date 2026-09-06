@@ -262,6 +262,17 @@ def test_video_codec_and_audio_bitrate_overrides():
     assert s.audio_bitrate == "192"
 
 
+def test_normalize_lufs_override_implies_normalize_and_clamps():
+    s = types.SimpleNamespace()
+    a = _build_parser().parse_args(["u", "--normalize-lufs", "-16"])
+    _apply_cli_overrides(a, s)
+    assert s.normalize_audio is True and s.normalize_lufs == -16
+    # Out-of-range values are clamped to loudnorm's range -70..-5.
+    s2 = types.SimpleNamespace()
+    _apply_cli_overrides(_build_parser().parse_args(["u", "--normalize-lufs", "-99"]), s2)
+    assert s2.normalize_lufs == -70
+
+
 def test_list_formats_flag_parses():
     assert _build_parser().parse_args(["u", "--list-formats"]).list_formats is True
 

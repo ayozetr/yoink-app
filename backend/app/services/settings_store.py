@@ -72,6 +72,9 @@ def _apply(data: dict[str, Any]) -> None:
         settings.audio_bitrate = data["audio_bitrate"]
     if isinstance(data.get("normalize_audio"), bool):
         settings.normalize_audio = data["normalize_audio"]
+    lufs = data.get("normalize_lufs")
+    if isinstance(lufs, int) and not isinstance(lufs, bool) and -70 <= lufs <= -5:
+        settings.normalize_lufs = lufs
     if isinstance(data.get("notify_on_complete"), bool):
         settings.notify_on_complete = data["notify_on_complete"]
     if isinstance(data.get("check_updates"), bool):
@@ -128,6 +131,7 @@ def get_current() -> AppSettings:
         video_codec=settings.video_codec,
         audio_bitrate=settings.audio_bitrate,
         normalize_audio=settings.normalize_audio,
+        normalize_lufs=settings.normalize_lufs,
         notify_on_complete=settings.notify_on_complete,
         check_updates=settings.check_updates,
         minimize_to_tray=settings.minimize_to_tray,

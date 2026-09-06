@@ -116,7 +116,11 @@ def _build_parser() -> argparse.ArgumentParser:
                    choices=["remove", "mark"], metavar="ACTION",
                    help="SponsorBlock (YouTube): remove or mark segments (bare = remove)")
     p.add_argument("--normalize", action="store_true",
-                   help="loudness-normalize audio to -14 LUFS (re-encodes)")
+                   help="loudness-normalize audio (re-encodes); target set by --normalize-lufs")
+    p.add_argument("--normalize-lufs", type=int, metavar="LUFS",
+                   help="loudness target in LUFS (implies --normalize), e.g. -14 "
+                        "(streaming) / -16 (Apple Music) / -23 (broadcast). Any value "
+                        "in loudnorm's range -70..-5")
     p.add_argument("--video-codec", choices=["any", "h264", "vp9", "av1"],
                    help="prefer a video codec when picking the format")
     p.add_argument("--audio-bitrate", choices=["best", "320", "256", "192", "128"],
@@ -686,6 +690,9 @@ def _apply_cli_overrides(args, settings) -> None:
         settings.sponsorblock_action = args.sponsorblock
     if args.normalize:
         settings.normalize_audio = True
+    if args.normalize_lufs is not None:
+        settings.normalize_audio = True
+        settings.normalize_lufs = max(-70, min(-5, args.normalize_lufs))
     if args.video_codec:
         settings.video_codec = args.video_codec
     if args.audio_bitrate:

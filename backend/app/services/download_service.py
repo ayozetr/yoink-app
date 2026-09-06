@@ -716,7 +716,10 @@ async def download_events(
                 audio_file = Path(path)
                 if audio_file.exists():
                     audio_normalize.normalize(
-                        audio_file, request.audio_format, settings.audio_bitrate
+                        audio_file,
+                        request.audio_format,
+                        settings.audio_bitrate,
+                        target_i=float(settings.normalize_lufs),
                     )
             # Optional Kodi/Jellyfin .nfo sidecar, next to the final file. Audio
             # auto-tagging rewrites it later with the tagged metadata.

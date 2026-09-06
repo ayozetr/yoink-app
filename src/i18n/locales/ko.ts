@@ -263,6 +263,7 @@ export const ko = {
     audioBitrateBest: "사용 가능한 최고",
     normalizeAudio: "오디오 자동 정규화",
     normalizeAudioHint: "모든 트랙을 -14 LUFS(Spotify/YouTube 수준)로 맞춰 같은 음량으로 재생합니다.",
+    normalizeLufs: "라우드니스 목표",
     filenameTemplate: "파일명 템플릿",
     filenameCustom: "사용자 지정…",
     autotagSource: "태그 소스",

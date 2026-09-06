@@ -263,6 +263,7 @@ export const zh = {
     audioBitrateBest: "最佳可用",
     normalizeAudio: "自动归一化音量",
     normalizeAudioHint: "将每首曲目调整到 -14 LUFS（Spotify/YouTube 标准），让所有音频音量一致。",
+    normalizeLufs: "响度目标",
     filenameTemplate: "文件名模板",
     filenameCustom: "自定义…",
     autotagSource: "标记来源",

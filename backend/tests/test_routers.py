@@ -131,6 +131,9 @@ def test_settings_get_and_put(temp_dirs):
         "rate_limit": "1M",
         "video_codec": "h264",
         "audio_bitrate": "320",
+        "normalize_audio": True,
+        "normalize_lufs": -16,
+        "music_folders": True,
         "proxy": "socks5://127.0.0.1:1080",
         "check_updates": False,
         "minimize_to_tray": True,
@@ -152,6 +155,9 @@ def test_settings_get_and_put(temp_dirs):
     assert saved.json()["rate_limit"] == "1M"
     assert saved.json()["video_codec"] == "h264"
     assert saved.json()["audio_bitrate"] == "320"
+    assert saved.json()["normalize_audio"] is True
+    assert saved.json()["normalize_lufs"] == -16
+    assert saved.json()["music_folders"] is True
     assert saved.json()["proxy"] == "socks5://127.0.0.1:1080"
     # Desktop toggles + the previously-unpersisted check_updates now round-trip.
     assert saved.json()["check_updates"] is False
@@ -176,6 +182,10 @@ def test_settings_put_rejects_bad_values(temp_dirs):
     # Proxy with a supported scheme but no host (e.g. a bare "http://").
     hostless_proxy = {**base, "cookies_from_browser": None, "proxy": "http://"}
     assert client.put("/api/settings", json=hostless_proxy).status_code == 400
+
+    # A loudness target outside loudnorm's valid range (-70..-5) is rejected.
+    out_of_range = {**base, "cookies_from_browser": None, "proxy": None, "normalize_lufs": -100}
+    assert client.put("/api/settings", json=out_of_range).status_code == 422
 
     # A known browser with a profile suffix (e.g. "firefox:work") is accepted.
     ok = {**base, "cookies_from_browser": "firefox:work", "cookies_file": None, "proxy": None}

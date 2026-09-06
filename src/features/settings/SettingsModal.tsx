@@ -665,6 +665,14 @@ export function SettingsModal({
             className="w-full"
           />
 
+          {form.normalize_audio && (
+            <LufsSlider
+              value={form.normalize_lufs}
+              onChange={(v) => set("normalize_lufs", v)}
+              label={t("settings.normalizeLufs")}
+            />
+          )}
+
           <Toggle
             checked={form.nfo_sidecars}
             onChange={(v) => set("nfo_sidecars", v)}
@@ -1332,6 +1340,83 @@ function MusicFoldersHelp() {
     <HelpPopover label={t("settings.musicFolders")}>
       {t("settings.musicFoldersHelp")}
     </HelpPopover>
+  );
+}
+
+const LUFS_MIN = -30;
+const LUFS_MAX = -5;
+// Marks shown along the slider. `note` (a well-known standard) is surfaced next
+// to the value when it's the selected one.
+const LUFS_MARKS: { value: number; note?: string }[] = [
+  { value: -23, note: "EBU R128" },
+  { value: -18 },
+  { value: -16, note: "Apple Music" },
+  { value: -14, note: "Spotify/YouTube" },
+  { value: -11 },
+  { value: -9 },
+];
+
+/** A loudness-target slider with clickable marks at the common LUFS standards. */
+function LufsSlider({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  label: string;
+}) {
+  const pct = (v: number) => ((v - LUFS_MIN) / (LUFS_MAX - LUFS_MIN)) * 100;
+  const note = LUFS_MARKS.find((m) => m.value === value)?.note;
+  return (
+    // Same card shell (bg/border/px-4) as the surrounding toggles so the slider
+    // lines up with them instead of spilling a few pixels past each edge.
+    <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-surface px-4 py-3">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm text-zinc-200">{label}</span>
+        <span className="text-sm font-medium tabular-nums text-violet-300">
+          {value} LUFS
+          {note && (
+            <span className="ml-1.5 text-[11px] font-normal text-zinc-400">
+              · {note}
+            </span>
+          )}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={LUFS_MIN}
+        max={LUFS_MAX}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={label}
+        className="w-full cursor-pointer accent-violet-500"
+      />
+      <div className="relative mt-0.5 h-6 select-none">
+        {LUFS_MARKS.map((m) => (
+          <button
+            key={m.value}
+            type="button"
+            onClick={() => onChange(m.value)}
+            style={{ left: `${pct(m.value)}%` }}
+            className="absolute flex -translate-x-1/2 flex-col items-center gap-0.5"
+            aria-label={`${m.value} LUFS`}
+          >
+            <span className="h-1.5 w-px bg-zinc-600" />
+            <span
+              className={`text-[10px] tabular-nums transition ${
+                m.value === value
+                  ? "font-medium text-violet-300"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {m.value}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

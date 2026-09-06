@@ -271,8 +271,10 @@ export interface AppSettings {
   video_codec: VideoCodec;
   /** Lossy audio bitrate in kbps, or "best". */
   audio_bitrate: AudioBitrate;
-  /** Loudness-normalize audio to -14 LUFS so every track plays at one volume. */
+  /** Loudness-normalize audio so every track plays at one volume. */
   normalize_audio: boolean;
+  /** Target integrated loudness (LUFS) when normalize_audio is on (e.g. -14). */
+  normalize_lufs: number;
   /** Check GitHub for a newer app release on launch (opt-in; the app only). */
   check_updates: boolean;
   /** Send a desktop notification when a download finishes. */

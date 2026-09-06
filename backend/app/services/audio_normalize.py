@@ -46,10 +46,10 @@ def _run_ffmpeg(args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _measure(path: Path) -> dict[str, str] | None:
+def _measure(path: Path, target_i: float) -> dict[str, str] | None:
     """First pass: analyze loudness; returns loudnorm's measured JSON values."""
     filt = (
-        f"loudnorm=I={_TARGET_I}:TP={_TARGET_TP}:LRA={_TARGET_LRA}:print_format=json"
+        f"loudnorm=I={target_i}:TP={_TARGET_TP}:LRA={_TARGET_LRA}:print_format=json"
     )
     proc = _run_ffmpeg(["-i", str(path), "-af", filt, "-f", "null", "-"])
     match = re.search(r"\{[^{}]+\}", proc.stderr)
@@ -77,8 +77,14 @@ def _sample_rate(path: Path) -> str:
     return rate if rate.isdigit() else "44100"
 
 
-def normalize(path: Path, audio_format: str, bitrate: str = "best") -> bool:
-    """Two-pass loudness-normalize ``path`` in place to -14 LUFS.
+def normalize(
+    path: Path,
+    audio_format: str,
+    bitrate: str = "best",
+    target_i: float = _TARGET_I,
+) -> bool:
+    """Two-pass loudness-normalize ``path`` in place to ``target_i`` LUFS
+    (default -14, the streaming standard).
 
     Best-effort: on any measurement/encode failure it leaves the original file
     untouched and returns ``False``, so a normalization hiccup never loses a
@@ -87,12 +93,12 @@ def normalize(path: Path, audio_format: str, bitrate: str = "best") -> bool:
     encoder = _ENCODERS.get(audio_format)
     if encoder is None:
         return False
-    measured = _measure(path)
+    measured = _measure(path, target_i)
     if measured is None:
         logger.warning("loudnorm: could not measure %s", path.name)
         return False
     filt = (
-        f"loudnorm=I={_TARGET_I}:TP={_TARGET_TP}:LRA={_TARGET_LRA}"
+        f"loudnorm=I={target_i}:TP={_TARGET_TP}:LRA={_TARGET_LRA}"
         f":measured_I={measured['input_i']}:measured_TP={measured['input_tp']}"
         f":measured_LRA={measured['input_lra']}"
         f":measured_thresh={measured['input_thresh']}"

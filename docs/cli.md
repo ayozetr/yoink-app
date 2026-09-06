@@ -77,7 +77,8 @@ yoink <url>... [options]
 | `--cookies-from-browser BROWSER` | Read cookies from a browser (e.g. `firefox`) for age-gated / private content. |
 | `--cookies-file FILE` | Netscape `cookies.txt` (alternative to `--cookies-from-browser`). |
 | `--sponsorblock [ACTION]` | SponsorBlock (YouTube): `remove` or `mark` segments (bare = `remove`). |
-| `--normalize` | Loudness-normalize audio to −14 LUFS (re-encodes). |
+| `--normalize` | Loudness-normalize audio (re-encodes); target set by `--normalize-lufs` (default −14). |
+| `--normalize-lufs LUFS` | Loudness target in LUFS (implies `--normalize`), e.g. `-14` (streaming) / `-16` (Apple Music) / `-23` (broadcast). Clamped to loudnorm's range −70…−5 (the UI slider offers the common −30…−5). |
 | `--video-codec {any,h264,vp9,av1}` | Prefer a video codec when picking the format. |
 | `--audio-bitrate {best,320,256,192,128}` | Lossy audio bitrate in kbps, or `best`. |
 | `--trim-start TS` / `--trim-end TS` | Clip a time range. `TS` is seconds (`90`) or a clock (`1:30`, `01:02:03`). `--trim-end` must be after `--trim-start`. |
@@ -135,6 +136,9 @@ yoink "https://youtube.com/playlist?list=…" --items 1,3-5 --skip-existing
 # Prefer a codec / cap the audio bitrate for this run
 yoink "https://youtu.be/VIDEO" --video-codec av1
 yoink "https://youtu.be/VIDEO" --audio -f mp3 --audio-bitrate 192
+
+# Loudness-normalize audio to a chosen target (implies --normalize)
+yoink "https://youtu.be/VIDEO" --audio --normalize-lufs -16   # Apple Music level
 
 # Import a whole album from a music service — matched on YouTube, tagged with the
 # EXACT source metadata (artist / title / album / year / cover)

@@ -263,6 +263,7 @@ export const hi = {
     audioBitrateBest: "सर्वश्रेष्ठ उपलब्ध",
     normalizeAudio: "ऑडियो स्वतः सामान्यीकृत करें",
     normalizeAudioHint: "हर ट्रैक को -14 LUFS (Spotify/YouTube स्तर) पर लाता है ताकि सब एक ही वॉल्यूम पर बजे।",
+    normalizeLufs: "लाउडनेस लक्ष्य",
     filenameTemplate: "फ़ाइल नाम टेम्पलेट",
     filenameCustom: "कस्टम…",
     autotagSource: "टैगिंग स्रोत",

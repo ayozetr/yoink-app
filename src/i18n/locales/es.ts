@@ -263,6 +263,7 @@ export const es = {
     audioBitrateBest: "Mejor disponible",
     normalizeAudio: "Normalizar audio automáticamente",
     normalizeAudioHint: "Lleva cada tema a -14 LUFS (nivel de Spotify/YouTube) para que todo suene al mismo volumen.",
+    normalizeLufs: "Objetivo de sonoridad",
     filenameTemplate: "Plantilla de nombre",
     filenameCustom: "Personalizada…",
     autotagSource: "Fuente de etiquetado",

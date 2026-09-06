@@ -26,7 +26,7 @@ def _synth(path, extra_af=None, dur=6):
 
 
 def _lufs(path):
-    measured = norm._measure(path)
+    measured = norm._measure(path, -14.0)  # target doesn't affect the input measure
     assert measured is not None
     return float(measured["input_i"])
 
@@ -44,6 +44,16 @@ def test_normalize_raises_quiet_audio_to_target(tmp_path):
     after = _lufs(src)
     assert after > before  # a quiet clip got louder
     assert abs(after - (-14.0)) < 2.0  # landed on the -14 LUFS target
+
+
+@requires_ffmpeg
+def test_normalize_honors_custom_target(tmp_path):
+    """A non-default target (e.g. -20 LUFS) is what the file lands on."""
+    src = tmp_path / "clip.mp3"
+    _synth(src)
+    ok = norm.normalize(src, "mp3", "192", target_i=-20.0)
+    assert ok is True
+    assert abs(_lufs(src) - (-20.0)) < 2.0
 
 
 @requires_ffmpeg

@@ -267,6 +267,7 @@ export const pl = {
     audioBitrateBest: "Najlepszy dostępny",
     normalizeAudio: "Automatycznie normalizuj głośność",
     normalizeAudioHint: "Ustawia każdy utwór na -14 LUFS (poziom Spotify/YouTube), aby wszystko grało tak samo głośno.",
+    normalizeLufs: "Docelowa głośność",
     filenameTemplate: "Szablon nazwy pliku",
     filenameCustom: "Własny…",
     autotagSource: "Źródło tagowania",

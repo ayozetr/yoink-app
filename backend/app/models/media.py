@@ -419,8 +419,16 @@ class AppSettings(BaseModel):
     )
     normalize_audio: bool = Field(
         default=False,
-        description="Loudness-normalize audio to -14 LUFS so every track plays "
-        "at the same volume (re-encodes the audio).",
+        description="Loudness-normalize audio so every track plays at the same "
+        "volume (re-encodes the audio).",
+    )
+    normalize_lufs: int = Field(
+        default=-14,
+        ge=-70,
+        le=-5,
+        description="Target integrated loudness (LUFS) when normalize_audio is on "
+        "(ffmpeg loudnorm's valid range). -14 = streaming (Spotify/YouTube), "
+        "-16 ≈ Apple Music, -23 = broadcast. The UI slider offers the common -30..-5.",
     )
     check_updates: bool = Field(
         default=True,

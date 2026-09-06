@@ -263,6 +263,7 @@ export const en = {
     audioBitrateBest: "Best available",
     normalizeAudio: "Normalize audio automatically",
     normalizeAudioHint: "Brings every track to -14 LUFS (Spotify/YouTube level) so everything plays at the same volume.",
+    normalizeLufs: "Loudness target",
     filenameTemplate: "Filename template",
     filenameCustom: "Custom…",
     autotagSource: "Tagging source",

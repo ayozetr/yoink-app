@@ -267,6 +267,7 @@ export const ru = {
     audioBitrateBest: "Лучший доступный",
     normalizeAudio: "Автоматически нормализовать громкость",
     normalizeAudioHint: "Приводит каждый трек к -14 LUFS (уровень Spotify/YouTube), чтобы всё звучало одинаково громко.",
+    normalizeLufs: "Целевая громкость",
     filenameTemplate: "Шаблон имени файла",
     filenameCustom: "Свой…",
     autotagSource: "Источник тегов",
