@@ -537,23 +537,36 @@ export function DownloaderPanel({
     // the auto-tag card (the single-download path already sets this).
     setLastKind(selection.kind);
     startQueue(
-      entries.map((entry) => ({
-        request: {
-          url: entry.url,
-          kind: selection.kind,
-          quality: selection.quality,
-          container: selection.container,
-          audio_format: selection.audio_format,
-          embed_subs: selection.embed_subs,
-          subtitle_lang: selection.subtitle_lang,
-          embed_chapters: selection.embed_chapters,
-          audio_multistreams: selection.audio_multistreams,
-          is_vr: selection.is_vr,
-          vr_layout: selection.vr_layout,
-          output_title: selection.output_title,
-        },
-        title: entry.title,
-      })),
+      entries.map((entry) => {
+        // A non-addressable item (Instagram highlight/story-set clip) shares the
+        // container's URL with its siblings and carries a playlist_index. Fetch
+        // just that clip via the index, and — since these items also share one
+        // title — make the output name unique by appending the index, so they
+        // don't overwrite each other on disk ("output file is missing").
+        const nonAddressable = entry.playlist_index != null;
+        return {
+          request: {
+            url: entry.url,
+            kind: selection.kind,
+            quality: selection.quality,
+            container: selection.container,
+            audio_format: selection.audio_format,
+            embed_subs: selection.embed_subs,
+            subtitle_lang: selection.subtitle_lang,
+            embed_chapters: selection.embed_chapters,
+            audio_multistreams: selection.audio_multistreams,
+            is_vr: selection.is_vr,
+            vr_layout: selection.vr_layout,
+            output_title: nonAddressable
+              ? `${entry.title} ${entry.playlist_index}`
+              : selection.output_title,
+            playlist_index: nonAddressable ? entry.playlist_index : undefined,
+          },
+          title: nonAddressable
+            ? `${entry.title} (${entry.playlist_index})`
+            : entry.title,
+        };
+      }),
     );
   };
 

@@ -344,10 +344,15 @@ def _build_options(
         (download_dir / name_template).resolve().relative_to(download_dir.resolve())
     except ValueError:
         name_template = "%(title)s"
+    # A non-addressable item (Instagram highlight/story-set clip: no own URL, so it
+    # shares the container's) is fetched via the container URL + playlist_items so
+    # yt-dlp resolves just this one clip instead of the whole set. For everything
+    # else, noplaylist stays on — a normal URL never drags in its sibling playlist.
+    single_item = request.playlist_index is None
     options: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
-        "noplaylist": True,
+        "noplaylist": single_item,
         "noprogress": True,
         # Retry transient failures (yt-dlp's CLI defaults) — sites flake often.
         "retries": 10,
@@ -368,6 +373,10 @@ def _build_options(
         "postprocessor_hooks": [pp_hook] if pp_hook else [],
         **(network_options() if net is None else net),
     }
+
+    # Pin the single non-addressable item within its container (1-based).
+    if request.playlist_index is not None:
+        options["playlist_items"] = str(request.playlist_index)
 
     # Optional download speed cap (yt-dlp expects bytes/s).
     rate = _parse_rate_limit(settings.rate_limit)

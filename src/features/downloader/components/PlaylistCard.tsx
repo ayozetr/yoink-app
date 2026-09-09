@@ -78,12 +78,21 @@ function isMusicPlaylist(playlist: PlaylistInfo): boolean {
   return /^(RD|OLAK)/.test(playlist.id);
 }
 
+/** A stable, per-entry selection key. Most listings have a unique URL per item,
+ * but some sources (Instagram story-sets/highlights) return several items that
+ * all carry the *container's* URL — so key on the unique per-item id first,
+ * falling back to the URL (SoundCloud-style flat entries can lack an id). Keying
+ * on the URL alone would collapse those items to a single selection. */
+function entryKey(entry: PlaylistEntry): string {
+  return entry.id || entry.url;
+}
+
 /** Playlist sync: pre-select only the items you don't already have. If they're
  * all downloaded, nothing is pre-selected (you're up to date) — the rows still
  * show, badged, and Select-all is there to re-grab any. */
 function freshSelection(entries: PlaylistEntry[]): Set<string> {
   return new Set(
-    entries.filter((e) => !e.already_downloaded).map((e) => e.url),
+    entries.filter((e) => !e.already_downloaded).map(entryKey),
   );
 }
 
@@ -215,11 +224,13 @@ export const PlaylistCard = memo(function PlaylistCard({
     [playlist.entries, query],
   );
   const allVisibleSelected =
-    visible.length > 0 && visible.every((e) => selected.has(e.url));
+    visible.length > 0 && visible.every((e) => selected.has(entryKey(e)));
   // Total duration of the current selection (some flat entries may lack one).
   const selectedDuration = playlist.entries.reduce(
     (acc, entry) =>
-      selected.has(entry.url) ? acc + clockToSeconds(entry.duration_string) : acc,
+      selected.has(entryKey(entry))
+        ? acc + clockToSeconds(entry.duration_string)
+        : acc,
     0,
   );
 
@@ -233,7 +244,7 @@ export const PlaylistCard = memo(function PlaylistCard({
   };
 
   const toggleAll = () => {
-    const ids = visible.map((e) => e.url);
+    const ids = visible.map(entryKey);
     setSelected((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) ids.forEach((id) => next.delete(id));
@@ -245,25 +256,26 @@ export const PlaylistCard = memo(function PlaylistCard({
   // Click a row: a plain click toggles it; Shift+click extends/clears the range
   // from the last-clicked row (over the currently-visible list).
   const clickEntry = (entry: PlaylistEntry, index: number, shiftKey: boolean) => {
+    const key = entryKey(entry);
     const lastIdx = lastIdRef.current
-      ? visible.findIndex((e) => e.url === lastIdRef.current)
+      ? visible.findIndex((e) => entryKey(e) === lastIdRef.current)
       : -1;
     if (shiftKey && lastIdx >= 0 && lastIdx !== index) {
       const lo = Math.min(lastIdx, index);
       const hi = Math.max(lastIdx, index);
-      const target = !selected.has(entry.url); // match the clicked item's new state
+      const target = !selected.has(key); // match the clicked item's new state
       setSelected((prev) => {
         const next = new Set(prev);
         for (let i = lo; i <= hi; i++) {
-          if (target) next.add(visible[i].url);
-          else next.delete(visible[i].url);
+          if (target) next.add(entryKey(visible[i]));
+          else next.delete(entryKey(visible[i]));
         }
         return next;
       });
     } else {
-      toggle(entry.url);
+      toggle(key);
     }
-    lastIdRef.current = entry.url;
+    lastIdRef.current = key;
   };
 
   // A single-item "playlist" is really one wrapped video (an Instagram story/post,
@@ -282,7 +294,7 @@ export const PlaylistCard = memo(function PlaylistCard({
       : t("playlist.label");
 
   const handleDownload = () => {
-    const chosen = playlist.entries.filter((entry) => selected.has(entry.url));
+    const chosen = playlist.entries.filter((entry) => selected.has(entryKey(entry)));
     if (chosen.length === 0) return;
     const tagVr = isVideo && playlist.is_vr && isVr;
     if (tagVr) rememberLayout(playlist.uploader, vrLayout);
@@ -538,9 +550,9 @@ export const PlaylistCard = memo(function PlaylistCard({
         ) : (
           visible.map((entry, i) => (
             <div
-              key={entry.url}
+              key={entryKey(entry)}
               role="checkbox"
-              aria-checked={selected.has(entry.url)}
+              aria-checked={selected.has(entryKey(entry))}
               tabIndex={0}
               onClick={(e) => clickEntry(entry, i, e.shiftKey)}
               onKeyDown={(e) => {
@@ -553,7 +565,7 @@ export const PlaylistCard = memo(function PlaylistCard({
             >
               <input
                 type="checkbox"
-                checked={selected.has(entry.url)}
+                checked={selected.has(entryKey(entry))}
                 readOnly
                 tabIndex={-1}
                 aria-hidden="true"

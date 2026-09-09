@@ -318,20 +318,24 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   **transient** failures (a network blip, a momentary 403/429/5xx, a dropped socket),
   never permanent ones (private/removed/unsupported/no-format). Complements yt-dlp's
   fragment-level retries; the manual "Retry failed" stays for what still doesn't land.
-- ⬜ **Non-addressable sets (Instagram story-sets / highlights)** (L) — some sources
-  return a container that yt-dlp resolves into several **fully-embedded** items with
-  **no per-item URL** (`InstagramStoryIE` yields items with a unique `id` but no
-  `url`/`webpage_url`, so yt-dlp stamps them all with the **container's** `webpage_url`
-  and an identical `title`). Three bugs cascade from that: the card selects by `url`,
-  so the items **collapse to one selection** (can't check/uncheck individually);
-  Download then fires **one request per item to the same container URL** (each pulls the
-  whole set); and the identical title collides the output filename → most land as
-  "output file is missing". Fix (needs live testing with IG cookies): (1) select by a
-  **unique id**, not `url`; (2) download an item via the container URL + `playlist_items`
-  (its original 1-based index) with `noplaylist` off, so yt-dlp fetches just that clip;
-  (3) make the output name **unique** when items share a title (append `%(id)s` / an
-  index). Same-title collision (3) is general, not IG-only. A single story is fine via
-  its own `stories/<user>/<id>/` URL — only the highlight/all-stories container is affected.
+- ✅ **Non-addressable sets (Instagram story-sets / highlights)** *(needs live IG
+  verification)* — some sources return a container that yt-dlp resolves into several
+  **fully-embedded** items with **no per-item URL** (`InstagramStoryIE` yields items with
+  a unique `id` but no `url`/`webpage_url`, so yt-dlp stamps them all with the
+  **container's** `webpage_url` and an identical `title`). Three bugs cascaded from that:
+  the card selected by `url`, so the items **collapsed to one selection** (couldn't
+  check/uncheck individually); Download then fired **one request per item to the same
+  container URL** (each pulling the whole set); and the identical title collided the
+  output filename → most landed as "output file is missing". Fixed generically: the
+  backend detects entries that **share a URL** (Counter over the built list) and keeps a
+  `playlist_index` only on those non-addressable ones (cleared on normally-addressable
+  entries, so a normal URL is untouched); the card now selects by a **unique key**
+  (`entry.id || url`); and a flagged item downloads via the **container URL +
+  `playlist_items=<index>`** with `noplaylist` off (fetches just that clip) under a
+  **unique `output_title`** (`"<title> <index>"`, so shared titles no longer collide).
+  A single story is fine via its own `stories/<user>/<id>/` URL — only the highlight/
+  all-stories container was affected. *Live-testing with IG cookies still recommended to
+  confirm yt-dlp's real flat-entry shape (no PII in logs).*
 - ⬜ **Zero-config PO token — mint in a hidden WebView** (L) — the opt-in
   `youtube:po_token` setting makes the user mint a token by hand, and (per the yt-dlp PO
   Token Guide) web GVS/Player tokens are now **bound to the video ID**, so a *new token

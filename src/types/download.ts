@@ -121,6 +121,11 @@ export interface PlaylistEntry {
   view_count: number | null;
   /** URL already a completed download — pre-selected off (playlist sync). */
   already_downloaded: boolean;
+  /** 1-based position within the container, set only for a *non-addressable*
+   * item — one with no own URL, so it shares the container's URL with its
+   * siblings (Instagram story-sets/highlights). The client downloads it via the
+   * container URL + playlist_index; null for a normally addressable entry. */
+  playlist_index?: number | null;
 }
 
 /** Flat YouTube search results for the URL-field typeahead (mirrors backend). */
@@ -186,6 +191,10 @@ export interface DownloadRequest {
   estimated_size?: number;
   /** Override %(title)s in the output filename (single wrapped story/post item). */
   output_title?: string | null;
+  /** 1-based index of a non-addressable item within its container (Instagram
+   * highlight/story-set clip). When set, `url` is the container's and yt-dlp
+   * fetches only this item instead of the whole set. */
+  playlist_index?: number | null;
 }
 
 /** Live progress while yt-dlp downloads (mirrors backend `ProgressEvent`). */

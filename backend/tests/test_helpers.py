@@ -297,6 +297,46 @@ def test_build_playlist_dedupes_repeated_ids():
     assert playlist.truncated is False
 
 
+def test_build_playlist_marks_nonaddressable_shared_url():
+    # Instagram story-sets/highlights: several fully-embedded items with no own
+    # URL, so yt-dlp stamps every one with the *container's* webpage_url. They
+    # keep distinct ids (survive dedup) but share a URL — each must carry its
+    # playlist_index so the client fetches just that clip via the container URL.
+    playlist = _build_playlist(
+        {
+            "_type": "playlist",
+            "id": "IGSET",
+            "title": "Story by X",
+            "entries": [
+                {"id": "s1", "title": "Story by X", "url": "http://ig/set", "playlist_index": 1},
+                {"id": "s2", "title": "Story by X", "url": "http://ig/set", "playlist_index": 2},
+                {"id": "s3", "title": "Story by X", "url": "http://ig/set", "playlist_index": 3},
+            ],
+        }
+    )
+    assert [e.id for e in playlist.entries] == ["s1", "s2", "s3"]
+    # All share the URL → the index is kept on every one (non-addressable set).
+    assert [e.playlist_index for e in playlist.entries] == [1, 2, 3]
+
+
+def test_build_playlist_clears_index_for_addressable_entries():
+    # A normal playlist: distinct URLs, so nothing is non-addressable — the index
+    # is cleared even though yt-dlp reports one, so each item downloads by its own
+    # URL (noplaylist stays on) rather than via container + playlist_items.
+    playlist = _build_playlist(
+        {
+            "_type": "playlist",
+            "id": "PL1",
+            "title": "My List",
+            "entries": [
+                {"id": "a", "title": "A", "url": "http://x/a", "playlist_index": 1},
+                {"id": "b", "title": "B", "url": "http://x/b", "playlist_index": 2},
+            ],
+        }
+    )
+    assert all(e.playlist_index is None for e in playlist.entries)
+
+
 def test_playlist_thumbnail_prefers_own_then_first_entry():
     # The playlist's own thumbnail wins (highest-preference one).
     with_cover = _build_playlist(
@@ -345,6 +385,28 @@ def test_build_options_video_quality_selector(temp_dirs):
         "bestvideo[height<=720]+bestaudio/best[height<=720]/best/"
         "bv*[height<=720]/bv*/b*"
     )
+
+
+def test_build_options_noplaylist_by_default(temp_dirs):
+    # A normal single URL never drags in a sibling playlist, and pins no item.
+    options = _build_options(
+        DownloadRequest(url="http://x/v"),
+        hook=lambda raw: None,
+    )
+    assert options["noplaylist"] is True
+    assert "playlist_items" not in options
+
+
+def test_build_options_playlist_index_pins_single_item(temp_dirs):
+    # A non-addressable item (Instagram highlight clip): fetch just this one from
+    # its container by index — noplaylist off so yt-dlp resolves the set, and
+    # playlist_items limiting the download to that 1-based position.
+    options = _build_options(
+        DownloadRequest(url="http://ig/set", playlist_index=3),
+        hook=lambda raw: None,
+    )
+    assert options["noplaylist"] is False
+    assert options["playlist_items"] == "3"
 
 
 def test_build_options_trim_always_stream_copies(temp_dirs):

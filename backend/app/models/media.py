@@ -127,6 +127,17 @@ class PlaylistEntry(BaseModel):
         default=False,
         description="This item's URL is already a completed download (playlist sync).",
     )
+    playlist_index: int | None = Field(
+        default=None,
+        description=(
+            "1-based position of this item within its container. Set only for a "
+            "*non-addressable* item — one with no own URL, so it shares the "
+            "container's URL with its siblings (Instagram story-sets/highlights). "
+            "The client downloads such an item via the container URL + "
+            "playlist_items so yt-dlp fetches just this clip; None for a normally "
+            "addressable entry (its own URL is used directly)."
+        ),
+    )
 
 
 class PlaylistInfo(BaseModel):
@@ -251,6 +262,17 @@ class DownloadRequest(BaseModel):
             "for a single wrapped item (e.g. an Instagram story/post) so the file is "
             "named after the friendlier container title ('Story by X') instead of the "
             "item's own ('Video by X'). Ignored when absent."
+        ),
+    )
+    playlist_index: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "1-based index of a *non-addressable* item within its container "
+            "(Instagram story-sets/highlights, whose items carry no own URL). When "
+            "set, `url` is the container's and yt-dlp is told to fetch only this "
+            "item (playlist_items), instead of pulling — and re-downloading — the "
+            "whole set for every selected clip. Ignored when absent."
         ),
     )
 

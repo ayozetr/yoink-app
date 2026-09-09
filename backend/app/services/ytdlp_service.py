@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+from collections import Counter
 from typing import Any, cast
 from urllib.parse import unquote, urlsplit
 
@@ -409,6 +410,7 @@ def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
     duration_value = float(duration) if isinstance(duration, (int, float)) else None
 
     views = raw.get("view_count")
+    index = raw.get("playlist_index")
     return PlaylistEntry(
         id=str(raw.get("id", "")),
         # Prefer the real title; fall back to a slug guessed from the URL (so
@@ -419,6 +421,9 @@ def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
         thumbnail_url=_best_thumbnail(raw),
         uploader=raw.get("uploader") or raw.get("channel"),
         view_count=views if isinstance(views, int) else None,
+        # Captured for every entry; _build_playlist keeps it only on the
+        # non-addressable ones (those sharing a URL) and clears the rest.
+        playlist_index=index if isinstance(index, int) else None,
     )
 
 
@@ -463,6 +468,19 @@ def _build_playlist(
         for entry in (_build_entry(e) for e in unique_entries[:_ENTRY_CAP])
         if entry is not None
     ]
+
+    # Non-addressable sets (Instagram story-sets/highlights): some sources yield
+    # several fully-embedded items with **no own URL**, so yt-dlp stamps every one
+    # with the *container's* webpage_url. They survive the id-dedup above (distinct
+    # ids) but share a URL — and downloading one by that shared URL would pull the
+    # whole set (once per selected item) and collide output names. Mark such an
+    # entry with its playlist_index so the client fetches just that clip via the
+    # container URL + playlist_items; clear the index on normally-addressable
+    # entries (unique URL) so their own URL is used directly (noplaylist stays on).
+    url_counts = Counter(entry.url for entry in entries)
+    for entry in entries:
+        if url_counts[entry.url] <= 1:
+            entry.playlist_index = None
 
     # VR detection for a flat playlist relies on the playlist title/uploader (no
     # per-item formats), so it's weaker than a single video's — the batch toggle
