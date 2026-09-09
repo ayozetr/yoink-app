@@ -40,19 +40,53 @@ const HK_PASTE: &str = "CmdOrCtrl+Shift+P"; // bring to front + paste (no analyz
 const HK_CANCEL: &str = "CmdOrCtrl+Shift+X"; // cancel the current download
 const HK_FOLDER: &str = "CmdOrCtrl+Shift+F"; // open the downloads folder
 
+/// True if a host is one a deep-link target must not reach: loopback, private,
+/// link-local (incl. the 169.254.169.254 cloud-metadata endpoint), or
+/// unspecified. A best-effort SSRF guard at the deep-link boundary.
+fn is_blocked_host(host: &str) -> bool {
+    let lower = host.to_ascii_lowercase();
+    if lower == "localhost" || lower.ends_with(".localhost") {
+        return true;
+    }
+    // Strip brackets from an IPv6 literal ("[::1]") before parsing.
+    let bare = lower.trim_start_matches('[').trim_end_matches(']');
+    match bare.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V4(v4)) => {
+            v4.is_loopback()
+                || v4.is_private()
+                || v4.is_link_local()
+                || v4.is_unspecified()
+                || v4.is_broadcast()
+        }
+        Ok(std::net::IpAddr::V6(v6)) => v6.is_loopback() || v6.is_unspecified(),
+        Err(_) => false, // a hostname (not an IP literal) — allowed
+    }
+}
+
 /// Pull the target media URL out of an incoming `yoink://` deep link.
 ///
 /// Contract: `yoink://download?url=<percent-encoded target>` (the `download` host
 /// is cosmetic; only the `url` query param is read). `query_pairs()` percent-
-/// decodes it for us. Any link without a non-empty `url` param yields `None` and
-/// is ignored, so a stray or malformed deep link can't drive a bogus analyze.
+/// decodes it for us. The target must be an `http(s)` URL pointing at a non-local
+/// host — a drive-by `yoink://` link (any web page can fire one) must not be able
+/// to hand yt-dlp a `file://` path or an internal/loopback address, since yt-dlp
+/// fetches it outside the backend's SSRF guard. Anything else yields `None` and is
+/// ignored, so a stray or hostile deep link can't drive a bogus/unsafe analyze.
 fn deep_link_target(link: &url::Url) -> Option<String> {
     for (key, value) in link.query_pairs() {
         if &*key == "url" {
             let target = value.trim();
-            if !target.is_empty() {
-                return Some(target.to_string());
+            if target.is_empty() {
+                return None;
             }
+            let parsed = url::Url::parse(target).ok()?;
+            if !matches!(parsed.scheme(), "http" | "https") {
+                return None;
+            }
+            return match parsed.host_str() {
+                Some(host) if !is_blocked_host(host) => Some(target.to_string()),
+                _ => None,
+            };
         }
     }
     None

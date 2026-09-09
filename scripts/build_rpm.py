@@ -82,11 +82,16 @@ def _app_version() -> str:
 
 
 def _find_deb(version: str) -> Path | None:
-    matches = sorted(DEB_DIR.glob(f"Yoink_{version}_*.deb"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if matches:
-        return matches[0]
-    any_deb = sorted(DEB_DIR.glob("*.deb"), key=lambda p: p.stat().st_mtime, reverse=True)
-    return any_deb[0] if any_deb else None
+    """The newest .deb whose filename carries this version. No fallback to an
+    arbitrary .deb: the rpm's Version comes from package.json, so repackaging a
+    stale/mismatched .deb would ship an older payload mislabeled with the new
+    version — a silent, shipped-to-users error. Missing → caller fails loudly."""
+    matches = sorted(
+        DEB_DIR.glob(f"Yoink_{version}_*.deb"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return matches[0] if matches else None
 
 
 def _extract_deb(deb: Path, dest: Path) -> Path:
@@ -108,9 +113,16 @@ def main() -> int:
     version = _app_version()
     deb = (args.deb or _find_deb(version))
     if not deb or not deb.exists():
-        print(f"! No .deb found in {DEB_DIR} — build it first (npx tauri build --bundles deb,appimage).")
+        print(f"! No .deb for v{version} found in {DEB_DIR} — build it first "
+              "(npx tauri build --bundles deb,appimage).")
         return 1
     deb = deb.resolve()
+    # Refuse to label an rpm with a version the payload doesn't match (e.g. an
+    # explicit --deb from an older build, or a stale deb left in the bundle dir).
+    if version not in deb.name:
+        print(f"! {deb.name} doesn't carry version {version} — refusing to "
+              "package a mislabeled rpm. Rebuild the .deb, or pass the right --deb.")
+        return 1
 
     missing = [t for t in ("rpmbuild", "fakeroot", "ar") if not shutil.which(t)]
     if missing:
@@ -123,7 +135,15 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         tree = _extract_deb(deb, tmp_path)
-        files = sorted("/" + p.relative_to(tree).as_posix() for p in tree.rglob("*") if p.is_file())
+        # List symlinks explicitly (is_symlink first): `is_file()` follows a
+        # symlink, so a symlink-to-dir or a broken one would be dropped from
+        # %files and go missing from the package. cp -a in %install preserves the
+        # link, and rpm packages whatever is at the listed path.
+        files = sorted(
+            "/" + p.relative_to(tree).as_posix()
+            for p in tree.rglob("*")
+            if p.is_symlink() or p.is_file()
+        )
         if not files:
             print("! The .deb contained no files.")
             return 1

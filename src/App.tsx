@@ -214,10 +214,16 @@ export default function App() {
   // the event. Both route through the same external-analyze path as drag-and-drop.
   useEffect(() => {
     let unlisten = () => {};
+    // Only analyze http(s) targets — same guard the drag-and-drop path applies,
+    // so a deep link can't drive an analyze of a file:// / non-web URL (the Rust
+    // side validates too, but keep the frontend path consistent).
+    const analyzeIfHttp = (url: string) => {
+      if (/^https?:\/\//i.test(url)) requestAnalyze(url);
+    };
     void takePendingDeepLink().then((url) => {
-      if (url) requestAnalyze(url);
+      if (url) analyzeIfHttp(url);
     });
-    void onDeepLink((url) => requestAnalyze(url)).then((fn) => {
+    void onDeepLink((url) => analyzeIfHttp(url)).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten();

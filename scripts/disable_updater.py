@@ -5,19 +5,29 @@ machine, so the VM builds the installers **unsigned** (they're signed here
 afterwards with `tauri signer sign`). See docs/releasing.md.
 
     python scripts/disable_updater.py src-tauri/tauri.conf.json
+
+Whitespace-tolerant, and it *fails loudly* when the key is missing entirely —
+a silent "nothing changed" here would let the VM emit updater artifacts that are
+only supposed to be produced (and signed) on the trusted host.
 """
 
 from __future__ import annotations
 
+import re
 import sys
 
 path = sys.argv[1]
-text = open(path, encoding="utf-8").read()
-needle = '"createUpdaterArtifacts": true'
-if needle in text:
-    open(path, "w", encoding="utf-8").write(
-        text.replace(needle, '"createUpdaterArtifacts": false')
-    )
+with open(path, encoding="utf-8") as fh:
+    text = fh.read()
+
+pattern = re.compile(r'("createUpdaterArtifacts"\s*:\s*)true')
+new_text, count = pattern.subn(r"\1false", text)
+
+if count:
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(new_text)
     print("updater artifacts disabled")
-else:
+elif re.search(r'"createUpdaterArtifacts"\s*:\s*false', text):
     print("already off")
+else:
+    sys.exit(f"error: createUpdaterArtifacts not found in {path}")
