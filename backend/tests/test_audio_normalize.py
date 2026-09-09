@@ -57,6 +57,30 @@ def test_normalize_honors_custom_target(tmp_path):
 
 
 @requires_ffmpeg
+def test_normalize_preserves_embedded_cover(tmp_path):
+    # Embed a cover, normalize, and confirm it survives the re-encode. Regression:
+    # `-af` re-encodes only audio and auto stream selection dropped the attached pic.
+    src = tmp_path / "clip.mp3"
+    _synth(src)
+    cover = tmp_path / "cover.png"
+    subprocess.run(
+        [FFMPEG, "-hide_banner", "-y", "-f", "lavfi", "-i",
+         "color=c=red:s=64x64:d=1", "-frames:v", "1", str(cover)],
+        capture_output=True, check=True,
+    )
+    with_cover = tmp_path / "withcover.mp3"
+    subprocess.run(
+        [FFMPEG, "-hide_banner", "-y", "-i", str(src), "-i", str(cover),
+         "-map", "0:a", "-map", "1:v", "-c", "copy", "-id3v2_version", "3",
+         "-disposition:v:0", "attached_pic", str(with_cover)],
+        capture_output=True, check=True,
+    )
+    assert norm._has_cover(with_cover) is True
+    assert norm.normalize(with_cover, "mp3", "192") is True
+    assert norm._has_cover(with_cover) is True  # cover survived the normalization
+
+
+@requires_ffmpeg
 def test_normalize_leaves_no_temp_file(tmp_path):
     src = tmp_path / "clip.wav"
     _synth(src)

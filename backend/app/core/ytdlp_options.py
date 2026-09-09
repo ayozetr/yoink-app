@@ -163,4 +163,9 @@ def with_cookie_fallback(
             settings.cookies_from_browser,
             type(exc).__name__,
         )
+        # If this also fails, its error propagates: when the browser wasn't the
+        # (only) problem, the cleaner without-browser error is the real cause, and
+        # a locked-cookie-DB message would only be noise. (Distinguishing a
+        # cookie-read failure from a genuinely cookie-needing content error isn't
+        # reliable — the error strings can't be enumerated — so we don't try.)
         return run(network_options(use_browser=False))

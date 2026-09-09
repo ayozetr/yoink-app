@@ -128,6 +128,7 @@ def _audio_summary(raw_formats: Any) -> tuple[bool, bool, float | None]:
 
     has_real_audio = False
     explicit_silent = False  # a format yt-dlp confirmed carries no audio
+    unknown = False  # a format whose audio yt-dlp never characterised
     lossless = False
     best_abr: float | None = None
     for fmt in raw_formats:
@@ -145,8 +146,12 @@ def _audio_summary(raw_formats: Any) -> tuple[bool, bool, float | None]:
                     best_abr = abr_value
         elif state is False:
             explicit_silent = True
-        # state None -> unknown, not a no-audio signal.
-    has_audio = has_real_audio or not explicit_silent
+        else:
+            unknown = True  # state None -> unknown; probably carries audio
+    # Only conclude "no audio" when yt-dlp confirms it *and* nothing is unknown: a
+    # single explicit-silent format shouldn't override an unknown muxed track that
+    # most likely has sound (which would spuriously warn "no audio detected").
+    has_audio = has_real_audio or unknown or not explicit_silent
     return has_audio, lossless, best_abr
 
 

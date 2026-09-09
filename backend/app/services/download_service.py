@@ -555,6 +555,22 @@ def _final_path(info: dict[str, Any]) -> str | None:
     return None
 
 
+def _downloaded_node(info: dict[str, Any]) -> dict[str, Any]:
+    """The info node the written file belongs to — the top level for a single
+    video, or the matching entry for a playlist-wrapper result. Post-download
+    steps (VR detection, .nfo) read metadata from it, so for an Instagram
+    story/highlight they describe the actual clip, not the container.
+    """
+    if _requested_filepath(info):
+        return info
+    entries = info.get("entries")
+    if isinstance(entries, list):
+        for entry in entries:
+            if isinstance(entry, dict) and _requested_filepath(entry):
+                return entry
+    return info
+
+
 # A substring (matched against the lowercased raw yt-dlp error) → a clearer,
 # user-facing message. Most-specific first; the first match wins.
 _ERROR_HINTS: tuple[tuple[str, str], ...] = (
@@ -726,18 +742,29 @@ async def download_events(
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
             info = ydl.sanitize_info(info)
             path = _final_path(info) or ydl.prepare_filename(info)
+            # Metadata for the post-download steps comes from the *downloaded*
+            # node: the top level for a single video, or the matching entry for a
+            # playlist-wrapper (Instagram story/highlight) so VR detection and the
+            # .nfo describe the actual clip, not the container.
+            node = _downloaded_node(info)
+            # The best-effort post-download steps (VR box injection, loudness
+            # re-encode, .nfo) aren't interruptible mid-ffmpeg, so honour a
+            # cancel/disconnect between them: skip the rest once cancelled, so the
+            # worker returns promptly instead of blocking WS teardown on work the
+            # user no longer wants.
+            cancelled = lambda: cancel_event is not None and cancel_event.is_set()  # noqa: E731
             # Immersive (VR) tagging: add the projection name suffix + inject
             # spherical metadata. Runs here on the worker thread (it rewrites the
             # file) and updates the path so the completed event/history point at
             # the renamed output. Video-only; best-effort. The main panel sets
             # is_vr + vr_layout explicitly; the queue sets auto_vr (it has no
             # preview), so detect from the downloaded info and tag only if found.
-            if path and request.kind == "video":
+            if path and request.kind == "video" and not cancelled():
                 layout: str | None = None
                 if request.is_vr:
                     layout = request.vr_layout
                 elif request.auto_vr:
-                    detected, detected_layout = detect_vr(info, strict=True)
+                    detected, detected_layout = detect_vr(node, strict=True)
                     if detected:
                         layout = detected_layout
                 if layout is not None:
@@ -747,7 +774,7 @@ async def download_events(
             # Loudness-normalize audio to -14 LUFS so every track plays at the
             # same volume. Re-encodes in place (best-effort); runs before auto-
             # tagging, which then writes tags onto the normalized file.
-            if path and request.kind == "audio" and settings.normalize_audio:
+            if path and request.kind == "audio" and settings.normalize_audio and not cancelled():
                 audio_file = Path(path)
                 if audio_file.exists():
                     audio_normalize.normalize(
@@ -758,8 +785,8 @@ async def download_events(
                     )
             # Optional Kodi/Jellyfin .nfo sidecar, next to the final file. Audio
             # auto-tagging rewrites it later with the tagged metadata.
-            if path and settings.nfo_sidecars:
-                nfo.write(Path(path), nfo.from_info(info, request.kind))
+            if path and settings.nfo_sidecars and not cancelled():
+                nfo.write(Path(path), nfo.from_info(node, request.kind))
             return path
 
     def blocking() -> str | None:
@@ -862,6 +889,8 @@ async def download_events(
         # worker stays blocked until the running ffmpeg finishes (it can't be
         # interrupted), so don't make the next download wait on a job we no longer
         # care about — a cancelled job writes its own output file and can't collide.
+        # (cancel_event is set above, so the worker also skips the best-effort
+        # post-download steps and returns promptly — see `cancelled()` in `_run`.)
         if lock_held:
             _download_lock.release()
             lock_held = False
