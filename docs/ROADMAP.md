@@ -11,7 +11,16 @@
 
 ## 📍 Status
 
-- **Current release:** **v3.6.0** — **reliability & polish**: a download (or analyze) could
+- **Current release:** **v3.7.0** — **tagging, loudness & lists**: the audio auto-tag now
+  brings in the **genre** from Apple Music (editable in the card, written to the file +
+  `.nfo`); loudness normalization gets a **configurable target** — pick the LUFS on a
+  slider with marks at the common standards (-14 streaming, -16 Apple Music, -23 R128) or
+  set any value from the CLI (`--normalize-lufs`); GitHub responses (the update check +
+  "What's new") are now **cached**, so a busy IP's rate-limit no longer breaks the version
+  banner or the notes. Plus: **SoundCloud playlists show track names** (a title guessed
+  from the URL slug when a flat entry carries none), the **history fills in live** during a
+  playlist/queue batch instead of only at the end, and the startup splash unmounts cleanly.
+- **Previously:** **v3.6.0** — **reliability & polish**: a download (or analyze) could
   sit at **"Preparing…"** at 0% forever with no error when a socket connected but then
   delivered no data — a `socket_timeout` now aborts a dead read so the retries fire or it
   fails with a clear message. And a **SponsorBlock outage no longer blocks the download**:
