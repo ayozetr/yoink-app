@@ -128,3 +128,28 @@ def test_mint_via_webview_skips_without_a_poller(monkeypatch):
         po_token_bridge.broker, "has_active_poller", lambda: False
     )
     assert po_token._mint_via_webview("vid123") is None
+
+
+def test_mint_failure_backs_off_then_recovers(monkeypatch):
+    # A failed mint stops further attempts for a while, so a broken minter doesn't
+    # add a failed round-trip to every download; a success clears the backoff.
+    from app.services import po_token_bridge
+
+    monkeypatch.setattr(po_token_bridge.broker, "has_active_poller", lambda: True)
+    calls: list[str] = []
+
+    def submit(video_id, timeout):
+        calls.append(video_id)
+        return None  # mint fails
+
+    monkeypatch.setattr(po_token_bridge.broker, "submit_mint", submit)
+    assert po_token._mint_via_webview("v1") is None
+    assert calls == ["v1"]
+    # Now in backoff: the next request is skipped without hitting the broker.
+    assert po_token._mint_via_webview("v2") is None
+    assert calls == ["v1"]  # not called again
+
+    # Clearing the backoff (as a success would) lets minting resume.
+    po_token.clear_cache()
+    monkeypatch.setattr(po_token_bridge.broker, "submit_mint", lambda vid, timeout: "TOK")
+    assert po_token._mint_via_webview("v3") == "TOK"

@@ -39,14 +39,22 @@ logger = logging.getLogger(__name__)
 _TOKEN_TTL_SECONDS = 6 * 3600
 
 # How long to wait for the WebView to mint a token before giving up (a cold mint
-# runs the BotGuard attestation; a warm one, with the integrity token cached in
-# the WebView, is ~1 s).
-_MINT_TIMEOUT_SECONDS = 20.0
+# runs the BotGuard attestation, ~1–4 s; a warm one, with the integrity token
+# cached in the WebView, is ~1 s). Generous, but bounded so a stuck WebView can't
+# stall a download for long before the backoff below kicks in.
+_MINT_TIMEOUT_SECONDS = 10.0
+
+# After a mint failure (bgutils broke on a YouTube change, or a timeout), stop
+# attempting to mint for this long and just fall back — so a broken minter doesn't
+# add a failed round-trip to *every* download. Reset the moment a mint succeeds.
+_MINT_BACKOFF_SECONDS = 5 * 60
 
 # video_id -> (token, expiry on the monotonic clock). Guarded by ``_lock`` — the
 # metadata and download services can both resolve tokens off different threads.
 _cache: dict[str, tuple[str, float]] = {}
 _lock = threading.Lock()
+# Monotonic time until which minting is skipped after a failure (0 = not backing off).
+_backoff_until = 0.0
 
 
 def _parse_manual(raw: str | None) -> list[str]:
@@ -75,9 +83,11 @@ def _cache_set(video_id: str, token: str) -> None:
 
 
 def clear_cache() -> None:
-    """Drop every cached minted token (on a settings change, and in tests)."""
+    """Drop every cached minted token + any backoff (settings change, and tests)."""
+    global _backoff_until
     with _lock:
         _cache.clear()
+        _backoff_until = 0.0
 
 
 def _mint_via_webview(video_id: str) -> str | None:
@@ -91,15 +101,30 @@ def _mint_via_webview(video_id: str) -> str | None:
     """
     from app.services import po_token_bridge
 
+    global _backoff_until
     if not po_token_bridge.broker.has_active_poller():
         logger.debug("auto-PO: no WebView minter polling; skipping mint for %s", video_id)
         return None
+    with _lock:
+        backing_off = time.monotonic() < _backoff_until
+    if backing_off:
+        logger.debug("auto-PO: in post-failure backoff; skipping mint for %s", video_id)
+        return None
     logger.debug("auto-PO: requesting a mint from the WebView for %s", video_id)
     token = po_token_bridge.broker.submit_mint(video_id, timeout=_MINT_TIMEOUT_SECONDS)
+    with _lock:
+        if token:
+            _backoff_until = 0.0  # working again — clear any backoff
+        else:
+            _backoff_until = time.monotonic() + _MINT_BACKOFF_SECONDS
     if token:
         logger.info("auto-PO: minted a per-video token for %s", video_id)
     else:
-        logger.warning("auto-PO: WebView mint timed out for %s (falling back)", video_id)
+        logger.warning(
+            "auto-PO: WebView mint failed/timed out for %s; backing off %ds",
+            video_id,
+            _MINT_BACKOFF_SECONDS,
+        )
     return token
 
 
