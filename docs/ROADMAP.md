@@ -8,6 +8,9 @@
 > Legend: ✅ shipped · 🚧 in progress · ⬜ planned · effort **S**/**M**/**L**.
 > Per-feature shipped detail lives in the [GitHub releases](https://github.com/ayozetr/yoink-app/releases)
 > and git history — this file stays forward-looking.
+>
+> A full-project code-audit backlog (bugs / hardening / polish, by severity) lives
+> in [`audit.md`](audit.md).
 
 ## 📍 Status
 
