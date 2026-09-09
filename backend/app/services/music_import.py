@@ -279,7 +279,14 @@ def _sp_year(entity: dict[str, Any]) -> str | None:
     return None
 
 
-def _sp_api_tracks(kind: str, sid: str, token: str) -> list[dict[str, Any]] | None:
+def _sp_api_tracks(kind: str, sid: str, token: str) -> tuple[list[dict[str, Any]], bool]:
+    """Page the Spotify API for an album/playlist's tracks.
+
+    Returns ``(items, complete)``. ``complete`` is False when paging was cut short
+    by an error, so the caller keeps the pages already fetched (instead of
+    discarding them and truncating to the ≤100-track embed) and flags the result
+    as truncated rather than silently claiming it's whole.
+    """
     base = "playlists" if kind == "playlist" else "albums"
     items: list[dict[str, Any]] = []
     offset = 0
@@ -294,9 +301,9 @@ def _sp_api_tracks(kind: str, sid: str, token: str) -> list[dict[str, Any]] | No
             if not page.get("next") or not page_items:
                 break
             offset += len(page_items)
-        return items or None
+        return items, True
     except (MusicImportError, ValueError):
-        return None
+        return items, False  # keep what we paged; caller flags it truncated
 
 
 def _sp_track_from_api(item: dict[str, Any], kind: str, album_entity: dict[str, Any]) -> MusicTrack | None:
@@ -357,10 +364,11 @@ def _resolve_spotify(url: str, enrich: bool = True) -> MusicImportInfo:
         return MusicImportInfo(source="spotify", type="track", name=track.title,
                                subtitle=track.artists, cover_url=cover, tracks=[track])
 
-    api_items = _sp_api_tracks(kind, sid, token) if token else None
+    api_items, api_complete = _sp_api_tracks(kind, sid, token) if token else ([], True)
     if api_items:
         tracks = [t for t in (_sp_track_from_api(it, kind, entity) for it in api_items) if t]
-        truncated = len(api_items) >= 2000  # hit the paging cap — more tracks exist
+        # More tracks exist if paging hit the 2000 cap or was cut short by an error.
+        truncated = not api_complete or len(api_items) >= 2000
     else:
         is_album = kind == "album"
         album_name = entity.get("name") if is_album else None

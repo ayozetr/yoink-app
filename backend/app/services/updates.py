@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -25,6 +27,18 @@ logger = logging.getLogger(__name__)
 # cached result is served, so repeated launches don't burn the unauthenticated
 # API budget (60 req/h/IP — shared across everything on the user's connection).
 _UPDATE_CHECK_TTL = 3 * 3600
+# Release notes are cached this long, then re-fetched — long enough that repeat
+# opens are free, short enough that an edited release body eventually shows.
+_WHATSNEW_TTL = 24 * 3600
+# Cap the distinct (since -> current) whats-new entries so a client varying the
+# ?since= param can't grow the cache without bound; the newest few are kept.
+_WHATSNEW_MAX_KEYS = 8
+
+# Serializes the cache read-modify-write: FastAPI runs the sync update-check and
+# release-notes handlers on a threadpool, so /api/version and /api/release-notes
+# can write the cache concurrently — without this they'd interleave the shared
+# temp file (corrupt JSON) and lose each other's key (last writer wins).
+_cache_lock = threading.Lock()
 
 
 def _cache_path() -> Path:
@@ -52,15 +66,28 @@ def _cache_get(key: str, max_age: float | None = None) -> Any | None:
 
 
 def _cache_set(key: str, data: Any) -> None:
-    """Best-effort persist (atomic); never fatal if the cache can't be written."""
+    """Best-effort persist (atomic); never fatal if the cache can't be written.
+
+    The read-modify-write is serialized (``_cache_lock``) and the temp file is
+    per-process, so concurrent writers can't corrupt the JSON or drop a key.
+    """
     try:
         settings.ensure_data_dir()
-        cache = _cache_read()
-        cache[key] = {"at": time.time(), "data": data}
-        path = _cache_path()
-        tmp = path.with_name(path.name + ".tmp")
-        tmp.write_text(json.dumps(cache), encoding="utf-8")
-        os.replace(tmp, path)
+        with _cache_lock:
+            cache = _cache_read()
+            cache[key] = {"at": time.time(), "data": data}
+            # Bound the whats-new entries (keyed by a client-supplied ?since=): keep
+            # only the newest few, dropping the oldest by timestamp.
+            whatsnew = sorted(
+                (k for k in cache if k.startswith("whatsnew:")),
+                key=lambda k: cache[k].get("at", 0) if isinstance(cache[k], dict) else 0,
+            )
+            for stale in whatsnew[:-_WHATSNEW_MAX_KEYS]:
+                del cache[stale]
+            path = _cache_path()
+            tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+            tmp.write_text(json.dumps(cache), encoding="utf-8")
+            os.replace(tmp, path)
     except OSError as exc:
         logger.warning("Could not write GitHub cache: %s", exc)
 
@@ -144,10 +171,11 @@ def whats_new(current: str, since: str | None = None, timeout: float = 8.0) -> W
     empty ``entries`` when even that has no notes, so the popup simply hides)."""
     current_tag = current if current[:1].lower() == "v" else f"v{current}"
 
-    # A released version's notes never change, so once fetched they're cached
-    # indefinitely — repeat opens (and a later GitHub rate-limit) never re-fetch.
+    # Cache the notes for a day (repeat opens and a later GitHub rate-limit are
+    # served from cache); after that they're re-fetched so an edited release body
+    # eventually shows.
     cache_key = f"whatsnew:{since or ''}->{current}"
-    cached = _cache_get(cache_key)
+    cached = _cache_get(cache_key, max_age=_WHATSNEW_TTL)
     if cached is not None:
         return WhatsNew.model_validate(cached)
 
@@ -184,14 +212,27 @@ def whats_new(current: str, since: str | None = None, timeout: float = 8.0) -> W
 
 
 def _parse_version(tag: str) -> tuple[int, ...]:
-    """Turn a tag like 'v0.5.0' / '1.2.3-rc1' into a comparable tuple."""
-    core = tag.lstrip("vV").split("+")[0].split("-")[0]
+    """Turn a tag like 'v0.5.0' / '1.2.3-rc1' into a comparable tuple.
+
+    The core ``X.Y.Z`` is padded to three parts so ``1.0`` and ``1.0.0`` compare
+    equal, and a trailing rank orders a prerelease *below* its final release
+    (``1.2.3-rc1`` < ``1.2.3``) while ordering prereleases among themselves by
+    their number (``rc2`` > ``rc1``).
+    """
+    core, _, pre = tag.lstrip("vV").split("+")[0].partition("-")
     parts: list[int] = []
     for piece in core.split("."):
         try:
             parts.append(int(piece))
         except ValueError:
             parts.append(0)
+    if len(parts) < 3:
+        parts += [0] * (3 - len(parts))  # pad short cores: 1.0 -> 1.0.0
+    if pre:
+        match = re.search(r"(\d+)", pre)
+        parts += [0, int(match.group(1)) if match else 0]  # prerelease ranks below
+    else:
+        parts += [1, 0]  # a final release ranks above any of its prereleases
     return tuple(parts)
 
 

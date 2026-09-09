@@ -49,11 +49,19 @@ def _apply(data: dict[str, Any]) -> None:
     if isinstance(data.get("lyrics_lrc"), bool):
         settings.lyrics_lrc = data["lyrics_lrc"]
 
-    settings.cookies_from_browser = data.get("cookies_from_browser") or None
-    cookies_file = data.get("cookies_file")
-    settings.cookies_file = Path(cookies_file) if cookies_file else None
-    settings.proxy = str(data["proxy"]) if data.get("proxy") else None
-    settings.po_token = str(data["po_token"]) if data.get("po_token") else None
+    # Guard each on key *presence*, not truthiness: a settings.json that predates
+    # a field (or a partial hand-edit) must leave a value supplied via the
+    # env (YOINK_PROXY / YOINK_PO_TOKEN / YOINK_COOKIES_*) intact, not wipe it to
+    # None. A full payload from the settings UI still carries every key.
+    if "cookies_from_browser" in data:
+        settings.cookies_from_browser = data.get("cookies_from_browser") or None
+    if "cookies_file" in data:
+        cookies_file = data.get("cookies_file")
+        settings.cookies_file = Path(cookies_file) if cookies_file else None
+    if "proxy" in data:
+        settings.proxy = str(data["proxy"]) if data.get("proxy") else None
+    if "po_token" in data:
+        settings.po_token = str(data["po_token"]) if data.get("po_token") else None
     if data.get("po_token_mode") in ("off", "manual", "auto"):
         settings.po_token_mode = data["po_token_mode"]
 

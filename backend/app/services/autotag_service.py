@@ -607,6 +607,25 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
     return ApplyResponse(ok=True, embedded_cover=embedded)
 
 
+# Sidecar extensions that travel with an audio file on a rename/relocate — the
+# audio file itself is always moved; everything else must be one of these, so a
+# stray ``.part``/``.ytdl`` (or any unrelated stem-prefixed file) is left behind.
+_SIDECAR_SUFFIXES = (".nfo", ".lrc", ".jpg", ".jpeg", ".png", ".webp")
+
+
+def _movable_siblings(path: Path, prefix: str) -> list[Path]:
+    """The audio file plus its known sidecars in the folder (files whose name is
+    ``<stem>.…`` and whose suffix is a recognised sidecar). Excludes unrelated
+    stem-prefixed files like a leftover ``.part``."""
+    out: list[Path] = []
+    for sib in path.parent.iterdir():
+        if not sib.is_file() or not sib.name.startswith(prefix):
+            continue
+        if sib == path or sib.suffix.lower() in _SIDECAR_SUFFIXES:
+            out.append(sib)
+    return out
+
+
 def rename_to_tagged(path: Path, new_title: str) -> Path:
     """Rename the audio file — and any sidecars sharing its name (``.nfo``/``.lrc``)
     — to the auto-tag name (``"Artist - Title"``), keeping each extension.
@@ -623,11 +642,11 @@ def rename_to_tagged(path: Path, new_title: str) -> Path:
         return path  # don't clobber a different file that already has this name
     prefix = path.stem + "."
     try:
-        movable = [
-            p for p in path.parent.iterdir() if p.is_file() and p.name.startswith(prefix)
-        ]
-        for sib in movable:
-            sib.rename(sib.with_name(new_stem + sib.name[len(path.stem) :]))
+        for sib in _movable_siblings(path, prefix):
+            dest = sib.with_name(new_stem + sib.name[len(path.stem) :])
+            if dest.exists():
+                continue  # a different file already owns this sidecar name — keep it
+            sib.rename(dest)
     except OSError:
         return path
     return target
@@ -667,14 +686,13 @@ def organize_music_library(
         return path  # don't clobber a different file that already owns the name
     prefix = path.stem + "."
     try:
-        movable = [
-            p
-            for p in path.parent.iterdir()
-            if p.is_file() and p.name.startswith(prefix)
-        ]
+        movable = _movable_siblings(path, prefix)
         folder.mkdir(parents=True, exist_ok=True)
         for sib in movable:
-            sib.rename(folder / (safe_stem + sib.name[len(path.stem) :]))
+            dest = folder / (safe_stem + sib.name[len(path.stem) :])
+            if dest.exists() and dest != sib:
+                continue  # don't overwrite a sidecar from another track in the album
+            sib.rename(dest)
     except OSError as exc:
         logger.warning("Could not organize %s into the library: %s", path.name, exc)
         return path

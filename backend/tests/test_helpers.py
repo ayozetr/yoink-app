@@ -179,10 +179,17 @@ def test_network_options_includes_impersonate(monkeypatch):
 def test_update_version_compare():
     from app.services.updates import _is_newer, _parse_version
 
-    assert _parse_version("v0.5.0") == (0, 5, 0)
-    assert _parse_version("1.2.3-rc1") == (1, 2, 3)
+    # Core X.Y.Z is padded to 3 and carries a trailing release/prerelease rank.
+    assert _parse_version("v0.5.0") == (0, 5, 0, 1, 0)
     assert _is_newer("v0.6.0", "0.5.0") is True
     assert _is_newer("v0.5.0", "0.5.0") is False
+    # Short cores compare equal to their padded form (1.0 == 1.0.0).
+    assert _parse_version("1.0") == _parse_version("1.0.0")
+    assert _is_newer("1.0", "1.0.0") is False
+    # A prerelease ranks below its final release, and rc2 > rc1.
+    assert _is_newer("1.2.3", "1.2.3-rc1") is True
+    assert _is_newer("1.2.3-rc1", "1.2.3") is False
+    assert _is_newer("1.2.3-rc2", "1.2.3-rc1") is True
     assert _is_newer("v0.4.9", "0.5.0") is False
 
 

@@ -1,4 +1,4 @@
-"""Pydantic models for audio auto-tagging (Apple Music / iTunes).
+"""Pydantic models for audio auto-tagging (Apple Music / Deezer / MusicBrainz).
 
 The contract mirrored by the frontend's `src/types/autotag.ts`. The flow is
 identify/search → (user picks a version + edits) → apply; nothing is written to
@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 
 class TagCandidate(BaseModel):
-    """One catalogue match (an Apple Music track release) to tag a file with."""
+    """One catalogue match (Apple Music / Deezer / MusicBrainz) to tag a file with."""
 
     title: str = Field(..., description="Track title.")
     artist: str = Field(..., description="Track artist(s).")

@@ -167,11 +167,30 @@ class _SafeRedirects(urllib.request.HTTPRedirectHandler):
         newurl: str,
     ) -> urllib.request.Request | None:
         parsed = urlparse(newurl)
-        if parsed.scheme not in ("http", "https") or host_is_blocked(parsed.hostname):
+        if (
+            parsed.scheme not in ("http", "https")
+            or host_is_blocked(parsed.hostname)
+            or _port_blocked(parsed)
+        ):
             raise urllib.error.HTTPError(
                 newurl, code, "Redirect to a disallowed host", headers, fp
             )
         return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+# Ports a client-influenced fetch may target: the standard web ports (and the
+# scheme default when no port is given). Blocking the rest denies using the app's
+# connection to poke other services on an otherwise-public host (e.g. :22, :6379).
+_ALLOWED_PORTS = frozenset({80, 443})
+
+
+def _port_blocked(parsed: Any) -> bool:
+    """True if the URL names a non-web port (or a malformed one)."""
+    try:
+        port = parsed.port
+    except ValueError:
+        return True  # malformed port → block
+    return port is not None and port not in _ALLOWED_PORTS
 
 
 # A urllib opener wired with the pinned connections + redirect re-validation.
@@ -194,7 +213,11 @@ def fetch_public(
     validated IP and the read is capped.
     """
     parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or host_is_blocked(parsed.hostname):
+    if (
+        parsed.scheme not in ("http", "https")
+        or host_is_blocked(parsed.hostname)
+        or _port_blocked(parsed)
+    ):
         raise SafeHTTPError("URL is not a public http(s) address")
     request = urllib.request.Request(url, headers=headers or {})
     try:
