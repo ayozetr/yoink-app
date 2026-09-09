@@ -318,8 +318,8 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   **transient** failures (a network blip, a momentary 403/429/5xx, a dropped socket),
   never permanent ones (private/removed/unsupported/no-format). Complements yt-dlp's
   fragment-level retries; the manual "Retry failed" stays for what still doesn't land.
-- ✅ **Non-addressable sets (Instagram story-sets / highlights)** *(needs live IG
-  verification)* — some sources return a container that yt-dlp resolves into several
+- ✅ **Non-addressable sets (Instagram story-sets / highlights)** *(verified live,
+  2026-09-09)* — some sources return a container that yt-dlp resolves into several
   **fully-embedded** items with **no per-item URL** (`InstagramStoryIE` yields items with
   a unique `id` but no `url`/`webpage_url`, so yt-dlp stamps them all with the
   **container's** `webpage_url` and an identical `title`). Three bugs cascaded from that:
@@ -334,8 +334,29 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   `playlist_items=<index>`** with `noplaylist` off (fetches just that clip) under a
   **unique `output_title`** (`"<title> <index>"`, so shared titles no longer collide).
   A single story is fine via its own `stories/<user>/<id>/` URL — only the highlight/
-  all-stories container was affected. *Live-testing with IG cookies still recommended to
-  confirm yt-dlp's real flat-entry shape (no PII in logs).*
+  all-stories container was affected. **Verified live** against a real highlight (14
+  videos sharing one container URL, identical titles, `playlist_index` 1–14): 3 picks
+  downloaded to 3 distinct files of distinct sizes (different clips), no collision, no
+  "output file is missing". Live-testing also surfaced the deeper root cause below.
+- ✅ **Output file inside a playlist-wrapper result** *(root cause of the "output file
+  is missing" symptom)* — Instagram stories/highlights (and any single item wrapped in a
+  playlist) return a `_type: playlist` dict from yt-dlp with the file under
+  `entries[].requested_downloads` and nothing at the top level. `_final_path` only read
+  the top level → returned None → the caller fell back to `prepare_filename` on the
+  playlist dict (a bogus `<title>.NA`) and reported the file missing though it downloaded
+  fine. Fixed by descending into the entries; verified live (the single-video highlight
+  that previously errored now completes to the correct file).
+- ⬜ **Download Instagram photo stories / image posts** (M) — yt-dlp's Instagram
+  extractors build `formats` **only from `video_versions`**; a photo item's image
+  (`image_versions2.candidates`) is kept as a **thumbnail**, not a format, so
+  `InstagramStoryIE` drops photo stories entirely (`if highlight_data.get('formats')`).
+  A real highlight of 18 items (14 videos + 4 photos) surfaces only the 14 videos; a
+  photo-only highlight surfaces nothing. yt-dlp does **not** download these images. The
+  image URL *is* available (it lands in `thumbnails`), so Yoink could surface photo items
+  and download the best candidate as a `.jpg` (its own path, since the engine is
+  video/audio-first) — a custom extractor/shim like `threads_extractor`. Scope: images
+  are a new output kind (no merge/transcode), so it also touches the card UI (a photo
+  item isn't "video/audio") and history.
 - 🚧 **Zero-config PO token — mint in a hidden WebView** (L) — *Phase 1 shipped;*
   *the WebView bridge is Phases 2–3.* Full design + status in
   [`po-token-webview.md`](po-token-webview.md). **Phase 1 (done):** a

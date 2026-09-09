@@ -517,15 +517,41 @@ def _build_options(
     return options
 
 
-def _final_path(info: dict[str, Any]) -> str | None:
-    """Resolve the path of the file actually written (post merge/extraction)."""
-    downloads = info.get("requested_downloads")
+def _requested_filepath(node: dict[str, Any]) -> str | None:
+    """The filepath of the first requested download on an info node, if any."""
+    downloads = node.get("requested_downloads")
     if isinstance(downloads, list) and downloads:
         first = downloads[0]
         if isinstance(first, dict):
             path = first.get("filepath")
             if isinstance(path, str):
                 return path
+    return None
+
+
+def _final_path(info: dict[str, Any]) -> str | None:
+    """Resolve the path of the file actually written (post merge/extraction).
+
+    Handles both shapes yt-dlp returns: a single video (``requested_downloads`` at
+    the top level) and a **playlist wrapper** — some sources (notably Instagram
+    stories/highlights) return a ``_type: playlist`` dict even for one item, with
+    the real file living under ``entries[…].requested_downloads`` and *nothing* at
+    the top level. Without descending into the entry, the caller falls back to
+    ``prepare_filename`` on the playlist dict (a bogus ``<title>.NA``) and reports
+    "output file is missing" even though the download succeeded. We download one
+    item at a time (a lone container, or one pinned via ``playlist_items``), so the
+    first entry that carries a downloaded file is the one written.
+    """
+    direct = _requested_filepath(info)
+    if direct:
+        return direct
+    entries = info.get("entries")
+    if isinstance(entries, list):
+        for entry in entries:
+            if isinstance(entry, dict):
+                path = _requested_filepath(entry)
+                if path:
+                    return path
     return None
 
 

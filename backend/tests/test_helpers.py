@@ -10,6 +10,7 @@ from app.core.ytdlp_options import network_options, normalize_url
 from app.models.media import DownloadRequest
 from app.services.download_service import (
     _build_options,
+    _final_path,
     _format_eta,
     _format_speed,
     _map_progress,
@@ -389,6 +390,32 @@ def test_build_options_video_quality_selector(temp_dirs):
         "bestvideo[height<=720]+bestaudio/best[height<=720]/best/"
         "bv*[height<=720]/bv*/b*"
     )
+
+
+def test_final_path_single_video():
+    # A plain single-video result: filepath at the top level.
+    info = {"requested_downloads": [{"filepath": "/dl/video.mp4"}]}
+    assert _final_path(info) == "/dl/video.mp4"
+
+
+def test_final_path_playlist_wrapper():
+    # Instagram stories/highlights return a playlist wrapper even for one item,
+    # with the real file under an entry and nothing at the top level. Without
+    # descending, the caller falls back to a bogus "<title>.NA" and reports the
+    # file missing though the download succeeded (verified live).
+    info = {
+        "_type": "playlist",
+        "title": "#Coaches",
+        "entries": [
+            {"requested_downloads": [{"filepath": "/dl/Video by scs.software.mp4"}]},
+        ],
+    }
+    assert _final_path(info) == "/dl/Video by scs.software.mp4"
+
+
+def test_final_path_none_when_no_download():
+    assert _final_path({"_type": "playlist", "entries": [{"id": "x"}]}) is None
+    assert _final_path({}) is None
 
 
 def test_build_options_noplaylist_by_default(temp_dirs):
