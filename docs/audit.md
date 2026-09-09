@@ -18,9 +18,9 @@ whole class.
 ## Resolution status (2026-09-09)
 
 Most findings are **fixed** (commits `4b7c7b1`, `30f42f5`, `d04f333`,
-`65f5dc4`, `052075e`, `4c8c5c1`), with tests where they applied and the full
-backend/frontend suites green. The rest were **deliberately not changed** — each
-for a stated reason, not an oversight:
+`65f5dc4`, `052075e`, `4c8c5c1`, `d13a09e`, `ab610af`), with tests where they
+applied and the full backend/frontend + e2e suites green. The rest were
+**deliberately not changed** — each for a stated reason, not an oversight:
 
 - **M1-2** (free the lock before reaping on cancel) & **L1-6** (surface the
   browserless error) — reverted: both are *existing deliberate designs with
@@ -29,13 +29,13 @@ for a stated reason, not an oversight:
 - **L2-4** (filename_template escape) & **L2-5** (autotag path) — already
   mitigated at the point of use (download_service confines the outtmpl under the
   download dir; the autotag router validates via `resolve()`+`parents`).
-- **M4-1** (memoize the queue row) — a broad component-extraction + useEventCallback
-  refactor of the core queue; deferred as a perf-only change with real regression
-  risk that wants interactive testing. The other queue findings are fixed.
-- **L4-9** / **L6-6** (backend-unreachable feedback) — the infinite settings
-  retry is intentional (a late backend still connects); a proper fix is a
-  frontend "still connecting / unreachable" state — a small feature, tracked for
-  later rather than bolted on.
+- **M4-1** (memoize the queue row) — **fixed** (`d13a09e`): QueueRow is now a
+  `React.memo` component fed live values only for the active row; validated
+  against the full e2e suite (drag-reorder + expandable groups) + vitest.
+- **L4-9** / **L6-6** (backend-unreachable feedback) — **fixed** (`ab610af`): a
+  BackendUnreachableBanner now shows once the splash drops without a connection
+  (retrying continues in the background, so a late backend still connects), with
+  a Restart action on desktop for the spawn-failure case.
 - **L6-3** (CSP `img-src https:`) — the `Thumbnail` component loads the CDN URL
   *directly first* (a deliberate perf fast path) and only proxies on failure, so
   tightening `img-src` means either forcing every thumbnail through the proxy (a
