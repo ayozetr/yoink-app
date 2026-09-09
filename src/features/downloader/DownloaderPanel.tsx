@@ -267,7 +267,8 @@ export function DownloaderPanel({
       } else {
         if (notifyOnComplete) void notify(t("notify.failed"), jobs[0].title);
       }
-      // Refresh history/stats once, when the whole queue is done — not per item.
+      // Final refresh when the whole queue is done (items also refresh as they
+      // finish, above) — covers the last item + any failures.
       onDownloadFinished?.();
       return;
     }
@@ -321,6 +322,9 @@ export function DownloaderPanel({
           }
           // Persist progress so a close/crash resumes from the next item.
           saveBatch(jobs, resultsRef.current.length);
+          // Refresh history/stats as each item finishes (not just at the end of
+          // the batch) so a playlist/queue fills the history live, one by one.
+          onDownloadFinished?.();
           runJob(index + 1);
         } else {
           failOrRetry(event.message, isTransientError(event.message));
