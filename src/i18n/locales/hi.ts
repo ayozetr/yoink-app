@@ -5,6 +5,11 @@ export const hi = {
     subtitleSitesLink: "कई साइटों से",
     settings: "सेटिंग्स",
   },
+  backend: {
+    unreachableTitle: "बैकएंड तक नहीं पहुँचा जा सका",
+    unreachable:
+      "Yoink अपने स्थानीय बैकएंड तक नहीं पहुँच पा रहा है। शायद यह अभी भी शुरू हो रहा है — पृष्ठभूमि में फिर से प्रयास किया जा रहा है।",
+  },
   notify: {
     completed: "डाउनलोड पूरा हुआ",
     failed: "डाउनलोड विफल रहा",

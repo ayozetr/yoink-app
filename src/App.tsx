@@ -4,12 +4,14 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
 import { BackendMismatchBanner } from "./components/ui/BackendMismatchBanner";
+import { BackendUnreachableBanner } from "./components/ui/BackendUnreachableBanner";
 import { UpdateBanner } from "./components/ui/UpdateBanner";
 import { UpdatingModal } from "./components/ui/UpdatingModal";
 import { useFocusTrap } from "./lib/useFocusTrap";
 import { checkForUpdate, installUpdate, type UpdateCheck } from "./lib/updater";
 import { notify } from "./lib/notify";
 import {
+  isTauri,
   onDeepLink,
   onGlobalOpenFolder,
   syncDesktopSettings,
@@ -100,6 +102,10 @@ export default function App() {
   // reports an older version than this frontend — warn so a stale yt-dlp / stale
   // fixes don't silently cause failures. Holds the backend's version, or null.
   const [staleBackend, setStaleBackend] = useState<string | null>(null);
+  // The backend still hasn't answered after we dropped the splash — show a
+  // "can't reach the backend, retrying" banner (we keep retrying in the loop
+  // below), so the app isn't just silently empty. Cleared once it connects.
+  const [backendDown, setBackendDown] = useState(false);
   const [staleDismissed, setStaleDismissed] = useState(false);
   // Show "what's new" once when the version changed since last run — but not on a
   // fresh install (nothing recorded yet). Computed at mount from localStorage.
@@ -145,13 +151,18 @@ export default function App() {
           setSettings(loaded);
           await refresh();
           setReady(true);
+          setBackendDown(false); // it answered (possibly after a late start)
           return;
         } catch {
           // After ~30s of refused connections, drop the splash so the UI is
           // usable anyway — but keep retrying (at a slower cadence) instead of
           // giving up. Otherwise a backend that comes up late leaves the app
-          // permanently settings-less and the Settings modal unopenable.
-          if (attempt === 60 && !cancelled) setReady(true);
+          // permanently settings-less and the Settings modal unopenable. Surface
+          // a banner at that point so the empty UI isn't an unexplained mystery.
+          if (attempt === 60 && !cancelled) {
+            setReady(true);
+            setBackendDown(true);
+          }
           const delay = attempt < 60 ? 500 : 2000;
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
@@ -471,6 +482,19 @@ export default function App() {
             );
           }}
           onDismiss={() => setStaleDismissed(true)}
+        />
+      )}
+
+      {backendDown && (
+        <BackendUnreachableBanner
+          onRestart={
+            isTauri()
+              ? () =>
+                  void import("@tauri-apps/plugin-process").then(({ relaunch }) =>
+                    relaunch(),
+                  )
+              : undefined
+          }
         />
       )}
 

@@ -5,6 +5,11 @@ export const ja = {
     subtitleSitesLink: "多数のサイト",
     settings: "設定",
   },
+  backend: {
+    unreachableTitle: "バックエンドに接続できません",
+    unreachable:
+      "Yoink はローカルのバックエンドに接続できません。まだ起動中の可能性があります。バックグラウンドで再試行しています。",
+  },
   notify: {
     completed: "ダウンロード完了",
     failed: "ダウンロード失敗",

@@ -5,6 +5,11 @@ export const pl = {
     subtitleSitesLink: "wielu serwisów",
     settings: "Ustawienia",
   },
+  backend: {
+    unreachableTitle: "Nie można połączyć się z backendem",
+    unreachable:
+      "Yoink nie może połączyć się ze swoim lokalnym backendem. Możliwe, że wciąż się uruchamia — ponawianie próby w tle.",
+  },
   notify: {
     completed: "Pobieranie zakończone",
     failed: "Pobieranie nieudane",

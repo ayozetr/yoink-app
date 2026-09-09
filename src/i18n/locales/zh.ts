@@ -5,6 +5,11 @@ export const zh = {
     subtitleSitesLink: "众多网站",
     settings: "设置",
   },
+  backend: {
+    unreachableTitle: "无法连接到后端",
+    unreachable:
+      "Yoink 无法连接到其本地后端。它可能仍在启动中 — 正在后台重试。",
+  },
   notify: {
     completed: "下载完成",
     failed: "下载失败",

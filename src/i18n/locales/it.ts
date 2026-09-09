@@ -5,6 +5,11 @@ export const it = {
     subtitleSitesLink: "molti siti",
     settings: "Impostazioni",
   },
+  backend: {
+    unreachableTitle: "Impossibile raggiungere il backend",
+    unreachable:
+      "Yoink non riesce a raggiungere il suo backend locale. Potrebbe essere ancora in fase di avvio — nuovo tentativo in background.",
+  },
   notify: {
     completed: "Download completato",
     failed: "Download non riuscito",

@@ -5,6 +5,11 @@ export const ko = {
     subtitleSitesLink: "여러 사이트",
     settings: "설정",
   },
+  backend: {
+    unreachableTitle: "백엔드에 연결할 수 없습니다",
+    unreachable:
+      "Yoink가 로컬 백엔드에 연결할 수 없습니다. 아직 시작 중일 수 있습니다 — 백그라운드에서 다시 시도하고 있습니다.",
+  },
   notify: {
     completed: "다운로드 완료",
     failed: "다운로드 실패",

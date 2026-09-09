@@ -5,6 +5,11 @@ export const pt = {
     subtitleSitesLink: "vários sites",
     settings: "Configurações",
   },
+  backend: {
+    unreachableTitle: "Não é possível acessar o backend",
+    unreachable:
+      "O Yoink não consegue acessar seu backend local. Ele pode ainda estar iniciando — tentando novamente em segundo plano.",
+  },
   notify: {
     completed: "Download concluído",
     failed: "Falha no download",

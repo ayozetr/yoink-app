@@ -5,6 +5,11 @@ export const id = {
     subtitleSitesLink: "banyak situs",
     settings: "Pengaturan",
   },
+  backend: {
+    unreachableTitle: "Tidak dapat menjangkau backend",
+    unreachable:
+      "Yoink tidak dapat menjangkau backend lokalnya. Mungkin masih memulai — mencoba lagi di latar belakang.",
+  },
   notify: {
     completed: "Unduhan selesai",
     failed: "Unduhan gagal",

@@ -5,6 +5,11 @@ export const es = {
     subtitleSitesLink: "múltiples webs",
     settings: "Ajustes",
   },
+  backend: {
+    unreachableTitle: "No se puede conectar con el backend",
+    unreachable:
+      "Yoink no puede conectar con su backend local. Puede que aún se esté iniciando: reintentando en segundo plano.",
+  },
   notify: {
     completed: "Descarga completada",
     failed: "Descarga fallida",
