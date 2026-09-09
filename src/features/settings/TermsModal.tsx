@@ -20,10 +20,15 @@ export function TermsModal({ onClose }: TermsModalProps) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        // Capture phase + stopPropagation so Escape dismisses only this sub-modal,
+        // not the Settings modal beneath it (App's window-level Escape handler).
+        event.stopPropagation();
+        onClose();
+      }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [onClose]);
 
   return (

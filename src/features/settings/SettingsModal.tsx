@@ -125,10 +125,12 @@ const TEMPLATE_SAMPLE: Record<string, string> = {
 };
 const AUTOTAG_SAMPLE_TITLE = "Big Poppa";
 
-/** Render a yt-dlp output template as an example filename (e.g. "Blinding Lights.mp3"). */
-function templateExample(tpl: string): string {
+/** Render a yt-dlp output template as an example filename (e.g. "Blinding Lights.mp3").
+ * The sample extension follows the chosen default kind/container so a video template
+ * doesn't misleadingly preview as ".mp3". */
+function templateExample(tpl: string, ext: string): string {
   // The auto-tag templates aren't yt-dlp fields — show their "Artist - Title" shape
-  // with the cleaned (tagged) title, not the raw YouTube one.
+  // with the cleaned (tagged) title, not the raw YouTube one. These are always audio.
   if (tpl === AUTOTAG_TEMPLATE) {
     return `${TEMPLATE_SAMPLE.uploader} - ${AUTOTAG_SAMPLE_TITLE}.mp3`;
   }
@@ -139,7 +141,7 @@ function templateExample(tpl: string): string {
     /%\(([a-z_]+)\)s/g,
     (_, key: string) => TEMPLATE_SAMPLE[key] ?? `%(${key})s`,
   );
-  return `${name}.mp3`;
+  return `${name}.${ext}`;
 }
 const INPUT_CLASS =
   "h-11 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500";
@@ -511,7 +513,12 @@ export function SettingsModal({
           <p className="-mt-1 flex items-center gap-1.5 truncate text-[11px] text-zinc-500">
             <CornerDownRight size={12} className="shrink-0" />
             <span className="truncate font-mono text-zinc-400">
-              {templateExample(form.filename_template)}
+              {templateExample(
+                form.filename_template,
+                form.default_kind === "audio"
+                  ? form.default_audio_format
+                  : form.default_container,
+              )}
             </span>
           </p>
 

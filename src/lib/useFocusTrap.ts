@@ -52,10 +52,14 @@ export function useFocusTrap<T extends HTMLElement>(active = true) {
       }
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      // Focus parked on the container itself (the `tabIndex={-1}` fallback, before
+      // any field is focused) is neither `first` nor `last`, so without this a
+      // Tab/Shift+Tab from there would escape the dialog. Redirect it back in.
+      const onContainer = document.activeElement === container;
+      if (event.shiftKey && (document.activeElement === first || onContainer)) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (document.activeElement === last || onContainer)) {
         event.preventDefault();
         first.focus();
       }

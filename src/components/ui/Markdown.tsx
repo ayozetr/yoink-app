@@ -11,6 +11,18 @@ import { type ReactNode } from "react";
 const INLINE =
   /(\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
 
+/** A link href is only kept if it's a safe scheme (http/https/mailto) or a plain
+ * relative path — never `javascript:`/`data:`, which React won't block at runtime
+ * and which the (network-fetched) release-note markdown must not be able to smuggle
+ * in. Returns undefined to drop the href and render the link text as plain text. */
+function safeHref(url: string): string | undefined {
+  const trimmed = url.trim();
+  if (/^(https?:|mailto:)/i.test(trimmed)) return trimmed;
+  // Relative/anchor links (no scheme) are safe; anything else with a scheme is not.
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  return undefined;
+}
+
 /** Render a run of inline markdown (bold / italic / code / links) into nodes. */
 function inline(text: string, keyBase: string): ReactNode[] {
   const nodes: ReactNode[] = [];
@@ -33,16 +45,22 @@ function inline(text: string, keyBase: string): ReactNode[] {
         </code>,
       );
     } else {
+      const href = safeHref(m[6]);
       nodes.push(
-        <a
-          key={key}
-          href={m[6]}
-          target="_blank"
-          rel="noreferrer"
-          className="text-violet-400 underline hover:text-violet-300"
-        >
-          {m[5]}
-        </a>,
+        href ? (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-violet-400 underline hover:text-violet-300"
+          >
+            {m[5]}
+          </a>
+        ) : (
+          // Unsafe scheme (javascript:/data:…) — render the link text as plain text.
+          <span key={key}>{m[5]}</span>
+        ),
       );
     }
     last = m.index + m[0].length;

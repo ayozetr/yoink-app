@@ -3,6 +3,7 @@ import { Loader2, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "./GlassPanel";
 import { Markdown } from "./Markdown";
+import { useFocusTrap } from "../../lib/useFocusTrap";
 import { fetchWhatsNew } from "../../lib/api";
 import type { ReleaseNotes } from "../../types/download";
 
@@ -20,6 +21,7 @@ export function WhatsNewModal({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const dialogRef = useFocusTrap<HTMLDivElement>();
   const [entries, setEntries] = useState<ReleaseNotes[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,10 +40,15 @@ export function WhatsNewModal({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        // Capture + stopPropagation so Escape closes only this popup, not the
+        // Settings modal beneath it when it's reopened from there.
+        e.stopPropagation();
+        onClose();
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
   return (
@@ -53,9 +60,16 @@ export function WhatsNewModal({
         className="w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <GlassPanel className="flex max-h-[85vh] flex-col overflow-hidden p-0 !bg-[#16181f]">
+        <GlassPanel
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="whatsnew-title"
+          tabIndex={-1}
+          className="flex max-h-[85vh] flex-col overflow-hidden p-0 !bg-[#16181f] outline-none"
+        >
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-            <span className="flex items-center gap-2 text-lg font-semibold">
+            <span id="whatsnew-title" className="flex items-center gap-2 text-lg font-semibold">
               <Sparkles size={18} className="text-violet-400" />
               {/* The " · version" only shows when we actually have notes — no
                   dangling separator when the notes couldn't load. */}
