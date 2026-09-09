@@ -115,14 +115,17 @@ def network_options(*, use_browser: bool = True) -> dict[str, Any]:
         options["cookiefile"] = str(settings.cookies_file)
     if settings.proxy:
         options["proxy"] = settings.proxy
-    # Optional YouTube PO token(s): passed straight through as the native
-    # `youtube:po_token` extractor arg (no plugin needed). An anonymous
-    # proof-of-origin that can satisfy the "confirm you're not a bot" wall
-    # without cookies. Off (nothing added) unless the user configured one.
-    if settings.po_token:
-        tokens = [t.strip() for t in settings.po_token.split(",") if t.strip()]
-        if tokens:
-            options["extractor_args"] = {"youtube": {"po_token": tokens}}
+    # YouTube PO token(s): an anonymous proof-of-origin that satisfies the
+    # "confirm you're not a bot" wall without cookies, passed as the native
+    # `youtube:po_token` extractor arg (no plugin needed). Sourced per
+    # `po_token_mode` — off / the manual pasted token(s) / auto (per-video, minted
+    # in the WebView; the per-video path is driven by the GetPOT provider, so here
+    # it only yields the manual fallback as there's no video id at this layer).
+    from app.services import po_token
+
+    tokens = po_token.resolve_tokens()
+    if tokens:
+        options["extractor_args"] = {"youtube": {"po_token": tokens}}
     return options
 
 

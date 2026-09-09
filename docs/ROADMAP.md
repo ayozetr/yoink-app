@@ -336,7 +336,18 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   A single story is fine via its own `stories/<user>/<id>/` URL — only the highlight/
   all-stories container was affected. *Live-testing with IG cookies still recommended to
   confirm yt-dlp's real flat-entry shape (no PII in logs).*
-- ⬜ **Zero-config PO token — mint in a hidden WebView** (L) — the opt-in
+- 🚧 **Zero-config PO token — mint in a hidden WebView** (L) — *Phase 1 shipped;*
+  *the WebView bridge is Phases 2–3.* Full design + status in
+  [`po-token-webview.md`](po-token-webview.md). **Phase 1 (done):** a
+  `po_token_mode` setting (`off` / `manual` / `auto`, default `manual`) end-to-end
+  (config → model → settings store → API → settings UI, 14 locales), a backend
+  `services/po_token.py` that sources the token per mode with a per-video minted-
+  token cache, and `network_options` routed through it (`off` now truly suppresses
+  the token; `manual` unchanged; `auto` falls back to the manual token until the
+  bridge lands — so the headless CLI still works). `_mint_via_webview()` is the
+  seam, returning `None` for now. **Phases 2–3 (open):** the hidden WebView +
+  Rust/IPC bridge running `bgutils-js`, and a yt-dlp GetPOT provider that requests
+  a token per `(context, video)`. Context below. — the opt-in
   `youtube:po_token` setting makes the user mint a token by hand, and (per the yt-dlp PO
   Token Guide) web GVS/Player tokens are now **bound to the video ID**, so a *new token
   per video* is needed — a single pasted token is of limited use. Auto-mint them instead,

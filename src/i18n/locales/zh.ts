@@ -256,7 +256,13 @@ export const zh = {
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
     poTokenHelp:
-      "YouTube 的匿名「证明你是真实客户端」令牌 — 无需 Cookie 即可通过反机器人检查。高级且可选：从 PO token 提供方粘贴一个或多个（逗号分隔），或留空。",
+      "YouTube 的匿名「证明你是真实客户端」令牌 — 无需 Cookie 即可通过反机器人检查。「手动」使用你粘贴的令牌；「自动」在本地为每个视频生成一个新令牌（无法生成时回退到你粘贴的令牌）；「关闭」从不发送。",
+    poTokenMode: "PO token (YouTube)",
+    poTokenModeOff: "关闭",
+    poTokenModeManual: "手动令牌",
+    poTokenModeAuto: "自动（每个视频生成）",
+    poTokenModeAutoHint:
+      "在应用中本地为每个视频生成一个新令牌 — 无需设置。不可用时（例如命令行）回退到你的手动令牌。",
     videoCodec: "视频编码",
     videoCodecAny: "最佳可用",
     audioBitrate: "音频比特率",

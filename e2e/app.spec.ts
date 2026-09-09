@@ -6,6 +6,7 @@ const SETTINGS = {
   default_quality: "1080p",
   cookies_from_browser: null,
   cookies_file: null,
+  po_token_mode: "manual",
   check_updates: false,
   notify_on_complete: true,
 };

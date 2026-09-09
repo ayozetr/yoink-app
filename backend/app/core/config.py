@@ -130,6 +130,15 @@ class Settings(BaseSettings):
     # an anonymous proof-of-origin that can pass the "confirm you're not a bot"
     # wall without cookies. Comma-separated; each is CLIENT.CONTEXT+TOKEN.
     po_token: str | None = Field(default=None)
+    # How PO tokens are sourced:
+    #   "off"    — never send one.
+    #   "manual" — send the token(s) pasted in `po_token` (the classic path).
+    #   "auto"   — mint a fresh token per video locally in the app's hidden
+    #              WebView (bgutils-js), falling back to `po_token` when minting
+    #              isn't available (e.g. the headless CLI has no WebView).
+    # Defaults to "manual" so behaviour matches the pre-existing opt-in field;
+    # "auto" stays gated behind real-world testing (see docs/po-token-webview.md).
+    po_token_mode: Literal["off", "manual", "auto"] = "manual"
 
     # User-editable defaults (persisted via the settings store / settings UI).
     default_kind: Literal["video", "audio"] = "video"

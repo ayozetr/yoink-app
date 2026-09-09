@@ -241,6 +241,7 @@ export interface VersionInfo {
 /** Catalogue used by the audio auto-tagger. */
 export type AutotagSource = "auto" | "apple" | "deezer" | "musicbrainz";
 export type SponsorblockAction = "remove" | "mark";
+export type PoTokenMode = "off" | "manual" | "auto";
 export type VideoCodec = "any" | "h264" | "vp9" | "av1";
 export type AudioBitrate = "best" | "320" | "256" | "192" | "128";
 
@@ -269,6 +270,9 @@ export interface AppSettings {
   proxy: string | null;
   /** Optional YouTube PO token(s) passed to yt-dlp (youtube:po_token); null = off. */
   po_token: string | null;
+  /** Where PO tokens come from: off / the pasted token(s) / auto (mint per video
+   * in the app's hidden WebView, falling back to the manual token). */
+  po_token_mode: PoTokenMode;
   autotag_source: AutotagSource;
   sponsorblock_enabled: boolean;
   sponsorblock_action: SponsorblockAction;

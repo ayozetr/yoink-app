@@ -256,7 +256,13 @@ export const ko = {
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
     poTokenHelp:
-      "YouTube용 익명 '실제 클라이언트임을 증명하는' 토큰 — 쿠키 없이 봇 검사를 통과할 수 있습니다. 고급·선택 사항: PO 토큰 공급자에서 하나 이상(쉼표로 구분) 붙여넣거나 비워 두세요.",
+      "YouTube용 익명 '실제 클라이언트임을 증명하는' 토큰 — 쿠키 없이 봇 검사를 통과할 수 있습니다. '수동'은 붙여넣은 토큰을 사용합니다. '자동'은 동영상마다 로컬로 새 토큰을 생성합니다(생성할 수 없으면 붙여넣은 토큰으로 대체). '끄기'는 절대 보내지 않습니다.",
+    poTokenMode: "PO token (YouTube)",
+    poTokenModeOff: "끄기",
+    poTokenModeManual: "수동 토큰",
+    poTokenModeAuto: "자동(동영상마다 생성)",
+    poTokenModeAutoHint:
+      "앱에서 동영상마다 로컬로 새 토큰을 생성합니다 — 설정이 필요 없습니다. 사용할 수 없을 때(예: 명령줄)에는 수동 토큰으로 대체합니다.",
     videoCodec: "영상 코덱",
     videoCodecAny: "사용 가능한 최고",
     audioBitrate: "오디오 비트레이트",

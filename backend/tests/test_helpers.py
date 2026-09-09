@@ -153,6 +153,10 @@ def test_network_options(monkeypatch):
         "extractor_args": {"youtube": {"po_token": ["web.gvs+AAA", "web.gvs+BBB"]}}
     }
 
+    # "off" mode suppresses the token even when one is pasted.
+    monkeypatch.setattr(settings, "po_token_mode", "off")
+    assert network_options() == {}
+
 
 def test_network_options_includes_impersonate(monkeypatch):
     from app.core import ytdlp_options

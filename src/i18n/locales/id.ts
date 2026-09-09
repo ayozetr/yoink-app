@@ -256,7 +256,13 @@ export const id = {
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
     poTokenHelp:
-      "Token anonim 'bukti kamu klien asli' untuk YouTube — bisa lolos cek bot tanpa cookie. Lanjutan & opsional: tempel satu atau beberapa (dipisah koma) dari penyedia PO token, atau biarkan kosong.",
+      "Token anonim 'bukti kamu klien asli' untuk YouTube — bisa lolos cek bot tanpa cookie. 'Manual' memakai token yang kamu tempel; 'Otomatis' membuat token baru per video secara lokal (dan beralih ke token tempelanmu saat tidak bisa); 'Mati' tidak pernah mengirimnya.",
+    poTokenMode: "PO token (YouTube)",
+    poTokenModeOff: "Mati",
+    poTokenModeManual: "Token manual",
+    poTokenModeAuto: "Otomatis (buat per video)",
+    poTokenModeAutoHint:
+      "Membuat token baru untuk setiap video secara lokal di aplikasi — tanpa penyiapan. Beralih ke token manualmu saat tidak tersedia (mis. baris perintah).",
     videoCodec: "Codec video",
     videoCodecAny: "Terbaik yang tersedia",
     audioBitrate: "Bitrate audio",

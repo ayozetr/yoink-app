@@ -53,6 +53,7 @@ import type {
   AudioFormat,
   AutotagSource,
   MediaKind,
+  PoTokenMode,
   SponsorblockAction,
   VersionInfo,
   VideoCodec,
@@ -831,16 +832,40 @@ export function SettingsModal({
             />
           </Field>
 
-          <Field label={t("settings.poToken")} hint={<PoTokenHelp />}>
-            <input
-              type="text"
-              aria-label={t("settings.poToken")}
-              value={form.po_token ?? ""}
-              placeholder={t("settings.poTokenPlaceholder")}
-              onChange={(e) => set("po_token", e.target.value || null)}
+          <Field label={t("settings.poTokenMode")} hint={<PoTokenHelp />}>
+            <Select
+              ariaLabel={t("settings.poTokenMode")}
+              value={form.po_token_mode}
+              onChange={(v) => set("po_token_mode", v as PoTokenMode)}
+              options={[
+                { value: "off", label: t("settings.poTokenModeOff") },
+                { value: "manual", label: t("settings.poTokenModeManual") },
+                { value: "auto", label: t("settings.poTokenModeAuto") },
+              ]}
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
+
+          {form.po_token_mode === "auto" && (
+            <p className="-mt-1 px-1 text-xs text-zinc-500">
+              {t("settings.poTokenModeAutoHint")}
+            </p>
+          )}
+
+          {/* The manual token is the source in "manual" mode and the fallback in
+              "auto" (the CLI / an unminted request still uses it); hidden in "off". */}
+          {form.po_token_mode !== "off" && (
+            <Field label={t("settings.poToken")}>
+              <input
+                type="text"
+                aria-label={t("settings.poToken")}
+                value={form.po_token ?? ""}
+                placeholder={t("settings.poTokenPlaceholder")}
+                onChange={(e) => set("po_token", e.target.value || null)}
+                className={`${INPUT_CLASS} w-full`}
+              />
+            </Field>
+          )}
                 </>
               )}
 

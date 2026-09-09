@@ -256,7 +256,13 @@ export const ja = {
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
     poTokenHelp:
-      "YouTube 用の匿名の「本物のクライアントである証明」トークン — Cookie なしでボット確認を通過できます。上級者向け・任意：PO token プロバイダーから 1 つ以上（カンマ区切り）を貼り付けるか、空のままにします。",
+      "YouTube 用の匿名の「本物のクライアントである証明」トークン — Cookie なしでボット確認を通過できます。「手動」は貼り付けたトークンを使用します。「自動」は動画ごとにローカルで新しいトークンを生成します（生成できない場合は貼り付けたトークンにフォールバック）。「オフ」は一切送信しません。",
+    poTokenMode: "PO token (YouTube)",
+    poTokenModeOff: "オフ",
+    poTokenModeManual: "手動トークン",
+    poTokenModeAuto: "自動（動画ごとに生成）",
+    poTokenModeAutoHint:
+      "アプリ内でローカルに動画ごとに新しいトークンを生成します — 設定は不要です。利用できない場合（コマンドラインなど）は手動トークンにフォールバックします。",
     videoCodec: "動画コーデック",
     videoCodecAny: "利用可能な最高",
     audioBitrate: "音声ビットレート",

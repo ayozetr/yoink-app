@@ -20,6 +20,7 @@ VideoContainer = Literal["mp4", "mov", "mkv"]
 AudioFormat = Literal["mp3", "m4a", "flac", "wav"]
 AutotagSource = Literal["auto", "apple", "deezer", "musicbrainz"]
 SponsorblockAction = Literal["remove", "mark"]
+PoTokenMode = Literal["off", "manual", "auto"]
 VideoCodec = Literal["any", "h264", "vp9", "av1"]
 AudioBitrate = Literal["best", "320", "256", "192", "128"]
 # Stereo + projection layout for immersive (VR) video.
@@ -414,6 +415,15 @@ class AppSettings(BaseModel):
             "(youtube:po_token extractor arg) — an anonymous proof-of-origin that "
             "can get past the 'confirm you're not a bot' wall without cookies. "
             "Comma-separated; each is CLIENT.CONTEXT+TOKEN. Empty = off."
+        ),
+    )
+    po_token_mode: PoTokenMode = Field(
+        default="manual",
+        description=(
+            "How PO tokens are sourced: 'off' (never send one), 'manual' (use the "
+            "pasted po_token), or 'auto' (mint a fresh token per video locally in "
+            "the app's hidden WebView, falling back to the manual token when "
+            "minting isn't available — e.g. the headless CLI)."
         ),
     )
     autotag_source: AutotagSource = Field(

@@ -134,6 +134,7 @@ def test_settings_get_and_put(temp_dirs):
         "normalize_audio": True,
         "normalize_lufs": -16,
         "music_folders": True,
+        "po_token_mode": "auto",
         "proxy": "socks5://127.0.0.1:1080",
         "check_updates": False,
         "minimize_to_tray": True,
@@ -158,6 +159,7 @@ def test_settings_get_and_put(temp_dirs):
     assert saved.json()["normalize_audio"] is True
     assert saved.json()["normalize_lufs"] == -16
     assert saved.json()["music_folders"] is True
+    assert saved.json()["po_token_mode"] == "auto"
     assert saved.json()["proxy"] == "socks5://127.0.0.1:1080"
     # Desktop toggles + the previously-unpersisted check_updates now round-trip.
     assert saved.json()["check_updates"] is False

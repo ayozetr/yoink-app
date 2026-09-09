@@ -256,7 +256,13 @@ export const es = {
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
     poTokenHelp:
-      "Un token anónimo de 'prueba de que eres un cliente real' para YouTube — puede pasar el anti-bot sin cookies. Avanzado y opcional: pega uno o varios (separados por comas) de un proveedor de PO tokens, o déjalo vacío.",
+      "Un token anónimo de 'prueba de que eres un cliente real' para YouTube — puede pasar el anti-bot sin cookies. 'Manual' usa el o los tokens que pegas; 'Auto' genera uno nuevo por vídeo localmente (y recurre al token que pegaste cuando no puede); 'Desactivado' no envía ninguno.",
+    poTokenMode: "PO token (YouTube)",
+    poTokenModeOff: "Desactivado",
+    poTokenModeManual: "Token manual",
+    poTokenModeAuto: "Auto (generar por vídeo)",
+    poTokenModeAutoHint:
+      "Genera un token nuevo para cada vídeo localmente en la app — sin configuración. Recurre a tu token manual cuando no está disponible (p. ej., la línea de comandos).",
     videoCodec: "Códec de vídeo",
     videoCodecAny: "Mejor disponible",
     audioBitrate: "Bitrate de audio",
