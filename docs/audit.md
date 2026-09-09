@@ -15,6 +15,39 @@ proxy (M3-1), and `safe_http` port scope (L2-7) — all feed yt-dlp/`fetch_publi
 which reach private or arbitrary hosts. Tightening them together would close the
 whole class.
 
+## Resolution status (2026-09-09)
+
+Most findings are **fixed** (commits `4b7c7b1`, `30f42f5`, `d04f333`,
+`65f5dc4`, `052075e`, `4c8c5c1`), with tests where they applied and the full
+backend/frontend suites green. The rest were **deliberately not changed** — each
+for a stated reason, not an oversight:
+
+- **M1-2** (free the lock before reaping on cancel) & **L1-6** (surface the
+  browserless error) — reverted: both are *existing deliberate designs with
+  dedicated tests* (`test_download_cancel`, `test_cookie_fallback`). M1-2's
+  window is further shrunk by the cancel-aware post-steps that *were* added.
+- **L2-4** (filename_template escape) & **L2-5** (autotag path) — already
+  mitigated at the point of use (download_service confines the outtmpl under the
+  download dir; the autotag router validates via `resolve()`+`parents`).
+- **M4-1** (memoize the queue row) — a broad component-extraction + useEventCallback
+  refactor of the core queue; deferred as a perf-only change with real regression
+  risk that wants interactive testing. The other queue findings are fixed.
+- **L4-9** / **L6-6** (backend-unreachable feedback) — the infinite settings
+  retry is intentional (a late backend still connects); a proper fix is a
+  frontend "still connecting / unreachable" state — a small feature, tracked for
+  later rather than bolted on.
+- **L6-3** (CSP `img-src https:`) — the `Thumbnail` component loads the CDN URL
+  *directly first* (a deliberate perf fast path) and only proxies on failure, so
+  tightening `img-src` means either forcing every thumbnail through the proxy (a
+  perf regression) or a fragile per-CDN allowlist. Kept as a conscious tradeoff;
+  the injection risk is low (image URLs come from trusted resolvers).
+- **L6-4** (%dir ownership) — the symlink half is fixed; owning directories needs
+  rpm-distro testing to separate app dirs from shared system ones.
+- **L6-7** (rpm autoreq) & **L6-8** (process-group kill) — a verification task and
+  a cross-platform spawn change, both wanting a real packaged build to validate.
+
+Line numbers below are pre-fix.
+
 ## Medium-severity summary (triage first)
 
 | # | Area | File | Issue |
