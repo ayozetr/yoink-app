@@ -10,6 +10,7 @@ from app.core.ytdlp_options import network_options, normalize_url
 from app.models.media import DownloadRequest
 from app.services.download_service import (
     _build_options,
+    _downloaded_node,
     _final_path,
     _format_eta,
     _format_speed,
@@ -423,6 +424,47 @@ def test_final_path_playlist_wrapper():
 def test_final_path_none_when_no_download():
     assert _final_path({"_type": "playlist", "entries": [{"id": "x"}]}) is None
     assert _final_path({}) is None
+
+
+def test_build_options_injects_per_video_po_token(temp_dirs, monkeypatch):
+    # Auto mode: the download path overrides the generic token with a per-video
+    # one from resolve_tokens_for_url (which mints via the WebView bridge).
+    from app.services import po_token
+
+    monkeypatch.setattr(po_token, "resolve_tokens_for_url", lambda url: ["web.gvs+MINTED"])
+    options = _build_options(
+        DownloadRequest(url="https://youtu.be/abcdefghijk"),
+        hook=lambda raw: None,
+    )
+    assert options["extractor_args"]["youtube"]["po_token"] == ["web.gvs+MINTED"]
+
+
+def test_build_options_no_po_token_when_none_resolved(temp_dirs, monkeypatch):
+    from app.services import po_token
+    from app.core.config import settings as cfg
+
+    monkeypatch.setattr(po_token, "resolve_tokens_for_url", lambda url: [])
+    monkeypatch.setattr(cfg, "po_token_mode", "off")
+    monkeypatch.setattr(cfg, "po_token", None)
+    options = _build_options(
+        DownloadRequest(url="https://youtu.be/abcdefghijk"),
+        hook=lambda raw: None,
+    )
+    assert "youtube" not in options.get("extractor_args", {})
+
+
+def test_downloaded_node_single_vs_playlist_wrapper():
+    # Single video: the node is the top level.
+    top = {"requested_downloads": [{"filepath": "/dl/v.mp4"}]}
+    assert _downloaded_node(top) is top
+    # Playlist wrapper (Instagram story/highlight): the node is the entry that was
+    # actually downloaded, so the .nfo/VR read the clip's metadata, not the
+    # container's.
+    entry = {"title": "Clip", "requested_downloads": [{"filepath": "/dl/c.mp4"}]}
+    wrapper = {"_type": "playlist", "title": "Story", "entries": [{"id": "x"}, entry]}
+    assert _downloaded_node(wrapper) is entry
+    # Nothing downloaded → fall back to the top level.
+    assert _downloaded_node({"entries": []}) == {"entries": []}
 
 
 def test_build_options_noplaylist_by_default(temp_dirs):

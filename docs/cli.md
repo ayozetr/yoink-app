@@ -172,6 +172,12 @@ yoink config set cookies_from_browser none   # clear it (none/null/empty → uns
 An unknown key or an invalid value fails with exit code `2` and changes nothing. Add
 `--json` for machine-readable output (`yoink config --json`, `… get KEY --json`).
 
+> **Note — YouTube PO token.** `po_token_mode = auto` mints a per-video token in
+> the desktop app's WebView, so it's a **GUI-only** feature. The headless CLI has
+> no WebView, so under `auto` it falls back to the manually pasted `po_token` (or
+> none). Set one with `yoink config set po_token '<CLIENT.CONTEXT+TOKEN>'` if a
+> YouTube download hits the bot-check on the command line.
+
 ## Batch input
 
 Give several URLs directly, read them from a file, or pipe them in. The file (or

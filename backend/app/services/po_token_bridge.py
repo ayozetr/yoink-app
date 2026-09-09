@@ -113,11 +113,12 @@ class _Broker:
             return True
 
     def _reset(self) -> None:
-        """Drop all jobs — for tests."""
+        """Drop all jobs + poller state — for tests."""
         with self._lock:
             for job in self._jobs.values():
                 job.done.set()
             self._jobs.clear()
+            self._last_poll = 0.0
 
 
 # Process-wide singleton.

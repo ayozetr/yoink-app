@@ -28,6 +28,14 @@ def test_next_job_returns_none_when_empty():
     assert broker.next_job(wait=0.1) is None
 
 
+def test_has_active_poller_tracks_polling():
+    # No WebView has polled yet → minting should be skipped.
+    assert broker.has_active_poller() is False
+    # A long-poll (even one that finds nothing) marks the WebView present.
+    broker.next_job(wait=0.05)
+    assert broker.has_active_poller() is True
+
+
 def test_full_round_trip():
     result: dict[str, str | None] = {}
 
