@@ -374,6 +374,20 @@ def _build_options(
         **(network_options() if net is None else net),
     }
 
+    # Per-video PO token: in "auto" mode a YouTube download mints a token bound to
+    # *this* video (via the WebView bridge) and overrides the generic one
+    # network_options() set. No-op for non-YouTube URLs and for manual/off mode.
+    # Runs on the download worker thread; the mint is cached per video, so the
+    # cookie fallback's second _build_options call is instant.
+    from app.services import po_token
+
+    yt_tokens = po_token.resolve_tokens_for_url(str(request.url))
+    if yt_tokens:
+        options.setdefault("extractor_args", {})["youtube"] = {
+            **options.get("extractor_args", {}).get("youtube", {}),
+            "po_token": yt_tokens,
+        }
+
     # Pin the single non-addressable item within its container (1-based).
     if request.playlist_index is not None:
         options["playlist_items"] = str(request.playlist_index)

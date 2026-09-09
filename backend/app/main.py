@@ -21,6 +21,7 @@ from app.routers import (
     info,
     media,
     music,
+    po_token,
     settings as settings_router,
 )
 from app.services import history_store, settings_store
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_router.router, prefix=settings.api_prefix)
     app.include_router(autotag.router, prefix=settings.api_prefix)
     app.include_router(music.router, prefix=settings.api_prefix)
+    app.include_router(po_token.router, prefix=settings.api_prefix)
 
     @app.get("/health", tags=["health"], summary="Liveness probe")
     def health() -> dict[str, str]:

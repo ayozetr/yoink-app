@@ -25,6 +25,7 @@ manual token / cookies rather than failing a download.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 
@@ -36,6 +37,11 @@ logger = logging.getLogger(__name__)
 # extractor calls for the same video don't each trigger a WebView round-trip.
 # Kept well under the token's real lifetime (hours) so a cached one stays valid.
 _TOKEN_TTL_SECONDS = 6 * 3600
+
+# How long to wait for the WebView to mint a token before giving up (a cold mint
+# runs the BotGuard attestation; a warm one, with the integrity token cached in
+# the WebView, is ~1 s).
+_MINT_TIMEOUT_SECONDS = 20.0
 
 # video_id -> (token, expiry on the monotonic clock). Guarded by ``_lock`` — the
 # metadata and download services can both resolve tokens off different threads.
@@ -75,15 +81,19 @@ def clear_cache() -> None:
 
 
 def _mint_via_webview(video_id: str) -> str | None:
-    """Mint a fresh per-video PO token in the app's hidden WebView.
+    """Mint a fresh per-video PO token in the app's WebView, via the bridge.
 
-    Not yet wired: the bridge (backend → a Tauri command → the hidden WebView
-    running bgutils-js → the minted token) is a later phase — see
-    ``docs/po-token-webview.md``. It returns ``None`` until then, so "auto" mode
-    degrades to the manual token / cookies instead of failing a download. The
-    headless CLI has no WebView and always returns ``None`` here.
+    Submits a mint job the WebView's background loop fulfills (running bgutils-js
+    with its network proxied through the backend) and blocks until it answers or
+    times out. Skipped — returns ``None`` immediately — when no WebView has polled
+    recently (the headless CLI, or before the minter started), so "auto" mode
+    degrades to the manual token / cookies without a needless wait.
     """
-    return None
+    from app.services import po_token_bridge
+
+    if not po_token_bridge.broker.has_active_poller():
+        return None
+    return po_token_bridge.broker.submit_mint(video_id, timeout=_MINT_TIMEOUT_SECONDS)
 
 
 def mint(video_id: str) -> str | None:
@@ -97,6 +107,23 @@ def mint(video_id: str) -> str | None:
     if token:
         _cache_set(video_id, token)
     return token
+
+
+# A YouTube video id inside a watch/shorts/embed/youtu.be URL.
+_YT_ID_RE = re.compile(r"(?:v=|/shorts/|/embed/|/live/|youtu\.be/)([\w-]{11})")
+
+
+def youtube_video_id(url: str) -> str | None:
+    """Extract the 11-char YouTube video id from a URL, or None if it isn't one."""
+    match = _YT_ID_RE.search(url)
+    return match.group(1) if match else None
+
+
+def resolve_tokens_for_url(url: str) -> list[str]:
+    """PO token(s) for a specific URL. For a YouTube video in auto mode this mints
+    a fresh per-video token (via the WebView bridge); otherwise it's the same as
+    :func:`resolve_tokens` (manual / off), and non-YouTube URLs never mint."""
+    return resolve_tokens(youtube_video_id(url))
 
 
 def resolve_tokens(video_id: str | None = None) -> list[str]:

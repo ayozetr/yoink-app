@@ -90,6 +90,41 @@ def test_mint_returns_none_without_video_id(monkeypatch):
     assert po_token.mint("") is None
 
 
-def test_mint_via_webview_stub_returns_none():
-    # Until the bridge lands, the seam yields nothing (headless / unwired).
+import pytest as _pytest
+
+
+@_pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://www.youtube.com/shorts/abcdefghijk", "abcdefghijk"),
+        ("https://www.youtube.com/embed/abcdefghijk", "abcdefghijk"),
+        ("https://soundcloud.com/artist/track", None),
+        ("https://vimeo.com/12345", None),
+    ],
+)
+def test_youtube_video_id(url, expected):
+    assert po_token.youtube_video_id(url) == expected
+
+
+def test_resolve_tokens_for_url_mints_only_for_youtube(monkeypatch):
+    monkeypatch.setattr(settings, "po_token_mode", "auto")
+    monkeypatch.setattr(settings, "po_token", None)
+    monkeypatch.setattr(po_token, "_mint_via_webview", lambda vid: f"T-{vid}")
+    # A YouTube video → minted, bound to its id.
+    assert po_token.resolve_tokens_for_url(
+        "https://youtu.be/dQw4w9WgXcQ"
+    ) == ["web.gvs+T-dQw4w9WgXcQ"]
+    # A non-YouTube URL has no video id → nothing minted.
+    assert po_token.resolve_tokens_for_url("https://soundcloud.com/x/y") == []
+
+
+def test_mint_via_webview_skips_without_a_poller(monkeypatch):
+    # No WebView has polled → don't submit a job / block; return None immediately.
+    from app.services import po_token_bridge
+
+    monkeypatch.setattr(
+        po_token_bridge.broker, "has_active_poller", lambda: False
+    )
     assert po_token._mint_via_webview("vid123") is None
