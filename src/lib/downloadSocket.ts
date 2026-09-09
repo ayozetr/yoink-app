@@ -87,6 +87,11 @@ export function startDownload(
 
   socket.onerror = () => {
     if (closed) return;
+    // Mark closed and clear the open-timeout timer: without this the timer can
+    // still fire after an error and only stays harmless thanks to downstream
+    // guards — clear it here so an error can't leave a pending timer behind.
+    closed = true;
+    clearTimeout(openTimer);
     emit({
       type: "error",
       message: i18n.t("errors.downloadConnectionLost"),

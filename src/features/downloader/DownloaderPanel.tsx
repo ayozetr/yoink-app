@@ -186,6 +186,15 @@ export function DownloaderPanel({
   const lastJobsRef = useRef<DownloadJob[]>([]);
   const audioPathsRef = useRef<TagItem[]>([]);
   const retryTimerRef = useRef<number | null>(null);
+  // Keep the latest translator + notify setting for the recursive runJob chain,
+  // which runs off callbacks created when the batch started and would otherwise
+  // notify in the old language / honour a stale toggle after a mid-run change.
+  const tRef = useRef(t);
+  const notifyRef = useRef(notifyOnComplete);
+  useEffect(() => {
+    tRef.current = t;
+    notifyRef.current = notifyOnComplete;
+  });
 
   // Tear down the socket + free the lock if the panel unmounts mid-download.
   // Note: this does NOT clear the persisted batch — that's the point, so an
@@ -211,8 +220,16 @@ export function DownloaderPanel({
     releaseDownloadLock("downloader");
     // Analyzing a new URL mid-download cancels the active job; keep the persisted
     // batch so the in-progress run stays resumable instead of being silently lost.
-    if (!opts?.keepBatch) clearBatch();
-    setResumeJobs(null);
+    if (!opts?.keepBatch) {
+      clearBatch();
+      setResumeJobs(null);
+    } else {
+      // Re-offer the kept batch through the resume banner now — resumeJobs is
+      // otherwise only seeded at mount, so an interrupted batch would be
+      // unrecoverable until the next launch even though it's still on disk.
+      const pending = loadPendingBatch();
+      setResumeJobs(pending.length > 0 ? pending : null);
+    }
     setRetryJobs([]);
     queueRef.current = [];
     resultsRef.current = [];
@@ -257,15 +274,17 @@ export function DownloaderPanel({
         if (audioPathsRef.current.length > 0) {
           setBatchItems([...audioPathsRef.current]);
         }
-        if (notifyOnComplete)
+        if (notifyRef.current)
           void notify(
-            t("notify.queueDone"),
-            t("notify.queueSummary", { completed: ok, failed }),
+            tRef.current("notify.queueDone"),
+            tRef.current("notify.queueSummary", { completed: ok, failed }),
           );
       } else if (failed === 0) {
-        if (notifyOnComplete) void notify(t("notify.completed"), jobs[0].title);
+        if (notifyRef.current)
+          void notify(tRef.current("notify.completed"), jobs[0].title);
       } else {
-        if (notifyOnComplete) void notify(t("notify.failed"), jobs[0].title);
+        if (notifyRef.current)
+          void notify(tRef.current("notify.failed"), jobs[0].title);
       }
       // Final refresh when the whole queue is done (items also refresh as they
       // finish, above) — covers the last item + any failures.

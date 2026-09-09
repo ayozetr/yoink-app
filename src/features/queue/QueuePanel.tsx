@@ -204,6 +204,9 @@ export function QueuePanel({
   // Full live progress event (percent + speed + ETA + status) for the active
   // item, so its row shows the same readout as a normal download.
   const [progress, setProgress] = useState<DownloadProgressEvent | null>(null);
+  // Id of the item being drag-reordered (null when not dragging). Declared here
+  // so the persistence effect below can skip saving on every intermediate move.
+  const [dragId, setDragId] = useState<string | null>(null);
   // Shared download lock: the main panel / music import holding it blocks Start
   // so the queue can't run a second concurrent download into the same folder.
   const lockOwner = useDownloadLock();
@@ -244,11 +247,19 @@ export function QueuePanel({
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [input, open]);
 
-  // Mirror state into refs + persist on every change.
+  // Mirror state into the ref on every change (needed synchronously elsewhere).
   useEffect(() => {
     itemsRef.current = items;
-    saveQueue(items);
   }, [items]);
+
+  // Persist — but not on every intermediate reorder during a drag, which would
+  // stringify + write the whole queue to localStorage on each `dragenter`. Skip
+  // while dragging; dragId → null on drop/dragend re-runs this and saves the
+  // final order once.
+  useEffect(() => {
+    if (dragId !== null) return;
+    saveQueue(items);
+  }, [items, dragId]);
 
   // Report unfinished items so the header can badge the queue button.
   useEffect(() => {
@@ -419,6 +430,10 @@ export function QueuePanel({
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const runIdRef = useRef(0);
   const rejectRef = useRef<((reason: unknown) => void) | null>(null);
+  // Set by Skip while a music track is still *matching* (before a download exists
+  // to cancel), so the skip isn't silently lost during that phase. Cleared at the
+  // start of each work item and checked right after the match.
+  const skipRequestedRef = useRef(false);
 
   // Wrap one yt-dlp download in a promise. cancel() suppresses the socket
   // callbacks, so skip/stop reject through rejectRef instead of leaving the
@@ -466,15 +481,23 @@ export function QueuePanel({
   };
 
   // Music: match on YouTube → download audio → tag with the source metadata.
-  const downloadMusic = async (track: MusicTrack, runId: number) => {
+  const downloadMusic = async (work: Work, track: MusicTrack, runId: number) => {
     const url = await matchMusic(track);
     if (!runningRef.current || runIdRef.current !== runId) throw new StopSignal();
+    // A Skip clicked while matching (no download to cancel yet) is honoured here.
+    if (skipRequestedRef.current) throw new SkipSignal();
     if (!url) throw new SkipSignal(); // nothing cleared the match threshold
     const res = await downloadOne({
       url,
       kind: "audio",
       audio_format: optsRef.current.audioFormat,
     });
+    // The file is on disk — mark it done *before* the best-effort tagging, so a
+    // Stop landing during tagging can't reset a completed track (resetActive only
+    // touches "active" rows) and re-download it on the next run.
+    if (work.child)
+      updateChild(work.item.id, work.child.id, { status: "done" });
+    else update(work.item.id, { status: "done" });
     await applyAudioTags({
       path: res.filepath,
       title: track.title,
@@ -490,7 +513,7 @@ export function QueuePanel({
     // A single music track (plain item) or a music child both download + tag.
     const track = work.child ? work.child.track : work.item.track;
     if (track) {
-      await downloadMusic(track, runId);
+      await downloadMusic(work, track, runId);
       return;
     }
     // Otherwise a plain video/audio download at the queue's chosen format.
@@ -509,6 +532,7 @@ export function QueuePanel({
     while (runningRef.current && runIdRef.current === runId) {
       const work = findNextWork();
       if (!work) break;
+      skipRequestedRef.current = false; // fresh for this item's match/download
       setProgress(null);
       if (work.child) {
         setActiveChildId(work.child.id);
@@ -554,20 +578,26 @@ export function QueuePanel({
     setProgress(null);
     setActiveChildId(null);
     onDownloadFinished?.();
-    // A "launch it and walk away" queue shouldn't finish in silence.
-    let done = 0;
-    let failed = 0;
-    for (const i of itemsRef.current) {
-      for (const r of i.children ?? [i]) {
-        if (r.status === "done") done += 1;
-        else if (r.status === "error") failed += 1;
+    // A "launch it and walk away" queue shouldn't finish in silence. Tally the
+    // final state through setItems (returning it unchanged) rather than itemsRef,
+    // which lags a commit behind the last item's terminal update — so the count
+    // includes the final item instead of undercounting by one.
+    setItems((prev) => {
+      let done = 0;
+      let failed = 0;
+      for (const i of prev) {
+        for (const r of i.children ?? [i]) {
+          if (r.status === "done") done += 1;
+          else if (r.status === "error") failed += 1;
+        }
       }
-    }
-    if (notifyRef.current)
-      void notify(
-        tRef.current("notify.queueDone"),
-        tRef.current("notify.queueSummary", { completed: done, failed }),
-      );
+      if (notifyRef.current)
+        void notify(
+          tRef.current("notify.queueDone"),
+          tRef.current("notify.queueSummary", { completed: done, failed }),
+        );
+      return prev;
+    });
   };
 
   const start = () => {
@@ -599,6 +629,9 @@ export function QueuePanel({
   // Skip just the current download and move on — the run keeps going (unlike
   // Stop). Rejecting the in-flight promise unblocks the drain loop's await.
   const skipCurrent = () => {
+    // Flag it too: during the music "match" phase there's no download to cancel
+    // and no rejectRef yet, so downloadMusic checks this flag after the match.
+    skipRequestedRef.current = true;
     handleRef.current?.cancel();
     handleRef.current = null;
     rejectRef.current?.(new SkipSignal());
@@ -607,7 +640,7 @@ export function QueuePanel({
   };
 
   // Drag-reorder pending items so the user can change the download order.
-  const [dragId, setDragId] = useState<string | null>(null);
+  // (dragId state is declared up top so the persistence effect can see it.)
   const reorder = (fromId: string, toId: string) => {
     if (fromId === toId) return;
     setItems((prev) => {

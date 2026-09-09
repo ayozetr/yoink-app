@@ -27,22 +27,27 @@ const LISTBOX_ID = "yoink-url-listbox";
 const optionId = (i: number) => `yoink-url-option-${i}`;
 
 // Small LRU cache of query -> results so re-typing or re-visiting a query
-// doesn't relaunch yt-dlp (~1s each).
-const cache = new Map<string, PlaylistEntry[]>();
+// doesn't relaunch yt-dlp (~1s each). Entries carry a TTL so a query whose
+// results have since changed isn't served stale for the whole session.
+const cache = new Map<string, { results: PlaylistEntry[]; expires: number }>();
 const CACHE_MAX = 25;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
 function cacheGet(q: string): PlaylistEntry[] | undefined {
   const hit = cache.get(q);
-  if (hit) {
-    cache.delete(q);
-    cache.set(q, hit); // bump to most-recently-used
+  if (!hit) return undefined;
+  if (hit.expires <= Date.now()) {
+    cache.delete(q); // expired — force a fresh search
+    return undefined;
   }
-  return hit;
+  cache.delete(q);
+  cache.set(q, hit); // bump to most-recently-used
+  return hit.results;
 }
 
 function cacheSet(q: string, r: PlaylistEntry[]): void {
   cache.delete(q);
-  cache.set(q, r);
+  cache.set(q, { results: r, expires: Date.now() + CACHE_TTL_MS });
   if (cache.size > CACHE_MAX) {
     const oldest = cache.keys().next().value;
     if (oldest !== undefined) cache.delete(oldest);
@@ -111,7 +116,7 @@ export const UrlInput = memo(function UrlInput({
   if (searchSource !== prevSource) {
     setPrevSource(searchSource);
     if (isSearch) {
-      const cached = cache.get(ckey(query));
+      const cached = cacheGet(ckey(query));
       setResults(cached ?? []);
       setSearching(!cached);
       setError(false);
@@ -129,7 +134,8 @@ export const UrlInput = memo(function UrlInput({
   // cached query is already shown by handleChange, so the effect skips the fetch.
   useEffect(() => {
     const key = ckey(query);
-    if (!isSearch || cache.has(key)) return;
+    // cacheGet (not cache.has) so an *expired* entry doesn't suppress the refetch.
+    if (!isSearch || cacheGet(key) !== undefined) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       void searchYoutube(query, searchSource, controller.signal)
