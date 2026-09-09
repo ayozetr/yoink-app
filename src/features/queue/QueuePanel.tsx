@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -25,6 +25,7 @@ import {
   useDownloadLock,
 } from "../../lib/downloadLock";
 import { notify } from "../../lib/notify";
+import { useEventCallback } from "../../lib/useEventCallback";
 import {
   applyAudioTags,
   fetchInfo,
@@ -157,6 +158,172 @@ function mediaMatching(item: QueueItem, match: (s: QueueStatus) => boolean): num
 }
 const isTerminalStatus = (s: QueueStatus): boolean =>
   s === "done" || s === "skipped" || s === "error";
+
+interface QueueRowProps {
+  item: QueueItem;
+  /** Derived display status (`displayStatus(item)`), computed by the parent. */
+  status: QueueStatus;
+  isDragging: boolean;
+  /** Live progress — only meaningful while this row is the active download; the
+   * parent passes a constant 0 / "" / null to inactive rows so this memoized row
+   * skips re-rendering on the several-times-a-second progress tick. */
+  percent: number;
+  progressDetail: string;
+  activeChildId: string | null;
+  onDragStart: (id: string, e: DragEvent) => void;
+  onDragEnter: (id: string) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
+  onToggleExpanded: (id: string) => void;
+  onRemove: (id: string) => void;
+  onSetAllChildren: (id: string, selected: boolean) => void;
+  onToggleChild: (itemId: string, childId: string) => void;
+}
+
+/** One queue row (+ its expandable children). Memoized so a progress tick — which
+ * re-renders the panel to advance the active row — doesn't reconcile every other
+ * row: inactive rows get stable props (same item ref, 0 percent, false dragging,
+ * stable handlers), so React.memo bails out. */
+const QueueRow = memo(function QueueRow({
+  item,
+  status,
+  isDragging,
+  percent,
+  progressDetail,
+  activeChildId,
+  onDragStart,
+  onDragEnter,
+  onDrop,
+  onDragEnd,
+  onToggleExpanded,
+  onRemove,
+  onSetAllChildren,
+  onToggleChild,
+}: QueueRowProps) {
+  const { t } = useTranslation();
+  const total = item.children?.length ?? 0;
+  const selectedCount = item.children?.filter((c) => c.selected).length ?? 0;
+  return (
+    <li
+      draggable
+      onDragStart={(e) => onDragStart(item.id, e)}
+      onDragEnter={() => onDragEnter(item.id)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop();
+      }}
+      onDragEnd={onDragEnd}
+      className={isDragging ? "opacity-50" : ""}
+    >
+      <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-surface/60 p-2.5">
+        <GripVertical size={15} className="shrink-0 cursor-grab text-zinc-600" />
+        {item.children && (
+          <button
+            type="button"
+            onClick={() => onToggleExpanded(item.id)}
+            aria-label={t("queue.expand")}
+            className="shrink-0 text-zinc-400 transition hover:text-white"
+          >
+            <ChevronRight
+              size={15}
+              className={`transition-transform ${item.expanded ? "rotate-90" : ""}`}
+            />
+          </button>
+        )}
+        <span className="shrink-0">{statusIcon(status)}</span>
+        <div className="min-w-0 flex-1">
+          <span className="flex items-center justify-between gap-2">
+            <span className="block truncate text-sm">
+              {item.status === "resolving"
+                ? t("queue.resolving")
+                : (item.title ?? item.url)}
+            </span>
+            {status === "active" && (
+              <span className="shrink-0 text-xs font-medium text-violet-400">
+                {Math.round(percent)}%
+              </span>
+            )}
+          </span>
+          {item.sourceLabel && item.status !== "resolving" && (
+            <span className="mt-0.5 block truncate text-xs text-zinc-500">
+              {item.children
+                ? `${item.sourceLabel} · ${t("queue.selectedOfTracks", {
+                    selected: selectedCount,
+                    total,
+                  })}`
+                : item.sourceLabel}
+            </span>
+          )}
+          {status === "active" && (
+            <>
+              <ProgressBar percent={percent} className="mt-1 h-1" />
+              {progressDetail && (
+                <span className="mt-1 block truncate text-xs text-zinc-400">
+                  {progressDetail}
+                </span>
+              )}
+            </>
+          )}
+          {status === "error" && item.error && (
+            <span className="block truncate text-xs text-red-300">
+              {item.error}
+            </span>
+          )}
+        </div>
+        {status !== "active" && (
+          <button
+            type="button"
+            onClick={() => onRemove(item.id)}
+            aria-label={t("queue.remove")}
+            className="shrink-0 text-zinc-500 transition hover:text-white"
+          >
+            <X size={15} />
+          </button>
+        )}
+      </div>
+
+      {item.children && item.expanded && (
+        <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-white/10 py-1 pl-3">
+          <li className="flex justify-end pr-1">
+            <button
+              type="button"
+              onClick={() => onSetAllChildren(item.id, selectedCount < total)}
+              className="text-[11px] text-zinc-400 transition hover:text-white"
+            >
+              {selectedCount < total
+                ? t("playlist.selectAll")
+                : t("playlist.deselectAll")}
+            </button>
+          </li>
+          {item.children.map((child) => (
+            <li key={child.id} className="flex items-start gap-2 pr-1">
+              <input
+                type="checkbox"
+                checked={child.selected}
+                onChange={() => onToggleChild(item.id, child.id)}
+                className="mt-0.5 size-3.5 shrink-0 accent-violet-500"
+              />
+              <span className="mt-px shrink-0">{statusIcon(child.status)}</span>
+              <span
+                className={`min-w-0 flex-1 break-words text-xs leading-snug ${
+                  child.selected ? "text-zinc-300" : "text-zinc-600"
+                }`}
+              >
+                {child.title}
+              </span>
+              {child.id === activeChildId && (
+                <span className="mt-px shrink-0 text-[11px] font-medium text-violet-400">
+                  {Math.round(percent)}%
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+});
 
 interface QueuePanelProps {
   /** Whether the panel is visible (the queue keeps running while hidden). */
@@ -658,6 +825,30 @@ export function QueuePanel({
     setItems((prev) => prev.filter((i) => i.id !== id));
   const clearDone = () => setItems((prev) => prev.filter((i) => !itemDone(i)));
 
+  // Stable handler identities for the memoized QueueRow, so a progress tick
+  // doesn't reconcile every row. useEventCallback keeps them fixed while always
+  // seeing the latest state (e.g. dragId inside onRowDragEnter).
+  const onRowDragStart = useEventCallback((id: string, e: DragEvent) => {
+    setDragId(id);
+    // Drag only the row as the ghost — dragging an expanded group would otherwise
+    // carry its whole child list, which looks messy.
+    const row = e.currentTarget.firstElementChild;
+    if (row) e.dataTransfer.setDragImage(row, 16, 16);
+  });
+  const onRowDragEnter = useEventCallback((id: string) => {
+    if (dragId && dragId !== id) reorder(dragId, id);
+  });
+  const onRowDrop = useEventCallback(() => setDragId(null));
+  const onRowDragEnd = useEventCallback(() => setDragId(null));
+  const onRowToggleExpanded = useEventCallback((id: string) => toggleExpanded(id));
+  const onRowRemove = useEventCallback((id: string) => removeItem(id));
+  const onRowSetAllChildren = useEventCallback((id: string, selected: boolean) =>
+    setAllChildren(id, selected),
+  );
+  const onRowToggleChild = useEventCallback((itemId: string, childId: string) =>
+    toggleChild(itemId, childId),
+  );
+
   // Downloadable pending work (excludes resolving/active) — gates the Start button.
   const pending = items.reduce((n, i) => {
     if (i.children)
@@ -851,147 +1042,27 @@ export function QueuePanel({
         <ul className="mt-3 flex max-h-72 flex-col gap-1.5 overflow-auto pr-1">
           {items.map((item) => {
             const status = displayStatus(item);
-            const total = item.children?.length ?? 0;
-            const selectedCount =
-              item.children?.filter((c) => c.selected).length ?? 0;
+            const active = status === "active";
+            // Live values go only to the active row; the rest get stable
+            // constants so the memoized QueueRow skips the progress-tick render.
             return (
-              <li
+              <QueueRow
                 key={item.id}
-                draggable
-                onDragStart={(e) => {
-                  setDragId(item.id);
-                  // Drag only the row as the ghost — dragging an expanded group
-                  // would otherwise carry its whole child list, which looks messy.
-                  const row = e.currentTarget.firstElementChild;
-                  if (row) e.dataTransfer.setDragImage(row, 16, 16);
-                }}
-                // Reorder live as the dragged row passes over another one.
-                onDragEnter={() => {
-                  if (dragId && dragId !== item.id) reorder(dragId, item.id);
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragId(null);
-                }}
-                onDragEnd={() => setDragId(null)}
-                className={dragId === item.id ? "opacity-50" : ""}
-              >
-                <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-surface/60 p-2.5">
-                  <GripVertical
-                    size={15}
-                    className="shrink-0 cursor-grab text-zinc-600"
-                  />
-                  {item.children && (
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(item.id)}
-                      aria-label={t("queue.expand")}
-                      className="shrink-0 text-zinc-400 transition hover:text-white"
-                    >
-                      <ChevronRight
-                        size={15}
-                        className={`transition-transform ${
-                          item.expanded ? "rotate-90" : ""
-                        }`}
-                      />
-                    </button>
-                  )}
-                  <span className="shrink-0">{statusIcon(status)}</span>
-                  <div className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="block truncate text-sm">
-                        {item.status === "resolving"
-                          ? t("queue.resolving")
-                          : (item.title ?? item.url)}
-                      </span>
-                      {status === "active" && (
-                        <span className="shrink-0 text-xs font-medium text-violet-400">
-                          {Math.round(percent)}%
-                        </span>
-                      )}
-                    </span>
-                    {item.sourceLabel && item.status !== "resolving" && (
-                      <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                        {item.children
-                          ? `${item.sourceLabel} · ${t("queue.selectedOfTracks", {
-                              selected: selectedCount,
-                              total,
-                            })}`
-                          : item.sourceLabel}
-                      </span>
-                    )}
-                    {status === "active" && (
-                      <>
-                        <ProgressBar percent={percent} className="mt-1 h-1" />
-                        {progressDetail && (
-                          <span className="mt-1 block truncate text-xs text-zinc-400">
-                            {progressDetail}
-                          </span>
-                        )}
-                      </>
-                    )}
-                    {status === "error" && item.error && (
-                      <span className="block truncate text-xs text-red-300">
-                        {item.error}
-                      </span>
-                    )}
-                  </div>
-                  {status !== "active" && (
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      aria-label={t("queue.remove")}
-                      className="shrink-0 text-zinc-500 transition hover:text-white"
-                    >
-                      <X size={15} />
-                    </button>
-                  )}
-                </div>
-
-                {item.children && item.expanded && (
-                  <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-white/10 py-1 pl-3">
-                    <li className="flex justify-end pr-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAllChildren(item.id, selectedCount < total)
-                        }
-                        className="text-[11px] text-zinc-400 transition hover:text-white"
-                      >
-                        {selectedCount < total
-                          ? t("playlist.selectAll")
-                          : t("playlist.deselectAll")}
-                      </button>
-                    </li>
-                    {item.children.map((child) => (
-                      <li key={child.id} className="flex items-start gap-2 pr-1">
-                        <input
-                          type="checkbox"
-                          checked={child.selected}
-                          onChange={() => toggleChild(item.id, child.id)}
-                          className="mt-0.5 size-3.5 shrink-0 accent-violet-500"
-                        />
-                        <span className="mt-px shrink-0">
-                          {statusIcon(child.status)}
-                        </span>
-                        <span
-                          className={`min-w-0 flex-1 break-words text-xs leading-snug ${
-                            child.selected ? "text-zinc-300" : "text-zinc-600"
-                          }`}
-                        >
-                          {child.title}
-                        </span>
-                        {child.id === activeChildId && (
-                          <span className="mt-px shrink-0 text-[11px] font-medium text-violet-400">
-                            {Math.round(percent)}%
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
+                item={item}
+                status={status}
+                isDragging={dragId === item.id}
+                percent={active ? percent : 0}
+                progressDetail={active ? progressDetail : ""}
+                activeChildId={active ? activeChildId : null}
+                onDragStart={onRowDragStart}
+                onDragEnter={onRowDragEnter}
+                onDrop={onRowDrop}
+                onDragEnd={onRowDragEnd}
+                onToggleExpanded={onRowToggleExpanded}
+                onRemove={onRowRemove}
+                onSetAllChildren={onRowSetAllChildren}
+                onToggleChild={onRowToggleChild}
+              />
             );
           })}
         </ul>
