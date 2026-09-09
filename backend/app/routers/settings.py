@@ -73,19 +73,14 @@ def put_settings(payload: AppSettings) -> AppSettings:
     # hand-crafted PUT could persist to break every later download, or that
     # yt-dlp would choke on.
     # The download dir is the trust root for every path-confinement guard, so a
-    # bad value would silently widen the file endpoints. Require an absolute
-    # directory we can actually create.
+    # bad value would silently widen the file endpoints. Require an absolute path;
+    # actually *creating* it is deferred to the end, after every other field has
+    # validated, so a PUT that will be rejected doesn't create a stray directory.
     download_dir = Path(payload.download_dir)
     if not download_dir.is_absolute():
         raise HTTPException(
             status_code=422, detail="download_dir must be an absolute path."
         )
-    try:
-        download_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        raise HTTPException(
-            status_code=422, detail="download_dir is not a creatable directory."
-        ) from exc
     if payload.cookies_file and not Path(payload.cookies_file).is_file():
         raise HTTPException(
             status_code=400, detail="cookies_file is not an existing file."
@@ -104,4 +99,11 @@ def put_settings(payload: AppSettings) -> AppSettings:
             raise HTTPException(
                 status_code=400, detail="proxy must be an http(s) or socks URL."
             )
+    # All fields valid — now create the download dir and persist.
+    try:
+        download_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=422, detail="download_dir is not a creatable directory."
+        ) from exc
     return settings_store.update(payload)

@@ -170,7 +170,7 @@ class _SafeRedirects(urllib.request.HTTPRedirectHandler):
         if (
             parsed.scheme not in ("http", "https")
             or host_is_blocked(parsed.hostname)
-            or _port_blocked(parsed)
+            or port_blocked(parsed)
         ):
             raise urllib.error.HTTPError(
                 newurl, code, "Redirect to a disallowed host", headers, fp
@@ -184,7 +184,7 @@ class _SafeRedirects(urllib.request.HTTPRedirectHandler):
 _ALLOWED_PORTS = frozenset({80, 443})
 
 
-def _port_blocked(parsed: Any) -> bool:
+def port_blocked(parsed: Any) -> bool:
     """True if the URL names a non-web port (or a malformed one)."""
     try:
         port = parsed.port
@@ -216,7 +216,7 @@ def fetch_public(
     if (
         parsed.scheme not in ("http", "https")
         or host_is_blocked(parsed.hostname)
-        or _port_blocked(parsed)
+        or port_blocked(parsed)
     ):
         raise SafeHTTPError("URL is not a public http(s) address")
     request = urllib.request.Request(url, headers=headers or {})

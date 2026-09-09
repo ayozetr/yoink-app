@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from app.core.config import settings
-from app.core.safe_http import OPENER, host_is_blocked
+from app.core.safe_http import OPENER, port_blocked, host_is_blocked
 from app.services.autotag_service import extract_cover
 
 router = APIRouter(tags=["media"])
@@ -60,7 +60,15 @@ def proxy_thumbnail(
     # would corrupt URLs that legitimately contain %-encoded characters.
     target = url
     parsed = urlparse(target)
-    if parsed.scheme not in ("http", "https") or host_is_blocked(parsed.hostname):
+    # SSRF guard: http(s), a public host (internal/private already blocked), and a
+    # standard web port — so a hostile page loading this via <img> (which carries
+    # no Origin to gate on) can't turn the local backend into a port scanner /
+    # request-forger against arbitrary services. Re-checked on every redirect.
+    if (
+        parsed.scheme not in ("http", "https")
+        or host_is_blocked(parsed.hostname)
+        or port_blocked(parsed)
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only public http(s) thumbnail URLs are allowed.",

@@ -190,7 +190,12 @@ async def download_ws(websocket: WebSocket) -> None:
                     )
                 except sqlite3.Error:
                     logger.exception("Failed to persist failed download to history")
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
+        # A client that drops mid-stream surfaces either as WebSocketDisconnect or,
+        # when we try to send on the just-closed socket, as Starlette's RuntimeError
+        # ("Cannot call send once a close message has been sent"). Both mean the
+        # same thing — the client is gone — so tear down gracefully instead of
+        # letting the RuntimeError escape as an ASGI error.
         cancel_event.set()
         disconnect_signal.set()
         return
