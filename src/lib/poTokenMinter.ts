@@ -183,17 +183,19 @@ export function startPoTokenMinter(): () => void {
       }
       const job = (await res.json()) as { id: string; video_id: string };
       let token: string | null;
+      let error: string | undefined;
       try {
         token = await mint(job.video_id);
-      } catch {
+      } catch (err) {
         minter = null; // force re-attestation next time
         token = null; // report the failure so the backend falls back
+        error = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
       }
       try {
         await fetch(apiUrl("/po-token/result"), {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ id: job.id, token }),
+          body: JSON.stringify({ id: job.id, token, error }),
         });
       } catch {
         // Result POST failed — the backend job just times out and falls back.

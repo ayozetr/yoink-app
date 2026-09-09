@@ -92,8 +92,15 @@ def _mint_via_webview(video_id: str) -> str | None:
     from app.services import po_token_bridge
 
     if not po_token_bridge.broker.has_active_poller():
+        logger.debug("auto-PO: no WebView minter polling; skipping mint for %s", video_id)
         return None
-    return po_token_bridge.broker.submit_mint(video_id, timeout=_MINT_TIMEOUT_SECONDS)
+    logger.debug("auto-PO: requesting a mint from the WebView for %s", video_id)
+    token = po_token_bridge.broker.submit_mint(video_id, timeout=_MINT_TIMEOUT_SECONDS)
+    if token:
+        logger.info("auto-PO: minted a per-video token for %s", video_id)
+    else:
+        logger.warning("auto-PO: WebView mint timed out for %s (falling back)", video_id)
+    return token
 
 
 def mint(video_id: str) -> str | None:

@@ -1,19 +1,30 @@
 # Zero-config PO tokens — minting in the WebView
 
-**Status:** Phases 1–2 shipped — the `po_token_mode` setting, the backend seam,
-the **broker + bridge endpoints**, the **per-video download integration**, and the
-**WebView minter loop** (`bgutils-js`, network proxied through the backend) are
-all in. The remaining work is **live validation**: the real BotGuard attestation
-against Google can only be exercised end-to-end in the packaged app against live
-YouTube. `auto` stays opt-in (default `manual`) until that's confirmed.
+**Status:** Phases 1–2 shipped **and validated live** (2026-09-09) — a real
+per-video PO token was minted end-to-end in the packaged AppImage against live
+YouTube (backend → WebView → `bgutils-js` → proxied Google attestation → token,
+~1 s). `auto` still ships **opt-in** (default `manual`): the flow depends on
+YouTube-internal BotGuard details that change, so it's gated rather than default.
 
-**Architecture note:** the design below described a *hidden, security-relaxed*
-WebView. The shipped implementation avoids that entirely: the app's **existing**
-WebView runs `bgutils-js`, but its network is routed through the backend's
-`/api/po-token/proxy`, so the WebView only ever talks to `127.0.0.1` — no CSP
-relaxation and no second WebView window needed. The backend↔WebView hand-off is
-the broker in `services/po_token_bridge.py` + the `/api/po-token/*` routes; the
-minter loop is `src/lib/poTokenMinter.ts`.
+**Architecture:** the app's **existing** WebView runs `bgutils-js`; its network
+(the BotGuard Create / GenerateIT calls) is routed through the backend's
+`/api/po-token/proxy`, so the WebView only ever *connects* to `127.0.0.1` — no
+second WebView window is needed. The hand-off is the broker in
+`services/po_token_bridge.py` + the `/api/po-token/*` routes; the minter loop is
+`src/lib/poTokenMinter.ts`.
+
+**The one CSP relaxation — `script-src 'unsafe-eval'`.** Proxying the network
+covered `connect-src`, but BotGuard's interpreter runs via `new Function(...)`,
+which the app CSP's `script-src 'self'` blocked (live testing surfaced the exact
+`EvalError`). A sandboxed iframe can't help — a child frame's CSP can only
+*narrow* the parent's, so it can't regain `eval`. So enabling auto-PO required
+adding `'unsafe-eval'` to the app's `script-src`. **Tradeoff:** eval is now
+allowed app-wide and Google's BotGuard code runs in the main window's context.
+The practical risk here is low — the frontend is fully bundled/trusted, the only
+remote content rendered (GitHub release-note markdown) is scheme-sanitised, and
+the proxied Google traffic is HTTPS-pinned — but a fully-isolated
+**hidden WebView window** (its own relaxed CSP, no app access) remains the
+stronger long-term option if the eval surface is ever a concern.
 
 ## Why
 

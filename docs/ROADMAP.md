@@ -360,8 +360,8 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   video/audio-first) — a custom extractor/shim like `threads_extractor`. Scope: images
   are a new output kind (no merge/transcode), so it also touches the card UI (a photo
   item isn't "video/audio") and history.
-- 🚧 **Zero-config PO token — mint in the WebView** (L) — *Phases 1–2 shipped;*
-  *only live validation remains.* Full design + status in
+- ✅ **Zero-config PO token — mint in the WebView** (L) — *validated live
+  2026-09-09; ships opt-in (default `manual`).* Full design + status in
   [`po-token-webview.md`](po-token-webview.md). **Done:** the `po_token_mode`
   setting (`off` / `manual` / `auto`, default `manual`) end-to-end (14 locales); a
   backend broker + `/api/po-token/*` bridge (long-poll `pending`, `result`, and a
@@ -370,10 +370,12 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   and the WebView minter loop (`src/lib/poTokenMinter.ts`) running `bgutils-js`
   with its network proxied through the backend — so the WebView never leaves
   `127.0.0.1` (no CSP relaxation, no second window). The headless CLI (nothing
-  polls) skips minting and falls back to the manual token. **Open:** live
-  validation — the real BotGuard attestation can only be exercised end-to-end in
-  the packaged app against live YouTube; `auto` stays opt-in until it's confirmed.
-  Context below. — the opt-in
+  polls) skips minting and falls back to the manual token. Live testing confirmed
+  a real per-video token mints end-to-end (~1 s), and surfaced the one needed CSP
+  relaxation — `script-src 'unsafe-eval'`, since BotGuard's interpreter runs via
+  `new Function` (a sandboxed iframe can't regain eval; see the doc). `auto` stays
+  opt-in as the flow depends on YouTube-internal details that change. Context
+  below. — the opt-in
   `youtube:po_token` setting makes the user mint a token by hand, and (per the yt-dlp PO
   Token Guide) web GVS/Player tokens are now **bound to the video ID**, so a *new token
   per video* is needed — a single pasted token is of limited use. Auto-mint them instead,

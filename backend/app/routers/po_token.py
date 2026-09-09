@@ -56,6 +56,7 @@ class MintResult(BaseModel):
 
     id: str
     token: str | None = None
+    error: str | None = None
 
 
 class ProxyRequest(BaseModel):
@@ -79,12 +80,15 @@ def get_pending() -> Response | MintJob:
     job = broker.next_job()
     if job is None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+    logger.debug("auto-PO: dispatched a mint job for %s to the WebView", job["video_id"])
     return MintJob(id=job["id"], video_id=job["video_id"])
 
 
 @router.post("/result", summary="Deliver a minted token")
 def post_result(result: MintResult) -> dict[str, bool]:
     """Fulfill a mint job with the token the WebView produced (or a failure)."""
+    if result.error:
+        logger.warning("auto-PO: WebView mint failed: %s", result.error)
     delivered = broker.complete(result.id, result.token)
     return {"ok": delivered}
 
@@ -112,6 +116,7 @@ def post_proxy(req: ProxyRequest) -> ProxyResponse:
     ):
         raise HTTPException(status_code=400, detail="URL is not an allowed PO-token host.")
 
+    logger.debug("auto-PO: proxying a bgutils request to %s", parsed.hostname)
     data = base64.b64decode(req.body_b64) if req.body_b64 else None
     request = urllib.request.Request(  # noqa: S310 — scheme + host allowlisted above
         req.url,
