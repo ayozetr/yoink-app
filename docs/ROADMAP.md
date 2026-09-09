@@ -360,18 +360,20 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   video/audio-first) — a custom extractor/shim like `threads_extractor`. Scope: images
   are a new output kind (no merge/transcode), so it also touches the card UI (a photo
   item isn't "video/audio") and history.
-- 🚧 **Zero-config PO token — mint in a hidden WebView** (L) — *Phase 1 shipped;*
-  *the WebView bridge is Phases 2–3.* Full design + status in
-  [`po-token-webview.md`](po-token-webview.md). **Phase 1 (done):** a
-  `po_token_mode` setting (`off` / `manual` / `auto`, default `manual`) end-to-end
-  (config → model → settings store → API → settings UI, 14 locales), a backend
-  `services/po_token.py` that sources the token per mode with a per-video minted-
-  token cache, and `network_options` routed through it (`off` now truly suppresses
-  the token; `manual` unchanged; `auto` falls back to the manual token until the
-  bridge lands — so the headless CLI still works). `_mint_via_webview()` is the
-  seam, returning `None` for now. **Phases 2–3 (open):** the hidden WebView +
-  Rust/IPC bridge running `bgutils-js`, and a yt-dlp GetPOT provider that requests
-  a token per `(context, video)`. Context below. — the opt-in
+- 🚧 **Zero-config PO token — mint in the WebView** (L) — *Phases 1–2 shipped;*
+  *only live validation remains.* Full design + status in
+  [`po-token-webview.md`](po-token-webview.md). **Done:** the `po_token_mode`
+  setting (`off` / `manual` / `auto`, default `manual`) end-to-end (14 locales); a
+  backend broker + `/api/po-token/*` bridge (long-poll `pending`, `result`, and a
+  Google-host-scoped `proxy` for bgutils' network); per-video minting wired into
+  the download path (`auto` YouTube downloads inject a token bound to that video);
+  and the WebView minter loop (`src/lib/poTokenMinter.ts`) running `bgutils-js`
+  with its network proxied through the backend — so the WebView never leaves
+  `127.0.0.1` (no CSP relaxation, no second window). The headless CLI (nothing
+  polls) skips minting and falls back to the manual token. **Open:** live
+  validation — the real BotGuard attestation can only be exercised end-to-end in
+  the packaged app against live YouTube; `auto` stays opt-in until it's confirmed.
+  Context below. — the opt-in
   `youtube:po_token` setting makes the user mint a token by hand, and (per the yt-dlp PO
   Token Guide) web GVS/Player tokens are now **bound to the video ID**, so a *new token
   per video* is needed — a single pasted token is of limited use. Auto-mint them instead,

@@ -1,8 +1,19 @@
-# Zero-config PO tokens — minting in a hidden WebView
+# Zero-config PO tokens — minting in the WebView
 
-**Status:** Phase 1 shipped (the `po_token_mode` setting + backend seam). The
-per-video WebView minting bridge (Phases 2–3) is designed here and gated behind
-real-world testing before `auto` can become the default.
+**Status:** Phases 1–2 shipped — the `po_token_mode` setting, the backend seam,
+the **broker + bridge endpoints**, the **per-video download integration**, and the
+**WebView minter loop** (`bgutils-js`, network proxied through the backend) are
+all in. The remaining work is **live validation**: the real BotGuard attestation
+against Google can only be exercised end-to-end in the packaged app against live
+YouTube. `auto` stays opt-in (default `manual`) until that's confirmed.
+
+**Architecture note:** the design below described a *hidden, security-relaxed*
+WebView. The shipped implementation avoids that entirely: the app's **existing**
+WebView runs `bgutils-js`, but its network is routed through the backend's
+`/api/po-token/proxy`, so the WebView only ever talks to `127.0.0.1` — no CSP
+relaxation and no second WebView window needed. The backend↔WebView hand-off is
+the broker in `services/po_token_bridge.py` + the `/api/po-token/*` routes; the
+minter loop is `src/lib/poTokenMinter.ts`.
 
 ## Why
 

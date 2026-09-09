@@ -10,6 +10,7 @@ import { UpdatingModal } from "./components/ui/UpdatingModal";
 import { useFocusTrap } from "./lib/useFocusTrap";
 import { checkForUpdate, installUpdate, type UpdateCheck } from "./lib/updater";
 import { notify } from "./lib/notify";
+import { startPoTokenMinter } from "./lib/poTokenMinter";
 import {
   isTauri,
   onDeepLink,
@@ -219,6 +220,15 @@ export default function App() {
   useEffect(() => {
     if (settings) void syncDesktopSettings(settings);
   }, [settings]);
+
+  // PO token auto-mint: with `po_token_mode: "auto"`, run the WebView minter loop
+  // that services the backend's per-video token requests (desktop only — it's the
+  // JS runtime for BotGuard; the backend proxies its network). Stops if the mode
+  // changes away from auto.
+  useEffect(() => {
+    if (settings?.po_token_mode !== "auto" || !isTauri()) return;
+    return startPoTokenMinter();
+  }, [settings?.po_token_mode]);
 
   // Deep link (yoink://download?url=…): analyze the incoming URL. A cold-start URL
   // is drained once on mount; a link handed to the already-running app arrives via

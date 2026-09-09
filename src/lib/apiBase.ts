@@ -26,6 +26,11 @@ export function getApiBase(): string {
   return base;
 }
 
+/** Build a full API URL from a leading-slash path (e.g. `/po-token/pending`). */
+export function apiUrl(path: string): string {
+  return `${base}${path}`;
+}
+
 /** Override the base explicitly (used by tests). */
 export function setApiBase(next: string): void {
   base = next;
