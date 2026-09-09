@@ -28,6 +28,7 @@ from app.services.ytdlp_service import (
     _is_lossless_acodec,
     _map_format,
     _subtitle_langs,
+    _title_from_url,
 )
 
 
@@ -229,6 +230,20 @@ def test_build_video():
     assert video.duration_string == "1:01"
     assert video.thumbnail_url == "http://t/x.jpg"
     assert len(video.formats) == 1
+
+
+def test_title_from_url_slug():
+    # SoundCloud track URLs (a trailing s-… secret token is ignored).
+    assert _title_from_url("https://soundcloud.com/eladiocarrion/adios-v3/s-x") == "Adios V3"
+    assert _title_from_url("https://soundcloud.com/u/arizona-mix-5-master") == "Arizona Mix 5 Master"
+    assert _title_from_url("https://x/") is None
+
+
+def test_build_entry_falls_back_to_url_slug_when_titleless():
+    # SoundCloud flat entries carry no title, only a URL + numeric id — show a
+    # readable name from the slug, not the id.
+    e = _build_entry({"id": "123456", "url": "https://soundcloud.com/eladiocarrion/adios-v3/s-x"})
+    assert e is not None and e.title == "Adios V3"
 
 
 def test_build_entry_and_playlist():

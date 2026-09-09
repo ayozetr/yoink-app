@@ -7,8 +7,10 @@ actual download + progress-streaming logic will live alongside it later.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any, cast
+from urllib.parse import unquote, urlsplit
 
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
@@ -380,6 +382,23 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
     )
 
 
+def _title_from_url(url: str) -> str | None:
+    """Guess a readable title from a URL's slug — for flat playlist entries that
+    carry no title (SoundCloud's don't: its flat entries are URL-only). e.g.
+    '.../eladiocarrion/adios-v3/s-token' -> 'Adios V3'. None if nothing usable.
+    Trailing SoundCloud secret-token segments (``s-…``) are skipped."""
+    try:
+        path = urlsplit(url).path
+    except ValueError:
+        return None
+    segments = [s for s in path.split("/") if s and not re.fullmatch(r"s-[\w-]+", s)]
+    if not segments:
+        return None
+    words = [w for w in re.split(r"[-_]+", unquote(segments[-1])) if w]
+    title = " ".join(w[:1].upper() + w[1:] for w in words).strip()
+    return title or None
+
+
 def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
     """Build a flat PlaylistEntry, or None if it has no usable URL."""
     url = raw.get("url") or raw.get("webpage_url")
@@ -392,7 +411,9 @@ def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
     views = raw.get("view_count")
     return PlaylistEntry(
         id=str(raw.get("id", "")),
-        title=str(raw.get("title") or raw.get("id") or "Untitled"),
+        # Prefer the real title; fall back to a slug guessed from the URL (so
+        # SoundCloud playlists show names, not numeric ids), then the id.
+        title=str(raw.get("title") or _title_from_url(url) or raw.get("id") or "Untitled"),
         url=url,
         duration_string=_format_duration(duration_value),
         thumbnail_url=_best_thumbnail(raw),
