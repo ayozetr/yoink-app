@@ -36,10 +36,10 @@ _POLLER_FRESH_SECONDS = 60.0
 @dataclass
 class _Job:
     id: str
-    video_id: str
     created_at: float
     done: threading.Event = field(default_factory=threading.Event)
-    token: str | None = None
+    # The WebView's answer: {"token": ..., "visitor_data": ...}, or None on failure.
+    result: dict[str, str] | None = None
     dispatched: bool = False
 
 
@@ -58,12 +58,13 @@ class _Broker:
         with self._lock:
             return time.monotonic() - self._last_poll < _POLLER_FRESH_SECONDS
 
-    def submit_mint(self, video_id: str, timeout: float) -> str | None:
+    def submit_mint(self, timeout: float) -> dict[str, str] | None:
         """Enqueue a mint job and block until the WebView fulfills it or timeout.
 
-        Returns the minted token, or ``None`` if no WebView answered in time.
+        Returns the result ``{"token", "visitor_data"}``, or ``None`` if no WebView
+        answered in time (or it reported a failure).
         """
-        job = _Job(id=uuid.uuid4().hex, video_id=video_id, created_at=time.monotonic())
+        job = _Job(id=uuid.uuid4().hex, created_at=time.monotonic())
         with self._lock:
             self._jobs[job.id] = job
             self._new_job.notify()  # wake a parked poller
@@ -72,14 +73,14 @@ class _Broker:
             self._jobs.pop(job.id, None)
         if not got:
             return None
-        return job.token
+        return job.result
 
     def next_job(self, wait: float = _POLL_WAIT_SECONDS) -> dict[str, str] | None:
         """Claim the oldest undispatched job for the WebView (long-poll).
 
-        Blocks up to ``wait`` seconds for one to appear; returns ``{id, video_id}``
-        or ``None`` when there's nothing to mint. A claimed job is marked
-        dispatched so a second poller doesn't grab it too.
+        Blocks up to ``wait`` seconds for one to appear; returns ``{id}`` or
+        ``None`` when there's nothing to mint. A claimed job is marked dispatched
+        so a second poller doesn't grab it too.
         """
         deadline = time.monotonic() + wait
         with self._lock:
@@ -92,14 +93,15 @@ class _Broker:
                 if pending:
                     job = pending[0]
                     job.dispatched = True
-                    return {"id": job.id, "video_id": job.video_id}
+                    return {"id": job.id}
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     return None
                 self._new_job.wait(remaining)
 
-    def complete(self, job_id: str, token: str | None) -> bool:
-        """Deliver the WebView's result (a token, or ``None`` on failure).
+    def complete(self, job_id: str, result: dict[str, str] | None) -> bool:
+        """Deliver the WebView's result (``{"token", "visitor_data"}``, or ``None``
+        on failure).
 
         Returns True if the job was still waiting, False if it had already timed
         out / been claimed by nobody (a late result is harmlessly dropped).
@@ -108,7 +110,7 @@ class _Broker:
             job = self._jobs.get(job_id)
             if job is None:
                 return False
-            job.token = token or None
+            job.result = result or None
             job.done.set()
             return True
 

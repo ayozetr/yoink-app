@@ -118,9 +118,9 @@ def network_options(*, use_browser: bool = True) -> dict[str, Any]:
     # YouTube PO token(s): an anonymous proof-of-origin that satisfies the
     # "confirm you're not a bot" wall without cookies, passed as the native
     # `youtube:po_token` extractor arg (no plugin needed). Sourced per
-    # `po_token_mode` — off / the manual pasted token(s) / auto (per-video, minted
-    # in the WebView; the per-video path is driven by the GetPOT provider, so here
-    # it only yields the manual fallback as there's no video id at this layer).
+    # `po_token_mode` — off / the manual pasted token(s) / auto. This layer has no
+    # URL, so it only yields the manual token(s); the auto session mint (which also
+    # needs the matching visitor_data) happens per-download in `download_service`.
     from app.services import po_token
 
     tokens = po_token.resolve_tokens()

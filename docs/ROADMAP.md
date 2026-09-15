@@ -370,26 +370,32 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   are a new output kind (no merge/transcode), so it also touches the card UI (a photo
   item isn't "video/audio") and history.
 - ✅ **Zero-config PO token — mint in the WebView** (L) — *validated live
-  2026-09-09; ships opt-in (default `manual`).* Full design + status in
+  2026-09-15; ships opt-in (default `manual`).* Full design + status in
   [`po-token-webview.md`](po-token-webview.md). **Done:** the `po_token_mode`
   setting (`off` / `manual` / `auto`, default `manual`) end-to-end (14 locales); a
   backend broker + `/api/po-token/*` bridge (long-poll `pending`, `result`, and a
-  Google-host-scoped `proxy` for bgutils' network); per-video minting wired into
-  the download path (`auto` YouTube downloads inject a token bound to that video);
-  and the WebView minter loop (`src/lib/poTokenMinter.ts`) running `bgutils-js`
-  with its network proxied through the backend — so the WebView never leaves
-  `127.0.0.1` (no CSP relaxation, no second window). The headless CLI (nothing
-  polls) skips minting and falls back to the manual token. Live testing confirmed
-  a real per-video token mints end-to-end (~1 s), and surfaced the one needed CSP
-  relaxation — `script-src 'unsafe-eval'`, since BotGuard's interpreter runs via
-  `new Function` (a sandboxed iframe can't regain eval; see the doc). `auto` stays
-  opt-in as the flow depends on YouTube-internal details that change. Context
-  below. — the opt-in
+  Google-host-scoped `proxy` for bgutils' network); **session** minting wired into
+  the download path (`auto` YouTube downloads mint one GVS token bound to the
+  session `visitor_data`, hand it to the web-based clients — `mweb`, `web`,
+  `web_safari`, `web_embedded` — add `mweb` to `player_client`, and pass the bound
+  `visitor_data` alongside); and the WebView minter loop
+  (`src/lib/poTokenMinter.ts`) running `bgutils-js` with its network proxied
+  through the backend — so the WebView never leaves `127.0.0.1`. The headless CLI
+  (nothing polls) skips minting and falls back to the manual token. Live testing
+  confirmed the minted token is **accepted by YouTube** — `mweb` returned 26
+  downloadable GVS formats with it vs 1 without (a range-GET of a picked format
+  returned `206`) — and fixed two things: the token binds to `visitor_data` (not
+  the video id, when logged out) and the working client is `mweb` (the default
+  `web` degrades to images-only logged out). It also needs one CSP relaxation —
+  `script-src 'unsafe-eval'`, since BotGuard's interpreter runs via `new Function`
+  (a sandboxed iframe can't regain eval; see the doc). `auto` stays opt-in as the
+  flow depends on YouTube-internal details that change. Context below. — the opt-in
   `youtube:po_token` setting makes the user mint a token by hand, and (per the yt-dlp PO
-  Token Guide) web GVS/Player tokens are now **bound to the video ID**, so a *new token
-  per video* is needed — a single pasted token is of limited use. Auto-mint them instead,
-  reusing the app's **existing WebView** (webkit2gtk / WebView2) as the JS runtime so
-  **nothing extra is bundled** (~0 MB vs ~100 MB for a Deno/Node runtime).
+  Token Guide) a web GVS token is **bound to the session `visitor_data`**, which also has
+  to be passed to yt-dlp — fiddly by hand, and it must be re-minted when the session
+  rotates. Auto-mint it instead, reusing the app's **existing WebView** (webkit2gtk /
+  WebView2) as the JS runtime so **nothing extra is bundled** (~0 MB vs ~100 MB for a
+  Deno/Node runtime).
 
   *Spike done (2026-08-30) — feasible.* Confirmed in a real browser that `new Function`
   (the BotGuard VM's mechanism) runs, the challenge (`interpreterUrl`/`globalName`/
@@ -402,15 +408,15 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   relaxed + `bgutils-js` bundled locally (a few KB) → fetch youtube HTML → extract the
   challenge + `visitor_data` → load the interpreter VM (`new Function`) →
   `BotGuardClient.snapshot()` → POST `GenerateIT` → **integrity token** (cache it, TTL
-  ~hours) → `WebPoMinter` → `mintAsWebsafeString(videoId)` **per video, local, no
-  network**. Integrate as a yt-dlp **GetPOT provider** so yt-dlp requests a token per
-  `(context, video)` and we mint on demand; a new `po_token_mode` setting (`auto` /
-  `manual` / `off`) picks the source, keeping the manual field as a fallback.
+  ~hours) → `WebPoMinter` → `mintAsWebsafeString(visitorData)` **once per session, local,
+  no network**. The backend blocks on a broker that the WebView loop services by
+  long-polling `/api/po-token/*`; a new `po_token_mode` setting (`auto` / `manual` / `off`)
+  picks the source, keeping the manual field as a fallback.
 
-  **Caveat (from the spike):** minting each per-video token needs the JS runtime, so
-  auto-PO is a **GUI feature** — the headless CLL (no WebView) can't mint on its own; it
-  falls back to a manual token / cookies, or mints via the running GUI's backend. CSP/CORS
-  seen when testing *on* youtube.com don't apply to our own security-relaxed WebView.
+  **Caveat:** minting needs the JS runtime, so auto-PO is a **GUI feature** — the headless
+  CLI (no WebView) can't mint on its own; it falls back to a manual token / cookies.
+  CSP/CORS seen when testing *on* youtube.com don't apply to our own security-relaxed
+  WebView.
   Gate behind real-world testing before it becomes the default.
 
 ### 🎵 Audio library

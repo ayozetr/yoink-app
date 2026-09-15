@@ -27,10 +27,10 @@ def test_pending_returns_204_when_empty():
 
 
 def test_pending_then_result_round_trip():
-    result: dict[str, str | None] = {}
+    result: dict[str, dict | None] = {}
 
     def requester():
-        result["token"] = broker.submit_mint("vidROUTE", timeout=3.0)
+        result["out"] = broker.submit_mint(timeout=3.0)
 
     t = threading.Thread(target=requester)
     t.start()
@@ -38,19 +38,43 @@ def test_pending_then_result_round_trip():
     r = client.get("/api/po-token/pending")
     assert r.status_code == 200
     job = r.json()
-    assert job["video_id"] == "vidROUTE"
+    assert "id" in job and "video_id" not in job
 
     r2 = client.post(
-        "/api/po-token/result", json={"id": job["id"], "token": "TOK-123"}
+        "/api/po-token/result",
+        json={"id": job["id"], "token": "TOK-123", "visitor_data": "VD-123"},
     )
     assert r2.status_code == 200 and r2.json()["ok"] is True
 
     t.join(timeout=3.0)
-    assert result["token"] == "TOK-123"
+    assert result["out"] == {"token": "TOK-123", "visitor_data": "VD-123"}
+
+
+def test_result_without_visitor_data_is_treated_as_failure():
+    # A token with no visitor_data is unusable → delivered as None (a failure).
+    result: dict[str, dict | None] = {}
+
+    def requester():
+        result["out"] = broker.submit_mint(timeout=3.0)
+
+    t = threading.Thread(target=requester)
+    t.start()
+
+    r = client.get("/api/po-token/pending")
+    job = r.json()
+    r2 = client.post(
+        "/api/po-token/result", json={"id": job["id"], "token": "TOK-only"}
+    )
+    assert r2.status_code == 200 and r2.json()["ok"] is True
+    t.join(timeout=3.0)
+    assert result["out"] is None
 
 
 def test_result_for_unknown_job_reports_not_delivered():
-    r = client.post("/api/po-token/result", json={"id": "nope", "token": "x"})
+    r = client.post(
+        "/api/po-token/result",
+        json={"id": "nope", "token": "x", "visitor_data": "y"},
+    )
     assert r.status_code == 200 and r.json()["ok"] is False
 
 

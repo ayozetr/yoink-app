@@ -1,10 +1,26 @@
 # Zero-config PO tokens — minting in the WebView
 
-**Status:** Phases 1–2 shipped **and validated live** (2026-09-09) — a real
-per-video PO token was minted end-to-end in the packaged AppImage against live
-YouTube (backend → WebView → `bgutils-js` → proxied Google attestation → token,
-~1 s). `auto` still ships **opt-in** (default `manual`): the flow depends on
-YouTube-internal BotGuard details that change, so it's gated rather than default.
+**Status:** shipped **and validated live** (2026-09-15) — a real **session** GVS
+PO token was minted end-to-end (backend → WebView → `bgutils-js` → proxied Google
+attestation → token, ~1 s) and, crucially, **verified to work against live
+YouTube**: with the minted token + its `visitor_data`, the `mweb` client returned
+**26** downloadable GVS video formats (a range-GET of a picked format returned
+`206`), versus **1** without it. This also surfaced the binding fix below.
+
+**Two things the live test corrected:**
+1. **Binding.** The web GVS token is bound to the session **`visitor_data`** when
+   logged out (not the video id — that only applies under YouTube's
+   `html5_generate_content_po_token` experiment). So we mint **once per session**
+   against a `visitor_data` fetched from youtube.com and hand yt-dlp **both** the
+   token and that same `visitor_data`, or yt-dlp rejects it.
+2. **Client.** The logged-out default clients are `visionos` + `web`, but `web`
+   degrades to *images-only* when logged out, so a `web.gvs` token has no formats
+   to authorize. The client that reliably yields the GVS-gated formats is
+   **`mweb`**, so `auto` hands the token to the web-based clients (`mweb`, `web`,
+   `web_safari`, `web_embedded`) **and** adds `mweb` to `player_client`.
+
+`auto` ships **opt-in** (default `manual`): the flow depends on YouTube-internal
+BotGuard details that change, so it's gated rather than default.
 
 **Architecture:** the app's **existing** WebView runs `bgutils-js`; its network
 (the BotGuard Create / GenerateIT calls) is routed through the backend's
@@ -32,8 +48,9 @@ YouTube increasingly answers extraction with a *"Sign in to confirm you're not a
 bot"* wall. A **PO (proof-of-origin) token** clears it without cookies. The
 existing opt-in setting (`po_token`) makes the user mint one *by hand* and paste
 it — but per the [yt-dlp PO Token Guide](https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide),
-web GVS/Player tokens are now **bound to the video id**, so a single pasted token
-is of limited use: you need a *fresh token per video*.
+a web GVS token is **bound to the session `visitor_data`** (when logged out), and
+the matching `visitor_data` has to be passed to yt-dlp alongside it — fiddly to
+do by hand, and the token has to be re-minted when the session rotates.
 
 The goal is to mint them automatically, **reusing the app's existing WebView**
 (webkit2gtk on Linux, WebView2 on Windows) as the JavaScript runtime — so
@@ -62,11 +79,13 @@ our own security-relaxed WebView page.
 3. `BotGuardClient.snapshot()` → a BotGuard attestation.
 4. POST it to `GenerateIT` → an **integrity token** (cache it; valid ~hours,
    video-independent).
-5. `WebPoMinter` → `mintAsWebsafeString(videoId)` → the **per-video** token
-   (local, no network — derived from the cached integrity token).
+5. `WebPoMinter` → `mintAsWebsafeString(visitorData)` → the **session** token
+   (local, no network — derived from the cached integrity token, bound to the
+   `visitor_data` from step 1).
 
 The expensive, networked steps (1–4) happen **once per few hours**; step 5 is
-cheap and runs per video.
+cheap. Because the binding is the session `visitor_data` (not the video), the
+minted token is reused across every video in the session.
 
 ## Architecture — the bridge
 
@@ -75,76 +94,69 @@ yt-dlp runs in the Python backend, on a worker thread, and wants a PO token
 WebView. So a token request has to cross three boundaries:
 
 ```
-yt-dlp (backend thread)
-   │  needs a PO token for (context, video_id)
+yt-dlp (backend thread, per download)
+   │  po_token.youtube_extractor_args(url)  → mint_session()
    ▼
-GetPOT provider  (Python, registered as a yt-dlp plugin)   ← Phase 3
-   │  request mint(video_id)
+broker.submit_mint(timeout)   (services/po_token_bridge.py)
+   │  enqueue a job; block on the worker thread (with a timeout)
    ▼
-Tauri command / IPC  (Rust)                                ← Phase 2
-   │  emit "po-token:mint" { video_id }  → hidden WebView
+GET /api/po-token/pending  ← long-polled by the WebView loop
+   │  { id }
    ▼
-hidden WebView  (bgutils-js)                               ← Phase 2
-   │  cache the integrity token; mintAsWebsafeString(video_id)
+WebView loop  (src/lib/poTokenMinter.ts, bgutils-js)
+   │  fetch visitor_data + mint; bgutils network via POST /api/po-token/proxy
    ▼
-returns the minted token back up the same chain
+POST /api/po-token/result  { id, token, visitor_data }
+   ▼
+broker unblocks submit_mint → { token, visitor_data }, cached for the session
 ```
 
-### Backend seam (Phase 1 — done)
+### Backend seam (`services/po_token.py`)
 
-`backend/app/services/po_token.py` owns the mode logic and a per-video token
-cache:
+Owns the mode logic and a **session** token cache (one `(token, visitor_data)`
+pair, `_TOKEN_TTL_SECONDS` under its real lifetime):
 
-- `resolve_tokens(video_id)` returns the token(s) to hand yt-dlp, per
-  `settings.po_token_mode`:
-  - `off` → none.
-  - `manual` → the pasted `po_token` (the classic path — unchanged behaviour).
-  - `auto` → a minted per-video token when available, else the pasted token as a
-    fallback (so the **headless CLI**, which has no WebView, still works with a
-    manual token).
-- `mint(video_id)` caches minted tokens (`_TOKEN_TTL_SECONDS`, well under their
-  real lifetime) so repeated extractor calls for one video don't each round-trip.
-- **`_mint_via_webview(video_id)` is the seam.** It returns `None` today, so
-  `auto` degrades gracefully instead of failing a download. Phases 2–3 make it
-  actually reach the WebView.
+- `resolve_tokens()` — the manual/off token(s) for `network_options()` (no URL at
+  that layer, so it never mints): `off` → none; `manual`/`auto` → the pasted
+  token(s).
+- `youtube_extractor_args(url)` — the per-download `auto` path. On a YouTube URL
+  in `auto` mode it mints the session token (once, cached) and returns the
+  `youtube` extractor args: `player_client: ["default", "mweb"]`, the
+  `<client>.gvs+<token>` list for the web-based clients, and the bound
+  `visitor_data`. Empty for manual/off and non-YouTube URLs.
+- `mint_session()` → `_mint_via_webview()` — submits a mint job to the broker and
+  blocks (bounded) for the WebView's answer. Returns `None` when no WebView is
+  polling (the **headless CLI**) or during a post-failure backoff, so `auto`
+  degrades to the manual token / cookies instead of failing.
 
-`core/ytdlp_options.py::network_options()` already sources its token through
-`resolve_tokens()` (no `video_id` at that layer, so it only yields the manual /
-off tokens; the per-video path is driven by the provider below).
+`download_service._build_options()` merges `youtube_extractor_args(url)` into
+`extractor_args["youtube"]`, overriding the generic manual token
+`network_options()` set.
 
-### Phase 2 — the WebView + Rust bridge
+### The WebView bridge
 
-- A hidden Tauri WebView (or a hidden `<iframe>`/worker inside the main one) with
-  web security relaxed, loading a small local page that bundles `bgutils-js` (a
-  few KB) — **no external script** (respects our CSP; nothing is fetched from a
-  CDN except the youtube.com HTML/interpreter the flow itself fetches).
-- A Tauri command the backend can call (over the existing local IPC, or a tiny
-  loopback endpoint the WebView long-polls) that asks the page to mint a token
-  for a `video_id` and returns it.
-- The page keeps the **integrity token** cached in JS and re-attests only when it
-  expires.
-
-### Phase 3 — the yt-dlp GetPOT provider
-
-- Register a [`GetPOT`](https://github.com/coletdjnz/yt-dlp-get-pot) provider
-  plugin so yt-dlp requests a token per `(client, context, video_id)` and we mint
-  on demand via `po_token.mint(video_id)` → the bridge. This is the *correct*
-  integration point (yt-dlp hands us the real request context), replacing the
-  static `extractor_args` injection for `auto` mode.
+- The **existing** main WebView runs `poTokenMinter.ts` (started from `App.tsx`
+  only in `auto` mode, desktop-only) — no hidden window. It long-polls
+  `/api/po-token/pending`, mints with `bgutils-js`, and POSTs the result.
+- `bgutils`'s own network (BotGuard Create / GenerateIT, the youtube.com HTML)
+  goes through `POST /api/po-token/proxy` — SSRF-pinned and scoped to Google
+  hosts — so the WebView only ever *connects* to `127.0.0.1`.
+- The **integrity token** and `visitor_data` are cached in JS; only a mint
+  failure forces re-attestation.
 
 ## Settings
 
 `po_token_mode` (`off` / `manual` / `auto`), persisted like every other setting,
 with the manual `po_token` field kept as the fallback source. Default is
 `manual` so existing behaviour is unchanged; **`auto` stays opt-in** until the
-bridge is tested against real YouTube responses.
+flow is battle-tested across YouTube changes.
 
 ## Caveats
 
-- **GUI-only minting.** Minting each per-video token needs the JS runtime, so
-  auto-PO is fundamentally a **desktop-GUI** feature. The headless CLI has no
-  WebView and falls back to a manual token / cookies (or, later, could mint via a
-  running GUI's backend).
-- Gate `auto` behind real-world testing before making it the default — YouTube's
-  challenge shape changes, and bgutils-js tracks it, so pin a known-good version
-  and watch for breakage.
+- **GUI-only minting.** Minting needs the JS runtime, so auto-PO is fundamentally
+  a **desktop-GUI** feature. The headless CLI has no WebView and falls back to a
+  manual token / cookies.
+- **Client/binding track YouTube.** Both the `visitor_data` binding and the
+  `mweb`-is-the-working-client finding reflect YouTube's *current* logged-out
+  behaviour; the default clients and which one yields GVS formats can shift, so
+  watch for breakage and keep `bgutils-js` pinned to a known-good version.

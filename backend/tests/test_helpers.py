@@ -426,24 +426,34 @@ def test_final_path_none_when_no_download():
     assert _final_path({}) is None
 
 
-def test_build_options_injects_per_video_po_token(temp_dirs, monkeypatch):
-    # Auto mode: the download path overrides the generic token with a per-video
-    # one from resolve_tokens_for_url (which mints via the WebView bridge).
+def test_build_options_injects_session_po_token(temp_dirs, monkeypatch):
+    # Auto mode: the download path overrides the generic token with the minted
+    # session GVS token AND the visitor_data it's bound to (yt-dlp needs both).
     from app.services import po_token
 
-    monkeypatch.setattr(po_token, "resolve_tokens_for_url", lambda url: ["web.gvs+MINTED"])
+    monkeypatch.setattr(
+        po_token,
+        "youtube_extractor_args",
+        lambda url: {
+            "player_client": ["default", "mweb"],
+            "po_token": ["mweb.gvs+MINTED"],
+            "visitor_data": "VDATA",
+        },
+    )
     options = _build_options(
         DownloadRequest(url="https://youtu.be/abcdefghijk"),
         hook=lambda raw: None,
     )
-    assert options["extractor_args"]["youtube"]["po_token"] == ["web.gvs+MINTED"]
+    assert options["extractor_args"]["youtube"]["po_token"] == ["mweb.gvs+MINTED"]
+    assert options["extractor_args"]["youtube"]["visitor_data"] == "VDATA"
+    assert options["extractor_args"]["youtube"]["player_client"] == ["default", "mweb"]
 
 
 def test_build_options_no_po_token_when_none_resolved(temp_dirs, monkeypatch):
     from app.services import po_token
     from app.core.config import settings as cfg
 
-    monkeypatch.setattr(po_token, "resolve_tokens_for_url", lambda url: [])
+    monkeypatch.setattr(po_token, "youtube_extractor_args", lambda url: {})
     monkeypatch.setattr(cfg, "po_token_mode", "off")
     monkeypatch.setattr(cfg, "po_token", None)
     options = _build_options(

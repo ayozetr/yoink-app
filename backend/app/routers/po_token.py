@@ -17,7 +17,6 @@ import base64
 import logging
 import urllib.error
 import urllib.request
-from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Response, status
@@ -45,17 +44,19 @@ _PROXY_MAX_BYTES = 4 * 1024 * 1024  # BotGuard payloads are small
 
 
 class MintJob(BaseModel):
-    """A pending mint job handed to the WebView."""
+    """A pending mint job handed to the WebView (just an id — the mint is a
+    session-level GVS token bound to visitor_data, so it needs no per-video input)."""
 
     id: str
-    video_id: str
 
 
 class MintResult(BaseModel):
-    """The WebView's answer for a mint job (``token`` null on a mint failure)."""
+    """The WebView's answer: the GVS token + the visitor_data it's bound to (both
+    null on a mint failure, with ``error`` set)."""
 
     id: str
     token: str | None = None
+    visitor_data: str | None = None
     error: str | None = None
 
 
@@ -80,16 +81,21 @@ def get_pending() -> Response | MintJob:
     job = broker.next_job()
     if job is None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    logger.debug("auto-PO: dispatched a mint job for %s to the WebView", job["video_id"])
-    return MintJob(id=job["id"], video_id=job["video_id"])
+    logger.debug("auto-PO: dispatched a mint job to the WebView")
+    return MintJob(id=job["id"])
 
 
 @router.post("/result", summary="Deliver a minted token")
 def post_result(result: MintResult) -> dict[str, bool]:
-    """Fulfill a mint job with the token the WebView produced (or a failure)."""
+    """Fulfill a mint job with the token + visitor_data the WebView produced."""
     if result.error:
         logger.warning("auto-PO: WebView mint failed: %s", result.error)
-    delivered = broker.complete(result.id, result.token)
+    payload = (
+        {"token": result.token, "visitor_data": result.visitor_data}
+        if result.token and result.visitor_data
+        else None
+    )
+    delivered = broker.complete(result.id, payload)
     return {"ok": delivered}
 
 

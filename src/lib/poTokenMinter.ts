@@ -2,19 +2,17 @@
  * PO-token minter — the WebView side of zero-config `po_token_mode: "auto"`.
  *
  * The backend can't run YouTube's BotGuard JavaScript, so it asks this WebView to
- * mint per-video PO tokens with `bgutils-js`. bgutils' own network (the BotGuard
+ * mint a session GVS PO token with `bgutils-js`. bgutils' own network (the BotGuard
  * Create / GenerateIT calls) can't reach Google under the app's CSP, so it's
  * routed through the backend's `/api/po-token/proxy` — this WebView only ever
  * talks to 127.0.0.1.
  *
  * `startPoTokenMinter()` runs a background loop: long-poll `/api/po-token/pending`
- * for a video id the backend needs a token for, mint it, and POST the result. The
- * BotGuard integrity token (video-independent, valid ~hours) is minted once and
- * the `WebPoMinter` reused for subsequent videos.
- *
- * NOTE: the end-to-end mint (the real BotGuard attestation against Google) can
- * only be validated live; see docs/po-token-webview.md. Everything up to the
- * bgutils calls (the loop, the proxied fetch, the result POST) is structural.
+ * for a mint request, mint a **GVS WebPO token bound to the session `visitor_data`**
+ * (what yt-dlp needs for a logged-out web-client download — NOT a video-id binding),
+ * and POST back both the token and the `visitor_data` it's bound to. The BotGuard
+ * integrity token (valid ~hours) is attested once and the `WebPoMinter` reused; the
+ * `visitor_data` is fetched once from youtube.com and reused too.
  */
 import { apiUrl } from "./apiBase";
 
@@ -30,6 +28,7 @@ interface WebPoMinterLike {
 
 let minter: WebPoMinterLike | null = null;
 let minterExpiresAt = 0;
+let visitorData: string | null = null;
 let started = false;
 
 /** base64 of a byte buffer (binary-safe). */
@@ -154,8 +153,30 @@ async function ensureMinter(): Promise<WebPoMinterLike> {
   return minter;
 }
 
-async function mint(videoId: string): Promise<string> {
-  return (await ensureMinter()).mintAsWebsafeString(videoId);
+/** The session's `visitor_data` (Visitor ID) from youtube.com — the content the
+ * GVS WebPO token is bound to for a logged-out web-client download. Fetched once
+ * (via the proxy) and reused. */
+async function fetchVisitorData(): Promise<string> {
+  if (visitorData) return visitorData;
+  const res = await proxiedFetch("https://www.youtube.com/?hl=en", {
+    headers: { "accept-language": "en-US,en;q=0.9" },
+  });
+  const html = await res.text();
+  const m =
+    html.match(/"visitorData"\s*:\s*"([^"]+)"/) ||
+    html.match(/"VISITOR_DATA"\s*:\s*"([^"]+)"/);
+  if (!m) throw new Error("visitor_data not found on youtube.com");
+  // The captured value is JSON-escaped; unescape it to the real string.
+  visitorData = JSON.parse(`"${m[1]}"`) as string;
+  return visitorData;
+}
+
+/** Mint a GVS token bound to the session visitor_data. Returns both — yt-dlp must
+ * be given the same visitor_data for the token to be accepted. */
+async function mintSession(): Promise<{ token: string; visitorData: string }> {
+  const vd = await fetchVisitorData();
+  const token = await (await ensureMinter()).mintAsWebsafeString(vd);
+  return { token, visitorData: vd };
 }
 
 /** Start the long-poll loop that services the backend's mint requests. Idempotent;
@@ -181,21 +202,24 @@ export function startPoTokenMinter(): () => void {
         await backoff();
         continue;
       }
-      const job = (await res.json()) as { id: string; video_id: string };
-      let token: string | null;
+      const job = (await res.json()) as { id: string };
+      let token: string | null = null;
+      let visitor: string | null = null;
       let error: string | undefined;
       try {
-        token = await mint(job.video_id);
+        const r = await mintSession();
+        token = r.token;
+        visitor = r.visitorData;
       } catch (err) {
         minter = null; // force re-attestation next time
-        token = null; // report the failure so the backend falls back
+        visitorData = null; // and re-fetch visitor_data
         error = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
       }
       try {
         await fetch(apiUrl("/po-token/result"), {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ id: job.id, token, error }),
+          body: JSON.stringify({ id: job.id, token, visitor_data: visitor, error }),
         });
       } catch {
         // Result POST failed — the backend job just times out and falls back.
