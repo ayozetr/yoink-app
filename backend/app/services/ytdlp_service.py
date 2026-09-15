@@ -21,6 +21,7 @@ from app.core.ytdlp_options import (
     with_cookie_fallback,
 )
 from app.services.embedded_vr_extractor import register as register_embedded_vr
+from app.services.odnoklassniki_extractor import register as register_odnoklassniki
 from app.services.threads_extractor import register as register_threads_ie
 from app.services.vr import detect_vr
 from app.models.media import (
@@ -548,6 +549,7 @@ def extract_info(url: str) -> InfoResponse:
         with YoutubeDL(opts) as ydl:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             register_embedded_vr(ydl)  # player-config sources (overrides stale ones)
+            register_odnoklassniki(ydl)  # ok.ru: dict-metadata fix over the bundled IE
             raw_info = ydl.extract_info(normalize_url(url), download=False)
             # sanitize_info makes the dict JSON-serializable and stable.
             return cast(dict[str, Any], ydl.sanitize_info(raw_info))
@@ -584,6 +586,20 @@ def extract_info(url: str) -> InfoResponse:
                     str(exc), transient=_is_transient_error(str(exc))
                 ) from exc
             return tolerant
+        except MediaExtractionError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — a yt-dlp/extractor internal error
+            # An unexpected error *inside* yt-dlp — not a clean DownloadError but a
+            # crash in an extractor whose site changed its response shape (e.g.
+            # ok.ru raising a TypeError). Surface it as a normal extraction failure
+            # so the API returns a proper 4xx/5xx error the UI can show, instead of
+            # an unhandled 500 the frontend misreads as "backend unreachable".
+            logger.warning("Unexpected extraction error for %s: %r", url, exc)
+            raise MediaExtractionError(
+                "Couldn't read this URL — the site may have changed, or it isn't "
+                "supported by the current yt-dlp.",
+                transient=False,
+            ) from exc
 
     # Retry only *transient* failures (a one-off anti-bot 403 / network blip),
     # with a short backoff, so a momentary glitch self-heals instead of failing

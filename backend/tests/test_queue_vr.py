@@ -44,6 +44,7 @@ def _setup(monkeypatch, out):
     monkeypatch.setattr(ds, "YoutubeDL", _fake_ydl(out))
     monkeypatch.setattr(ds, "register_threads_ie", lambda ydl: None)
     monkeypatch.setattr(ds, "register_embedded_vr", lambda ydl: None)
+    monkeypatch.setattr(ds, "register_odnoklassniki", lambda ydl: None)
     monkeypatch.setattr(ds, "_final_path", lambda info: None)
 
 

@@ -33,6 +33,7 @@ from app.core.ytdlp_options import (
     with_cookie_fallback,
 )
 from app.services.embedded_vr_extractor import register as register_embedded_vr
+from app.services.odnoklassniki_extractor import register as register_odnoklassniki
 from app.services.threads_extractor import register as register_threads_ie
 from app.services import audio_normalize, nfo
 from app.services.vr import apply_vr, detect_vr
@@ -753,6 +754,7 @@ async def download_events(
         with YoutubeDL(options) as ydl:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             register_embedded_vr(ydl)  # player-config sources (overrides stale ones)
+            register_odnoklassniki(ydl)  # ok.ru: dict-metadata fix over the bundled IE
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
             info = ydl.sanitize_info(info)
             path = _final_path(info) or ydl.prepare_filename(info)

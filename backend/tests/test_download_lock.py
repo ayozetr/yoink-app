@@ -56,6 +56,7 @@ def test_concurrent_downloads_are_serialized(temp_dirs, monkeypatch):
     monkeypatch.setattr(download_service, "YoutubeDL", FakeYDL)
     monkeypatch.setattr(download_service, "register_threads_ie", lambda ydl: None)
     monkeypatch.setattr(download_service, "register_embedded_vr", lambda ydl: None)
+    monkeypatch.setattr(download_service, "register_odnoklassniki", lambda ydl: None)
 
     async def drive():
         async def consume(req):
@@ -106,6 +107,7 @@ def test_queued_download_aborts_on_client_disconnect(temp_dirs, monkeypatch):
     monkeypatch.setattr(download_service, "YoutubeDL", SlowYDL)
     monkeypatch.setattr(download_service, "register_threads_ie", lambda ydl: None)
     monkeypatch.setattr(download_service, "register_embedded_vr", lambda ydl: None)
+    monkeypatch.setattr(download_service, "register_odnoklassniki", lambda ydl: None)
     monkeypatch.setattr(download_service, "_final_path", lambda info: None)
     # The module-global asyncio.Lock binds to the first event loop that uses it, so
     # give this test (its own asyncio.run) a fresh lock — otherwise it clashes with
