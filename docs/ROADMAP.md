@@ -267,6 +267,15 @@ Not committed and not release-ordered — picked from as capacity allows.
   **YouTube ↔ SoundCloud** selector in the header (persisted) drives the URL-field
   typeahead, flipping the yt-dlp search prefix (`ytsearch`→`scsearch`). More
   platforms drop in by adding a prefix.
+- ⬜ **Multi-connection download accelerator (aria2c)** (M) — some hosts throttle a
+  single progressive HTTP stream (ok.ru caps a direct download at ~250 KB/s;
+  measured: raw yt-dlp gets the same, and parallel HLS fragments are no faster
+  because the cap is on total bandwidth *for that connection*). An external
+  downloader like `aria2c` opens several **byte-range** connections to the one file
+  and can bypass a per-connection cap where the host allows range requests. Would
+  mean bundling aria2c and wiring it as yt-dlp's `external_downloader` (with a
+  setting, since it doesn't help every site and adds a binary). Gauge the win per
+  host first — for a hard *total*-bandwidth cap it buys nothing.
 - ⬜ **Split by chapters** (M) — one file per chapter (`--split-chapters`).
 - ✅ **Playlist sync** — re-analyzing a playlist flags each entry already in your
   download history (matched by a context-free URL key that ignores playlist/

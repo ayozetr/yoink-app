@@ -21,7 +21,10 @@ def test_submit_times_out_without_a_worker():
     start = time.monotonic()
     token = broker.submit_mint("vid1", timeout=0.2)
     assert token is None
-    assert time.monotonic() - start >= 0.2
+    # It waited for (about) the timeout rather than returning instantly. Allow a
+    # little slack: Windows' timer granularity can wake an Event.wait a hair early
+    # (~0.19s for a 0.2s wait), which shouldn't fail the test.
+    assert time.monotonic() - start >= 0.15
 
 
 def test_next_job_returns_none_when_empty():
