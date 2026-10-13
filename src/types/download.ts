@@ -280,6 +280,8 @@ export interface AppSettings {
   filename_template: string;
   /** Download speed cap like "1M"/"500K"; null means no cap. */
   rate_limit: string | null;
+  /** Use aria2c (multi-connection) as the external downloader when available. */
+  use_aria2c: boolean;
   /** Preferred video codec ("any" = no preference). */
   video_codec: VideoCodec;
   /** Lossy audio bitrate in kbps, or "best". */

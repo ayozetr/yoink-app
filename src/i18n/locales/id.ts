@@ -258,6 +258,9 @@ export const id = {
     defaultAudioFormatHint: "FLAC dan WAV untuk audio lossless; sebagian besar situs tidak menyediakan konten yang kompatibel, jadi MP3 digunakan dalam kasus tersebut.",
     rateLimit: "Batas lebar pita",
     rateLimitNone: "Tanpa batas",
+    useAria2c: "Unduhan multi-koneksi (aria2c)",
+    useAria2cHelp:
+      "Menggunakan aria2c untuk membuka beberapa koneksi ke satu berkas, yang dapat melampaui batas kecepatan per koneksi di situs yang mengizinkannya. Memerlukan program aria2c terpasang (atau disertakan); tidak berpengaruh jika tidak ada.",
     proxy: "Proxy",
     proxyHelp:
       "Salurkan metadata dan unduhan melalui proxy HTTP/HTTPS/SOCKS. Biarkan kosong untuk koneksi langsung.",

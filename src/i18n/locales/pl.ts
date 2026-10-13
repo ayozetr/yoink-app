@@ -268,6 +268,9 @@ export const pl = {
     defaultAudioFormatHint: "FLAC i WAV służą do dźwięku bezstratnego; większość witryn nie oferuje zgodnej zawartości, więc w takich przypadkach używany jest MP3.",
     rateLimit: "Limit przepustowości",
     rateLimitNone: "Bez limitu",
+    useAria2c: "Pobieranie wielopołączeniowe (aria2c)",
+    useAria2cHelp:
+      "Używa aria2c do otwierania wielu połączeń do jednego pliku, co może ominąć limit prędkości na połączenie w witrynach, które na to pozwalają. Wymaga programu aria2c (zainstalowanego lub dołączonego); w przeciwnym razie nie działa.",
     proxy: "Proxy",
     proxyHelp:
       "Kieruj metadane i pobierania przez proxy HTTP/HTTPS/SOCKS. Pozostaw puste dla połączenia bezpośredniego.",

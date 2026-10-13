@@ -173,6 +173,12 @@ class Settings(BaseSettings):
     # Optional download speed cap in yt-dlp format ("1M", "500K"); None = no cap.
     rate_limit: str | None = Field(default=None)
 
+    # Use aria2c as the external downloader (multi-connection, byte-range). Helps
+    # on hosts that throttle a single connection but allow range requests; off by
+    # default (it opens many connections — not every host likes it — and needs the
+    # aria2c binary, bundled in vendor/ or on PATH). No-op if aria2c isn't found.
+    use_aria2c: bool = False
+
     # Preferred video codec: "any" = no preference, else bias the format sort.
     video_codec: Literal["any", "h264", "vp9", "av1"] = "any"
 

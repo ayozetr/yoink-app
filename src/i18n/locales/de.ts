@@ -258,6 +258,9 @@ export const de = {
     defaultAudioFormatHint: "FLAC und WAV sind für verlustfreies Audio; die meisten Seiten bieten keine kompatiblen Inhalte, daher wird in diesen Fällen MP3 verwendet.",
     rateLimit: "Bandbreitenlimit",
     rateLimitNone: "Kein Limit",
+    useAria2c: "Multiverbindungs-Downloads (aria2c)",
+    useAria2cHelp:
+      "Nutzt aria2c, um mehrere Verbindungen zu einer Datei zu öffnen, was ein Geschwindigkeitslimit pro Verbindung auf Seiten umgehen kann, die das erlauben. Erfordert das Programm aria2c (installiert oder mitgeliefert); sonst ohne Wirkung.",
     proxy: "Proxy",
     proxyHelp:
       "Leite Metadaten und Downloads über einen HTTP/HTTPS/SOCKS-Proxy. Leer lassen für eine direkte Verbindung.",

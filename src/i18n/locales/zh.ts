@@ -258,6 +258,9 @@ export const zh = {
     defaultAudioFormatHint: "FLAC 和 WAV 用于无损音频；大多数网站不提供兼容内容，因此这些情况下将使用 MP3。",
     rateLimit: "带宽限制",
     rateLimitNone: "不限制",
+    useAria2c: "多连接下载 (aria2c)",
+    useAria2cHelp:
+      "使用 aria2c 对同一文件建立多个连接，在允许的网站上可突破单连接速度限制。需要安装（或内置）aria2c 程序；否则无效。",
     proxy: "代理",
     proxyHelp:
       "通过 HTTP/HTTPS/SOCKS 代理转发元数据和下载。留空则使用直接连接。",

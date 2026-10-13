@@ -25,6 +25,7 @@ from app.core.config import (
     AUTOTAG_FILENAME_TEMPLATE_REVERSED,
     settings,
 )
+from app.core.aria2c import aria2c_path
 from app.core.ffmpeg import ffmpeg_location
 from app.core.humanize import humanize_bytes
 from app.core.ytdlp_options import (
@@ -397,6 +398,19 @@ def _build_options(
     rate = _parse_rate_limit(settings.rate_limit)
     if rate:
         options["ratelimit"] = rate
+
+    # Optional aria2c external downloader (multi-connection, byte-range) — opt-in
+    # and only when an aria2c binary is actually present, so the setting is a safe
+    # no-op otherwise. -x/-s open parallel range connections (bypassing a
+    # per-connection cap where the host allows it); -k sets the per-split size.
+    # yt-dlp honours its own --limit-rate, so a rate cap still applies.
+    if settings.use_aria2c:
+        aria2c = aria2c_path()
+        if aria2c:
+            options["external_downloader"] = {"default": aria2c}
+            options["external_downloader_args"] = {
+                "aria2c": ["-x", "16", "-s", "16", "-k", "1M"]
+            }
 
     # Use the bundled ffmpeg/ffprobe when packaged; otherwise yt-dlp uses PATH.
     location = ffmpeg_location()

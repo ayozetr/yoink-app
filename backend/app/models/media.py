@@ -443,6 +443,12 @@ class AppSettings(BaseModel):
         default=None,
         description="Download speed cap like '1M'/'500K'; None means no cap.",
     )
+    use_aria2c: bool = Field(
+        default=False,
+        description="Use aria2c (multi-connection) as the external downloader when "
+        "available. Helps on hosts that cap a single connection but allow range "
+        "requests; no-op if the aria2c binary isn't found.",
+    )
     video_codec: VideoCodec = Field(
         default="any", description="Preferred video codec ('any' = no preference)."
     )

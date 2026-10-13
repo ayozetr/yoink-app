@@ -258,6 +258,9 @@ export const en = {
     defaultAudioFormatHint: "FLAC and WAV are for lossless audio; most sites don't offer compatible content, so MP3 is used in those cases.",
     rateLimit: "Bandwidth limit",
     rateLimitNone: "No limit",
+    useAria2c: "Multi-connection downloads (aria2c)",
+    useAria2cHelp:
+      "Use aria2c to open several connections to one file, which can beat a per-connection speed cap on sites that allow it. Needs the aria2c program installed (or bundled); has no effect otherwise.",
     proxy: "Proxy",
     proxyHelp:
       "Route metadata and downloads through an HTTP/HTTPS/SOCKS proxy. Leave empty for a direct connection.",

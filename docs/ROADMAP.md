@@ -267,15 +267,17 @@ Not committed and not release-ordered — picked from as capacity allows.
   **YouTube ↔ SoundCloud** selector in the header (persisted) drives the URL-field
   typeahead, flipping the yt-dlp search prefix (`ytsearch`→`scsearch`). More
   platforms drop in by adding a prefix.
-- ⬜ **Multi-connection download accelerator (aria2c)** (M) — some hosts throttle a
-  single progressive HTTP stream (ok.ru caps a direct download at ~250 KB/s;
-  measured: raw yt-dlp gets the same, and parallel HLS fragments are no faster
-  because the cap is on total bandwidth *for that connection*). An external
-  downloader like `aria2c` opens several **byte-range** connections to the one file
-  and can bypass a per-connection cap where the host allows range requests. Would
-  mean bundling aria2c and wiring it as yt-dlp's `external_downloader` (with a
-  setting, since it doesn't help every site and adds a binary). Gauge the win per
-  host first — for a hard *total*-bandwidth cap it buys nothing.
+- ✅ **Multi-connection download accelerator (aria2c)** (M) — opt-in
+  (`use_aria2c`, off by default). When on *and* an aria2c binary is found, it's
+  wired as yt-dlp's `external_downloader` with `-x16 -s16 -k1M` (parallel
+  byte-range connections), which can bypass a **per-connection** speed cap on
+  hosts that allow range requests. Resolution is hybrid: a bundled `aria2c` in
+  `backend/vendor/aria2/` (zero-config) if a future build ships one, else the
+  system `aria2c` on PATH, else a safe no-op (the setting can't break a download).
+  Nothing is bundled today — aria2 has no official static Linux binary, and the
+  win is niche (it buys nothing against a hard *total*-bandwidth cap like ok.ru's,
+  measured ~250 KB/s) — so it uses a system aria2c for now; dropping a binary into
+  the vendor dir later makes it zero-config with no code change.
 - ⬜ **Split by chapters** (M) — one file per chapter (`--split-chapters`).
 - ✅ **Playlist sync** — re-analyzing a playlist flags each entry already in your
   download history (matched by a context-free URL key that ignores playlist/

@@ -773,6 +773,14 @@ export function SettingsModal({
             />
           </Field>
 
+          <Toggle
+            checked={form.use_aria2c}
+            onChange={(v) => set("use_aria2c", v)}
+            label={t("settings.useAria2c")}
+            help={t("settings.useAria2cHelp")}
+            className="w-full"
+          />
+
           <p className="text-xs text-zinc-400 -mb-1">
             {t("settings.cookiesHint")}
           </p>

@@ -258,6 +258,9 @@ export const ja = {
     defaultAudioFormatHint: "FLAC と WAV は無劣化音声用です。ほとんどのサイトは対応コンテンツを提供しないため、その場合は MP3 が使われます。",
     rateLimit: "帯域幅の制限",
     rateLimitNone: "制限なし",
+    useAria2c: "マルチコネクション ダウンロード (aria2c)",
+    useAria2cHelp:
+      "aria2c を使って 1 つのファイルに複数の接続を開き、許可しているサイトでは接続ごとの速度制限を回避できます。aria2c プログラム（インストール済みまたは同梱）が必要です。ない場合は無効です。",
     proxy: "プロキシ",
     proxyHelp:
       "メタデータとダウンロードを HTTP/HTTPS/SOCKS プロキシ経由で行います。空欄にすると直接接続します。",

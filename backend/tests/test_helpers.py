@@ -463,6 +463,47 @@ def test_build_options_no_po_token_when_none_resolved(temp_dirs, monkeypatch):
     assert "youtube" not in options.get("extractor_args", {})
 
 
+def test_build_options_aria2c_wired_when_enabled_and_available(temp_dirs, monkeypatch):
+    from app.core.config import settings as cfg
+    from app.services import download_service
+
+    monkeypatch.setattr(cfg, "use_aria2c", True)
+    monkeypatch.setattr(download_service, "aria2c_path", lambda: "/usr/bin/aria2c")
+    options = _build_options(
+        DownloadRequest(url="https://youtu.be/abcdefghijk"),
+        hook=lambda raw: None,
+    )
+    assert options["external_downloader"] == {"default": "/usr/bin/aria2c"}
+    assert "aria2c" in options["external_downloader_args"]
+
+
+def test_build_options_aria2c_noop_when_binary_missing(temp_dirs, monkeypatch):
+    # Enabled but no aria2c binary → safe no-op (the setting can't break a download).
+    from app.core.config import settings as cfg
+    from app.services import download_service
+
+    monkeypatch.setattr(cfg, "use_aria2c", True)
+    monkeypatch.setattr(download_service, "aria2c_path", lambda: None)
+    options = _build_options(
+        DownloadRequest(url="https://youtu.be/abcdefghijk"),
+        hook=lambda raw: None,
+    )
+    assert "external_downloader" not in options
+
+
+def test_build_options_no_aria2c_when_disabled(temp_dirs, monkeypatch):
+    from app.core.config import settings as cfg
+    from app.services import download_service
+
+    monkeypatch.setattr(cfg, "use_aria2c", False)
+    monkeypatch.setattr(download_service, "aria2c_path", lambda: "/usr/bin/aria2c")
+    options = _build_options(
+        DownloadRequest(url="https://youtu.be/abcdefghijk"),
+        hook=lambda raw: None,
+    )
+    assert "external_downloader" not in options
+
+
 def test_downloaded_node_single_vs_playlist_wrapper():
     # Single video: the node is the top level.
     top = {"requested_downloads": [{"filepath": "/dl/v.mp4"}]}

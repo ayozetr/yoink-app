@@ -258,6 +258,9 @@ export const ko = {
     defaultAudioFormatHint: "FLAC와 WAV는 무손실 오디오용입니다. 대부분의 사이트는 호환 콘텐츠를 제공하지 않으므로 그런 경우 MP3가 사용됩니다.",
     rateLimit: "대역폭 제한",
     rateLimitNone: "제한 없음",
+    useAria2c: "다중 연결 다운로드 (aria2c)",
+    useAria2cHelp:
+      "aria2c로 한 파일에 여러 연결을 열어 허용하는 사이트에서 연결당 속도 제한을 넘을 수 있습니다. aria2c 프로그램이 설치(또는 번들)되어 있어야 하며, 없으면 효과가 없습니다.",
     proxy: "프록시",
     proxyHelp:
       "메타데이터와 다운로드를 HTTP/HTTPS/SOCKS 프록시를 통해 라우팅합니다. 직접 연결하려면 비워 두세요.",
