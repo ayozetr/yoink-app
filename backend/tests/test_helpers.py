@@ -504,6 +504,18 @@ def test_build_options_no_aria2c_when_disabled(temp_dirs, monkeypatch):
     assert "external_downloader" not in options
 
 
+def test_build_options_image_kind_is_minimal(temp_dirs, monkeypatch):
+    # A still-image download fetches the single format with no merge/container/
+    # postprocessors (none apply to a .jpg).
+    options = _build_options(
+        DownloadRequest(url="https://www.instagram.com/p/abc/", kind="image"),
+        hook=lambda raw: None,
+    )
+    assert options["format"] == "best"
+    assert "merge_output_format" not in options
+    assert not options.get("postprocessors")
+
+
 def test_downloaded_node_single_vs_playlist_wrapper():
     # Single video: the node is the top level.
     top = {"requested_downloads": [{"filepath": "/dl/v.mp4"}]}

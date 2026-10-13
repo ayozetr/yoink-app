@@ -21,6 +21,7 @@ from app.core.ytdlp_options import (
     with_cookie_fallback,
 )
 from app.services.embedded_vr_extractor import register as register_embedded_vr
+from app.services.instagram_image_extractor import register as register_instagram_images
 from app.services.odnoklassniki_extractor import register as register_odnoklassniki
 from app.services.threads_extractor import register as register_threads_ie
 from app.services.vr import detect_vr
@@ -349,6 +350,29 @@ def _auto_caption_langs(info: dict[str, Any], manual: list[str]) -> list[str]:
     )
 
 
+# Extensions the image shim (and yt-dlp) label a still image with.
+_IMAGE_EXTS = frozenset({"jpg", "jpeg", "png", "webp", "heic"})
+
+
+def _is_image_item(raw_formats: Any) -> bool:
+    """True when every downloadable format is a still image — an Instagram photo
+    item surfaced by ``instagram_image_extractor`` (no video, no audio). The card
+    then offers a one-click image download instead of a quality/format picker."""
+    if not isinstance(raw_formats, list) or not raw_formats:
+        return False
+    usable = [f for f in raw_formats if isinstance(f, dict) and f.get("url")]
+    if not usable:
+        return False
+    for fmt in usable:
+        vcodec = fmt.get("vcodec")
+        acodec = fmt.get("acodec")
+        if (bool(vcodec) and vcodec != "none") or (bool(acodec) and acodec != "none"):
+            return False
+        if str(fmt.get("ext", "")).lower() not in _IMAGE_EXTS:
+            return False
+    return True
+
+
 def _build_video(info: dict[str, Any]) -> VideoInfo:
     """Build a fully-typed VideoInfo from a resolved yt-dlp info dict."""
     raw_formats = info.get("formats")
@@ -366,6 +390,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
     has_audio, source_lossless, best_audio_abr = _audio_summary(raw_formats)
     manual_subs = _subtitle_langs(info)
     is_vr, vr_layout = detect_vr(info)
+    is_image = _is_image_item(raw_formats)
 
     return VideoInfo(
         id=str(info.get("id", "")),
@@ -386,6 +411,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         audio_langs=_audio_langs(info),
         is_vr=is_vr,
         vr_layout=vr_layout,
+        is_image=is_image,
     )
 
 
@@ -430,6 +456,9 @@ def _build_entry(raw: dict[str, Any]) -> PlaylistEntry | None:
         # Captured for every entry; _build_playlist keeps it only on the
         # non-addressable ones (those sharing a URL) and clears the rest.
         playlist_index=index if isinstance(index, int) else None,
+        # A photo item in a highlight carries resolved image formats (flat
+        # playlist entries don't), so the client can download it as an image.
+        is_image=_is_image_item(raw.get("formats")),
     )
 
 
@@ -550,6 +579,7 @@ def extract_info(url: str) -> InfoResponse:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             register_embedded_vr(ydl)  # player-config sources (overrides stale ones)
             register_odnoklassniki(ydl)  # ok.ru: dict-metadata fix over the bundled IE
+            register_instagram_images(ydl)  # Instagram: surface photo items as downloadable
             raw_info = ydl.extract_info(normalize_url(url), download=False)
             # sanitize_info makes the dict JSON-serializable and stable.
             return cast(dict[str, Any], ydl.sanitize_info(raw_info))

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { DownloaderHeader } from "./components/DownloaderHeader";
 import { UrlInput } from "./components/UrlInput";
 import { PreviewCard, type DownloadSelection } from "./components/PreviewCard";
+import { ImagePreviewCard } from "./components/ImagePreviewCard";
 import { PlaylistCard } from "./components/PlaylistCard";
 import { DownloadProgressCard } from "./components/DownloadProgressCard";
 const AutoTagPanel = lazy(() =>
@@ -563,10 +564,13 @@ export function DownloaderPanel({
         // title — make the output name unique by appending the index, so they
         // don't overwrite each other on disk ("output file is missing").
         const nonAddressable = entry.playlist_index != null;
+        // A photo item in a highlight is downloaded as an image regardless of the
+        // batch's video/audio choice (it has no video/audio to honour it with).
+        const entryKind = entry.is_image ? "image" : selection.kind;
         return {
           request: {
             url: entry.url,
-            kind: selection.kind,
+            kind: entryKind,
             quality: selection.quality,
             container: selection.container,
             audio_format: selection.audio_format,
@@ -713,7 +717,16 @@ export function DownloaderPanel({
         </GlassPanel>
       )}
 
-      {info?.type === "video" && info.video && (
+      {info?.type === "video" && info.video && info.video.is_image && (
+        <ImagePreviewCard
+          key={info.video.id}
+          info={info.video}
+          onDownload={onDownload}
+          locked={lockedByOther}
+        />
+      )}
+
+      {info?.type === "video" && info.video && !info.video.is_image && (
         <PreviewCard
           key={info.video.id}
           info={info.video}

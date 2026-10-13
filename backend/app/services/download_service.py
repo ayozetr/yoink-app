@@ -34,6 +34,7 @@ from app.core.ytdlp_options import (
     with_cookie_fallback,
 )
 from app.services.embedded_vr_extractor import register as register_embedded_vr
+from app.services.instagram_image_extractor import register as register_instagram_images
 from app.services.odnoklassniki_extractor import register as register_odnoklassniki
 from app.services.threads_extractor import register as register_threads_ie
 from app.services import audio_normalize, nfo
@@ -435,7 +436,14 @@ def _build_options(
     mark_chapters = sponsorblock_on and settings.sponsorblock_action == "mark"
     chapters_pp = {"key": "FFmpegMetadata", "add_chapters": True, "add_metadata": True}
 
-    if request.kind == "audio":
+    if request.kind == "image":
+        # A still image (e.g. an Instagram photo surfaced by the image shim):
+        # fetch the single image format as-is. No merge, container, ffmpeg or
+        # postprocessors — none apply to a .jpg, and forcing a container would
+        # make ffmpeg choke on image input. (SponsorBlock/subs/chapters are all
+        # video/audio concerns, so they're skipped too.)
+        options["format"] = "best"
+    elif request.kind == "audio":
         # For m4a, prefer a source already in an AAC/m4a container so the
         # FFmpegExtractAudio postprocessor can copy the stream (`-c copy`)
         # instead of re-encoding it; other formats fall back to bestaudio.
@@ -769,6 +777,7 @@ async def download_events(
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             register_embedded_vr(ydl)  # player-config sources (overrides stale ones)
             register_odnoklassniki(ydl)  # ok.ru: dict-metadata fix over the bundled IE
+            register_instagram_images(ydl)  # Instagram: surface photo items as downloadable
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
             info = ydl.sanitize_info(info)
             path = _final_path(info) or ydl.prepare_filename(info)
@@ -814,8 +823,9 @@ async def download_events(
                         target_i=float(settings.normalize_lufs),
                     )
             # Optional Kodi/Jellyfin .nfo sidecar, next to the final file. Audio
-            # auto-tagging rewrites it later with the tagged metadata.
-            if path and settings.nfo_sidecars and not cancelled():
+            # auto-tagging rewrites it later with the tagged metadata. Skipped for
+            # a still image — the movie/musicvideo .nfo shapes don't apply.
+            if path and settings.nfo_sidecars and request.kind != "image" and not cancelled():
                 nfo.write(Path(path), nfo.from_info(node, request.kind))
             return path
 

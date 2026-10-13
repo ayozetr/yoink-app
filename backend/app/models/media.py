@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl, model_validator
 
-MediaKind = Literal["video", "audio"]
+MediaKind = Literal["video", "audio", "image"]
 HistoryStatus = Literal["completed", "error"]
 
 # Output containers for a video download (merge target).
@@ -112,6 +112,12 @@ class VideoInfo(BaseModel):
         default="180_sbs",
         description="Suggested stereo/projection layout (seeds the VR toggle).",
     )
+    is_image: bool = Field(
+        default=False,
+        description="A still-image item (e.g. an Instagram photo) — downloaded "
+        "as an image file, so the UI offers a one-click image download instead of "
+        "a video/audio quality picker.",
+    )
 
 
 class PlaylistEntry(BaseModel):
@@ -138,6 +144,11 @@ class PlaylistEntry(BaseModel):
             "playlist_items so yt-dlp fetches just this clip; None for a normally "
             "addressable entry (its own URL is used directly)."
         ),
+    )
+    is_image: bool = Field(
+        default=False,
+        description="This entry is a still image (e.g. a photo in an Instagram "
+        "highlight) — downloaded as an image file (kind 'image'), not video/audio.",
     )
 
 

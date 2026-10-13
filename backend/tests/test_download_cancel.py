@@ -46,6 +46,7 @@ def test_lock_freed_on_cancel_before_slow_worker(monkeypatch, tmp_path):
     monkeypatch.setattr(ds, "register_threads_ie", lambda ydl: None)
     monkeypatch.setattr(ds, "register_embedded_vr", lambda ydl: None)
     monkeypatch.setattr(ds, "register_odnoklassniki", lambda ydl: None)
+    monkeypatch.setattr(ds, "register_instagram_images", lambda ydl: None)
     monkeypatch.setattr(ds, "_final_path", lambda info: None)
 
     async def run():

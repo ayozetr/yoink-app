@@ -2,6 +2,7 @@ import {
   AlertCircle,
   CheckCircle2,
   FolderOpen,
+  Image as ImageIcon,
   Music4,
   Play,
   RotateCcw,
@@ -112,6 +113,8 @@ export function HistoryItemCard({
             />
           ) : item.kind === "audio" ? (
             <Music4 size={18} />
+          ) : item.kind === "image" ? (
+            <ImageIcon size={18} />
           ) : (
             <Video size={18} />
           )}

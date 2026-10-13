@@ -360,17 +360,20 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   playlist dict (a bogus `<title>.NA`) and reported the file missing though it downloaded
   fine. Fixed by descending into the entries; verified live (the single-video highlight
   that previously errored now completes to the correct file).
-- ⬜ **Download Instagram photo stories / image posts** (M) — yt-dlp's Instagram
+- ✅ **Download Instagram photo stories / image posts** (M) — yt-dlp's Instagram
   extractors build `formats` **only from `video_versions`**; a photo item's image
-  (`image_versions2.candidates`) is kept as a **thumbnail**, not a format, so
-  `InstagramStoryIE` drops photo stories entirely (`if highlight_data.get('formats')`).
-  A real highlight of 18 items (14 videos + 4 photos) surfaces only the 14 videos; a
-  photo-only highlight surfaces nothing. yt-dlp does **not** download these images. The
-  image URL *is* available (it lands in `thumbnails`), so Yoink could surface photo items
-  and download the best candidate as a `.jpg` (its own path, since the engine is
-  video/audio-first) — a custom extractor/shim like `threads_extractor`. Scope: images
-  are a new output kind (no merge/transcode), so it also touches the card UI (a photo
-  item isn't "video/audio") and history.
+  (`image_versions2.candidates`) was kept as a **thumbnail**, not a format, so
+  `InstagramStoryIE` dropped photo stories entirely. **Done:**
+  `instagram_image_extractor.py` subclasses `InstagramIE`/`InstagramStoryIE` and
+  overrides `_extract_product_media` to promote the best image candidate to a real
+  `.jpg` format when a media item has no video — so photo posts, photos inside a
+  carousel, and photo stories/highlights all download (and photo items stay in a
+  highlight listing instead of vanishing). Images are a new output **kind**
+  (`image`): `is_image` on `VideoInfo`/`PlaylistEntry`, a dedicated
+  `ImagePreviewCard` (one-click download, no quality/container picker), a
+  minimal download path (fetch the single format — no merge/container/ffmpeg/
+  nfo), a history image icon, and per-entry `kind: "image"` in a mixed highlight.
+  The full card treatment lands with the v4.0.0 redesign.
 - ✅ **Zero-config PO token — mint in the WebView** (L) — *validated live
   2026-09-15; ships opt-in (default `manual`).* Full design + status in
   [`po-token-webview.md`](po-token-webview.md). **Done:** the `po_token_mode`

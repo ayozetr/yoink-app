@@ -7,7 +7,7 @@
 
 export type DownloadStatus = "completed" | "error" | "downloading" | "queued";
 
-export type MediaKind = "video" | "audio";
+export type MediaKind = "video" | "audio" | "image";
 
 /** Output container for a video download (mirrors backend `VideoContainer`). */
 export type VideoContainer = "mp4" | "mov" | "mkv";
@@ -108,6 +108,9 @@ export interface VideoInfo {
   is_vr: boolean;
   /** Suggested stereo/projection layout (seeds the VR toggle). */
   vr_layout: VRLayout;
+  /** A still-image item (e.g. an Instagram photo) — a one-click image download
+   * instead of a video/audio quality picker. */
+  is_image: boolean;
 }
 
 /** One flat item inside a playlist (mirrors backend `PlaylistEntry`). */
@@ -126,6 +129,9 @@ export interface PlaylistEntry {
    * siblings (Instagram story-sets/highlights). The client downloads it via the
    * container URL + playlist_index; null for a normally addressable entry. */
   playlist_index?: number | null;
+  /** This entry is a still image (e.g. a photo in an Instagram highlight) —
+   * downloaded as an image file (kind "image"), not video/audio. */
+  is_image?: boolean;
 }
 
 /** Flat YouTube search results for the URL-field typeahead (mirrors backend). */
