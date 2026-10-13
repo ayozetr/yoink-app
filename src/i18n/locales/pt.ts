@@ -90,6 +90,8 @@ export const pt = {
     downloaded: "Baixada",
     videos_one: "{{count}} vídeo",
     videos_other: "{{count}} vídeos",
+    items_one: "{{count}} item",
+    items_other: "{{count}} itens",
     showingFirst: "(mostrando os primeiros {{count}})",
     losslessNote: "FLAC/WAV serão sem perdas somente se a fonte permitir.",
     selectionSummary: "{{count}} selecionados · {{duration}}",

@@ -90,6 +90,8 @@ export const id = {
     downloaded: "Terunduh",
     videos_one: "{{count}} video",
     videos_other: "{{count}} video",
+    items_one: "{{count}} item",
+    items_other: "{{count}} item",
     showingFirst: "(menampilkan {{count}} pertama)",
     losslessNote: "FLAC/WAV hanya lossless jika sumbernya mendukung.",
     selectionSummary: "{{count}} dipilih · {{duration}}",

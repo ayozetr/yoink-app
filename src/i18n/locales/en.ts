@@ -90,6 +90,8 @@ export const en = {
     downloaded: "Downloaded",
     videos_one: "{{count}} video",
     videos_other: "{{count}} videos",
+    items_one: "{{count}} item",
+    items_other: "{{count}} items",
     showingFirst: "(showing the first {{count}})",
     losslessNote: "FLAC/WAV are lossless only if the source allows it.",
     selectionSummary: "{{count}} selected · {{duration}}",

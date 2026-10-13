@@ -3,7 +3,29 @@
 from __future__ import annotations
 
 from app.services import ytdlp_service
-from app.services.instagram_image_extractor import _promote_image
+from app.services.instagram_image_extractor import _promote_image, _relabel_photo
+
+
+def test_relabel_photo_renames_image_items_only():
+    image_fmt = [{"format_id": "image", "ext": "jpg"}]
+    video_fmt = [{"format_id": "0", "ext": "mp4", "vcodec": "h264"}]
+    result = {
+        "_type": "playlist",
+        "entries": [
+            {"title": "Video by bob", "formats": image_fmt},  # photo → renamed
+            {"title": "Video by bob", "formats": video_fmt},  # video → kept
+            {"title": "A real caption", "formats": image_fmt},  # real title → kept
+        ],
+    }
+    _relabel_photo(result)
+    titles = [e["title"] for e in result["entries"]]
+    assert titles == ["Photo by bob", "Video by bob", "A real caption"]
+
+
+def test_relabel_photo_single_item():
+    info = {"title": "Video by alice", "formats": [{"format_id": "image", "ext": "jpg"}]}
+    _relabel_photo(info)
+    assert info["title"] == "Photo by alice"
 
 
 def test_promote_image_adds_best_candidate_as_format():

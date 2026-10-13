@@ -10,6 +10,7 @@ import {
   Clock3,
   Download,
   Glasses,
+  Image as ImageIcon,
   Info,
   ListVideo,
   Music4,
@@ -108,6 +109,9 @@ export const PlaylistCard = memo(function PlaylistCard({
   const { t, i18n } = useTranslation();
   // A YouTube Music playlist is music: download audio only, no video/audio picker.
   const audioOnly = /music\.youtube\.com/i.test(sourceUrl ?? "");
+  // Instagram photo items (promoted by the image shim) mix into a carousel/
+  // highlight listing; reflect that the list isn't all "videos".
+  const hasImages = playlist.entries.some((e) => e.is_image);
   const [selected, setSelected] = useState<Set<string>>(() =>
     freshSelection(playlist.entries),
   );
@@ -365,7 +369,9 @@ export const PlaylistCard = memo(function PlaylistCard({
               {playlist.uploader ? `${playlist.uploader} • ` : ""}
               {audioOnly
                 ? t("music.songs", { count: playlist.entry_count })
-                : t("playlist.videos", { count: playlist.entry_count })}
+                : hasImages
+                  ? t("playlist.items", { count: playlist.entry_count })
+                  : t("playlist.videos", { count: playlist.entry_count })}
               {playlist.truncated &&
                 ` ${t("playlist.showingFirst", { count: playlist.entries.length })}`}
             </p>
@@ -580,9 +586,17 @@ export const PlaylistCard = memo(function PlaylistCard({
                     loading="lazy"
                     className="h-full w-full object-cover"
                     fallback={
-                      kind === "audio" ? <Music4 size={14} /> : <Video size={14} />
+                      entry.is_image ? (
+                        <ImageIcon size={14} />
+                      ) : kind === "audio" ? (
+                        <Music4 size={14} />
+                      ) : (
+                        <Video size={14} />
+                      )
                     }
                   />
+                ) : entry.is_image ? (
+                  <ImageIcon size={14} />
                 ) : kind === "audio" ? (
                   <Music4 size={14} />
                 ) : (
@@ -590,6 +604,12 @@ export const PlaylistCard = memo(function PlaylistCard({
                 )}
               </div>
               <span className="flex-1 min-w-0 text-sm truncate">{entry.title}</span>
+              {entry.is_image && (
+                <span className="flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30 shrink-0">
+                  <ImageIcon size={11} />
+                  {t("preview.imageBadge")}
+                </span>
+              )}
               {entry.already_downloaded && (
                 <span className="flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium text-zinc-400 shrink-0">
                   <CheckCircle2 size={11} className="text-violet-400/80" />

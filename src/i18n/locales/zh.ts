@@ -90,6 +90,8 @@ export const zh = {
     downloaded: "已下载",
     videos_one: "{{count}} 个视频",
     videos_other: "{{count}} 个视频",
+    items_one: "{{count}} 个项目",
+    items_other: "{{count}} 个项目",
     showingFirst: "（仅显示前 {{count}} 个）",
     losslessNote: "仅当源支持时，FLAC/WAV 才是无损的。",
     selectionSummary: "已选 {{count}} 个 · {{duration}}",

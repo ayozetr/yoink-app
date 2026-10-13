@@ -90,6 +90,8 @@ export const ja = {
     downloaded: "取得済み",
     videos_one: "{{count}} 本の動画",
     videos_other: "{{count}} 本の動画",
+    items_one: "{{count}} 件",
+    items_other: "{{count}} 件",
     showingFirst: "（最初の {{count}} 件を表示）",
     losslessNote: "FLAC/WAV はソースが対応している場合のみロスレスになります。",
     selectionSummary: "{{count}} 件選択 · {{duration}}",

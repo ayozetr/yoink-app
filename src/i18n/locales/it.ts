@@ -90,6 +90,8 @@ export const it = {
     downloaded: "Scaricata",
     videos_one: "{{count}} video",
     videos_other: "{{count}} video",
+    items_one: "{{count}} elemento",
+    items_other: "{{count}} elementi",
     showingFirst: "(mostrati i primi {{count}})",
     losslessNote: "FLAC/WAV saranno lossless solo se la fonte lo consente.",
     selectionSummary: "{{count}} selezionati · {{duration}}",

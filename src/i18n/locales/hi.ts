@@ -90,6 +90,8 @@ export const hi = {
     downloaded: "डाउनलोड किया",
     videos_one: "{{count}} वीडियो",
     videos_other: "{{count}} वीडियो",
+    items_one: "{{count}} आइटम",
+    items_other: "{{count}} आइटम",
     showingFirst: "(पहले {{count}} दिखाए जा रहे हैं)",
     losslessNote: "FLAC/WAV लॉसलेस तभी होंगे जब स्रोत अनुमति दे।",
     selectionSummary: "{{count}} चयनित · {{duration}}",

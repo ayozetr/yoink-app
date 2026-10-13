@@ -90,6 +90,8 @@ export const ko = {
     downloaded: "다운로드됨",
     videos_one: "영상 {{count}}개",
     videos_other: "영상 {{count}}개",
+    items_one: "{{count}}개 항목",
+    items_other: "{{count}}개 항목",
     showingFirst: "(처음 {{count}}개 표시 중)",
     losslessNote: "FLAC/WAV는 소스가 허용하는 경우에만 무손실입니다.",
     selectionSummary: "{{count}}개 선택됨 · {{duration}}",
