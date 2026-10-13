@@ -511,7 +511,9 @@ def test_build_options_image_kind_is_minimal(temp_dirs, monkeypatch):
         DownloadRequest(url="https://www.instagram.com/p/abc/", kind="image"),
         hook=lambda raw: None,
     )
-    assert options["format"] == "best"
+    # Select by the shim's image format_id (a "best" selector would drop an
+    # audio-less, video-less image format).
+    assert options["format"] == "image"
     assert "merge_output_format" not in options
     assert not options.get("postprocessors")
 

@@ -442,7 +442,11 @@ def _build_options(
         # postprocessors — none apply to a .jpg, and forcing a container would
         # make ffmpeg choke on image input. (SponsorBlock/subs/chapters are all
         # video/audio concerns, so they're skipped too.)
-        options["format"] = "best"
+        #
+        # Select by the shim's "image" format_id: yt-dlp's "best"/"bestvideo"
+        # selectors exclude a format with no audio *and* no video (an image), so
+        # they'd fail with "Requested format is not available".
+        options["format"] = "image"
     elif request.kind == "audio":
         # For m4a, prefer a source already in an AAC/m4a container so the
         # FFmpegExtractAudio postprocessor can copy the stream (`-c copy`)
