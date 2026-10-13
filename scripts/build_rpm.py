@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -79,6 +80,29 @@ chown -R root:root %{{buildroot}}
 
 def _app_version() -> str:
     return str(json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"])
+
+
+def _product_name() -> str:
+    """Tauri's productName — the app's private tree lives at usr/lib/<productName>."""
+    conf = json.loads((ROOT / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+    return str(conf["productName"])
+
+
+# rpm Requires the package may legitimately carry: the C/C++ runtime (glibc &
+# friends) and Tauri's GTK/WebKit stack, plus rpm's own bookkeeping. Anything
+# outside this set means autoreq scanned the bundled PyInstaller `_internal/*.so`
+# and leaked a dependency the target distro may not package — the install then
+# fails on a clean box. We assert against it after building so a future
+# PyInstaller/yt-dlp change that introduces such a leak fails the build here
+# rather than silently shipping an uninstallable rpm. (The bundled .so are
+# self-Provided, so their own needs resolve internally and never show up here.)
+_ALLOWED_REQUIRE_RE = re.compile(
+    r"^(?:/bin/sh|rpmlib\(|rtld\(|ld-linux|libc\.|libm\.|libmvec|libdl|"
+    r"libpthread|librt\.|libutil|libgcc_s|libstdc\+\+|libz\.|libcairo|"
+    r"libdbus-1|libgdk-3|libgdk_pixbuf-2\.0|libgio-2\.0|libglib-2\.0|"
+    r"libgobject-2\.0|libgtk-3|libjavascriptcoregtk-4\.1|libsoup-3\.0|"
+    r"libwebkit2gtk-4\.1)"
+)
 
 
 def _find_deb(version: str) -> Path | None:
@@ -147,10 +171,32 @@ def main() -> int:
         if not files:
             print("! The .deb contained no files.")
             return 1
+
+        # Own the app's *private* directory tree (usr/lib/<productName>/…) with
+        # %dir entries, so rpm creates it with managed permissions and removes it
+        # on uninstall instead of leaving empty dirs behind. We deliberately do
+        # NOT own the shared system dirs the package also writes into (usr,
+        # usr/bin, usr/lib, usr/share, usr/share/applications, the icon-theme
+        # hicolor/* dirs) — those belong to filesystem/other packages, and
+        # claiming them would delete dirs still used by other apps on uninstall.
+        private_root = f"usr/lib/{_product_name()}"
+        owned: set[str] = set()
+        for p in tree.rglob("*"):
+            if not (p.is_symlink() or p.is_file()):
+                continue
+            rel = p.relative_to(tree).as_posix()
+            # Walk the file's ancestors, keeping those inside the private tree.
+            parent = rel.rsplit("/", 1)[0] if "/" in rel else ""
+            while parent and (parent == private_root or parent.startswith(private_root + "/")):
+                # A symlinked dir is packaged as a link (in `files`), never %dir.
+                if not (tree / parent).is_symlink():
+                    owned.add(parent)
+                parent = parent.rsplit("/", 1)[0] if "/" in parent else ""
+        dir_lines = [f'%dir "/{d}"' for d in sorted(owned)]
         # Quote every %files path: the onedir backend bundles files with spaces in
         # their name (e.g. setuptools' "Lorem ipsum.txt"), which rpmbuild would
         # otherwise split on and reject ("must start with /").
-        files_spec = "\n".join(f'"{f}"' for f in files)
+        files_spec = "\n".join([*dir_lines, *(f'"{f}"' for f in files)])
 
         topdir = tmp_path / "rpmbuild"
         out = tmp_path / "out"
@@ -185,9 +231,33 @@ def main() -> int:
         print(f"> Wrote {target}")
 
     print("\n> rpm -qp --requires (should list the webkit/gtk sonames):")
-    subprocess.run(["rpm", "-qp", "--requires", str(target)])
+    requires = subprocess.run(
+        ["rpm", "-qp", "--requires", str(target)],
+        capture_output=True, text=True,
+    )
+    print(requires.stdout, end="")
+
+    # Gate on the Requires: anything outside the known system set means autoreq
+    # leaked a dependency from the bundled PyInstaller `_internal/*.so`, which can
+    # make the rpm uninstallable on a clean distro. Fail loudly here.
+    leaked = [
+        line.strip()
+        for line in requires.stdout.splitlines()
+        if line.strip() and not _ALLOWED_REQUIRE_RE.match(line.strip())
+    ]
+    if leaked:
+        print(
+            "\n! Unexpected Requires (autoreq leaked a bundled-lib dependency the "
+            "target distro may not package):\n"
+            + "\n".join(f"    {dep}" for dep in leaked)
+            + "\n  These come from scanning _internal/*.so. Exclude them from "
+            "autoreq (%global __requires_exclude) before publishing."
+        )
+        return 1
+
     print(
-        "\nVerify on a real rpm distro before publishing, e.g.\n"
+        "\n> Requires are all system libs (glibc + GTK/WebKit) — no bundled-lib leak.\n"
+        "Verify on a real rpm distro before publishing, e.g.\n"
         f"    podman run --rm -v {RPM_DIR}:/p:Z fedora dnf -y install /p/{target.name}"
     )
     return 0

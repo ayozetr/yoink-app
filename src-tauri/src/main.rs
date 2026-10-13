@@ -216,6 +216,15 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
         command.creation_flags(CREATE_NO_WINDOW);
     }
 
+    // Unix: give the backend its own process group (PGID = its PID) so we can
+    // later signal the whole group — the backend plus any ffmpeg grandchild — in
+    // one syscall, with no dependency on `pkill` being installed.
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+
     match command.spawn() {
         Ok(child) => Some(child),
         Err(err) => {
@@ -229,11 +238,13 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
 ///
 /// With the one-folder build the spawned exe *is* the backend process (no
 /// PyInstaller bootloader indirection), so `kill()` ends it directly. Its
-/// grandchildren are reaped first — by process group on Windows (`taskkill /T`)
-/// and by parent PID on Unix — so nothing lingers holding the backend port.
+/// grandchildren (e.g. a running ffmpeg) are reaped first — by signalling the
+/// backend's process group on Unix and by process tree on Windows (`taskkill
+/// /T`) — so nothing lingers holding the backend port.
 fn kill_backend(mut child: Child) {
     #[cfg(windows)]
     {
+        // taskkill is part of Windows, so it's always present; /T ends the tree.
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         let _ = Command::new("taskkill")
@@ -241,11 +252,16 @@ fn kill_backend(mut child: Child) {
             .creation_flags(CREATE_NO_WINDOW)
             .status();
     }
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
-        let _ = Command::new("pkill")
-            .args(["-TERM", "-P", &child.id().to_string()])
-            .status();
+        // The backend leads its own process group (set at spawn), so a single
+        // kill(2) to the negated PGID reaches it and every grandchild — no
+        // external `pkill`/`kill` binary required. SIGTERM lets them shut down
+        // cleanly; `child.kill()` below is the SIGKILL backstop.
+        let pid = child.id() as libc::pid_t;
+        unsafe {
+            libc::kill(-pid, libc::SIGTERM);
+        }
     }
     let _ = child.kill();
     let _ = child.wait();

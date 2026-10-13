@@ -41,10 +41,21 @@ applied and the full backend/frontend + e2e suites green. The rest were
   tightening `img-src` means either forcing every thumbnail through the proxy (a
   perf regression) or a fragile per-CDN allowlist. Kept as a conscious tradeoff;
   the injection risk is low (image URLs come from trusted resolvers).
-- **L6-4** (%dir ownership) — the symlink half is fixed; owning directories needs
-  rpm-distro testing to separate app dirs from shared system ones.
-- **L6-7** (rpm autoreq) & **L6-8** (process-group kill) — a verification task and
-  a cross-platform spawn change, both wanting a real packaged build to validate.
+- **L6-4** (%dir ownership) — **fixed**: `build_rpm.py` now owns the app's private
+  tree (`usr/lib/Yoink/…`) with `%dir` entries — created with managed perms and
+  removed on uninstall — while deliberately *not* claiming the shared system dirs
+  (`usr`, `usr/bin`, `usr/share`, the icon-theme `hicolor/*`), which belong to
+  filesystem/other packages. Verified with `rpm -qlvp` (67 owned dirs, all under
+  `/usr/lib/Yoink`; no shared dir claimed). The symlink half was already handled.
+- **L6-7** (rpm autoreq) — **fixed/verified**: the bundled `_internal/*.so` are
+  self-Provided, so autoreq resolves their needs internally and the package's
+  Requires are exactly the system set (glibc + GTK/WebKit), matching Tauri's rpm.
+  `build_rpm.py` now **gates** on this — any Require outside that allowlist (a
+  future PyInstaller leak) fails the build instead of shipping an uninstallable rpm.
+- **L6-8** (process-group kill) — **fixed**: the backend is spawned in its own
+  process group (`CommandExt::process_group(0)` on Unix) and `kill_backend` signals
+  the whole group with a single `kill(2)` to the negated PGID — no dependency on
+  `pkill` being installed. Windows still uses `taskkill /T` (always present).
 
 Line numbers below are pre-fix.
 

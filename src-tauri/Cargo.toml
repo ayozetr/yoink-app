@@ -30,6 +30,12 @@ tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-deep-link = "2"
 
+[target."cfg(unix)".dependencies]
+# Put the backend in its own process group and signal the whole group on exit,
+# so grandchildren (e.g. ffmpeg) are reaped without shelling out to `pkill`
+# (which isn't guaranteed to be installed on minimal systems).
+libc = "0.2"
+
 [profile.release]
 opt-level = "s"
 strip = true
