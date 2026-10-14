@@ -26,8 +26,9 @@ pulls in further open-source libraries under the same permissive licenses.
 - **react-i18next** v17.0.8 — MIT
 - **simple-icons** v16.29.0 — CC0-1.0
 
-## Desktop shell — Rust / cargo (14)
+## Desktop shell — Rust / cargo (15)
 
+- **libc** — MIT OR Apache-2.0
 - **serde** — MIT OR Apache-2.0
 - **serde_json** — MIT OR Apache-2.0
 - **tauri** — Apache-2.0 OR MIT
