@@ -132,6 +132,26 @@ forces `WEBKIT_DISABLE_DMABUF_RENDERER=1` before any webview code runs), so it
 is present in all bundles automatically — nothing to set per-package or
 at runtime.
 
+### 3a. Strip the bundled WebKit from the AppImage (required)
+
+```bash
+python scripts/strip_appimage_webkit.py
+```
+
+`linuxdeploy` bundles `libwebkit2gtk-4.1.so.0` + `libjavascriptcoregtk-4.1.so.0`
+into the AppImage, but WebKit spawns its helper processes
+(`WebKitNetworkProcess`/`WebKitWebProcess`) from a compile-time path on the
+**host** (`/usr/lib/webkit2gtk-4.1/`). So the app loads the *bundled* library yet
+runs the *host's* helpers; the moment the host upgrades `webkit2gtk-4.1` (routine
+on a rolling distro — Arch/CachyOS), the versions diverge and the window renders
+**blank/grey**. This script deletes the WebKit/JSC libraries (and helper dirs)
+from the AppDir and repackages, so the AppImage uses the host's WebKit, where the
+library and its helpers always match (the `.deb`/`.rpm` already depend on
+`webkit2gtk-4.1`, so this is consistent). Run it **after** `tauri build` and
+**before** signing — it repackages the AppImage, which invalidates the `.sig`
+Tauri emitted (the script removes that stale `.sig`), so the AppImage must be
+re-signed with `tauri signer sign` in [§6](#6-signed-updater-artifacts-self-update).
+
 ### 3b. Make the `.rpm` from the `.deb` (seconds, not minutes)
 
 ```bash
@@ -251,20 +271,27 @@ with the updater private key** and the release ships a `latest.json`. The public
 key lives in `tauri.conf.json` (`plugins.updater.pubkey`); `bundle.createUpdaterArtifacts`
 is on, so a signed build emits a `.sig` next to each bundle.
 
-**Linux — sign at build time** by exporting the key before `npm run tauri build`:
+**Linux — sign *after* the WebKit strip.** Tauri signs the AppImage during
+`tauri build`, but §3a repackages it (invalidating that signature), so the
+AppImage is signed last, with `tauri signer sign`:
 
 ```bash
 export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/yoink.key)"      # path or contents
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$(cat ~/.tauri/pass)"  # a temp file — never inline the password
 APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 \
   npx tauri build --bundles deb,appimage
+python scripts/strip_appimage_webkit.py   # §3a — repackage without bundled WebKit (drops the stale .sig)
+npx tauri signer sign --private-key "$(cat ~/.tauri/yoink.key)" \
+  --password "$(cat ~/.tauri/pass)" \
+  src-tauri/target/release/bundle/appimage/Yoink_<ver>_amd64.AppImage
 python scripts/build_rpm.py   # §3b — the rpm from the deb (the updater never uses it, so it needs no sig)
 ```
 
-This emits a `.sig` next to the **AppImage** (`…/Yoink_<ver>_amd64.AppImage.sig`) —
-the only Linux artifact the updater self-installs from. Each `.sig` holds one
-base64 signature string. The `.deb`/`.rpm` need no signature (the updater offers
-their users a "view release" link instead of auto-installing — see the note below).
+This writes a fresh `.sig` next to the **stripped AppImage**
+(`…/Yoink_<ver>_amd64.AppImage.sig`) — the only Linux artifact the updater
+self-installs from. Each `.sig` holds one base64 signature string. The
+`.deb`/`.rpm` need no signature (the updater offers their users a "view release"
+link instead of auto-installing — see the note below).
 
 **Windows — sign locally, never on the build VM.** The signing key must not leave
 your machine, so the Windows installers are built **unsigned** on the VM
