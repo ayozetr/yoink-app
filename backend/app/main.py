@@ -22,6 +22,7 @@ from app.routers import (
     download,
     history,
     info,
+    logs,
     media,
     music,
     po_token,
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(autotag.router, prefix=settings.api_prefix)
     app.include_router(music.router, prefix=settings.api_prefix)
     app.include_router(po_token.router, prefix=settings.api_prefix)
+    app.include_router(logs.router, prefix=settings.api_prefix)
 
     @app.get("/health", tags=["health"], summary="Liveness probe")
     def health() -> dict[str, str]:

@@ -247,6 +247,14 @@ export interface VersionInfo {
   error: string | null;
 }
 
+/** Recent application log lines for the Registro (Logs) view. */
+export interface LogsResponse {
+  path: string;
+  content: string;
+  lines: number;
+  truncated: boolean;
+}
+
 /** Catalogue used by the audio auto-tagger. */
 export type AutotagSource = "auto" | "apple" | "deezer" | "musicbrainz";
 export type SponsorblockAction = "remove" | "mark";

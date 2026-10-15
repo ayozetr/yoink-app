@@ -14,6 +14,7 @@ import type {
   DownloadStats,
   HistoryEntry,
   InfoResponse,
+  LogsResponse,
   PlaylistEntry,
   SearchResponse,
   VersionInfo,
@@ -216,6 +217,15 @@ export async function fetchYtdlpVersion(
 ): Promise<VersionInfo> {
   const response = await request("/ytdlp-version", { signal });
   return (await response.json()) as VersionInfo;
+}
+
+/** The tail of the app's rotating log, for the Registro (Logs) view. */
+export async function fetchLogs(
+  lines = 2000,
+  signal?: AbortSignal,
+): Promise<LogsResponse> {
+  const response = await request(`/logs?lines=${lines}`, { signal });
+  return (await response.json()) as LogsResponse;
 }
 
 /**

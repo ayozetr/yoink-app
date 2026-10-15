@@ -30,6 +30,7 @@ import type { Update } from "@tauri-apps/plugin-updater";
 type AvailableUpdate = Extract<UpdateCheck, { status: "available" }>;
 import { DownloaderPanel } from "./features/downloader/DownloaderPanel";
 import { QueuePanel } from "./features/queue/QueuePanel";
+import { LogsPanel } from "./features/logs/LogsPanel";
 import { HistorySidebar } from "./features/history/HistorySidebar";
 
 // Modal-ish, opened on demand — split into their own chunks to keep the initial
@@ -367,7 +368,12 @@ export default function App() {
             Note: toggle visibility with the Tailwind `hidden` class, not the
             `hidden` attribute — a display utility on the element would override
             the attribute. */}
-        <div className={activeTab === "home" ? "flex flex-col gap-4" : "hidden"}>
+        <div
+          id="yoink-panel-home"
+          role="tabpanel"
+          aria-labelledby="yoink-tab-home"
+          className={activeTab === "home" ? "flex flex-col gap-4" : "hidden"}
+        >
           <DownloaderPanel
             onDownloadFinished={refresh}
             defaultKind={settings?.default_kind}
@@ -381,10 +387,14 @@ export default function App() {
           />
         </div>
 
-        <div className={activeTab === "queue" ? "" : "hidden"}>
+        <div
+          id="yoink-panel-queue"
+          role="tabpanel"
+          aria-labelledby="yoink-tab-queue"
+          className={activeTab === "queue" ? "" : "hidden"}
+        >
           <QueuePanel
             open
-            onClose={() => setActiveTab("home")}
             defaultKind={settings?.default_kind}
             defaultQuality={settings?.default_quality}
             defaultContainer={settings?.default_container}
@@ -395,7 +405,12 @@ export default function App() {
           />
         </div>
 
-        <div className={activeTab === "history" ? "" : "hidden"}>
+        <div
+          id="yoink-panel-history"
+          role="tabpanel"
+          aria-labelledby="yoink-tab-history"
+          className={activeTab === "history" ? "" : "hidden"}
+        >
           <HistorySidebar
             items={history}
             stats={stats}
@@ -410,7 +425,12 @@ export default function App() {
           />
         </div>
 
-        <div className={activeTab === "settings" ? "h-full" : "hidden"}>
+        <div
+          id="yoink-panel-settings"
+          role="tabpanel"
+          aria-labelledby="yoink-tab-settings"
+          className={activeTab === "settings" ? "h-full" : "hidden"}
+        >
           {activeTab === "settings" && settings && (
             <Suspense fallback={null}>
               <SettingsModal
@@ -425,6 +445,15 @@ export default function App() {
             </Suspense>
           )}
         </div>
+
+        <div
+          id="yoink-panel-logs"
+          role="tabpanel"
+          aria-labelledby="yoink-tab-logs"
+          className={activeTab === "logs" ? "h-full" : "hidden"}
+        >
+          <LogsPanel active={activeTab === "logs"} />
+        </div>
       </AppShell>
 
       {whatsNewOpen && (
@@ -437,7 +466,11 @@ export default function App() {
       )}
 
       {/* Re-tag from history: opens the auto-tag form in the right-side drawer. */}
-      <Drawer open={!!retagItem?.filepath} onClose={() => setRetagItem(null)}>
+      <Drawer
+        open={!!retagItem?.filepath}
+        onClose={() => setRetagItem(null)}
+        title={t("autotag.title")}
+      >
         {retagItem?.filepath && (
           <Suspense fallback={null}>
             <AutoTagPanel

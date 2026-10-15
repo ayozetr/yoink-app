@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ayoze Torres
 
 import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { flushSync } from "react-dom";
 import {
   AlertCircle,
   CheckCircle2,
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../components/ui/GlassPanel";
-import { Button } from "../../components/ui/Button";
 import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Select } from "../../components/ui/Select";
 import { AUDIO_FORMATS, VIDEO_CONTAINERS } from "../downloader/formatOptions";
@@ -220,8 +220,15 @@ const QueueRow = memo(function QueueRow({
       onDragEnd={onDragEnd}
       className={isDragging ? "opacity-50" : ""}
     >
-      <div className="flex items-center gap-2.5 rounded-xl border border-line/10 bg-surface/60 p-2.5">
-        <GripVertical size={15} className="shrink-0 cursor-grab text-fg-faint" />
+      <div
+        className={`group flex items-center gap-2.5 rounded-xl px-2.5 py-2.5 transition ${
+          status === "active" ? "bg-accent/[0.06]" : "hover:bg-surface"
+        }`}
+      >
+        <GripVertical
+          size={15}
+          className="shrink-0 cursor-grab text-fg-faint opacity-0 transition group-hover:opacity-100"
+        />
         {item.children && (
           <button
             type="button"
@@ -332,8 +339,6 @@ const QueueRow = memo(function QueueRow({
 interface QueuePanelProps {
   /** Whether the panel is visible (the queue keeps running while hidden). */
   open: boolean;
-  /** Close the panel. */
-  onClose: () => void;
   /** Default format settings, used for every queued item (no per-item picker). */
   defaultKind?: MediaKind;
   defaultQuality?: string;
@@ -350,7 +355,6 @@ interface QueuePanelProps {
 /** A persistent, sequential download queue: paste many URLs, run them in order. */
 export function QueuePanel({
   open,
-  onClose,
   defaultKind,
   defaultQuality,
   defaultContainer,
@@ -373,7 +377,6 @@ export function QueuePanel({
   const [input, setInput] = useState("");
   // The "add batch" modal: keeps the big paste-links textarea out of the main
   // view so the queue reads as a clean progress list by default.
-  const [addOpen, setAddOpen] = useState(false);
   const [running, setRunning] = useState(false);
   // Full live progress event (percent + speed + ETA + status) for the active
   // item, so its row shows the same readout as a normal download.
@@ -419,7 +422,7 @@ export function QueuePanel({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, [input, addOpen]);
+  }, [input]);
 
   // Mirror state into the ref on every change (needed synchronously elsewhere).
   useEffect(() => {
@@ -761,35 +764,42 @@ export function QueuePanel({
     if (runIdRef.current !== runId) return; // superseded by stop/restart
     runningRef.current = false;
     releaseDownloadLock("queue");
-    setRunning(false);
-    setProgress(null);
-    setActiveChildId(null);
     onDownloadFinished?.();
     // A "launch it and walk away" queue shouldn't finish in silence. Tally the
-    // final state through setItems (returning it unchanged) rather than itemsRef,
-    // which lags a commit behind the last item's terminal update — so the count
-    // includes the final item instead of undercounting by one.
-    setItems((prev) => {
-      let done = 0;
-      let failed = 0;
-      for (const i of prev) {
-        for (const r of i.children ?? [i]) {
-          if (r.status === "done") done += 1;
-          else if (r.status === "error") failed += 1;
+    // final state from the latest items, then notify ONCE. The tally is read via a
+    // setItems updater (sees the newest `prev`, unlike itemsRef which lags a commit)
+    // but the updater stays pure — it only captures the count into a local and
+    // returns prev; flushSync makes that run synchronously so the side effects fire
+    // here, outside the updater (updaters can run twice under StrictMode/concurrent).
+    let done = 0;
+    let failed = 0;
+    flushSync(() => {
+      setRunning(false);
+      setProgress(null);
+      setActiveChildId(null);
+      setItems((prev) => {
+        let d = 0;
+        let f = 0;
+        for (const i of prev) {
+          for (const r of i.children ?? [i]) {
+            if (r.status === "done") d += 1;
+            else if (r.status === "error") f += 1;
+          }
         }
-      }
-      if (notifyRef.current)
-        void notify(
-          tRef.current("notify.queueDone"),
-          tRef.current("notify.queueSummary", { completed: done, failed }),
-        );
-      // In-app toast so the queue's finish is visible from any tab (not gated by
-      // the OS-notification setting — that only governs the desktop notification).
-      toast.show(
+        done = d;
+        failed = f;
+        return prev;
+      });
+    });
+    if (notifyRef.current)
+      void notify(
+        tRef.current("notify.queueDone"),
         tRef.current("notify.queueSummary", { completed: done, failed }),
-        { kind: failed > 0 ? "info" : "success" },
       );
-      return prev;
+    // In-app toast so the queue's finish is visible from any tab (not gated by the
+    // OS-notification setting — that only governs the desktop notification).
+    toast.show(tRef.current("notify.queueSummary", { completed: done, failed }), {
+      kind: failed > 0 ? "info" : "success",
     });
   };
 
@@ -915,45 +925,59 @@ export function QueuePanel({
   if (!open) return null;
 
   return (
-    <>
     <GlassPanel className="p-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="font-display text-2xl font-normal">{t("tabs.queue")}</h2>
-        <div className="flex items-center gap-3">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <h2 className="font-display text-2xl font-normal leading-tight">
+          {t("tabs.queue")}
+        </h2>
+        {hasDone && (
           <button
             type="button"
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-medium text-fg transition hover:bg-accent/25"
+            onClick={clearDone}
+            className="flex shrink-0 items-center gap-1.5 text-xs text-fg-dim transition hover:text-fg"
           >
-            <ListPlus size={14} />
-            {t("queue.addBatch")}
+            <Trash2 size={13} />
+            {t("queue.clearDone")}
           </button>
-          {hasDone && (
-            <button
-              type="button"
-              onClick={clearDone}
-              className="flex items-center gap-1.5 text-xs text-fg-dim transition hover:text-fg"
-            >
-              <Trash2 size={13} />
-              {t("queue.clearDone")}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("queue.close")}
-            className="text-fg-dim transition hover:text-fg"
-          >
-            <X size={16} />
-          </button>
-        </div>
+        )}
+      </div>
+
+      {/* Inline "add" bar — paste one or more links straight into the queue (no
+          modal). Ctrl/Cmd+Enter adds without reaching for the mouse. */}
+      <div className="mb-4 flex items-end gap-2">
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              addUrls();
+            }
+          }}
+          aria-label={t("queue.placeholder")}
+          placeholder={t("queue.placeholder")}
+          rows={1}
+          className="min-h-[44px] flex-1 resize-none overflow-y-auto rounded-xl border border-line/10 bg-surface px-4 py-3 text-sm outline-none focus:border-accent"
+        />
+        <button
+          type="button"
+          onClick={addUrls}
+          disabled={parsedInput.length === 0}
+          className="flex h-[44px] shrink-0 items-center gap-1.5 rounded-xl border border-accent/40 bg-accent/15 px-4 text-sm font-medium text-accent-soft transition hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ListPlus size={16} />
+          {t("queue.add")}
+        </button>
       </div>
 
       {/* Controls: queue-wide format on the left, run buttons on the right. The
           paste-links textarea lives in the "Add batch" modal, so the queue view
           itself stays focused on progress. */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-fg-faint">{t("preview.format")}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+          {t("preview.format")}
+        </span>
         <Select
           ariaLabel={t("preview.format")}
           value={kind}
@@ -1047,22 +1071,13 @@ export function QueuePanel({
       )}
 
       {items.length === 0 && (
-        <div className="mt-6 flex flex-col items-center gap-3 py-8 text-center">
-          <ListPlus size={28} className="text-fg-faint opacity-60" />
-          <p className="text-xs text-fg-faint">{t("queue.empty")}</p>
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-medium text-fg transition hover:bg-accent/25"
-          >
-            <ListPlus size={14} />
-            {t("queue.addBatch")}
-          </button>
-        </div>
+        <p className="mt-8 py-6 text-center text-xs text-fg-faint">
+          {t("queue.empty")}
+        </p>
       )}
 
       {items.length > 0 && (
-        <ul className="mt-3 flex max-h-72 flex-col gap-1.5 overflow-auto pr-1">
+        <ul className="mt-4 flex max-h-96 flex-col divide-y divide-line/[0.06] overflow-auto">
           {items.map((item) => {
             const status = displayStatus(item);
             const active = status === "active";
@@ -1092,69 +1107,5 @@ export function QueuePanel({
       )}
     </GlassPanel>
 
-      {/* Add-batch modal: paste one or more links. Kept out of the main view so
-          the queue reads as a clean progress list by default. */}
-      {addOpen && (
-        <div
-          role="presentation"
-          onClick={() => setAddOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-        >
-          <GlassPanel
-            boxed
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-            className="flex w-full max-w-lg flex-col gap-4 p-5"
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-normal">
-                {t("queue.addBatch")}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setAddOpen(false)}
-                aria-label={t("queue.close")}
-                className="text-fg-dim transition hover:text-fg"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              aria-label={t("queue.placeholder")}
-              placeholder={t("queue.placeholder")}
-              rows={4}
-              autoFocus
-              className="w-full resize-none overflow-y-auto rounded-xl border border-line/10 bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent"
-            />
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setAddOpen(false)}
-                className="px-3 text-sm text-fg-dim transition hover:text-fg"
-              >
-                {t("settings.cancel")}
-              </button>
-              <Button
-                onClick={() => {
-                  addUrls();
-                  setAddOpen(false);
-                }}
-                disabled={parsedInput.length === 0}
-                className="h-10 px-5 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ListPlus size={16} />
-                {t("queue.add")}
-              </Button>
-            </div>
-          </GlassPanel>
-        </div>
-      )}
-    </>
   );
 }

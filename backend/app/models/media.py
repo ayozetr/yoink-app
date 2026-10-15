@@ -519,6 +519,18 @@ class VersionInfo(BaseModel):
     error: str | None = Field(default=None, description="Why the check failed, if it did.")
 
 
+class LogsResponse(BaseModel):
+    """Recent application log lines for the in-app Registro (Logs) view."""
+
+    path: str = Field(..., description="Absolute path of the log file on disk.")
+    content: str = Field(default="", description="The tailed log text (oldest line first).")
+    lines: int = Field(default=0, description="Number of lines returned.")
+    truncated: bool = Field(
+        default=False,
+        description="True when older lines were dropped because the cap was hit.",
+    )
+
+
 class ReleaseNotes(BaseModel):
     """A release's 'what's new' notes, for the in-app popup after an update."""
 
