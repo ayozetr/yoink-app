@@ -13,9 +13,11 @@ used to merge high-quality video + audio formats.
 
 Two layers communicating asynchronously:
 
-- **Frontend** — React + TypeScript + Tailwind CSS (Vite). A reactive, clean,
-  dark-mode UI. Its job: show previews, let the user pick format/quality, and
-  reflect download progress. Lives at the repo root (`src/`).
+- **Frontend** — React + TypeScript + Tailwind CSS (Vite). A reactive, clean
+  UI. Its job: show previews, let the user pick format/quality, and
+  reflect download progress. Lives at the repo root (`src/`). The v4 UI is a
+  flat, de-boxed "Flat Minimal" look (Gloock titles + Inter), organised into
+  modular tabs (Inicio/Cola/Historial/Ajustes), dark by default with a light theme.
 - **Backend** — Python + FastAPI, runs locally (`backend/`). Wraps yt-dlp,
   manages the local filesystem, and invokes ffmpeg. Strictly typed.
 
@@ -33,8 +35,8 @@ Two layers communicating asynchronously:
   503 (retryable) vs 422 (a genuinely unsupported URL).
 - **Search (REST):** typing a query (not a URL) in the field hits
   `GET /api/search?q=&source=youtube|soundcloud`, a flat `ytsearch`/`scsearch`
-  returning matching tracks for the live dropdown (the header has a
-  YouTube↔SoundCloud toggle); picking one analyzes it via `POST /api/info`.
+  returning matching tracks for the live dropdown (a YouTube/SoundCloud source
+  selector lives inside the URL field); picking one analyzes it via `POST /api/info`.
 - **Music import (REST):** pasting a Spotify/Deezer/Apple/Tidal/Amazon URL hits
   `POST /api/music/resolve`, which **keyless**ly turns it into a `MusicImportInfo`
   (track/album/playlist + per-track title/artist/duration/cover; `POST /api/music/cover`
@@ -101,17 +103,17 @@ literal OpenAPI types on demand.
 ├── docs/                     # architecture, roadmap, per-layer guides
 ├── src/                      # frontend (React + TS + Tailwind)
 │   ├── components/
-│   │   ├── layout/           # app shell, background glow
-│   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, Toggle, EditMenu, Markdown, update banner/popups, …)
+│   │   ├── layout/           # tabbed app shell (brand + TabBar) + splash
+│   │   └── ui/               # reusable primitives (GlassPanel, Button, Select, Toggle, Drawer, Toaster, EditMenu, Markdown, update banner/popups, …)
 │   ├── features/
 │   │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
 │   │   ├── music/            # keyless music import card (Spotify/Deezer/Apple/Tidal/Amazon)
-│   │   ├── downloader/       # URL input (+ YouTube/SoundCloud search toggle), preview (incl. VR), playlist, progress
+│   │   ├── downloader/       # URL input (source selector inside the field: YouTube/SoundCloud), preview (incl. VR), playlist, progress
 │   │   ├── queue/            # download queue: format picker + expandable music/playlist groups (per-item select), skip/reorder
-│   │   ├── history/          # download history + stats (sidebar)
-│   │   └── settings/         # settings modal (download dir, defaults, bandwidth, cookies, language, SponsorBlock, version + auto-update)
+│   │   ├── history/          # download history + stats (its own tab, editorial list)
+│   │   └── settings/         # settings tab (download dir, defaults, bandwidth, cookies, language, theme, SponsorBlock, version + auto-update)
 │   ├── i18n/                 # react-i18next setup + 14 lazy-loaded locale files
-│   ├── lib/                  # API client (+ runtime backend-port resolve) + download WebSocket + single-download lock + queue store + search-source pref + VR-layout memory + native dialogs + deep-link/desktop bridge
+│   ├── lib/                  # API client (+ runtime backend-port resolve) + download WebSocket + single-download lock + queue store + theme + toast store + search-source pref + VR-layout memory + native dialogs + deep-link/desktop bridge
 │   └── types/                # shared domain types (backend JSON contract)
 ├── extension/                # "Send to Yoink" (beta) browser extension (Firefox + Chromium) — fires the yoink:// deep link
 └── backend/                  # FastAPI + yt-dlp engine
@@ -214,8 +216,13 @@ release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.
 
 ## Conventions
 
-- **Tailwind v3** with `tailwind.config.js` + `postcss.config.js`. Shared color
-  tokens (`canvas`, `surface`, `surface-hover`) live in the Tailwind theme.
+- **Tailwind v4** (CSS-first, no `tailwind.config.js`): the `@theme` mapping and
+  design tokens live in `src/index.css`; PostCSS uses `@tailwindcss/postcss`. The
+  palette is CSS custom properties (`--c-canvas/surface/line/fg/accent/…`) exposed
+  as utilities, **dark by default** with a light theme under
+  `html[data-theme="light"]` (preference in Settings, persisted as `yoink-theme`).
+- **Fonts:** self-hosted via `@fontsource` (bundled, offline) — Gloock for display
+  titles (`font-display`), Inter for the UI (`font-sans`).
 - **Frontend:** function components, feature-folder structure. Reusable visuals
   go in `components/ui`; screen-specific logic stays in `features/`.
 - **Backend:** strictly typed Python (`from __future__ import annotations`,
@@ -234,6 +241,9 @@ release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.
 - Commit messages in **English**, with a subject **and a body**.
 - **No `Co-Authored-By` trailer.**
 - Author identity: **Ayoze Torres** `<ayozetr@users.noreply.github.com>`.
+- License: **AGPL-3.0-or-later**. New source files start with the two-line SPDX
+  header (`SPDX-License-Identifier: AGPL-3.0-or-later` + copyright) — see
+  `CONTRIBUTING.md`.
 
 ## Status
 

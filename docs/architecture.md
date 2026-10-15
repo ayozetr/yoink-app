@@ -7,12 +7,12 @@ engine that wraps yt-dlp.
 ┌────────────────────────┐         REST: POST /api/info          ┌──────────────────────────┐
 │      Frontend          │ ───────────────────────────────────▶ │        Backend            │
 │  React + TS + Tailwind │                                       │     FastAPI (Python)      │
-│      (Vite, :5173)     │ ◀─────────────────────────────────── │        (:8000)            │
+│      (Vite, :5173)     │ ◀─────────────────────────────────── │        (:8756)            │
 │                        │     clean JSON (title, formats…)      │                           │
 │  - URL input           │                                       │  - yt-dlp wrapper         │
 │  - Preview card        │       WS: live download progress      │  - ffmpeg merge           │
 │  - Progress bar        │ ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ │  - filesystem (pathlib)   │
-│  - History sidebar     │       (percent, speed, ETA)           │                           │
+│  - History tab         │       (percent, speed, ETA)           │                           │
 └────────────────────────┘                                       └──────────────────────────┘
                                                                   (dashed = WS download stream)
 ```

@@ -14,7 +14,26 @@
 
 ## 📍 Status
 
-- **Current release:** **v3.7.0** — **tagging, loudness & lists**: the audio auto-tag now
+- **In progress:** **v4.0.0** — a full **UI redesign** (branch `redesign/v4`): a flat,
+  de-boxed "Flat Minimal" + editorial look (Gloock titles + Inter), **modular tabs**
+  (Inicio/Cola/Historial/Ajustes) replacing the fixed two-column layout, a **light/dark
+  theme** preference in Settings, toasts, an animated slide-over **Drawer** for tagging,
+  the **YouTube/SoundCloud selector inside the URL field**, a scrollspy "on this page"
+  Settings index, and a **Tailwind v4** (CSS-first) migration. Also **relicensed to
+  AGPL-3.0-or-later** (was CC BY-NC-SA 4.0).
+- **Current release:** **v3.9.0** — **more sources & faster pulls**: an opt-in
+  **aria2c multi-connection** downloader (wired as yt-dlp's external downloader when a
+  binary is found, to beat per-connection speed caps), and **Instagram photo** support —
+  photo stories/posts and photos inside a carousel now download as a new `image` kind
+  (a dedicated one-click `ImagePreviewCard`), staying visible inside a mixed highlight.
+- **Previously:** **v3.8.0** — **zero-config PO token & hardening**: YouTube's "confirm
+  you're not a bot" **GVS token is minted automatically in the app's WebView** (opt-in
+  `auto`; `bgutils-js` with its network proxied through the backend, bound to the session
+  `visitor_data`, handed to the `mweb` client), an **ok.ru** extractor fix (and extractor
+  errors stop 500ing), a **"backend unreachable" banner** instead of a silent empty UI,
+  and a broad **audit-hardening** pass (a11y, queue/download correctness, media proxy,
+  WS teardown, SSRF, loudness).
+- **Previously:** **v3.7.0** — **tagging, loudness & lists**: the audio auto-tag now
   brings in the **genre** from Apple Music (editable in the card, written to the file +
   `.nfo`); loudness normalization gets a **configurable target** — pick the LUFS on a
   slider with marks at the common standards (-14 streaming, -16 Apple Music, -23 R128) or
@@ -264,7 +283,7 @@ Not committed and not release-ordered — picked from as capacity allows.
   API-based (Deezer/Apple) are sturdier; the embed scrapes (Spotify/Tidal/Amazon)
   are more fragile — a page change needs an extractor tweak, like Threads.
 - ✅ **Search beyond YouTube** *(v2.0.0)* — a
-  **YouTube ↔ SoundCloud** selector in the header (persisted) drives the URL-field
+  **YouTube ↔ SoundCloud** selector inside the URL field (persisted) drives the
   typeahead, flipping the yt-dlp search prefix (`ytsearch`→`scsearch`). More
   platforms drop in by adding a prefix.
 - ✅ **Multi-connection download accelerator (aria2c)** (M) — opt-in

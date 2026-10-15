@@ -8,14 +8,16 @@ React + TypeScript + Tailwind CSS, built with Vite.
 src/
 ├── components/
 │   ├── layout/
-│   │   ├── AppLayout.tsx        # dark canvas + two-column main/sidebar shell
-│   │   ├── BackgroundGlow.tsx   # decorative blurred color blobs
+│   │   ├── AppShell.tsx         # fixed chrome (brand + TabBar) over a single scrolling <main>
+│   │   ├── TabBar.tsx           # Inicio / Cola / Historial / Ajustes tabs (+ queue badge)
 │   │   └── Splash.tsx           # startup overlay shown until the backend answers
 │   └── ui/                      # reusable, presentational primitives
-│       ├── GlassPanel.tsx       # frosted-glass card container
+│       ├── GlassPanel.tsx       # bare passthrough by default; `boxed` adds the card shell (dialogs)
 │       ├── Button.tsx           # solid / gradient action button
-│       ├── Select.tsx           # dark, app-styled dropdown (replaces native <select>)
+│       ├── Select.tsx           # app-styled dropdown (replaces native <select>)
 │       ├── Toggle.tsx           # on/off switch (role=switch): chapters, multi-audio, SponsorBlock
+│       ├── Drawer.tsx           # right slide-over (animated in + out), focus-trapped — e.g. tag editing
+│       ├── Toaster.tsx          # bottom-right toast stack (store in lib/toast.ts)
 │       ├── SponsorBlockIcon.tsx # SponsorBlock brand mark (shield + play)
 │       ├── BrowserIcon.tsx      # per-browser glyphs for the cookies picker
 │       ├── EditMenu.tsx         # custom right-click Cut/Copy/Paste menu for text fields
@@ -32,12 +34,12 @@ src/
 │   │   ├── DownloaderPanel.tsx  # orchestrates the column + local state
 │   │   ├── formatOptions.ts     # derive kind/quality/container/audio-format options from formats
 │   │   └── components/
-│   │       ├── DownloaderHeader.tsx     # title + SearchSourceToggle (YouTube↔SoundCloud) + queue/settings
-│   │       ├── SearchSourceToggle.tsx
-│   │       ├── SupportedSitesModal.tsx  # "supported sites" list (opened from the header)
-│   │       ├── UrlInput.tsx        # URL field + paste + live search dropdown (per source)
-│   │       ├── PreviewCard.tsx     # format/quality + "Advanced options" (subs/chapters/VR/trim) + size estimate + saved presets
+│   │       ├── UrlInput.tsx        # URL field with the source selector (YouTube/SoundCloud) inside + paste + live search dropdown
+│   │       ├── SearchSourceIcon.tsx     # per-source glyph for that selector
+│   │       ├── SupportedSitesModal.tsx  # "supported sites" list (lazy, from the URL field)
+│   │       ├── PreviewCard.tsx     # media row + Vídeo/Audio + advanced options (FORMATO/PROCESADO/RECORTE/PRESETS) + size estimate
 │   │       ├── PlaylistCard.tsx    # entry picker (pre-selects new items, badges already-downloaded); music lists default to audio
+│   │       ├── ImagePreviewCard.tsx     # Instagram/photo carousel preview
 │   │       └── DownloadProgressCard.tsx
 │   ├── music/                   # keyless music import (Spotify/Deezer/Apple/Tidal/Amazon)
 │   │   └── MusicImportCard.tsx  # resolve → match each track on YouTube → download + tag
@@ -47,17 +49,19 @@ src/
 │   │   ├── AutoTagPanel.tsx     # inline "Tag audio" card (+ a lyrics indicator/preview/popup) after a single audio download
 │   │   ├── AutoTagBatchPanel.tsx # per-track tagging list after an audio playlist
 │   │   └── filename.ts          # "Artist - Title" filename parser (seeds catalogue search)
-│   ├── history/                 # sidebar (failed rows show the captured error + a copy button)
+│   ├── history/                 # the Historial tab (editorial, date-grouped; failed rows show the error + copy)
 │   │   ├── HistorySidebar.tsx
-│   │   └── components/
-│   └── settings/                # settings modal (dir, defaults, cookies, lyrics, .nfo, language, version)
-│       └── SettingsModal.tsx
+│   │   └── components/HistoryItemCard.tsx
+│   └── settings/                # the Ajustes tab (flowing single-scroll + "on this page" index)
+│       ├── SettingsModal.tsx
+│       ├── LicensesModal.tsx    # third-party OSS licenses (OPEN_SOURCE_LICENSES.md)
+│       └── TermsModal.tsx
 ├── i18n/                        # react-i18next setup + 14 locale files (lazy-loaded)
 │   ├── index.ts
 │   └── locales/{en,es,fr,de,it,pt,ru,pl,uk,id,hi,zh,ja,ko}.ts
 ├── lib/                         # API client (runtime backend-port resolve) + download WebSocket + single-download lock;
-│                                #   queue/batch/preset stores, VR-layout memory, search-source pref, Tauri self-updater,
-│                                #   OS notifications, taskbar progress, focus trap, native dialogs
+│                                #   queue/batch/preset stores, theme, toast store, VR-layout memory, search-source pref,
+│                                #   Tauri self-updater, OS notifications, taskbar progress, focus trap, native dialogs
 ├── types/
 │   ├── download.ts              # shared domain types (backend JSON contract)
 │   ├── music.ts                 # music-import types (mirror backend models)
@@ -65,7 +69,7 @@ src/
 │   └── api.generated.ts         # OpenAPI-generated literal types (scripts/gen_api_types.py)
 ├── App.tsx                      # composition root
 ├── main.tsx                     # React entry point (imports ./i18n)
-└── index.css                    # Tailwind directives + global styles
+└── index.css                    # Tailwind v4 @theme + design tokens + global styles
 ```
 
 ## Conventions
@@ -73,9 +77,11 @@ src/
 - **`components/ui`** holds dumb, reusable visuals — no business logic.
 - **`features/`** holds screen-specific composition and data fetching.
   Each feature has a top-level panel plus a `components/` subfolder.
-- **Styling:** Tailwind utility classes. Shared color tokens (`canvas`,
-  `surface`, `surface-hover`) are defined in `tailwind.config.js` so the dark
-  palette lives in one place.
+- **Styling:** Tailwind v4 (CSS-first). The `@theme` mapping and design tokens
+  live in `src/index.css` — a CSS-variable palette (`--c-canvas/surface/line/fg/
+  accent/…`) exposed as utilities, **dark by default** with a light theme under
+  `html[data-theme="light"]`. No `tailwind.config.js`; PostCSS uses
+  `@tailwindcss/postcss`.
 - **Types:** keep `types/download.ts` aligned with the backend's Pydantic
   models — it's the single source of truth for the API shape on the client.
 - **i18n:** user-facing strings come from `react-i18next` (`useTranslation`),
@@ -102,8 +108,8 @@ held, so two engines can't write the same `.part` at once (the backend has an
 `asyncio.Lock` backstop for the multi-client case).
 
 After an audio download, `DownloaderPanel` offers opt-in **audio auto-tagging**
-(Apple Music, Deezer or MusicBrainz, chosen in Settings): a single one-song download shows the
-collapsible `AutoTagPanel`,
+(Apple Music, Deezer or MusicBrainz, chosen in Settings): a single one-song download opens
+`AutoTagPanel` in a right-side `Drawer`,
 and a finished audio playlist shows `AutoTagBatchPanel` (a per-track list with
 include checkboxes and an accordion editor). Both look files up via
 `identifyAudio`, allow manual `searchAudio`, let the user pick a version and

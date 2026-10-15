@@ -515,9 +515,9 @@ splash (`Splash.tsx`) covers the wait. Symptom if this regresses:
 
 ### No `filter: blur()` / `backdrop-filter` on scrolled content
 WebKitGTK fails to repaint content scrolled over a large CSS blur, leaving
-**ghost/duplicated text** that clears on window resize. `BackgroundGlow` uses a
-`radial-gradient` instead of `blur-3xl`, and glass panels use a solid
-translucent background instead of `backdrop-blur`. Don't reintroduce these.
+**ghost/duplicated text** that clears on window resize. Avoid a large CSS blur
+behind anything that scrolls: use a `radial-gradient` instead of `blur-3xl`, and
+solid translucent backgrounds instead of `backdrop-blur`. Don't reintroduce these.
 
 ### Kill the sidecar on exit
 The spawned backend does **not** die with the app by default — it lingers

@@ -8,7 +8,7 @@
 ![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
 [![Total Download Count](https://img.shields.io/github/downloads/ayozetr/yoink-app/total.svg?color=2ea44f)](https://github.com/ayozetr/yoink-app/releases/latest)
 
-![Yoink — analyzing a video with the YouTube/SoundCloud search toggle, format/quality picker and download history sidebar](docs/screenshot_v3.0.0.png)
+![Yoink — the analyze view with the format/quality picker and download history](docs/screenshot_v3.0.0.png)
 
 **Yoink** is a **local** desktop app for downloading high-fidelity video and audio
 from ~1800 sites — a clean, dark UI over
@@ -97,10 +97,10 @@ src/                      # frontend (React + TS + Tailwind)
 ├── features/
 │   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
 │   ├── music/            # music-service import card (Spotify/Deezer/Apple/Tidal/Amazon)
-│   ├── downloader/       # URL input (+ search-source toggle), preview, playlist, progress
+│   ├── downloader/       # URL input (source selector inside the field), preview, playlist, progress
 │   ├── queue/            # download queue (format picker, music/playlist groups, skip/reorder)
-│   ├── history/          # download history + stats (sidebar)
-│   └── settings/         # settings modal (download dir, defaults, cookies, version, auto-update)
+│   ├── history/          # download history + stats (its own tab)
+│   └── settings/         # settings tab (download dir, defaults, cookies, theme, version, auto-update)
 ├── lib/                  # API client + download WebSocket
 └── types/                # shared domain types (mirror the backend JSON contract)
 
