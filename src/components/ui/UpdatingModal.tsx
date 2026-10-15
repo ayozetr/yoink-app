@@ -14,18 +14,18 @@ export function UpdatingModal({ progress }: { progress: number }) {
   const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
-      <GlassPanel className="flex w-full max-w-sm flex-col items-center gap-4 p-6 !bg-[#16181f]">
-        <Loader2 size={30} className="animate-spin text-violet-400" />
-        <p className="text-sm font-medium text-white">
+      <GlassPanel boxed className="flex w-full max-w-sm flex-col items-center gap-4 p-6 !bg-surface">
+        <Loader2 size={30} className="animate-spin text-accent-soft" />
+        <p className="text-sm font-medium text-fg">
           {t("update.downloading")}
         </p>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
           <div
-            className="h-full rounded-full bg-violet-500 transition-[width] duration-200"
+            className="h-full rounded-full bg-accent transition-[width] duration-200"
             style={{ width: `${Math.round(progress * 100)}%` }}
           />
         </div>
-        <p className="text-xs text-zinc-400">{t("update.dontClose")}</p>
+        <p className="text-xs text-fg-dim">{t("update.dontClose")}</p>
       </GlassPanel>
     </div>
   );

@@ -194,7 +194,7 @@ export function Select({
       >
         <span className="flex min-w-0 items-center gap-2">
           {selected?.icon && (
-            <span className="flex shrink-0 items-center text-zinc-300">
+            <span className="flex shrink-0 items-center text-fg-dim">
               {selected.icon}
             </span>
           )}
@@ -202,7 +202,7 @@ export function Select({
         </span>
         <ChevronDown
           size={16}
-          className={`shrink-0 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`shrink-0 text-fg-dim transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -219,14 +219,14 @@ export function Select({
             left: rect.left,
             width: rect.width,
           }}
-          className="z-[100] max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-[#1a1d27] p-1 shadow-xl"
+          className="z-[100] max-h-60 overflow-y-auto rounded-xl border border-line/10 bg-surface p-1 shadow-xl"
         >
           {options.map((option, i) => {
             if (option.header) {
               return (
                 <div
                   key={option.value}
-                  className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-400"
+                  className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-fg-dim"
                 >
                   {option.label}
                 </div>
@@ -249,12 +249,12 @@ export function Select({
                 onClick={() => choose(option.value)}
                 className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors ${
                   isDisabled
-                    ? "cursor-not-allowed text-zinc-500"
+                    ? "cursor-not-allowed text-fg-faint"
                     : active
-                      ? "bg-violet-600/30 text-white"
+                      ? "bg-accent/15 text-fg"
                       : highlighted
-                        ? "bg-white/10 text-white"
-                        : "text-zinc-200 hover:bg-white/10"
+                        ? "bg-surface-hover text-fg"
+                        : "text-fg hover:bg-surface-hover"
                 }`}
               >
                 <span className="flex min-w-0 items-center gap-2">
@@ -266,7 +266,7 @@ export function Select({
                   <span className="truncate">{option.label}</span>
                 </span>
                 {active && (
-                  <Check size={15} className="shrink-0 text-violet-300" />
+                  <Check size={15} className="shrink-0 text-accent-soft" />
                 )}
               </button>
             );

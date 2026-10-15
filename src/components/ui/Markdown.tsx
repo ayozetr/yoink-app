@@ -39,7 +39,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
       nodes.push(
         <code
           key={key}
-          className="rounded bg-white/10 px-1 py-0.5 text-[0.85em] text-violet-200"
+          className="rounded bg-surface-2 px-1 py-0.5 text-[0.85em] text-accent-soft"
         >
           {m[4]}
         </code>,
@@ -53,7 +53,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="text-violet-400 underline hover:text-violet-300"
+            className="text-accent-soft underline hover:text-accent"
           >
             {m[5]}
           </a>
@@ -109,27 +109,27 @@ export function Markdown({ source }: { source: string }) {
     if (/^###\s+/.test(line)) {
       flushAll(key);
       blocks.push(
-        <h4 key={key} className="mb-1 mt-4 text-sm font-semibold text-white">
+        <h4 key={key} className="mb-1 mt-4 text-sm font-semibold text-fg">
           {inline(line.replace(/^###\s+/, ""), key)}
         </h4>,
       );
     } else if (/^##\s+/.test(line)) {
       flushAll(key);
       blocks.push(
-        <h3 key={key} className="mb-1.5 mt-5 text-base font-semibold text-white">
+        <h3 key={key} className="mb-1.5 mt-5 text-base font-semibold text-fg">
           {inline(line.replace(/^##\s+/, ""), key)}
         </h3>,
       );
     } else if (/^#\s+/.test(line)) {
       flushAll(key);
       blocks.push(
-        <h2 key={key} className="mb-2 mt-5 text-lg font-bold text-white">
+        <h2 key={key} className="mb-2 mt-5 text-lg font-bold text-fg">
           {inline(line.replace(/^#\s+/, ""), key)}
         </h2>,
       );
     } else if (/^-{3,}$/.test(line.trim())) {
       flushAll(key);
-      blocks.push(<hr key={key} className="my-4 border-white/10" />);
+      blocks.push(<hr key={key} className="my-4 border-line/10" />);
     } else if (/^\s*[-*]\s+/.test(line)) {
       flushPara(`${key}p`);
       bullets.push(line.replace(/^\s*[-*]\s+/, ""));
@@ -142,5 +142,5 @@ export function Markdown({ source }: { source: string }) {
   });
   flushAll("bend");
 
-  return <div className="text-sm text-zinc-300">{blocks}</div>;
+  return <div className="text-sm text-fg-dim">{blocks}</div>;
 }

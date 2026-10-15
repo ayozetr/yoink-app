@@ -2,25 +2,30 @@ import type { HTMLAttributes, ReactNode, Ref } from "react";
 
 interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
+  /** Render the boxed surface (rounded + hairline border + surface bg). Used by
+   *  dialogs/modals. Content views leave it off so they sit flat on the canvas
+   *  (the v4 "no boxes" editorial look). */
+  boxed?: boolean;
   /** Optional ref to the underlying div (React 19 ref-as-prop). */
   ref?: Ref<HTMLDivElement>;
 }
 
 /**
- * Frosted-glass container used across the app (cards, sidebar, input wrapper).
- * Centralizes the border / blur / translucent-background treatment so the
- * look stays consistent and is tweakable in one place.
+ * Container used across the app. In the v4 "Flat Minimal" redesign content sits
+ * directly on the canvas (no card boxes) — so this is a plain passthrough by
+ * default, and only opts into a surface box when `boxed` is set (dialogs).
  */
 export function GlassPanel({
   children,
   className = "",
+  boxed = false,
   ref,
   ...rest
 }: GlassPanelProps) {
   return (
     <div
       ref={ref}
-      className={`rounded-3xl border border-white/10 bg-white/[0.06] ${className}`}
+      className={`${boxed ? "rounded-2xl border border-line/10 bg-surface " : ""}${className}`}
       {...rest}
     >
       {children}

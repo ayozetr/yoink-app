@@ -27,7 +27,7 @@ export function Toggle({
 }: ToggleProps) {
   return (
     <div
-      className={`flex min-h-11 items-center justify-between gap-3 rounded-xl border border-white/10 bg-surface px-4 py-2 text-sm ${
+      className={`flex min-h-11 items-center justify-between gap-3 rounded-xl border border-line/10 bg-surface px-4 py-2 text-sm ${
         className ?? ""
       }`}
     >
@@ -46,7 +46,7 @@ export function Toggle({
         aria-label={label}
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
-          checked ? "bg-violet-500" : "bg-white/15"
+          checked ? "bg-accent" : "bg-surface-hover"
         }`}
       >
         <span

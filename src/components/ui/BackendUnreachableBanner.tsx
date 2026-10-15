@@ -18,18 +18,18 @@ export function BackendUnreachableBanner({
   return (
     <div
       role="status"
-      className="fixed bottom-4 left-4 z-40 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-amber-500/30 bg-[#1c1926] p-4 shadow-2xl"
+      className="fixed bottom-4 left-4 z-40 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl border border-amber-500/30 bg-surface p-4 shadow-2xl"
     >
       <div className="flex gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/25">
           <PlugZap size={17} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-sm font-semibold text-white">
+          <p className="flex items-center gap-2 text-sm font-semibold text-fg">
             {t("backend.unreachableTitle")}
             <Loader2 size={13} className="animate-spin text-amber-300" />
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+          <p className="mt-1 text-xs leading-relaxed text-fg-dim">
             {t("backend.unreachable")}
           </p>
           {onRestart && (

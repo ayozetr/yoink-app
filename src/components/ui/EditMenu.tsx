@@ -106,7 +106,7 @@ export function EditMenu() {
   };
 
   const itemClass =
-    "w-full px-3 py-1.5 text-left transition-colors hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent";
+    "w-full px-3 py-1.5 text-left transition-colors hover:bg-surface-hover disabled:opacity-40 disabled:hover:bg-transparent";
 
   // Clamp to the viewport so a right-click near an edge doesn't open off-screen.
   const left = Math.max(8, Math.min(menu.x, window.innerWidth - 180));
@@ -118,7 +118,7 @@ export function EditMenu() {
       // the menu closes only the menu, not an enclosing modal's unsaved edits.
       data-popover="true"
       style={{ left, top }}
-      className="fixed z-[200] min-w-[150px] overflow-hidden rounded-lg border border-white/10 bg-[#1a1d27] py-1 text-sm text-zinc-200 shadow-xl"
+      className="fixed z-[200] min-w-[150px] overflow-hidden rounded-lg border border-line/10 bg-surface py-1 text-sm text-fg shadow-xl"
     >
       <button type="button" disabled={!hasSelection} onMouseDown={run(cut)} className={itemClass}>
         {t("common.cut")}

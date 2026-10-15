@@ -23,12 +23,12 @@ export function BackendMismatchBanner({
 }: BackendMismatchBannerProps) {
   const { t } = useTranslation();
   return (
-    <div className="fixed bottom-4 left-4 z-40 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-amber-500/30 bg-[#1c1926] p-4 shadow-2xl">
+    <div className="fixed bottom-4 left-4 z-40 w-[22rem] max-w-[calc(100vw-2rem)] rounded-xl border border-amber-500/30 bg-surface p-4 shadow-2xl">
       <button
         type="button"
         onClick={onDismiss}
         aria-label={t("update.dismiss")}
-        className="absolute right-3 top-3 text-zinc-500 transition hover:text-white"
+        className="absolute right-3 top-3 text-fg-faint transition hover:text-fg"
       >
         <X size={15} />
       </button>
@@ -37,10 +37,10 @@ export function BackendMismatchBanner({
           <AlertTriangle size={17} />
         </div>
         <div className="min-w-0 flex-1 pr-4">
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-fg">
             {t("update.backendMismatchTitle")}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+          <p className="mt-1 text-xs leading-relaxed text-fg-dim">
             {t("update.backendMismatch", {
               backend: backendVersion,
               app: appVersion,

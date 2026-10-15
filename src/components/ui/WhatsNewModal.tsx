@@ -60,17 +60,17 @@ export function WhatsNewModal({
         className="w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <GlassPanel
+        <GlassPanel boxed
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="whatsnew-title"
           tabIndex={-1}
-          className="flex max-h-[85vh] flex-col overflow-hidden p-0 !bg-[#16181f] outline-none"
+          className="flex max-h-[85vh] flex-col overflow-hidden p-0 !bg-surface outline-none"
         >
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-            <span id="whatsnew-title" className="flex items-center gap-2 text-lg font-semibold">
-              <Sparkles size={18} className="text-violet-400" />
+          <div className="flex items-center justify-between gap-3 border-b border-line/10 px-5 py-4">
+            <span id="whatsnew-title" className="flex items-center gap-2 font-display text-xl font-normal">
+              <Sparkles size={18} className="text-accent-soft" />
               {/* The " · version" only shows when we actually have notes — no
                   dangling separator when the notes couldn't load. */}
               {t("whatsNew.title")}
@@ -80,7 +80,7 @@ export function WhatsNewModal({
               type="button"
               onClick={onClose}
               aria-label={t("whatsNew.close")}
-              className="text-zinc-400 transition hover:text-white"
+              className="text-fg-dim transition hover:text-fg"
             >
               <X size={18} />
             </button>
@@ -88,7 +88,7 @@ export function WhatsNewModal({
 
           <div className="overflow-y-auto px-5 py-4">
             {loading ? (
-              <p className="flex items-center gap-2 text-sm text-zinc-400">
+              <p className="flex items-center gap-2 text-sm text-fg-dim">
                 <Loader2 size={15} className="animate-spin" />
                 {t("whatsNew.loading")}
               </p>
@@ -97,7 +97,7 @@ export function WhatsNewModal({
                 {entries.map((entry) => (
                   <section key={entry.version}>
                     {entries.length > 1 && (
-                      <h3 className="mb-2 text-sm font-semibold text-violet-300">
+                      <h3 className="mb-2 text-sm font-semibold text-accent-soft">
                         {entry.version}
                       </h3>
                     )}
@@ -106,15 +106,15 @@ export function WhatsNewModal({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-zinc-400">{t("whatsNew.unavailable")}</p>
+              <p className="text-sm text-fg-dim">{t("whatsNew.unavailable")}</p>
             )}
           </div>
 
-          <div className="border-t border-white/10 px-5 py-3 text-right">
+          <div className="border-t border-line/10 px-5 py-3 text-right">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft"
             >
               {t("whatsNew.gotIt")}
             </button>

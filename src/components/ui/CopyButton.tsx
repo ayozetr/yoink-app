@@ -31,7 +31,7 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
       onClick={copy}
       title={label ?? t("common.copy")}
       aria-label={label ?? t("common.copy")}
-      className={`shrink-0 rounded-md p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white ${className}`}
+      className={`shrink-0 rounded-md p-1 text-fg-dim transition hover:bg-surface-hover hover:text-fg ${className}`}
     >
       {copied ? (
         <Check size={13} className="text-emerald-400" />
