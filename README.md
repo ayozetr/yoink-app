@@ -118,10 +118,13 @@ for how to propose a change and the checks to run.
 
 ## License
 
-Yoink's own source code is licensed under **CC BY-NC-SA 4.0** (non-commercial,
-share-alike) — see [`LICENSE`](LICENSE). Bundled third-party components keep
-their own licenses (ffmpeg = LGPL, yt-dlp = Unlicense); see
-[`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md).
+Yoink's own source code is licensed under the **GNU Affero General Public License
+v3.0 or later** (AGPL-3.0-or-later) — see [`LICENSE`](LICENSE). You're free to use,
+study, modify and redistribute it (including commercially), as long as derivatives
+stay under the AGPL and their source stays available — including to anyone who
+interacts with a modified version over a network. Copyright © 2026 Ayoze Torres.
+Bundled third-party components keep their own licenses (ffmpeg = LGPL,
+yt-dlp = Unlicense); see [`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md).
 
 ## Disclaimer
 

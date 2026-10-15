@@ -44,7 +44,7 @@ RPM_DIR = BUNDLE / "rpm"
 
 # Metadata to match Tauri's own rpm (checked with `rpm -qp --info`).
 SUMMARY = "Yoink — local high-fidelity media downloader"
-LICENSE = "CC-BY-NC-SA-4.0"
+LICENSE = "AGPL-3.0-or-later"
 
 _HINTS = {
     "rpmbuild": "Arch/CachyOS: pacman -S rpm-tools · Fedora: dnf install rpm-build · Debian/Ubuntu: apt install rpm",

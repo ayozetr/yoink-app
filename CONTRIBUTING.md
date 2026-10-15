@@ -1,7 +1,7 @@
 # Contributing to Yoink
 
-Thanks for your interest! Yoink is a personal, **non-commercial** project
-(licensed under **CC BY-NC-SA 4.0**). Contributions are welcome in that spirit.
+Thanks for your interest! Yoink is a personal, free and open-source project
+(licensed under **AGPL-3.0-or-later**). Contributions are welcome in that spirit.
 
 ## How to propose a change
 
@@ -16,8 +16,8 @@ Every change goes through one of these — please don't expect direct write acce
    checks to run. Maintainer review + merge is how changes land on `main`.
 
 By contributing, you agree that your contribution is licensed under the
-project's **CC BY-NC-SA 4.0** terms (non-commercial, share-alike, with
-attribution) — the same terms that protect the rest of the project.
+project's **AGPL-3.0-or-later** terms (copyleft: share-alike, source-available,
+with attribution) — the same terms that protect the rest of the project.
 
 ## Ground rules
 

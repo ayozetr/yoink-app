@@ -39,10 +39,10 @@ implied, including but not limited to the warranties of merchantability, fitness
 for a particular purpose and non-infringement. In no event shall the author be
 liable for any claim, damages or other liability arising from, out of or in
 connection with the software or its use. This disclaimer complements — and does
-not replace — the project's license (**CC BY-NC-SA 4.0**).
+not replace — the project's license (**AGPL-3.0-or-later**).
 
 ---
 
-*Yoink is a free, non-commercial, open-source project. This document reflects the
+*Yoink is a free, open-source project (AGPL-3.0-or-later). This document reflects the
 author's intent and the responsible-use expectation for the tool; it is not legal
 advice.*
