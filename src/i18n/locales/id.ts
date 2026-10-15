@@ -1,4 +1,14 @@
 export const id = {
+  theme: {
+    toLight: "Beralih ke tema terang",
+    toDark: "Beralih ke tema gelap",
+  },
+  tabs: {
+    home: "Beranda",
+    queue: "Antrean",
+    history: "Riwayat",
+    settings: "Pengaturan",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "Unduh video dan audio dengan cepat dari ",
@@ -23,7 +33,7 @@ export const id = {
     close: "Tutup",
   },
   url: {
-    placeholder: "Tempel URL konten di sini, atau cari langsung di {{source}}",
+    placeholder: "Tempel URL konten di sini, atau cari langsung",
     paste: "Tempel dari papan klip",
     searching: "Mencari di {{source}}…",
     noResults: "Tidak ada hasil.",
@@ -34,6 +44,8 @@ export const id = {
     searchSource: "Sumber pencarian",
   },
   preview: {
+    qualityAvailable: "{{quality}} tersedia",
+    addToQueue: "Tambah ke antrean",
     advanced: "Opsi lanjutan",
     label: "Pratinjau",
     format: "Format",
@@ -73,6 +85,7 @@ export const id = {
     download: "Unduh",
   },
   preset: {
+    plural: "Preset",
     saveCurrent: "Simpan preset",
     namePlaceholder: "Nama preset",
     save: "Simpan",
@@ -134,6 +147,8 @@ export const id = {
     retry: "Coba lagi",
   },
   queue: {
+    added: "Ditambahkan ke antrean",
+    addBatch: "Tambah batch",
     open: "Antrean unduhan",
     close: "Tutup antrean",
     title: "Antrean",
@@ -149,7 +164,7 @@ export const id = {
     clearDone: "Bersihkan yang selesai",
     progressCount: "{{done}} dari {{total}} diunduh",
     remove: "Hapus dari antrean",
-    empty: "Tempel tautan di atas dan tekan Tambah untuk membuat satu kumpulan.",
+    empty: "Tambahkan tautan untuk memulai antrean.",
   },
   music: {
     label: "Impor",
@@ -197,6 +212,11 @@ export const id = {
     includeTrack: "Sertakan trek ini",
   },
   history: {
+    search: "Cari riwayat…",
+    groupToday: "Hari ini",
+    groupWeek: "Minggu ini",
+    groupMonth: "Bulan ini",
+    groupOlder: "Lebih lama",
     clearConfirm: "Konfirmasi?",
     title: "Riwayat unduhan",
     clear: "Bersihkan",
@@ -227,6 +247,9 @@ export const id = {
     defaultEmbedChapters: "Sematkan bab secara default",
     secDownloads: "Unduhan",
     catGeneral: "Umum",
+    onThisPage: "Di halaman ini",
+    extensionOther: "Browser lain",
+    updates: "Pembaruan",
     catAbout: "Tentang",
     catExtension: "Ekstensi",
     extensionIntro: "Tambahkan ekstensi browser untuk mengirim konten ke Yoink langsung dari web.",
@@ -314,6 +337,10 @@ export const id = {
       "Basis data segmen video YouTube hasil kontribusi komunitas — sponsor, intro, outro, promosi diri… Saat diaktifkan, Yoink memotongnya dari unduhan atau menandainya sebagai bab. Hanya bekerja di YouTube.",
     language: "Bahasa",
     langSystem: "Sistem",
+    theme: "Tema",
+    themeSystem: "Sistem",
+    themeDark: "Gelap",
+    themeLight: "Terang",
     cookiesHint:
       "Cookies (hanya untuk konten yang perlu masuk; bukan untuk konten publik)",
     cookiesBrowser: "Peramban untuk cookies",

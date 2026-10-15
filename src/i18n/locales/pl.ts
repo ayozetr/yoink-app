@@ -1,4 +1,14 @@
 export const pl = {
+  theme: {
+    toLight: "Przełącz na jasny motyw",
+    toDark: "Przełącz na ciemny motyw",
+  },
+  tabs: {
+    home: "Start",
+    queue: "Kolejka",
+    history: "Historia",
+    settings: "Ustawienia",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "Szybko pobieraj wideo i audio z ",
@@ -23,7 +33,7 @@ export const pl = {
     close: "Zamknij",
   },
   url: {
-    placeholder: "Wklej tutaj adres URL treści lub wyszukaj bezpośrednio w {{source}}",
+    placeholder: "Wklej tutaj adres URL treści lub wyszukaj bezpośrednio",
     paste: "Wklej ze schowka",
     searching: "Wyszukiwanie w {{source}}…",
     noResults: "Brak wyników.",
@@ -34,6 +44,8 @@ export const pl = {
     searchSource: "Źródło wyszukiwania",
   },
   preview: {
+    qualityAvailable: "{{quality}} dostępne",
+    addToQueue: "Dodaj do kolejki",
     advanced: "Opcje zaawansowane",
     label: "Podgląd",
     format: "Format",
@@ -73,6 +85,7 @@ export const pl = {
     download: "Pobierz",
   },
   preset: {
+    plural: "Szablony",
     saveCurrent: "Zapisz ustawienie",
     namePlaceholder: "Nazwa ustawienia",
     save: "Zapisz",
@@ -138,6 +151,8 @@ export const pl = {
     retry: "Ponów",
   },
   queue: {
+    added: "Dodano do kolejki",
+    addBatch: "Dodaj partię",
     open: "Kolejka pobierania",
     close: "Zamknij kolejkę",
     title: "Kolejka",
@@ -153,7 +168,7 @@ export const pl = {
     clearDone: "Wyczyść zakończone",
     progressCount: "{{done}} z {{total}} pobrano",
     remove: "Usuń z kolejki",
-    empty: "Wklej linki powyżej i naciśnij Dodaj, aby utworzyć paczkę.",
+    empty: "Dodaj linki, aby rozpocząć kolejkę.",
   },
   music: {
     label: "Import",
@@ -209,6 +224,11 @@ export const pl = {
     includeTrack: "Dołącz ten utwór",
   },
   history: {
+    search: "Szukaj w historii…",
+    groupToday: "Dziś",
+    groupWeek: "W tym tygodniu",
+    groupMonth: "W tym miesiącu",
+    groupOlder: "Starsze",
     clearConfirm: "Potwierdzić?",
     title: "Historia pobierania",
     clear: "Wyczyść",
@@ -239,6 +259,9 @@ export const pl = {
     defaultEmbedChapters: "Domyślnie osadzaj rozdziały",
     secDownloads: "Pobieranie",
     catGeneral: "Ogólne",
+    onThisPage: "Na tej stronie",
+    extensionOther: "Inne przeglądarki",
+    updates: "Aktualizacje",
     catAbout: "O programie",
     catExtension: "Rozszerzenie",
     extensionIntro: "Dodaj rozszerzenie przeglądarki, aby wysyłać treści do Yoink prosto ze strony.",
@@ -326,6 +349,10 @@ export const pl = {
       "Społecznościowa baza segmentów filmów YouTube — sponsorzy, intra, outra, autopromocja… Po włączeniu Yoink wycina je z pobranego pliku lub oznacza jako rozdziały. Działa tylko na YouTube.",
     language: "Język",
     langSystem: "Systemowy",
+    theme: "Motyw",
+    themeSystem: "System",
+    themeDark: "Ciemny",
+    themeLight: "Jasny",
     cookiesHint:
       "Cookies (tylko dla treści wymagających logowania; nie dla treści publicznych)",
     cookiesBrowser: "Przeglądarka dla cookies",

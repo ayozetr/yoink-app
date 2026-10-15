@@ -1,4 +1,14 @@
 export const uk = {
+  theme: {
+    toLight: "Перемкнути на світлу тему",
+    toDark: "Перемкнути на темну тему",
+  },
+  tabs: {
+    home: "Головна",
+    queue: "Черга",
+    history: "Історія",
+    settings: "Налаштування",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "Швидко завантажуйте відео та аудіо з ",
@@ -23,7 +33,7 @@ export const uk = {
     close: "Закрити",
   },
   url: {
-    placeholder: "Вставте сюди URL контенту або шукайте напряму в {{source}}",
+    placeholder: "Вставте сюди URL контенту або шукайте напряму",
     paste: "Вставити з буфера обміну",
     searching: "Пошук у {{source}}…",
     noResults: "Немає результатів.",
@@ -34,6 +44,8 @@ export const uk = {
     searchSource: "Джерело пошуку",
   },
   preview: {
+    qualityAvailable: "{{quality}} доступно",
+    addToQueue: "До черги",
     advanced: "Додаткові параметри",
     label: "Попередній перегляд",
     format: "Формат",
@@ -73,6 +85,7 @@ export const uk = {
     download: "Завантажити",
   },
   preset: {
+    plural: "Пресети",
     saveCurrent: "Зберегти пресет",
     namePlaceholder: "Назва пресета",
     save: "Зберегти",
@@ -138,6 +151,8 @@ export const uk = {
     retry: "Повторити",
   },
   queue: {
+    added: "Додано до черги",
+    addBatch: "Додати пакет",
     open: "Черга завантажень",
     close: "Закрити чергу",
     title: "Черга",
@@ -153,7 +168,7 @@ export const uk = {
     clearDone: "Очистити завершені",
     progressCount: "{{done}} з {{total}} завантажено",
     remove: "Видалити з черги",
-    empty: "Вставте посилання вище та натисніть Додати, щоб зібрати пакет.",
+    empty: "Додайте посилання, щоб запустити чергу.",
   },
   music: {
     label: "Імпорт",
@@ -209,6 +224,11 @@ export const uk = {
     includeTrack: "Включити цей трек",
   },
   history: {
+    search: "Пошук в історії…",
+    groupToday: "Сьогодні",
+    groupWeek: "Цього тижня",
+    groupMonth: "Цього місяця",
+    groupOlder: "Раніше",
     clearConfirm: "Підтвердити?",
     title: "Історія завантажень",
     clear: "Очистити",
@@ -239,6 +259,9 @@ export const uk = {
     defaultEmbedChapters: "Вбудовувати розділи за замовчуванням",
     secDownloads: "Завантаження",
     catGeneral: "Загальні",
+    onThisPage: "На цій сторінці",
+    extensionOther: "Інші браузери",
+    updates: "Оновлення",
     catAbout: "Про програму",
     catExtension: "Розширення",
     extensionIntro: "Встановіть розширення браузера, щоб надсилати контент у Yoink прямо зі сторінки.",
@@ -326,6 +349,10 @@ export const uk = {
       "Спільнотна база даних сегментів відео YouTube — спонсорство, інтро, аутро, самореклама… Коли увімкнено, Yoink або вирізає їх із завантаження, або позначає як розділи. Працює лише на YouTube.",
     language: "Мова",
     langSystem: "Системна",
+    theme: "Тема",
+    themeSystem: "Система",
+    themeDark: "Темна",
+    themeLight: "Світла",
     cookiesHint:
       "Cookies (лише для контенту, що потребує входу; не для публічного контенту)",
     cookiesBrowser: "Браузер для cookies",

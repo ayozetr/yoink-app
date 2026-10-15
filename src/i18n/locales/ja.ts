@@ -1,4 +1,14 @@
 export const ja = {
+  theme: {
+    toLight: "ライトテーマに切り替え",
+    toDark: "ダークテーマに切り替え",
+  },
+  tabs: {
+    home: "ホーム",
+    queue: "キュー",
+    history: "履歴",
+    settings: "設定",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "さまざまな動画・音声をすばやくダウンロード：",
@@ -23,7 +33,7 @@ export const ja = {
     close: "閉じる",
   },
   url: {
-    placeholder: "コンテンツの URL を貼り付けるか、{{source}} で直接検索してください",
+    placeholder: "コンテンツの URL を貼り付けるか、直接検索してください",
     paste: "クリップボードから貼り付け",
     searching: "{{source}} を検索中…",
     noResults: "結果がありません。",
@@ -34,6 +44,8 @@ export const ja = {
     searchSource: "検索ソース",
   },
   preview: {
+    qualityAvailable: "{{quality}} 利用可能",
+    addToQueue: "キューに追加",
     advanced: "詳細オプション",
     label: "プレビュー",
     format: "形式",
@@ -73,6 +85,7 @@ export const ja = {
     download: "ダウンロード",
   },
   preset: {
+    plural: "プリセット",
     saveCurrent: "プリセットを保存",
     namePlaceholder: "プリセット名",
     save: "保存",
@@ -134,6 +147,8 @@ export const ja = {
     retry: "再試行",
   },
   queue: {
+    added: "キューに追加しました",
+    addBatch: "一括追加",
     open: "ダウンロードキュー",
     close: "キューを閉じる",
     title: "キュー",
@@ -149,7 +164,7 @@ export const ja = {
     clearDone: "完了分をクリア",
     progressCount: "{{total}} 件中 {{done}} 件ダウンロード済み",
     remove: "キューから削除",
-    empty: "上にリンクを貼り付けて「追加」を押すとバッチを作成できます。",
+    empty: "リンクを追加してキューを開始します。",
   },
   music: {
     label: "インポート",
@@ -197,6 +212,11 @@ export const ja = {
     includeTrack: "この曲を含める",
   },
   history: {
+    search: "履歴を検索…",
+    groupToday: "今日",
+    groupWeek: "今週",
+    groupMonth: "今月",
+    groupOlder: "それ以前",
     clearConfirm: "確認？",
     title: "ダウンロード履歴",
     clear: "クリア",
@@ -227,6 +247,9 @@ export const ja = {
     defaultEmbedChapters: "デフォルトでチャプターを埋め込む",
     secDownloads: "ダウンロード",
     catGeneral: "一般",
+    onThisPage: "このページ",
+    extensionOther: "その他のブラウザ",
+    updates: "アップデート",
     catAbout: "情報",
     catExtension: "拡張機能",
     extensionIntro: "ブラウザー拡張機能を追加して、ウェブページから直接コンテンツを Yoink に送信できます。",
@@ -314,6 +337,10 @@ export const ja = {
       "YouTube 動画のセグメント（スポンサー、イントロ、アウトロ、自己宣伝など）をユーザーが集めたデータベースです。有効にすると、Yoink はそれらをダウンロードから切り取るか、チャプターとしてマークします。YouTube でのみ動作します。",
     language: "言語",
     langSystem: "システム",
+    theme: "テーマ",
+    themeSystem: "システム",
+    themeDark: "ダーク",
+    themeLight: "ライト",
     cookiesHint:
       "Cookies（ログインが必要なコンテンツ専用。公開コンテンツには不要）",
     cookiesBrowser: "Cookies 用のブラウザ",

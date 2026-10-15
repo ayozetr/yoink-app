@@ -1,4 +1,14 @@
 export const ru = {
+  theme: {
+    toLight: "Переключить на светлую тему",
+    toDark: "Переключить на тёмную тему",
+  },
+  tabs: {
+    home: "Главная",
+    queue: "Очередь",
+    history: "История",
+    settings: "Настройки",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "Быстро скачивайте видео и аудио с ",
@@ -23,7 +33,7 @@ export const ru = {
     close: "Закрыть",
   },
   url: {
-    placeholder: "Вставьте сюда URL контента или ищите прямо в {{source}}",
+    placeholder: "Вставьте сюда URL контента или ищите напрямую",
     paste: "Вставить из буфера обмена",
     searching: "Поиск в {{source}}…",
     noResults: "Ничего не найдено.",
@@ -34,6 +44,8 @@ export const ru = {
     searchSource: "Источник поиска",
   },
   preview: {
+    qualityAvailable: "{{quality}} доступно",
+    addToQueue: "В очередь",
     advanced: "Дополнительно",
     label: "Предпросмотр",
     format: "Формат",
@@ -73,6 +85,7 @@ export const ru = {
     download: "Скачать",
   },
   preset: {
+    plural: "Пресеты",
     saveCurrent: "Сохранить пресет",
     namePlaceholder: "Имя пресета",
     save: "Сохранить",
@@ -138,6 +151,8 @@ export const ru = {
     retry: "Повторить",
   },
   queue: {
+    added: "Добавлено в очередь",
+    addBatch: "Добавить пакет",
     open: "Очередь загрузок",
     close: "Закрыть очередь",
     title: "Очередь",
@@ -153,7 +168,7 @@ export const ru = {
     clearDone: "Очистить завершённые",
     progressCount: "{{done}} из {{total}} загружено",
     remove: "Убрать из очереди",
-    empty: "Вставьте ссылки выше и нажмите «Добавить», чтобы собрать пакет.",
+    empty: "Добавьте ссылки, чтобы запустить очередь.",
   },
   music: {
     label: "Импорт",
@@ -209,6 +224,11 @@ export const ru = {
     includeTrack: "Включить этот трек",
   },
   history: {
+    search: "Поиск в истории…",
+    groupToday: "Сегодня",
+    groupWeek: "На этой неделе",
+    groupMonth: "В этом месяце",
+    groupOlder: "Ранее",
     clearConfirm: "Подтвердить?",
     title: "История загрузок",
     clear: "Очистить",
@@ -239,6 +259,9 @@ export const ru = {
     defaultEmbedChapters: "Встраивать главы по умолчанию",
     secDownloads: "Загрузки",
     catGeneral: "Общие",
+    onThisPage: "На этой странице",
+    extensionOther: "Другие браузеры",
+    updates: "Обновления",
     catAbout: "О программе",
     catExtension: "Расширение",
     extensionIntro: "Установите расширение браузера, чтобы отправлять контент в Yoink прямо со страницы.",
@@ -326,6 +349,10 @@ export const ru = {
       "Сообществом наполняемая база сегментов видео YouTube — спонсоры, интро, аутро, самореклама… При включении Yoink либо вырезает их из загрузки, либо отмечает как главы. Работает только на YouTube.",
     language: "Язык",
     langSystem: "Системный",
+    theme: "Тема",
+    themeSystem: "Система",
+    themeDark: "Тёмная",
+    themeLight: "Светлая",
     cookiesHint:
       "Cookies (только для контента, требующего входа; не для публичного контента)",
     cookiesBrowser: "Браузер для cookies",

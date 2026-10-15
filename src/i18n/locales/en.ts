@@ -1,4 +1,14 @@
 export const en = {
+  theme: {
+    toLight: "Switch to light theme",
+    toDark: "Switch to dark theme",
+  },
+  tabs: {
+    home: "Home",
+    queue: "Queue",
+    history: "History",
+    settings: "Settings",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "Download video and audio quickly from ",
@@ -23,7 +33,7 @@ export const en = {
     close: "Close",
   },
   url: {
-    placeholder: "Paste the content URL here, or search {{source}} directly",
+    placeholder: "Paste the content URL here, or search directly",
     paste: "Paste from clipboard",
     searching: "Searching {{source}}…",
     noResults: "No results.",
@@ -34,6 +44,8 @@ export const en = {
     searchSource: "Search source",
   },
   preview: {
+    qualityAvailable: "{{quality}} available",
+    addToQueue: "Add to queue",
     advanced: "Advanced options",
     label: "Preview",
     format: "Format",
@@ -73,6 +85,7 @@ export const en = {
     download: "Download",
   },
   preset: {
+    plural: "Presets",
     saveCurrent: "Save preset",
     namePlaceholder: "Preset name",
     save: "Save",
@@ -134,6 +147,8 @@ export const en = {
     retry: "Retry",
   },
   queue: {
+    added: "Added to queue",
+    addBatch: "Add batch",
     open: "Download queue",
     close: "Close queue",
     title: "Queue",
@@ -149,7 +164,7 @@ export const en = {
     clearDone: "Clear finished",
     progressCount: "{{done}} of {{total}} downloaded",
     remove: "Remove from queue",
-    empty: "Paste links above and press Add to build a batch.",
+    empty: "Add links to start the queue.",
   },
   music: {
     label: "Import",
@@ -197,6 +212,11 @@ export const en = {
     includeTrack: "Include this track",
   },
   history: {
+    search: "Search history…",
+    groupToday: "Today",
+    groupWeek: "This week",
+    groupMonth: "This month",
+    groupOlder: "Older",
     clearConfirm: "Confirm?",
     title: "Download history",
     clear: "Clear",
@@ -227,6 +247,9 @@ export const en = {
     defaultEmbedChapters: "Embed chapters by default",
     secDownloads: "Downloads",
     catGeneral: "General",
+    onThisPage: "On this page",
+    extensionOther: "Other browsers",
+    updates: "Updates",
     catAbout: "About",
     catExtension: "Extension",
     extensionIntro: "Add the browser extension to send content to Yoink straight from the web.",
@@ -314,6 +337,10 @@ export const en = {
       "A crowd-sourced database of YouTube video segments — sponsors, intros, outros, self-promo… When enabled, Yoink either cuts them out of the download or marks them as chapters. Works on YouTube only.",
     language: "Language",
     langSystem: "System",
+    theme: "Theme",
+    themeSystem: "System",
+    themeDark: "Dark",
+    themeLight: "Light",
     cookiesHint:
       "Cookies (only for sign-in-only content; not for public content)",
     cookiesBrowser: "Browser for cookies",

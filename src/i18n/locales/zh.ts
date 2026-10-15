@@ -1,4 +1,14 @@
 export const zh = {
+  theme: {
+    toLight: "切换到浅色主题",
+    toDark: "切换到深色主题",
+  },
+  tabs: {
+    home: "主页",
+    queue: "队列",
+    history: "历史",
+    settings: "设置",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "从",
@@ -23,7 +33,7 @@ export const zh = {
     close: "关闭",
   },
   url: {
-    placeholder: "在此粘贴内容链接，或直接搜索 {{source}}",
+    placeholder: "在此粘贴内容链接，或直接搜索",
     paste: "从剪贴板粘贴",
     searching: "正在搜索 {{source}}…",
     noResults: "无结果。",
@@ -34,6 +44,8 @@ export const zh = {
     searchSource: "搜索来源",
   },
   preview: {
+    qualityAvailable: "{{quality}} 可用",
+    addToQueue: "添加到队列",
     advanced: "高级选项",
     label: "预览",
     format: "格式",
@@ -73,6 +85,7 @@ export const zh = {
     download: "下载",
   },
   preset: {
+    plural: "预设",
     saveCurrent: "保存预设",
     namePlaceholder: "预设名称",
     save: "保存",
@@ -134,6 +147,8 @@ export const zh = {
     retry: "重试",
   },
   queue: {
+    added: "已添加到队列",
+    addBatch: "批量添加",
     open: "下载队列",
     close: "关闭队列",
     title: "队列",
@@ -149,7 +164,7 @@ export const zh = {
     clearDone: "清除已完成",
     progressCount: "已下载 {{done}} / {{total}}",
     remove: "从队列移除",
-    empty: "在上方粘贴链接并点击「添加」以创建批次。",
+    empty: "添加链接以开始队列。",
   },
   music: {
     label: "导入",
@@ -197,6 +212,11 @@ export const zh = {
     includeTrack: "包含此曲目",
   },
   history: {
+    search: "搜索历史…",
+    groupToday: "今天",
+    groupWeek: "本周",
+    groupMonth: "本月",
+    groupOlder: "更早",
     clearConfirm: "确认？",
     title: "下载历史",
     clear: "清除",
@@ -227,6 +247,9 @@ export const zh = {
     defaultEmbedChapters: "默认嵌入章节",
     secDownloads: "下载",
     catGeneral: "常规",
+    onThisPage: "本页内容",
+    extensionOther: "其他浏览器",
+    updates: "更新",
     catAbout: "关于",
     catExtension: "扩展",
     extensionIntro: "添加浏览器扩展，直接从网页将内容发送到 Yoink。",
@@ -314,6 +337,10 @@ export const zh = {
       "一个由社区共建的 YouTube 视频片段数据库——赞助、片头、片尾、自我推广……启用后，Yoink 会在下载时剪掉这些片段，或将其标记为章节。仅适用于 YouTube。",
     language: "语言",
     langSystem: "跟随系统",
+    theme: "主题",
+    themeSystem: "跟随系统",
+    themeDark: "深色",
+    themeLight: "浅色",
     cookiesHint:
       "Cookies（仅用于需要登录的内容；公开内容无需）",
     cookiesBrowser: "用于读取 cookies 的浏览器",

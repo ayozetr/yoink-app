@@ -1,4 +1,14 @@
 export const hi = {
+  theme: {
+    toLight: "लाइट थीम पर जाएँ",
+    toDark: "डार्क थीम पर जाएँ",
+  },
+  tabs: {
+    home: "होम",
+    queue: "कतार",
+    history: "इतिहास",
+    settings: "सेटिंग्स",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "वीडियो और ऑडियो तेज़ी से डाउनलोड करें ",
@@ -23,7 +33,7 @@ export const hi = {
     close: "बंद करें",
   },
   url: {
-    placeholder: "कंटेंट का URL यहाँ पेस्ट करें, या सीधे {{source}} पर खोजें",
+    placeholder: "कंटेंट का URL यहाँ पेस्ट करें, या सीधे खोजें",
     paste: "क्लिपबोर्ड से पेस्ट करें",
     searching: "{{source}} पर खोज रहे हैं…",
     noResults: "कोई परिणाम नहीं।",
@@ -34,6 +44,8 @@ export const hi = {
     searchSource: "खोज स्रोत",
   },
   preview: {
+    qualityAvailable: "{{quality}} उपलब्ध",
+    addToQueue: "कतार में जोड़ें",
     advanced: "उन्नत विकल्प",
     label: "पूर्वावलोकन",
     format: "फ़ॉर्मेट",
@@ -73,6 +85,7 @@ export const hi = {
     download: "डाउनलोड करें",
   },
   preset: {
+    plural: "प्रीसेट",
     saveCurrent: "प्रीसेट सहेजें",
     namePlaceholder: "प्रीसेट नाम",
     save: "सहेजें",
@@ -134,6 +147,8 @@ export const hi = {
     retry: "दोबारा कोशिश करें",
   },
   queue: {
+    added: "कतार में जोड़ा गया",
+    addBatch: "बैच जोड़ें",
     open: "डाउनलोड कतार",
     close: "कतार बंद करें",
     title: "कतार",
@@ -149,7 +164,7 @@ export const hi = {
     clearDone: "पूर्ण हुए हटाएँ",
     progressCount: "{{total}} में से {{done}} डाउनलोड किए गए",
     remove: "कतार से हटाएँ",
-    empty: "ऊपर लिंक पेस्ट करें और बैच बनाने के लिए जोड़ें दबाएँ।",
+    empty: "कतार शुरू करने के लिए लिंक जोड़ें।",
   },
   music: {
     label: "इम्पोर्ट",
@@ -197,6 +212,11 @@ export const hi = {
     includeTrack: "इस ट्रैक को शामिल करें",
   },
   history: {
+    search: "इतिहास खोजें…",
+    groupToday: "आज",
+    groupWeek: "इस सप्ताह",
+    groupMonth: "इस महीने",
+    groupOlder: "पुराने",
     clearConfirm: "पुष्टि करें?",
     title: "डाउनलोड इतिहास",
     clear: "साफ़ करें",
@@ -227,6 +247,9 @@ export const hi = {
     defaultEmbedChapters: "डिफ़ॉल्ट रूप से अध्याय एम्बेड करें",
     secDownloads: "डाउनलोड",
     catGeneral: "सामान्य",
+    onThisPage: "इस पृष्ठ पर",
+    extensionOther: "अन्य ब्राउज़र",
+    updates: "अपडेट",
     catAbout: "परिचय",
     catExtension: "एक्सटेंशन",
     extensionIntro: "वेब से सीधे Yoink को सामग्री भेजने के लिए ब्राउज़र एक्सटेंशन जोड़ें।",
@@ -314,6 +337,10 @@ export const hi = {
       "YouTube वीडियो सेगमेंट का एक क्राउड-सोर्स्ड डेटाबेस — स्पॉन्सर, इंट्रो, आउट्रो, सेल्फ-प्रोमो… सक्षम होने पर, Yoink इन्हें या तो डाउनलोड से काट देता है या अध्याय के रूप में चिह्नित करता है। केवल YouTube पर काम करता है।",
     language: "भाषा",
     langSystem: "सिस्टम",
+    theme: "थीम",
+    themeSystem: "सिस्टम",
+    themeDark: "डार्क",
+    themeLight: "लाइट",
     cookiesHint:
       "Cookies (केवल साइन-इन वाले कंटेंट के लिए; सार्वजनिक कंटेंट के लिए नहीं)",
     cookiesBrowser: "Cookies के लिए ब्राउज़र",

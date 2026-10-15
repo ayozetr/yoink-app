@@ -1,4 +1,14 @@
 export const de = {
+  theme: {
+    toLight: "Zu hellem Design wechseln",
+    toDark: "Zu dunklem Design wechseln",
+  },
+  tabs: {
+    home: "Start",
+    queue: "Warteschlange",
+    history: "Verlauf",
+    settings: "Einstellungen",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "Lade Videos und Audios schnell herunter von ",
@@ -23,7 +33,7 @@ export const de = {
     close: "Schließen",
   },
   url: {
-    placeholder: "Füge hier die Inhalts-URL ein oder suche direkt auf {{source}}",
+    placeholder: "Füge hier die Inhalts-URL ein oder suche direkt",
     paste: "Aus Zwischenablage einfügen",
     searching: "Suche auf {{source}}…",
     noResults: "Keine Ergebnisse.",
@@ -34,6 +44,8 @@ export const de = {
     searchSource: "Suchquelle",
   },
   preview: {
+    qualityAvailable: "{{quality}} verfügbar",
+    addToQueue: "Zur Warteschlange",
     advanced: "Erweiterte Optionen",
     label: "Vorschau",
     format: "Format",
@@ -73,6 +85,7 @@ export const de = {
     download: "Herunterladen",
   },
   preset: {
+    plural: "Presets",
     saveCurrent: "Preset speichern",
     namePlaceholder: "Preset-Name",
     save: "Speichern",
@@ -134,6 +147,8 @@ export const de = {
     retry: "Erneut versuchen",
   },
   queue: {
+    added: "Zur Warteschlange hinzugefügt",
+    addBatch: "Stapel hinzufügen",
     open: "Download-Warteschlange",
     close: "Warteschlange schließen",
     title: "Warteschlange",
@@ -149,7 +164,7 @@ export const de = {
     clearDone: "Abgeschlossene entfernen",
     progressCount: "{{done}} von {{total}} heruntergeladen",
     remove: "Aus der Warteschlange entfernen",
-    empty: "Füge oben Links ein und drücke „Hinzufügen“, um einen Stapel zu erstellen.",
+    empty: "Links hinzufügen, um die Warteschlange zu starten.",
   },
   music: {
     label: "Import",
@@ -197,6 +212,11 @@ export const de = {
     includeTrack: "Diesen Titel einschließen",
   },
   history: {
+    search: "Verlauf durchsuchen…",
+    groupToday: "Heute",
+    groupWeek: "Diese Woche",
+    groupMonth: "Diesen Monat",
+    groupOlder: "Älter",
     clearConfirm: "Bestätigen?",
     title: "Download-Verlauf",
     clear: "Leeren",
@@ -227,6 +247,9 @@ export const de = {
     defaultEmbedChapters: "Kapitel standardmäßig einbetten",
     secDownloads: "Downloads",
     catGeneral: "Allgemein",
+    onThisPage: "Auf dieser Seite",
+    extensionOther: "Andere Browser",
+    updates: "Aktualisierungen",
     catAbout: "Über",
     catExtension: "Erweiterung",
     extensionIntro: "Füge die Browser-Erweiterung hinzu, um Inhalte direkt aus dem Web an Yoink zu senden.",
@@ -314,6 +337,10 @@ export const de = {
       "Eine von der Community gepflegte Datenbank von YouTube-Videosegmenten — Sponsoren, Intros, Outros, Eigenwerbung… Wenn aktiviert, entfernt Yoink sie aus dem Download oder markiert sie als Kapitel. Funktioniert nur auf YouTube.",
     language: "Sprache",
     langSystem: "System",
+    theme: "Erscheinungsbild",
+    themeSystem: "System",
+    themeDark: "Dunkel",
+    themeLight: "Hell",
     cookiesHint:
       "Cookies (nur für Inhalte, die eine Anmeldung erfordern; nicht für öffentliche Inhalte)",
     cookiesBrowser: "Browser für Cookies",

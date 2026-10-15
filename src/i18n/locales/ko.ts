@@ -1,4 +1,14 @@
 export const ko = {
+  theme: {
+    toLight: "라이트 테마로 전환",
+    toDark: "다크 테마로 전환",
+  },
+  tabs: {
+    home: "홈",
+    queue: "대기열",
+    history: "기록",
+    settings: "설정",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "다양한 사이트에서 영상과 오디오를 빠르게 다운로드하세요 — ",
@@ -23,7 +33,7 @@ export const ko = {
     close: "닫기",
   },
   url: {
-    placeholder: "여기에 콘텐츠 URL을 붙여넣거나 {{source}}에서 바로 검색하세요",
+    placeholder: "여기에 콘텐츠 URL을 붙여넣거나 바로 검색하세요",
     paste: "클립보드에서 붙여넣기",
     searching: "{{source}}에서 검색 중…",
     noResults: "결과가 없습니다.",
@@ -34,6 +44,8 @@ export const ko = {
     searchSource: "검색 소스",
   },
   preview: {
+    qualityAvailable: "{{quality}} 사용 가능",
+    addToQueue: "대기열에 추가",
     advanced: "고급 옵션",
     label: "미리보기",
     format: "형식",
@@ -73,6 +85,7 @@ export const ko = {
     download: "다운로드",
   },
   preset: {
+    plural: "프리셋",
     saveCurrent: "프리셋 저장",
     namePlaceholder: "프리셋 이름",
     save: "저장",
@@ -134,6 +147,8 @@ export const ko = {
     retry: "다시 시도",
   },
   queue: {
+    added: "대기열에 추가됨",
+    addBatch: "일괄 추가",
     open: "다운로드 대기열",
     close: "대기열 닫기",
     title: "대기열",
@@ -149,7 +164,7 @@ export const ko = {
     clearDone: "완료 항목 지우기",
     progressCount: "{{total}}개 중 {{done}}개 다운로드됨",
     remove: "대기열에서 제거",
-    empty: "위에 링크를 붙여넣고 추가를 눌러 일괄 작업을 만드세요.",
+    empty: "링크를 추가하여 대기열을 시작하세요.",
   },
   music: {
     label: "가져오기",
@@ -197,6 +212,11 @@ export const ko = {
     includeTrack: "이 트랙 포함",
   },
   history: {
+    search: "기록 검색…",
+    groupToday: "오늘",
+    groupWeek: "이번 주",
+    groupMonth: "이번 달",
+    groupOlder: "이전",
     clearConfirm: "확인?",
     title: "다운로드 기록",
     clear: "지우기",
@@ -227,6 +247,9 @@ export const ko = {
     defaultEmbedChapters: "기본적으로 챕터 포함",
     secDownloads: "다운로드",
     catGeneral: "일반",
+    onThisPage: "이 페이지",
+    extensionOther: "기타 브라우저",
+    updates: "업데이트",
     catAbout: "정보",
     catExtension: "확장 프로그램",
     extensionIntro: "브라우저 확장 프로그램을 추가하면 웹에서 바로 콘텐츠를 Yoink로 보낼 수 있습니다.",
@@ -314,6 +337,10 @@ export const ko = {
       "YouTube 영상 구간(스폰서, 인트로, 아웃트로, 자기 홍보 등)을 모아둔 커뮤니티 기반 데이터베이스입니다. 활성화하면 Yoink가 해당 구간을 다운로드에서 잘라내거나 챕터로 표시합니다. YouTube에서만 동작합니다.",
     language: "언어",
     langSystem: "시스템",
+    theme: "테마",
+    themeSystem: "시스템",
+    themeDark: "다크",
+    themeLight: "라이트",
     cookiesHint:
       "쿠키 (로그인이 필요한 콘텐츠 전용, 공개 콘텐츠에는 불필요)",
     cookiesBrowser: "쿠키용 브라우저",

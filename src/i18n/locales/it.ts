@@ -1,4 +1,14 @@
 export const it = {
+  theme: {
+    toLight: "Passa al tema chiaro",
+    toDark: "Passa al tema scuro",
+  },
+  tabs: {
+    home: "Home",
+    queue: "Coda",
+    history: "Cronologia",
+    settings: "Impostazioni",
+  },
   header: {
     title: "Yoink Media Downloader",
     subtitlePrefix: "Scarica video e audio rapidamente da ",
@@ -23,7 +33,7 @@ export const it = {
     close: "Chiudi",
   },
   url: {
-    placeholder: "Incolla qui l'URL del contenuto, oppure cerca direttamente su {{source}}",
+    placeholder: "Incolla qui l'URL del contenuto, oppure cerca direttamente",
     paste: "Incolla dagli appunti",
     searching: "Ricerca su {{source}}…",
     noResults: "Nessun risultato.",
@@ -34,6 +44,8 @@ export const it = {
     searchSource: "Fonte di ricerca",
   },
   preview: {
+    qualityAvailable: "{{quality}} disponibile",
+    addToQueue: "Aggiungi alla coda",
     advanced: "Opzioni avanzate",
     label: "Anteprima",
     format: "Formato",
@@ -73,6 +85,7 @@ export const it = {
     download: "Scarica",
   },
   preset: {
+    plural: "Preset",
     saveCurrent: "Salva preset",
     namePlaceholder: "Nome preset",
     save: "Salva",
@@ -134,6 +147,8 @@ export const it = {
     retry: "Riprova",
   },
   queue: {
+    added: "Aggiunto alla coda",
+    addBatch: "Aggiungi lotto",
     open: "Coda di download",
     close: "Chiudi coda",
     title: "Coda",
@@ -149,7 +164,7 @@ export const it = {
     clearDone: "Rimuovi completati",
     progressCount: "{{done}} di {{total}} scaricati",
     remove: "Rimuovi dalla coda",
-    empty: "Incolla i link sopra e premi Aggiungi per creare un lotto.",
+    empty: "Aggiungi link per avviare la coda.",
   },
   music: {
     label: "Importa",
@@ -197,6 +212,11 @@ export const it = {
     includeTrack: "Includi questo brano",
   },
   history: {
+    search: "Cerca nella cronologia…",
+    groupToday: "Oggi",
+    groupWeek: "Questa settimana",
+    groupMonth: "Questo mese",
+    groupOlder: "Meno recenti",
     clearConfirm: "Confermare?",
     title: "Cronologia download",
     clear: "Svuota",
@@ -227,6 +247,9 @@ export const it = {
     defaultEmbedChapters: "Incorpora i capitoli per impostazione predefinita",
     secDownloads: "Download",
     catGeneral: "Generale",
+    onThisPage: "In questa pagina",
+    extensionOther: "Altri browser",
+    updates: "Aggiornamenti",
     catAbout: "Informazioni",
     catExtension: "Estensione",
     extensionIntro: "Aggiungi l'estensione del browser per inviare contenuti a Yoink direttamente dal web.",
@@ -314,6 +337,10 @@ export const it = {
       "Un database collaborativo di segmenti dei video di YouTube — sponsor, intro, outro, autopromozioni… Quando è attivo, Yoink li rimuove dal download o li segna come capitoli. Funziona solo su YouTube.",
     language: "Lingua",
     langSystem: "Sistema",
+    theme: "Tema",
+    themeSystem: "Sistema",
+    themeDark: "Scuro",
+    themeLight: "Chiaro",
     cookiesHint:
       "Cookie (solo per contenuti che richiedono l'accesso; non per i contenuti pubblici)",
     cookiesBrowser: "Browser per i cookie",
