@@ -1,9 +1,70 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/* Map the design tokens into Tailwind's theme. `inline` makes each utility
+   reference the `--c-*` custom properties directly (rather than freezing their
+   value), so flipping `html[data-theme]` re-themes the whole app at runtime.
+   Opacity modifiers (e.g. `bg-surface/60`) resolve via color-mix automatically. */
+@theme inline {
+  --color-canvas: rgb(var(--c-canvas));
+  --color-surface: rgb(var(--c-surface));
+  --color-surface-2: rgb(var(--c-surface-2));
+  --color-surface-hover: rgb(var(--c-surface-hover));
+  --color-line: rgb(var(--c-line));
+  --color-fg: rgb(var(--c-fg));
+  --color-fg-dim: rgb(var(--c-fg-dim));
+  --color-fg-faint: rgb(var(--c-fg-faint));
+  --color-accent: rgb(var(--c-accent));
+  --color-accent-soft: rgb(var(--c-accent-soft));
+
+  --font-display: "Gloock", Georgia, Cambria, serif;
+  --font-sans: "Inter Variable", Inter, system-ui, Avenir, Helvetica, Arial,
+    sans-serif;
+}
+
+/* Tailwind v4's Preflight makes the bare `border` utility use currentColor;
+   restore v3's behaviour (a faint hairline) so existing/undecorated borders
+   stay subtle. Explicit `border-*` color utilities still win (later layer). */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: rgb(var(--c-line) / 0.1);
+  }
+}
+
+/* ── Design tokens (Flat Minimal) ──────────────────────────────────────────
+   The palette lives here as space-separated RGB channels so Tailwind can apply
+   it through `rgb(var(--token) / <alpha-value>)` (see tailwind.config.js) and
+   so the whole app can swap between dark and light by flipping one attribute.
+   Dark is the default; `html[data-theme="light"]` overrides it. */
 :root {
   color-scheme: dark;
+
+  --c-canvas: 10 10 12; /* #0a0a0c */
+  --c-surface: 20 20 23; /* #141417 */
+  --c-surface-2: 27 27 32; /* #1b1b20 */
+  --c-surface-hover: 35 35 41; /* #232329 */
+  --c-line: 236 234 240; /* used at low alpha, e.g. border-line/10 */
+  --c-fg: 236 234 240; /* #eceaf0 */
+  --c-fg-dim: 147 143 158; /* #938f9e */
+  --c-fg-faint: 99 96 112; /* #636070 */
+  --c-accent: 139 92 246; /* #8b5cf6 violet-500 */
+  --c-accent-soft: 167 139 250; /* #a78bfa violet-400 */
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --c-canvas: 246 245 248; /* #f6f5f8 */
+  --c-surface: 255 255 255; /* #ffffff */
+  --c-surface-2: 240 238 244; /* #f0eef4 */
+  --c-surface-hover: 234 231 240; /* #eae7f0 */
+  --c-line: 20 16 30; /* dark hairline on light surfaces */
+  --c-fg: 23 21 29; /* #17151d */
+  --c-fg-dim: 95 91 107; /* #5f5b6b */
+  --c-fg-faint: 140 136 152; /* #8c8898 */
+  --c-accent: 124 58 237; /* #7c3aed violet-600 (more contrast on light) */
+  --c-accent-soft: 124 58 237;
 }
 
 html,
@@ -14,9 +75,10 @@ body,
 
 body {
   margin: 0;
-  background-color: #0a0a0f;
-  color: #ffffff;
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: rgb(var(--c-canvas));
+  color: rgb(var(--c-fg));
+  font-family: "Inter Variable", Inter, system-ui, Avenir, Helvetica, Arial,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -71,6 +133,34 @@ svg {
   outline: none;
 }
 
+/* The URL search field shows focus on its own container (focus-within), so
+   suppress the global keyboard outline on the input + its in-field controls —
+   otherwise a second ring is drawn inside the field and looks broken. */
+.url-field :focus-visible {
+  outline: none;
+}
+
+/* Text selection in the app's violet, instead of the browser's default blue. */
+::selection {
+  background: rgb(139 92 246 / 0.35);
+}
+
+/* Chrome paints a blue/yellow background on a field filled from its autofill /
+   autocomplete history (e.g. picking a remembered URL). It's an internal style
+   that plain `background` can't override, so mask it with an inset box-shadow in
+   the field's own colour and force the text/caret colour to match. The long
+   transition keeps the colour from flashing back after the fill. */
+.url-field input:-webkit-autofill,
+.url-field input:-webkit-autofill:hover,
+.url-field input:-webkit-autofill:focus,
+.url-field input:-webkit-autofill:active {
+  -webkit-text-fill-color: rgb(var(--c-fg));
+  caret-color: rgb(var(--c-fg));
+  -webkit-box-shadow: 0 0 0 1000px rgb(var(--c-surface)) inset;
+  box-shadow: 0 0 0 1000px rgb(var(--c-surface)) inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* Respect the OS "reduce motion" setting: damp the always-on spinners, fades and
    transitions for users sensitive to motion. */
 @media (prefers-reduced-motion: reduce) {
@@ -82,4 +172,68 @@ svg {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Entrance animations for floating UI (toasts, drawer). The global
+   prefers-reduced-motion rule above already damps these for sensitive users. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.toast-in {
+  animation: toast-in 0.18s ease-out;
+}
+
+/* Right slide-over: a full slide from the edge, mirrored on the way out. The
+   backdrop cross-fades alongside. `forwards` holds the exit end-state (off-screen
+   / transparent) until the element unmounts on animationend. */
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes drawer-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.drawer-in {
+  animation: drawer-in 0.22s ease-out;
+}
+.drawer-out {
+  animation: drawer-out 0.22s ease-in forwards;
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.backdrop-in {
+  animation: backdrop-in 0.22s ease-out;
+}
+.backdrop-out {
+  animation: backdrop-out 0.22s ease-in forwards;
 }

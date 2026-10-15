@@ -1,5 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// Self-hosted fonts (bundled, no network): Gloock for display, Inter for UI.
+import '@fontsource/gloock/400.css'
+import '@fontsource-variable/inter'
 import './index.css'
 import './i18n'
 import App from './App.tsx'
