@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /** Music import types — mirror `backend/app/models/music.py`. */
 
 export type MusicSource = "spotify" | "deezer" | "apple" | "tidal" | "amazon";

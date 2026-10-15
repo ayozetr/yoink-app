@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """One-time setup: create the backend venv, install all dependencies.
 
     python scripts/setup.py

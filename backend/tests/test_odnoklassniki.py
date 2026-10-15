@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the patched Odnoklassniki (ok.ru) extractor.
 
 Covers only the fix + registration — no network, no specific URLs. The bug: the

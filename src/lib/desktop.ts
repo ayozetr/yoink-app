@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Desktop-only (Tauri) behaviours: close-to-tray, launch-at-startup, and a global
  * shortcut. Each call no-ops in a plain browser. The Rust shell owns the actual

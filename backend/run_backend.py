@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Entry point for the packaged backend (PyInstaller onedir binary).
 
 The Tauri desktop shell launches this with **no arguments** to serve the local

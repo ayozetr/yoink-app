@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the multi-source keyless music import (HTTP layer mocked, offline)."""
 
 from __future__ import annotations

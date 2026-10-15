@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Audio auto-tagging types — mirror of `backend/app/models/autotag.py`.
  *

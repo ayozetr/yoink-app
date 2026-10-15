@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Flip `createUpdaterArtifacts` to false in a tauri.conf.json copy.
 
 Used on the Windows build VM: the updater signing key must never leave the local

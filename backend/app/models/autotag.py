@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Pydantic models for audio auto-tagging (Apple Music / Deezer / MusicBrainz).
 
 The contract mirrored by the frontend's `src/types/autotag.ts`. The flow is

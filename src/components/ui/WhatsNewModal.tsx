@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 import { useEffect, useState } from "react";
 import { Loader2, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";

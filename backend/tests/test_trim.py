@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Trim/clip range guards: the model validator + the download-options branch."""
 
 from __future__ import annotations

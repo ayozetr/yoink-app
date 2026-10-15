@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Check the installed version against the latest GitHub release.
 
 Uses stdlib urllib (no extra dependency). The GitHub API is unauthenticated

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for loudness normalization (ffmpeg two-pass loudnorm).
 
 Uses ffmpeg to synthesize a quiet clip, then checks that normalization raises it

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Keyless music import from Spotify / Deezer / Apple Music / Tidal / Amazon.
 
 Each source resolves a track/album/playlist URL into a common

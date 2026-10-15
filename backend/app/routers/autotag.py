@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """`/api/autotag` — audio auto-tagging via the Apple Music (iTunes) catalogue.
 
 identify/search → (the user picks a version + edits in the UI) → apply. The

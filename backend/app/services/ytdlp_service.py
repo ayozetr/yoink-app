@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Thin, strictly-typed wrapper around yt-dlp for metadata extraction.
 
 This module only performs *information extraction* (`download=False`). The

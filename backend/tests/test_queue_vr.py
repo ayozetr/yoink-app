@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """The queue path tags immersive (VR) output.
 
 The main panel sets ``is_vr`` + an explicit ``vr_layout`` from its preview; the

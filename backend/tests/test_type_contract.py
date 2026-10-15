@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Guard: the hand-written TS domain types mirror the Pydantic models 1:1.
 
 FastAPI's models (backend/app/models) and the frontend's hand-written types

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the SSRF-safe HTTP guard + the auto-tag cover fetch that uses it.
 
 All offline: the guard rejects non-public/bad-scheme URLs before any socket is

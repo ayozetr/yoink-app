@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /** Shared, locale-agnostic formatting helpers. */
 
 /** Human-readable file size (B/KB/MB/GB/TB), or null when size is unknown. */

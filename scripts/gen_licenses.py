@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Regenerate OPEN_SOURCE_LICENSES.md from Yoink's *direct* dependencies.
 
 Lists only the dependencies Yoink declares and uses directly (not the full

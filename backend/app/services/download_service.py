@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Download engine: run yt-dlp and stream typed progress events.
 
 yt-dlp is blocking and its `progress_hooks` fire on the worker thread, so this

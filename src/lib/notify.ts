@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Send a desktop notification (e.g. when a download finishes), requesting
  * permission on first use. No-ops in a plain browser or when permission is

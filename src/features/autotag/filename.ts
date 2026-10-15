@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Best-effort "Artist - Title" guess from a download filename, used to seed the
  * catalogue search when a file isn't matched automatically. Strips the

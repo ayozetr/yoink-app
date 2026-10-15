@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """`/api/ws/download` — start a download and stream live progress over WS.
 
 Protocol: the client connects, sends one JSON message matching

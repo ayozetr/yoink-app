@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 import { useEffect, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useFocusTrap } from "../../lib/useFocusTrap";

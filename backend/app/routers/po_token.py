@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """`/api/po-token/*` — the WebView side of PO-token minting.
 
 The app's WebView runs a background loop that:

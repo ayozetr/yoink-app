@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Run the Yoink backend and frontend together with one command.
 
     python scripts/dev.py                 # backend :8756, frontend :5173

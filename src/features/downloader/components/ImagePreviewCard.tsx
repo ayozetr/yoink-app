@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 import { memo } from "react";
 import { Download, ImageIcon, User } from "lucide-react";
 import { useTranslation } from "react-i18next";

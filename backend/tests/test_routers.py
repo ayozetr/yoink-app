@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the HTTP routes via FastAPI's TestClient.
 
 Network-touching extraction is monkeypatched so these stay fast and offline.

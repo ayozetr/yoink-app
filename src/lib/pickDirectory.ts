@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Open the native folder picker (Tauri dialog plugin) and return the chosen
  * directory, or null if cancelled / not in the desktop app.

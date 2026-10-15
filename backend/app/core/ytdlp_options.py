@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Shared yt-dlp helpers used by both the metadata and download services.
 
 Keeps URL normalization and cookie configuration in one place so the two

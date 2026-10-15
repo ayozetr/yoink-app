@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * A country flag (flag-icons 4x3 SVG, served from /public/flags) used to mark
  * each language in the settings language picker. SVG — not the flag emoji, which

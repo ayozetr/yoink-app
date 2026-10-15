@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Thin CLI over Yoink's own engine — ``yoink <url>`` for scripts.
 
 Runs the exact same yt-dlp + ffmpeg pipeline the desktop app uses, **in-process**:

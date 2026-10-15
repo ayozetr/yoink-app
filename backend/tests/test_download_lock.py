@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """The process-wide download lock serializes concurrent download jobs.
 
 Two ``download_events`` generators driven at once must not run their yt-dlp

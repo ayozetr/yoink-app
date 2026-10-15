@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Custom yt-dlp extractor for embedded-player video hosts.
 
 Some sites only expose their real media URL through the JS player config

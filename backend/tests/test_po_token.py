@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for PO token sourcing (off / manual / auto) + the session-token cache."""
 
 from __future__ import annotations

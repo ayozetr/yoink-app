@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Cancelling mid-merge frees the download lock without waiting for the worker.
 
 yt-dlp's ffmpeg merge can't be interrupted once it's running, so a cancel during

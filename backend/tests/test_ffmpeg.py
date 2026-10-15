@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """ffmpeg binary resolution: bundled vs PATH.
 
 Guards the bug where the WebP→JPEG cover converter built a bare ``{dir}/ffmpeg``

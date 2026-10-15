@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Custom yt-dlp extractor for Threads (Meta).
 
 yt-dlp ships no Threads extractor, and Threads only serves the media when the

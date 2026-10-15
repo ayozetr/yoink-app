@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Persisted, user-editable settings layered on top of the env defaults.
 
 Overrides live in `<data_dir>/settings.json` and are applied onto the in-memory

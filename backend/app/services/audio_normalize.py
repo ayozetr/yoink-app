@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """EBU R128 loudness normalization (ffmpeg two-pass ``loudnorm``).
 
 Brings every audio download to the same integrated loudness (-14 LUFS, the

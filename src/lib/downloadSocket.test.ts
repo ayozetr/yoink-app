@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { startDownload } from "./downloadSocket";
 import type { DownloadRequest } from "../types/download";

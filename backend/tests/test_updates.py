@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the update / release-notes helpers + the `/release-notes` route."""
 
 from __future__ import annotations

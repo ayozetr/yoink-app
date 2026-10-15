@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Audio auto-tagging via Apple Music (iTunes), Deezer or MusicBrainz.
 
 `identify()` searches the catalogue for the file's "Artist - Title" (parsed from

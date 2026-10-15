@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Integration tests for the download WebSocket (WS /api/ws/download).
 
 The yt-dlp job (``download_events``) is mocked so these stay fast and offline;

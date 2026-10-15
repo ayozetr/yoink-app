@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Persists the main panel's in-flight download batch so a multi-item playlist
  * survives a close / refresh / crash and can be resumed.

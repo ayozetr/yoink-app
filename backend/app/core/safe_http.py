@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """SSRF-safe HTTP fetching for user-influenced URLs.
 
 Any endpoint that fetches a URL the client can influence (the thumbnail proxy's

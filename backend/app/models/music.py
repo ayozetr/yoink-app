@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Models for the keyless music import (Spotify / Deezer / Apple Music / Tidal /
 Amazon Music). Each source resolves a URL into the same shape; the YouTube match,
 download and tagging downstream are source-agnostic."""

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Derive the user-facing format & quality selectors from the real list of
  * yt-dlp formats, instead of hard-coded placeholders.

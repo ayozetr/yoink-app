@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the custom Threads (Meta) yt-dlp extractor.
 
 These exercise the URL matching and HTML/JSON parsing offline, plus the full

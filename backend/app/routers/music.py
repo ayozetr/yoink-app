@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """`/api/music` — keyless music import (Spotify / Deezer / Apple / Tidal / Amazon).
 
 `resolve` turns a service URL into a tracklist (public APIs / embed scrapes, no

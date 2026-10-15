@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """In-process broker between the backend and the app's WebView for PO-token minting.
 
 The backend can't run YouTube's BotGuard JavaScript; the app's WebView can (it's

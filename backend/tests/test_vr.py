@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for VR detection + Spherical Video V2 tagging.
 
 The injection tests build synthetic-but-structurally-valid MP4s (ftyp + mdat +

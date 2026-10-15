@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the /api/autotag/* HTTP routes: path guard and error mapping.
 
 The service layer is covered in test_autotag.py; here we exercise the router —

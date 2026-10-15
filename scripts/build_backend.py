@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Bundle the FastAPI backend into a one-folder distribution (Tauri resource).
 
     python scripts/build_backend.py

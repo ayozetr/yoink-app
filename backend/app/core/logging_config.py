@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Application logging — structured logs to ``~/.yoink/logs/yoink.log`` + console.
 
 A rotating file handler keeps a bounded on-disk history of what the backend did

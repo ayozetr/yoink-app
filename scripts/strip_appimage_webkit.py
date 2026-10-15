@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Strip the bundled WebKitGTK from the built AppImage so it uses the system's.
 
     python scripts/strip_appimage_webkit.py        # newest AppImage for this version

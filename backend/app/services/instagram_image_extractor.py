@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Patched Instagram extractors that surface **photo** items as downloadable.
 
 yt-dlp's Instagram extractors build a media item's ``formats`` only from

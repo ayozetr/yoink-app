@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, DownloadCloud, RotateCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";

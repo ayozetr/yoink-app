@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Application configuration.
 
 Settings are read from environment variables (optionally a local `.env`)

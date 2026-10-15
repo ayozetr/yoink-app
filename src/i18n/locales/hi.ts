@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 export const hi = {
   theme: {
     toLight: "लाइट थीम पर जाएँ",

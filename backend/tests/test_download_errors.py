@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """friendly_download_error: yt-dlp noise → concise, user-facing messages."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Audio downloads embed the source thumbnail as a *fallback* cover."""
 
 from __future__ import annotations

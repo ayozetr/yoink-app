@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """SQLite-backed persistence for the download history.
 
 Uses the stdlib ``sqlite3`` (no extra dependency). A fresh connection is opened

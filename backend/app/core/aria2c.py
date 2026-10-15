@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Locate an aria2c binary to hand yt-dlp as an external downloader.
 
 aria2c opens several byte-range connections to one file, which can bypass a

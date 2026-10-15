@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 // Lightweight toast notifications — a tiny module-level pub/sub store with an
 // imperative API (`toast.success(...)`), rendered by the <Toaster/> mounted once
 // in App. Replaces the old inline green "download complete" banners that pushed

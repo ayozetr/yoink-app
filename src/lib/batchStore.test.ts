@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { clearBatch, loadPendingBatch, saveBatch, type BatchJob } from "./batchStore";

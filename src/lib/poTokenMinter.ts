@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * PO-token minter — the WebView side of zero-config `po_token_mode: "auto"`.
  *

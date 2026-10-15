@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """VR (180°/360°) detection + spatial-media tagging.
 
 Sources don't expose a "this is VR" flag through yt-dlp, so detection is a

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Default download dir resolves the OS Downloads folder regardless of locale."""
 
 from __future__ import annotations

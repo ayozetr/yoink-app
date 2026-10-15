@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Build the release `.rpm` by repackaging the built `.deb` with rpmbuild — fast.
 
 Why this exists: Tauri's own rpm bundler (the `rpm` Rust crate) takes **10-12

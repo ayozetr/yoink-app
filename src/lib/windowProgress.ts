@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 /**
  * Reflect download progress in the window title and, on the desktop app, the
  * taskbar progress bar. No-ops gracefully in a plain browser.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Per-download filename title override (a single wrapped story/post item)."""
 
 from __future__ import annotations

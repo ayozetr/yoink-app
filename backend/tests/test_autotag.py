@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Tests for the audio auto-tagging service (Apple Music / iTunes, Deezer, MusicBrainz).
 
 The catalogue HTTP calls are mocked (no network); we test the filename parsing,

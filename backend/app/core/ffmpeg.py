@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+
 """Locate the ffmpeg/ffprobe to hand to yt-dlp.
 
 When the backend runs as a PyInstaller bundle, ffmpeg + ffprobe are unpacked

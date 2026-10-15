@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
 import type { ReactNode } from "react";
 import { TabBar, type TabId } from "./TabBar";
 import logoUrl from "../../assets/logo.png";
