@@ -146,30 +146,30 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
     >
-      <GlassPanel
+      <GlassPanel boxed
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
+        className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-surface outline-none"
       >
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Globe size={18} className="text-violet-400" />
+          <h2 className="font-display text-xl font-normal flex items-center gap-2">
+            <Globe size={18} className="text-accent-soft" />
             {t("sites.title")}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white transition"
+            className="text-fg-dim hover:text-fg transition"
             aria-label={t("sites.close")}
           >
             <X size={18} />
           </button>
         </div>
 
-        <p className="text-sm text-zinc-400 mb-5">{t("sites.intro")}</p>
+        <p className="text-sm text-fg-dim mb-5">{t("sites.intro")}</p>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {SUPPORTED_SITES.map((site) => (
@@ -177,26 +177,26 @@ export function SupportedSitesModal({ onClose }: SupportedSitesModalProps) {
               key={site.name}
               type="button"
               onClick={() => void openExternal(site.url)}
-              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3.5 text-center text-sm text-zinc-200 transition hover:bg-white/10 hover:text-white"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl border border-line/10 bg-surface px-2 py-3.5 text-center text-sm text-fg transition hover:bg-surface-hover hover:text-fg"
             >
               {site.icon ? (
                 <BrandIcon
                   icon={site.icon}
-                  className="size-[22px] shrink-0 text-white"
+                  className="size-[22px] shrink-0 text-fg"
                 />
               ) : site.Icon ? (
                 <site.Icon
-                  className={`${site.iconClass ?? "size-[22px]"} shrink-0 text-white`}
+                  className={`${site.iconClass ?? "size-[22px]"} shrink-0 text-fg`}
                 />
               ) : (
-                <Globe size={20} className="size-[22px] shrink-0 text-zinc-500" />
+                <Globe size={20} className="size-[22px] shrink-0 text-fg-faint" />
               )}
               <span className="leading-tight">{site.name}</span>
             </button>
           ))}
         </div>
 
-        <p className="mt-5 text-center text-[11px] text-zinc-400">
+        <p className="mt-5 text-center text-[11px] text-fg-dim">
           {t("sites.footer")}
         </p>
       </GlassPanel>

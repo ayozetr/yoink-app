@@ -43,8 +43,8 @@ interface AutoTagPanelProps {
 }
 
 const INPUT =
-  "w-full min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm " +
-  "text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50";
+  "w-full min-w-0 rounded-xl border border-line/10 bg-surface px-3 py-2 text-sm " +
+  "text-fg placeholder:text-fg-faint focus:outline-none focus:border-accent/40";
 
 type Stage = "loading" | "review" | "applying" | "done" | "error";
 
@@ -280,9 +280,9 @@ export function AutoTagPanel({
     <GlassPanel className={`p-5 ${panelClassName}`}>
       {autoOpen ? (
         // Re-tagging from history: the panel is fixed open (no collapse toggle).
-        <div className="flex w-full items-center text-sm font-semibold text-zinc-200">
+        <div className="flex w-full items-center font-display text-lg font-normal text-fg">
           <span className="flex items-center gap-2">
-            <Music4 size={16} className="text-violet-400" />
+            <Music4 size={18} className="text-accent-soft" />
             {t("autotag.title")}
           </span>
         </div>
@@ -291,15 +291,15 @@ export function AutoTagPanel({
           type="button"
           onClick={toggleOpen}
           aria-expanded={open}
-          className="flex w-full items-center justify-between text-sm font-semibold text-zinc-200 hover:text-white transition"
+          className="flex w-full items-center justify-between text-sm font-semibold text-fg hover:text-fg transition"
         >
           <span className="flex items-center gap-2">
-            <Music4 size={16} className="text-violet-400" />
+            <Music4 size={16} className="text-accent-soft" />
             {t("autotag.title")}
           </span>
           <ChevronDown
             size={18}
-            className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+            className={`text-fg-dim transition-transform ${open ? "rotate-180" : ""}`}
           />
         </button>
       )}
@@ -307,12 +307,12 @@ export function AutoTagPanel({
       {open && (
         <div className="mt-3">
           {filename && (
-            <p className="text-xs text-zinc-400 mb-3 truncate">{filename}</p>
+            <p className="text-xs text-fg-dim mb-3 truncate">{filename}</p>
           )}
 
       {stage === "loading" && (
-        <div className="py-6 flex items-center gap-3 text-zinc-400">
-          <Loader2 size={20} className="animate-spin text-violet-400" />
+        <div className="py-6 flex items-center gap-3 text-fg-dim">
+          <Loader2 size={20} className="animate-spin text-accent-soft" />
           <span className="text-sm">{t("autotag.identifying")}</span>
         </div>
       )}
@@ -336,22 +336,22 @@ export function AutoTagPanel({
           {error && <p className="text-xs text-amber-400/90 mb-3">{error}</p>}
 
           <div className="flex gap-4 items-end">
-            <div className="w-[124px] h-[124px] rounded-xl overflow-hidden bg-white/5 shrink-0 flex items-center justify-center">
+            <div className="w-[124px] h-[124px] rounded-xl overflow-hidden bg-surface-2 shrink-0 flex items-center justify-center">
               {coverUrl ? (
                 <Thumbnail
                   key={coverUrl}
                   src={coverUrl}
                   alt={album}
                   className="h-full w-full object-cover"
-                  fallback={<Music4 className="size-7 text-white/40" />}
+                  fallback={<Music4 className="size-7 text-fg-faint" />}
                 />
               ) : (
-                <Music4 className="size-7 text-white/40" />
+                <Music4 className="size-7 text-fg-faint" />
               )}
             </div>
             <div className="flex-1 space-y-2 min-w-0">
               <label className="block">
-                <span className="text-xs text-zinc-400">
+                <span className="text-xs text-fg-dim">
                   {t("autotag.fieldTitle")}
                 </span>
                 <input
@@ -361,7 +361,7 @@ export function AutoTagPanel({
                 />
               </label>
               <label className="block">
-                <span className="text-xs text-zinc-400">
+                <span className="text-xs text-fg-dim">
                   {t("autotag.fieldArtist")}
                 </span>
                 <input
@@ -375,7 +375,7 @@ export function AutoTagPanel({
 
           <div className="mt-3 grid grid-cols-[1fr_5rem] gap-2">
             <label className="block min-w-0">
-              <span className="text-xs text-zinc-400">
+              <span className="text-xs text-fg-dim">
                 {t("autotag.fieldAlbum")}
               </span>
               <input
@@ -385,7 +385,7 @@ export function AutoTagPanel({
               />
             </label>
             <label className="block">
-              <span className="text-xs text-zinc-400">
+              <span className="text-xs text-fg-dim">
                 {t("autotag.fieldYear")}
               </span>
               <input
@@ -397,7 +397,7 @@ export function AutoTagPanel({
           </div>
 
           <label className="mt-3 block">
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-fg-dim">
               {t("autotag.fieldGenre")}
             </span>
             <input
@@ -409,7 +409,7 @@ export function AutoTagPanel({
 
           {results.length > 1 && (
             <div className="mt-4">
-              <span className="text-xs text-zinc-400">
+              <span className="text-xs text-fg-dim">
                 {t("autotag.versions")}
               </span>
               <div className="mt-1 space-y-1 max-h-44 overflow-y-auto">
@@ -420,11 +420,11 @@ export function AutoTagPanel({
                     onClick={() => selectVersion(r, i)}
                     className={`flex w-full items-center gap-3 rounded-lg border px-2 py-1.5 text-left transition ${
                       i === selected
-                        ? "border-violet-500/50 bg-violet-600/15"
-                        : "border-white/5 hover:bg-white/5"
+                        ? "border-accent/40 bg-accent/15"
+                        : "border-line/10 hover:bg-surface-hover"
                     }`}
                   >
-                    <div className="w-9 h-9 rounded bg-white/5 overflow-hidden shrink-0">
+                    <div className="w-9 h-9 rounded bg-surface-2 overflow-hidden shrink-0">
                       {r.cover_url && (
                         <Thumbnail
                           key={r.cover_url}
@@ -436,10 +436,10 @@ export function AutoTagPanel({
                       )}
                     </div>
                     <span className="min-w-0 text-xs">
-                      <span className="block truncate text-zinc-200">
+                      <span className="block truncate text-fg">
                         {r.album ?? r.title}
                       </span>
-                      <span className="block truncate text-zinc-400">
+                      <span className="block truncate text-fg-dim">
                         {r.year ?? ""}
                         {r.track_number ? ` · #${r.track_number}` : ""}
                       </span>
@@ -453,7 +453,7 @@ export function AutoTagPanel({
           <button
             type="button"
             onClick={() => setSearchOpen((v) => !v)}
-            className="mt-3 text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1"
+            className="mt-3 text-xs text-accent-soft hover:text-accent flex items-center gap-1"
           >
             <Search size={12} /> {t("autotag.searchToggle")}
           </button>
@@ -479,7 +479,7 @@ export function AutoTagPanel({
                 type="button"
                 onClick={() => void runSearch()}
                 disabled={searching || !searchTitle.trim()}
-                className="flex items-center justify-center rounded-xl border border-white/10 px-3 text-zinc-200 hover:bg-white/10 transition disabled:opacity-50"
+                className="flex items-center justify-center rounded-xl border border-line/10 px-3 text-fg hover:bg-surface-hover transition disabled:opacity-50"
                 aria-label={t("autotag.searchAction")}
               >
                 {searching ? (
@@ -492,9 +492,9 @@ export function AutoTagPanel({
           )}
 
           {fetchLyrics && reviewing && (lyricsLoading || lyrics) && (
-            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="mt-4 rounded-xl border border-line/10 bg-surface-2 p-3">
               {lyricsLoading ? (
-                <p className="flex items-center gap-2 text-xs text-zinc-400">
+                <p className="flex items-center gap-2 text-xs text-fg-dim">
                   <Loader2 size={13} className="animate-spin" />
                   {t("autotag.lyricsSearching")}
                 </p>
@@ -505,7 +505,7 @@ export function AutoTagPanel({
                       type="checkbox"
                       checked={embedLyrics}
                       onChange={(e) => setEmbedLyrics(e.target.checked)}
-                      className="size-4 shrink-0 accent-violet-500"
+                      className="size-4 shrink-0 accent-accent"
                     />
                     <span>{t("autotag.lyrics")}</span>
                     <span className="text-xs text-emerald-400">
@@ -520,14 +520,14 @@ export function AutoTagPanel({
                     <button
                       type="button"
                       onClick={() => setShowLyrics(true)}
-                      className="mt-1 text-xs text-zinc-400 transition hover:text-white"
+                      className="mt-1 text-xs text-fg-dim transition hover:text-fg"
                     >
                       {t("autotag.lyricsShow")}
                     </button>
                   )}
                 </>
               ) : (
-                <p className="text-xs text-zinc-500">{t("autotag.lyricsNone")}</p>
+                <p className="text-xs text-fg-faint">{t("autotag.lyricsNone")}</p>
               )}
             </div>
           )}
@@ -537,7 +537,7 @@ export function AutoTagPanel({
               type="button"
               onClick={onDismiss}
               disabled={stage === "applying"}
-              className="text-sm text-zinc-300 hover:text-white transition disabled:opacity-50"
+              className="text-sm text-fg-dim hover:text-fg transition disabled:opacity-50"
             >
               {t("autotag.dismiss")}
             </button>
@@ -573,17 +573,17 @@ export function AutoTagPanel({
               aria-modal="true"
               aria-label={t("autotag.lyrics")}
               onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl outline-none"
+              className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-line/10 bg-surface shadow-2xl outline-none"
             >
-              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-                <h3 className="truncate text-sm font-semibold text-zinc-100">
+              <div className="flex items-center justify-between gap-3 border-b border-line/10 px-4 py-3">
+                <h3 className="truncate text-sm font-semibold text-fg">
                   {title.trim() || t("autotag.lyrics")}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setShowLyrics(false)}
                   aria-label={t("autotag.close")}
-                  className="rounded-md p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                  className="rounded-md p-1 text-fg-dim transition hover:bg-surface-hover hover:text-fg"
                 >
                   <X size={16} />
                 </button>
@@ -591,7 +591,7 @@ export function AutoTagPanel({
               <div
                 tabIndex={0}
                 aria-label={t("autotag.lyrics")}
-                className="overflow-auto whitespace-pre-wrap px-6 py-5 text-center font-sans text-[15px] leading-8 tracking-[0.01em] text-zinc-200 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/40"
+                className="overflow-auto whitespace-pre-wrap px-6 py-5 text-center font-sans text-[15px] leading-8 tracking-[0.01em] text-fg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/40"
               >
                 {lyrics.plain}
               </div>

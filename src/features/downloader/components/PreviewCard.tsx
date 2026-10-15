@@ -3,13 +3,11 @@ import {
   AlertCircle,
   BookmarkPlus,
   ChevronDown,
-  Clock3,
   Download,
   Glasses,
   Info,
-  Scissors,
+  ListPlus,
   SlidersHorizontal,
-  User,
   Video,
   X,
 } from "lucide-react";
@@ -17,7 +15,6 @@ import { useTranslation } from "react-i18next";
 import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
-import { Toggle } from "../../../components/ui/Toggle";
 import { Thumbnail } from "../../../components/ui/Thumbnail";
 import type {
   AudioFormat,
@@ -91,6 +88,8 @@ function parseTime(value: string): number | undefined {
 interface PreviewCardProps {
   info: VideoInfo;
   onDownload: (selection: DownloadSelection) => void;
+  /** Add the analyzed source to the download queue (Inicio → Cola). */
+  onAddToQueue?: () => void;
   defaultKind?: MediaKind;
   defaultQuality?: string;
   /** Seed the subtitle picker to "embed all" by default (persisted setting). */
@@ -101,10 +100,50 @@ interface PreviewCardProps {
   locked?: boolean;
 }
 
+// Pill-styled compact select used for the primary format controls.
+const PILL_SELECT =
+  "h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm";
+
+// Mini uppercase label for an advanced-options line (Formato / Procesado / …).
+const ADV_LABEL =
+  "w-20 shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-faint";
+
+/** Compact, flat on/off switch with its label inline — used in the advanced row. */
+function AdvSwitch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-2 text-sm text-fg"
+    >
+      <span
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${checked ? "bg-accent" : "bg-surface-hover"}`}
+      >
+        <span
+          className={`inline-block size-3.5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-1"}`}
+        />
+      </span>
+      {label}
+    </button>
+  );
+}
+
 /** Preview of the analyzed media: thumbnail, info and download controls. */
 export const PreviewCard = memo(function PreviewCard({
   info,
   onDownload,
+  onAddToQueue,
   defaultKind,
   defaultQuality,
   defaultEmbedSubs,
@@ -138,12 +177,11 @@ export const PreviewCard = memo(function PreviewCard({
     defaultEmbedChapters ?? false,
   );
   const [audioMultistreams, setAudioMultistreams] = useState(false);
-  const [trimOpen, setTrimOpen] = useState(false);
   const [trimStart, setTrimStart] = useState("");
   const [trimEnd, setTrimEnd] = useState("");
-  // Secondary controls (subs/chapters/multi-audio/VR/trim) collapse under an
-  // "Advanced options" toggle so the format grid + Download stay above the fold.
-  // Auto-opened when VR is detected, since that needs the user to confirm.
+  // Secondary controls (presets/subs/chapters/multi-audio/VR/trim) collapse under
+  // an "Advanced options" toggle so the pills + Download stay simple and above the
+  // fold. Auto-opened when VR is detected, since that needs the user to confirm.
   const [advancedOpen, setAdvancedOpen] = useState(info.is_vr);
   // VR tagging: seed from the backend's heuristic detection; the user can
   // toggle it and pick the stereo/projection layout. A previously remembered
@@ -194,10 +232,6 @@ export const PreviewCard = memo(function PreviewCard({
 
   const trimStartSec = parseTime(trimStart);
   const trimEndSec = parseTime(trimEnd);
-  // A trim is "applied" whenever a valid start or end is present — independent
-  // of whether the input panel happens to be expanded. Collapsing the panel
-  // keeps a set range (and still clips); it isn't tied to panel visibility.
-  const trimActive = trimStartSec != null || trimEndSec != null;
   // Invalid when a given end isn't past the (effective) start — also catches a
   // lone end of 0, which would otherwise be an empty (0,0) range. Computed from
   // the values, not panel state, so the range is validated even when collapsed.
@@ -248,430 +282,435 @@ export const PreviewCard = memo(function PreviewCard({
     savePresets(next);
   };
 
+  const handleDownload = () => {
+    // Remember the layout choice for this studio so the next download from the
+    // same uploader defaults to it.
+    if (isVideo && isVr) rememberLayout(info.uploader, vrLayout);
+    onDownload({
+      kind,
+      quality: isVideo ? quality : undefined,
+      container: isVideo ? container : undefined,
+      audio_format: isVideo ? undefined : effectiveAudioFormat,
+      embed_subs: showSubtitles ? embedSubs : undefined,
+      subtitle_lang: showSubtitles && embedSubs ? subtitle : undefined,
+      embed_chapters: isVideo ? embedChapters : undefined,
+      audio_multistreams: showMultiAudio ? audioMultistreams : undefined,
+      trim_start: !trimError && !trimInvalid ? trimStartSec : undefined,
+      trim_end: !trimError && !trimInvalid ? trimEndSec : undefined,
+      is_vr: isVideo ? isVr : undefined,
+      vr_layout: isVideo && isVr ? vrLayout : undefined,
+      // Only when not trimming — the estimate is for the full video, so a small
+      // clip of a big video shouldn't be blocked on size.
+      estimated_size:
+        trimStartSec == null && trimEndSec == null
+          ? (estimatedBytes ?? undefined)
+          : undefined,
+    });
+  };
+
   return (
     <GlassPanel className="p-5">
-      <div className="flex flex-col gap-5 sm:flex-row">
-        {/* Thumbnail — full-width 16:9 on narrow, fixed beside the info on wide. */}
-        <div className="relative flex aspect-video w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-violet-600/40 to-blue-600/40 sm:aspect-auto sm:h-[180px] sm:w-[320px]">
-          {info.thumbnail_url ? (
-            <Thumbnail
-              src={info.thumbnail_url}
-              alt={info.title}
-              referer={info.webpage_url}
-              className="absolute inset-0 h-full w-full object-cover"
-              fallback={<Video className="size-14 text-white/80" />}
-            />
-          ) : (
-            <Video className="size-14 text-white/80" />
-          )}
-          <div className="absolute inset-0 bg-black/20" />
-        </div>
+      <div className="flex flex-col gap-4">
+        {/* Media row — a small, aspect-safe thumbnail (object-contain shows the
+            whole image: 16:9 video, square covers and vertical reels alike)
+            beside the title, which carries the visual weight. */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex aspect-video w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-2 sm:w-40">
+            {info.thumbnail_url ? (
+              <Thumbnail
+                src={info.thumbnail_url}
+                alt={info.title}
+                referer={info.webpage_url}
+                className="absolute inset-0 h-full w-full object-contain"
+                fallback={<Video className="size-9 text-fg-faint" />}
+              />
+            ) : (
+              <Video className="size-9 text-fg-faint" />
+            )}
+            {info.duration_string && (
+              <span className="absolute bottom-1 right-1 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                {info.duration_string}
+              </span>
+            )}
+          </div>
 
-        {/* Info + controls */}
-        <div className="flex-1 flex flex-col justify-between">
-          <div>
-            <span className="text-xs uppercase tracking-wider text-violet-400">
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-fg-faint">
               {t("preview.label")}
             </span>
-            <h2 className="text-xl font-semibold mt-2">{info.title}</h2>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-zinc-400">
-              {info.duration_string && (
-                <span className="flex items-center gap-2 text-sm">
-                  <Clock3 size={16} />
-                  {info.duration_string}
-                </span>
+            <h2 className="mt-1.5 font-display text-2xl font-normal leading-[1.14] text-balance">
+              {info.title}
+            </h2>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-dim">
+              {info.uploader && <span className="truncate">{info.uploader}</span>}
+              {info.uploader && isVideo && qualities.length > 0 && (
+                <span className="text-fg-faint">•</span>
               )}
-              {info.uploader && (
-                <span className="flex items-center gap-2 text-sm">
-                  <User size={16} />
-                  {info.uploader}
-                </span>
+              {isVideo && qualities.length > 0 && (
+                <span>{t("preview.qualityAvailable", { quality: qualities[0] })}</span>
               )}
               {info.is_vr && (
-                <span className="flex items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
+                <span className="flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent-soft ring-1 ring-accent/30">
                   <Glasses size={14} />
                   {t("preview.vrBadge")}
                 </span>
               )}
             </div>
           </div>
+        </div>
 
           {!info.has_audio && (
-            <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300 ring-1 ring-amber-500/25">
+            <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-300 ring-1 ring-amber-500/25">
               <AlertCircle size={16} className="shrink-0" />
               {t("preview.noAudio")}
             </div>
           )}
 
-          <div className="mt-6 flex flex-col gap-3">
-            {/* Saved presets: apply with a click, or save the current selection. */}
-            <div className="flex flex-wrap items-center gap-2">
-              {presets.map((p) => (
-                <span
-                  key={p.id}
-                  className="flex items-center gap-1 rounded-lg border border-white/10 bg-surface py-1 pl-2.5 pr-1 text-xs"
-                >
+          {/* Actions — the one choice (video/audio) and the download, together in
+              one row; quality/format and the rest live under "Opciones" below. */}
+          <div className="flex flex-wrap items-center gap-3">
+            {kinds.length > 1 && (
+              <div className="inline-flex gap-1 rounded-full border border-line/10 bg-surface-2 p-1">
+                {kinds.map((option) => (
                   <button
+                    key={option.kind}
                     type="button"
-                    onClick={() => applyPreset(p)}
-                    className="text-zinc-200 transition hover:text-white"
+                    onClick={() => setKind(option.kind)}
+                    aria-pressed={kind === option.kind}
+                    className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                      kind === option.kind
+                        ? "bg-accent text-white"
+                        : "text-fg-dim hover:text-fg"
+                    }`}
                   >
-                    {p.name}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deletePreset(p.id)}
-                    aria-label={t("preset.delete")}
-                    className="text-zinc-500 transition hover:text-red-400"
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-              {namingPreset ? (
-                <span className="flex items-center gap-1">
-                  <input
-                    autoFocus
-                    type="text"
-                    value={presetName}
-                    onChange={(e) => setPresetName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveCurrentPreset();
-                      if (e.key === "Escape") {
-                        setNamingPreset(false);
-                        setPresetName("");
-                      }
-                    }}
-                    placeholder={t("preset.namePlaceholder")}
-                    aria-label={t("preset.namePlaceholder")}
-                    className="h-7 w-32 rounded-lg border border-white/10 bg-surface px-2 text-xs outline-none focus:border-violet-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={saveCurrentPreset}
-                    disabled={!presetName.trim()}
-                    className="rounded-lg border border-violet-500/40 bg-violet-600/10 px-2 py-1 text-xs text-white transition hover:bg-violet-600/20 disabled:opacity-40"
-                  >
-                    {t("preset.save")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNamingPreset(false);
-                      setPresetName("");
-                    }}
-                    aria-label={t("preset.cancel")}
-                    className="text-zinc-500 transition hover:text-white"
-                  >
-                    <X size={14} />
-                  </button>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNamingPreset(true);
-                    setPresetName("");
-                  }}
-                  className="flex items-center gap-1 rounded-lg border border-dashed border-white/15 px-2.5 py-1 text-xs text-zinc-400 transition hover:border-white/30 hover:text-white"
-                >
-                  <BookmarkPlus size={13} />
-                  {t("preset.saveCurrent")}
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
-              <Select
-                ariaLabel={t("preview.format")}
-                value={kind}
-                onChange={(v) => setKind(v as MediaKind)}
-                options={kinds.map((option) => ({
-                  value: option.kind,
-                  label:
-                    option.kind === "video"
+                    {option.kind === "video"
                       ? t("preview.video")
-                      : t("preview.audio"),
-                }))}
-                className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
-              />
-
-              {isVideo ? (
-                <>
-                  <Select
-                    ariaLabel={t("preview.quality")}
-                    value={qualities.length > 0 ? quality : "__best__"}
-                    onChange={setQuality}
-                    disabled={qualities.length === 0}
-                    options={
-                      qualities.length > 0
-                        ? qualities.map((option) => ({
-                            value: option,
-                            label: option,
-                          }))
-                        : [{ value: "__best__", label: t("preview.bestQuality") }]
-                    }
-                    className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-
-                  <Select
-                    ariaLabel={t("preview.container")}
-                    value={container}
-                    onChange={(v) => setContainer(v as VideoContainer)}
-                    options={VIDEO_CONTAINERS}
-                    className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
-                  />
-                </>
-              ) : (
-                <Select
-                  ariaLabel={t("preview.audioFormat")}
-                  value={effectiveAudioFormat}
-                  onChange={(v) => setAudioFormat(v as AudioFormat)}
-                  options={AUDIO_FORMATS.map((option) => ({
-                    value: option.value,
-                    label: option.label,
-                    disabled: option.lossless && !losslessAllowed,
-                  }))}
-                  className="h-12 rounded-xl bg-surface border border-white/10 px-4 w-full text-sm"
-                />
-              )}
-            </div>
-
-            {showLosslessWarning && (
-              <p className="flex items-center gap-2 text-xs text-zinc-400">
-                <Info size={14} className="shrink-0" />
-                {t("preview.losslessWarning")}
-              </p>
-            )}
-
-            {!isVideo && effectiveAudioFormat === "wav" && (
-              <p className="flex items-center gap-2 text-xs text-zinc-400">
-                <Info size={14} className="shrink-0" />
-                {t("preview.wavCoverWarning")}
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((v) => !v)}
-              aria-expanded={advancedOpen}
-              className="flex h-11 w-fit items-center gap-2 rounded-xl border border-white/10 bg-surface px-4 text-sm text-zinc-300 transition hover:border-white/20"
-            >
-              <SlidersHorizontal size={16} />
-              {t("preview.advanced")}
-              {(trimError || trimInvalid) && !advancedOpen && (
-                // Surface that a control inside (the trim range) is invalid, so
-                // the disabled Download button below isn't a mystery.
-                <AlertCircle size={14} className="text-red-400" />
-              )}
-              <ChevronDown
-                size={15}
-                className={`text-zinc-400 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {/* Subtitles (MKV only) + chapters + multi-audio: video-only, when available. */}
-            {advancedOpen &&
-              (showSubtitles || (isVideo && info.has_chapters) || showMultiAudio) && (
-              <div className="flex flex-wrap items-center gap-3">
-                {showSubtitles && (
-                  <Select
-                    ariaLabel={t("preview.subtitles")}
-                    value={subtitle}
-                    onChange={setSubtitle}
-                    options={[
-                      { value: SUBS_NONE, label: t("preview.subtitlesNone") },
-                      { value: "all", label: t("preview.subtitlesAll") },
-                      ...(info.subtitle_langs.length > 0
-                        ? [
-                            {
-                              value: "__hdr_manual",
-                              label: t("preview.subtitlesManual"),
-                              header: true,
-                            },
-                            ...info.subtitle_langs.map((code) => ({
-                              value: code,
-                              label: code.toUpperCase(),
-                            })),
-                          ]
-                        : []),
-                      ...(info.auto_caption_langs.length > 0
-                        ? [
-                            {
-                              value: "__hdr_auto",
-                              label: t("preview.subtitlesAuto"),
-                              header: true,
-                            },
-                            ...info.auto_caption_langs.map((code) => ({
-                              value: code,
-                              label: code.toUpperCase(),
-                            })),
-                          ]
-                        : []),
-                    ]}
-                    className="h-11 min-w-[160px] flex-1 rounded-xl bg-surface border border-white/10 px-4 text-sm"
-                  />
-                )}
-                {info.has_chapters && (
-                  <Toggle
-                    checked={embedChapters}
-                    onChange={setEmbedChapters}
-                    label={t("preview.chapters")}
-                  />
-                )}
-                {showMultiAudio && (
-                  <Toggle
-                    checked={audioMultistreams}
-                    onChange={setAudioMultistreams}
-                    label={t("preview.multiAudio")}
-                  />
-                )}
+                      : t("preview.audio")}
+                  </button>
+                ))}
               </div>
-            )}
-
-            {/* VR — shown only when detected as immersive. Lets the user confirm
-                (or turn off a false positive) and pick the stereo/projection
-                layout. Hidden for plain video so it can't be tagged by mistake. */}
-            {advancedOpen && isVideo && info.is_vr && (
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Toggle
-                    checked={isVr}
-                    onChange={setIsVr}
-                    label={t("preview.vr")}
-                  />
-                  {isVr && (
-                    <Select
-                      ariaLabel={t("preview.vrLayout")}
-                      value={vrLayout}
-                      onChange={(v) => setVrLayout(v as VRLayout)}
-                      // All layouts stay selectable (we can't reliably tell the
-                      // exact one from metadata); the heuristic's guess is just
-                      // flagged as "(detected)" and preselected.
-                      options={VR_LAYOUTS.map((o) => ({
-                        value: o.value,
-                        label:
-                          o.value === info.vr_layout
-                            ? `${o.label} (${t("preview.vrDetected")})`
-                            : o.label,
-                      }))}
-                      className="h-11 min-w-[170px] rounded-xl bg-surface border border-white/10 px-4 text-sm"
-                    />
-                  )}
-                </div>
-                {isVr && (
-                  <p className="flex items-center gap-2 text-xs text-zinc-400">
-                    <Info size={14} className="shrink-0" />
-                    {t("preview.vrHint")}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Trim / clip — scissors button + (when open) inline start/end inputs. */}
-            {advancedOpen && (
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTrimOpen((v) => !v)}
-                  aria-expanded={trimOpen}
-                  className={`flex h-11 w-fit shrink-0 items-center gap-2 rounded-xl border px-4 text-sm transition ${
-                    trimOpen || trimActive
-                      ? "border-violet-500/50 bg-violet-600/10 text-white"
-                      : "border-white/10 bg-surface text-zinc-300 hover:border-white/20"
-                  }`}
-                >
-                  <Scissors size={16} />
-                  {t("preview.trim")}
-                </button>
-                {trimOpen && (
-                  <>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      aria-label={t("preview.trimStart")}
-                      placeholder={t("preview.trimStart")}
-                      value={trimStart}
-                      onChange={(e) => setTrimStart(e.target.value)}
-                      className={`h-11 w-28 rounded-xl bg-surface border px-3 text-sm outline-none focus:border-violet-500 ${
-                        trimStartInvalid ? "border-red-500/60" : "border-white/10"
-                      }`}
-                    />
-                    <span className="text-zinc-500">→</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      aria-label={t("preview.trimEnd")}
-                      placeholder={t("preview.trimEnd")}
-                      value={trimEnd}
-                      onChange={(e) => setTrimEnd(e.target.value)}
-                      className={`h-11 w-28 rounded-xl bg-surface border px-3 text-sm outline-none focus:border-violet-500 ${
-                        trimEndInvalid ? "border-red-500/60" : "border-white/10"
-                      }`}
-                    />
-                    <span className="text-xs text-zinc-400">
-                      {t("preview.trimHint")}
-                    </span>
-                  </>
-                )}
-                {!trimOpen && trimActive && (
-                  <span className="text-xs text-zinc-400">
-                    {trimStart || "0:00"} → {trimEnd || "…"}
-                  </span>
-                )}
-              </div>
-              {(trimError || trimInvalid) && (
-                <p className="flex items-center gap-2 text-xs text-red-300">
-                  <Info size={14} className="shrink-0" />
-                  {trimInvalid ? t("preview.trimInvalid") : t("preview.trimError")}
-                </p>
-              )}
-            </div>
             )}
 
             <Button
               variant="gradient"
               disabled={locked || trimError || trimInvalid}
               title={locked ? t("common.busy") : undefined}
-              onClick={() => {
-                // Remember the layout choice for this studio so the next
-                // download from the same uploader defaults to it.
-                if (isVideo && isVr) rememberLayout(info.uploader, vrLayout);
-                onDownload({
-                  kind,
-                  quality: isVideo ? quality : undefined,
-                  container: isVideo ? container : undefined,
-                  audio_format: isVideo ? undefined : effectiveAudioFormat,
-                  embed_subs: showSubtitles ? embedSubs : undefined,
-                  subtitle_lang:
-                    showSubtitles && embedSubs ? subtitle : undefined,
-                  embed_chapters: isVideo ? embedChapters : undefined,
-                  audio_multistreams: showMultiAudio
-                    ? audioMultistreams
-                    : undefined,
-                  trim_start: !trimError && !trimInvalid ? trimStartSec : undefined,
-                  trim_end: !trimError && !trimInvalid ? trimEndSec : undefined,
-                  is_vr: isVideo ? isVr : undefined,
-                  vr_layout: isVideo && isVr ? vrLayout : undefined,
-                  // Only when not trimming — the estimate is for the full video,
-                  // so a small clip of a big video shouldn't be blocked on size.
-                  estimated_size:
-                    trimStartSec == null && trimEndSec == null
-                      ? (estimatedBytes ?? undefined)
-                      : undefined,
-                });
-              }}
-              className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleDownload}
+              className="h-12 min-w-[200px] flex-1 text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download size={18} />
+              <Download size={20} />
               {t("preview.download")}
-              {estimatedSize && (
-                <span className="text-white/70">· ≈ {estimatedSize}</span>
-              )}
+              <span className="font-normal text-white/75">
+                {"· "}
+                {isVideo
+                  ? `${qualities.length > 0 ? quality : t("preview.bestQuality")} · ${container.toUpperCase()}`
+                  : effectiveAudioFormat.toUpperCase()}
+                {estimatedSize ? ` · ≈ ${estimatedSize}` : ""}
+              </span>
             </Button>
           </div>
-        </div>
+
+          {showLosslessWarning && (
+            <p className="flex items-center gap-2 text-xs text-fg-dim">
+              <Info size={14} className="shrink-0" />
+              {t("preview.losslessWarning")}
+            </p>
+          )}
+          {!isVideo && effectiveAudioFormat === "wav" && (
+            <p className="flex items-center gap-2 text-xs text-fg-dim">
+              <Info size={14} className="shrink-0" />
+              {t("preview.wavCoverWarning")}
+            </p>
+          )}
+
+          {/* Quiet secondary row: queue it, or reveal the rest. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {onAddToQueue && (
+              <button
+                type="button"
+                onClick={onAddToQueue}
+                disabled={locked}
+                className="flex items-center gap-2 text-sm text-fg-dim transition hover:text-fg disabled:opacity-50"
+              >
+                <ListPlus size={16} />
+                {t("preview.addToQueue")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              aria-expanded={advancedOpen}
+              className="flex items-center gap-2 text-sm text-fg-dim transition hover:text-fg"
+            >
+              <SlidersHorizontal size={15} />
+              {t("preview.advanced")}
+              {(trimError || trimInvalid) && !advancedOpen && (
+                <AlertCircle size={14} className="text-red-400" />
+              )}
+              <ChevronDown
+                size={15}
+                className={`transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          </div>
+
+          {advancedOpen && (
+            <div className="flex flex-col gap-5 border-t border-line/10 pt-4">
+              {/* Formato */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className={ADV_LABEL}>{t("preview.format")}</span>
+                {isVideo ? (
+                  <>
+                    <Select
+                      ariaLabel={t("preview.quality")}
+                      value={qualities.length > 0 ? quality : "__best__"}
+                      onChange={setQuality}
+                      disabled={qualities.length === 0}
+                      options={
+                        qualities.length > 0
+                          ? qualities.map((o) => ({ value: o, label: o }))
+                          : [{ value: "__best__", label: t("preview.bestQuality") }]
+                      }
+                      className={`${PILL_SELECT} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    />
+                    <Select
+                      ariaLabel={t("preview.container")}
+                      value={container}
+                      onChange={(v) => setContainer(v as VideoContainer)}
+                      options={VIDEO_CONTAINERS}
+                      className={PILL_SELECT}
+                    />
+                  </>
+                ) : (
+                  <Select
+                    ariaLabel={t("preview.audioFormat")}
+                    value={effectiveAudioFormat}
+                    onChange={(v) => setAudioFormat(v as AudioFormat)}
+                    options={AUDIO_FORMATS.map((option) => ({
+                      value: option.value,
+                      label: option.label,
+                      disabled: option.lossless && !losslessAllowed,
+                    }))}
+                    className={PILL_SELECT}
+                  />
+                )}
+              </div>
+
+              {/* Presets — apply with a click, or save the current selection. */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className={ADV_LABEL}>{t("preset.plural")}</span>
+                {presets.map((p) => (
+                  <span
+                    key={p.id}
+                    className="flex items-center gap-1 rounded-lg border border-line/10 bg-surface py-1 pl-2.5 pr-1 text-xs"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => applyPreset(p)}
+                      className="text-fg transition hover:text-accent-soft"
+                    >
+                      {p.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePreset(p.id)}
+                      aria-label={t("preset.delete")}
+                      className="text-fg-faint transition hover:text-red-400"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+                {namingPreset ? (
+                  <span className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={presetName}
+                      onChange={(e) => setPresetName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveCurrentPreset();
+                        if (e.key === "Escape") {
+                          setNamingPreset(false);
+                          setPresetName("");
+                        }
+                      }}
+                      placeholder={t("preset.namePlaceholder")}
+                      aria-label={t("preset.namePlaceholder")}
+                      className="h-7 w-32 rounded-lg border border-line/10 bg-surface px-2 text-xs outline-none focus:border-accent"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveCurrentPreset}
+                      disabled={!presetName.trim()}
+                      className="rounded-lg border border-accent/40 bg-accent/15 px-2 py-1 text-xs text-fg transition hover:bg-accent/25 disabled:opacity-40"
+                    >
+                      {t("preset.save")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNamingPreset(false);
+                        setPresetName("");
+                      }}
+                      aria-label={t("preset.cancel")}
+                      className="text-fg-faint transition hover:text-fg"
+                    >
+                      <X size={14} />
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNamingPreset(true);
+                      setPresetName("");
+                    }}
+                    className="flex items-center gap-1 rounded-lg border border-dashed border-line/15 px-2.5 py-1 text-xs text-fg-dim transition hover:border-line/20 hover:text-fg"
+                  >
+                    <BookmarkPlus size={13} />
+                    {t("preset.saveCurrent")}
+                  </button>
+                )}
+              </div>
+
+              {/* Procesado — VR / subtitles / chapters / multi-audio (video). */}
+              {isVideo &&
+                (info.is_vr ||
+                  showSubtitles ||
+                  info.has_chapters ||
+                  showMultiAudio) && (
+                  <div className="flex flex-wrap items-start gap-x-5 gap-y-3">
+                    <span className={`${ADV_LABEL} pt-1.5`}>
+                      {t("settings.secProcessing")}
+                    </span>
+                    <div className="flex flex-1 flex-wrap items-center gap-x-5 gap-y-3">
+                      {info.is_vr && (
+                        <>
+                          <AdvSwitch
+                            checked={isVr}
+                            onChange={setIsVr}
+                            label={t("preview.vr")}
+                          />
+                          {isVr && (
+                            <Select
+                              ariaLabel={t("preview.vrLayout")}
+                              value={vrLayout}
+                              onChange={(v) => setVrLayout(v as VRLayout)}
+                              options={VR_LAYOUTS.map((o) => ({
+                                value: o.value,
+                                label:
+                                  o.value === info.vr_layout
+                                    ? `${o.label} (${t("preview.vrDetected")})`
+                                    : o.label,
+                              }))}
+                              className={PILL_SELECT}
+                            />
+                          )}
+                        </>
+                      )}
+                      {showSubtitles && (
+                        <Select
+                          ariaLabel={t("preview.subtitles")}
+                          value={subtitle}
+                          onChange={setSubtitle}
+                          options={[
+                            { value: SUBS_NONE, label: t("preview.subtitlesNone") },
+                            { value: "all", label: t("preview.subtitlesAll") },
+                            ...(info.subtitle_langs.length > 0
+                              ? [
+                                  {
+                                    value: "__hdr_manual",
+                                    label: t("preview.subtitlesManual"),
+                                    header: true,
+                                  },
+                                  ...info.subtitle_langs.map((code) => ({
+                                    value: code,
+                                    label: code.toUpperCase(),
+                                  })),
+                                ]
+                              : []),
+                            ...(info.auto_caption_langs.length > 0
+                              ? [
+                                  {
+                                    value: "__hdr_auto",
+                                    label: t("preview.subtitlesAuto"),
+                                    header: true,
+                                  },
+                                  ...info.auto_caption_langs.map((code) => ({
+                                    value: code,
+                                    label: code.toUpperCase(),
+                                  })),
+                                ]
+                              : []),
+                          ]}
+                          className={PILL_SELECT}
+                        />
+                      )}
+                      {info.has_chapters && (
+                        <AdvSwitch
+                          checked={embedChapters}
+                          onChange={setEmbedChapters}
+                          label={t("preview.chapters")}
+                        />
+                      )}
+                      {showMultiAudio && (
+                        <AdvSwitch
+                          checked={audioMultistreams}
+                          onChange={setAudioMultistreams}
+                          label={t("preview.multiAudio")}
+                        />
+                      )}
+                      {isVr && (
+                        <p className="flex w-full items-center gap-2 text-xs text-fg-faint">
+                          <Info size={14} className="shrink-0" />
+                          {t("preview.vrHint")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Recorte */}
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className={ADV_LABEL}>{t("preview.trim")}</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={t("preview.trimStart")}
+                    placeholder={t("preview.trimStart")}
+                    value={trimStart}
+                    onChange={(e) => setTrimStart(e.target.value)}
+                    className={`h-9 w-32 rounded-full border bg-surface-2 px-4 text-sm outline-none focus:border-accent ${
+                      trimStartInvalid ? "border-red-500/60" : "border-line/10"
+                    }`}
+                  />
+                  <span className="text-fg-faint">→</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={t("preview.trimEnd")}
+                    placeholder={t("preview.trimEnd")}
+                    value={trimEnd}
+                    onChange={(e) => setTrimEnd(e.target.value)}
+                    className={`h-9 w-32 rounded-full border bg-surface-2 px-4 text-sm outline-none focus:border-accent ${
+                      trimEndInvalid ? "border-red-500/60" : "border-line/10"
+                    }`}
+                  />
+                </div>
+                {(trimError || trimInvalid) && (
+                  <p className="flex items-center gap-2 text-xs text-red-300">
+                    <Info size={14} className="shrink-0" />
+                    {trimInvalid
+                      ? t("preview.trimInvalid")
+                      : t("preview.trimError")}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
       </div>
     </GlassPanel>
   );

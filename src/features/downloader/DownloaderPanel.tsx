@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, DownloadCloud, RotateCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DownloaderHeader } from "./components/DownloaderHeader";
 import { UrlInput } from "./components/UrlInput";
 import { PreviewCard, type DownloadSelection } from "./components/PreviewCard";
 import { ImagePreviewCard } from "./components/ImagePreviewCard";
@@ -16,14 +15,17 @@ const AutoTagBatchPanel = lazy(() =>
   })),
 );
 import { CopyButton } from "../../components/ui/CopyButton";
+import { Drawer } from "../../components/ui/Drawer";
 import { GlassPanel } from "../../components/ui/GlassPanel";
 import {
   fetchInfo,
   isMusicUrl,
+  openInFileManager,
   resolveMusic,
   ApiError,
   type SearchSource,
 } from "../../lib/api";
+import { toast } from "../../lib/toast";
 import { loadSearchSource, persistSearchSource } from "../../lib/searchSource";
 import { MusicImportCard } from "../music/MusicImportCard";
 import type { MusicImportInfo } from "../../types/music";
@@ -56,12 +58,6 @@ import type {
 interface DownloaderPanelProps {
   /** Called when a download terminates (completed or failed) to refresh history. */
   onDownloadFinished?: () => void;
-  /** Open the settings modal. */
-  onOpenSettings?: () => void;
-  /** Toggle the download queue panel + how many items it has unfinished. */
-  onToggleQueue?: () => void;
-  queueCount?: number;
-  queueOpen?: boolean;
   /** Default media kind / quality from settings, used to seed the selectors. */
   defaultKind?: MediaKind;
   defaultQuality?: string;
@@ -119,10 +115,6 @@ function initialProgress(): DownloadProgressEvent {
 /** Main column: orchestrates URL input, preview/playlist and download progress. */
 export function DownloaderPanel({
   onDownloadFinished,
-  onOpenSettings,
-  onToggleQueue,
-  queueCount = 0,
-  queueOpen,
   defaultKind,
   defaultQuality,
   defaultAudioFormat,
@@ -280,6 +272,10 @@ export function DownloaderPanel({
             tRef.current("notify.queueDone"),
             tRef.current("notify.queueSummary", { completed: ok, failed }),
           );
+        toast.show(
+          tRef.current("notify.queueSummary", { completed: ok, failed }),
+          { kind: failed > 0 ? "info" : "success" },
+        );
       } else if (failed === 0) {
         if (notifyRef.current)
           void notify(tRef.current("notify.completed"), jobs[0].title);
@@ -313,7 +309,10 @@ export function DownloaderPanel({
         return;
       }
       resultsRef.current.push(false);
-      if (jobs.length === 1) setDownloadError(message);
+      if (jobs.length === 1) {
+        setDownloadError(message);
+        toast.error(tRef.current("notify.failed"));
+      }
       saveBatch(jobs, resultsRef.current.length);
       runJob(index + 1);
     };
@@ -333,8 +332,19 @@ export function DownloaderPanel({
         settled = true;
         if (event.type === "completed") {
           resultsRef.current.push(true);
-          if (jobs.length === 1) setCompleted(event);
-          else if (AUDIO_EXT.test(event.filepath)) {
+          if (jobs.length === 1) {
+            setCompleted(event);
+            // Cross-tab feedback: a toast surfaces the finish (with a one-tap
+            // "open folder") even when the user is on another tab and can't see
+            // the inline completed card.
+            const finishedPath = event.filepath;
+            toast.success(tRef.current("notify.completed"), {
+              action: {
+                label: tRef.current("progress.openFolder"),
+                onClick: () => void openInFileManager(finishedPath),
+              },
+            });
+          } else if (AUDIO_EXT.test(event.filepath)) {
             audioPathsRef.current.push({
               path: event.filepath,
               filename: event.filename,
@@ -623,38 +633,42 @@ export function DownloaderPanel({
     setSearchSource(source);
     persistSearchSource(source);
   });
+  // "Add to queue" from the preview: hand the analyzed URL to the (always-mounted)
+  // Queue tab via a window event, then confirm with a toast. The queue applies
+  // its own queue-wide format, so no per-item selection travels with it.
+  const onAddToQueue = useEventCallback(() => {
+    const target = analyzedUrl || url.trim();
+    if (!target) return;
+    window.dispatchEvent(
+      new CustomEvent("yoink:queue-add", { detail: { urls: [target] } }),
+    );
+    toast.success(t("queue.added"));
+  });
 
   return (
     <>
-      <DownloaderHeader
-        queueCount={queueCount}
-        queueOpen={queueOpen}
-        onToggleQueue={onToggleQueue}
-        onOpenSettings={onOpenSettings}
-        searchSource={searchSource}
-        onSearchSourceChange={onSearchSourceChange}
-      />
       <UrlInput
         value={url}
         onChange={setUrl}
         onAnalyze={stableAnalyze}
         onSelectResult={onSelectResult}
         searchSource={searchSource}
+        onSearchSourceChange={onSearchSourceChange}
         loading={loading}
       />
 
       {resumeJobs && resumeJobs.length > 0 && !downloading && (
         <GlassPanel className="p-4">
           <div className="flex items-center justify-between gap-3">
-            <span className="flex min-w-0 items-center gap-2 text-sm text-zinc-200">
-              <RotateCw size={16} className="shrink-0 text-violet-400" />
+            <span className="flex min-w-0 items-center gap-2 text-sm text-fg">
+              <RotateCw size={16} className="shrink-0 text-accent-soft" />
               {t("panel.resumeTitle", { count: resumeJobs.length })}
             </span>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={handleResume}
-                className="flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-600/10 px-3 py-1.5 text-sm text-white transition hover:bg-violet-600/20"
+                className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-sm text-fg transition hover:bg-accent/25"
               >
                 <RotateCw size={14} />
                 {t("panel.resume")}
@@ -662,7 +676,7 @@ export function DownloaderPanel({
               <button
                 type="button"
                 onClick={handleDismissResume}
-                className="text-sm text-zinc-400 transition hover:text-white"
+                className="text-sm text-fg-dim transition hover:text-fg"
               >
                 {t("panel.resumeDismiss")}
               </button>
@@ -683,12 +697,12 @@ export function DownloaderPanel({
         !summary &&
         !downloadError && (
           <GlassPanel className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-            <DownloadCloud className="size-10 text-zinc-600" />
+            <DownloadCloud className="size-10 text-fg-faint" />
             <div>
-              <p className="text-sm font-medium text-zinc-200">
+              <p className="text-sm font-medium text-fg">
                 {t("panel.emptyTitle")}
               </p>
-              <p className="mx-auto mt-1 max-w-xs text-xs text-zinc-500">
+              <p className="mx-auto mt-1 max-w-xs text-xs text-fg-faint">
                 {t("panel.emptyHint")}
               </p>
             </div>
@@ -704,12 +718,12 @@ export function DownloaderPanel({
           {/(log ?in|logged.?in|cookies|private|members?.only|sign ?in|account)/i.test(
             error,
           ) ? (
-            <p className="mt-2 pl-[30px] text-xs text-zinc-400">
+            <p className="mt-2 pl-[30px] text-xs text-fg-dim">
               {t("panel.loginHint")}
             </p>
           ) : (
             /forbidden|\b403\b/i.test(error) && (
-              <p className="mt-2 pl-[30px] text-xs text-zinc-400">
+              <p className="mt-2 pl-[30px] text-xs text-fg-dim">
                 {t("panel.blockedHint")}
               </p>
             )
@@ -731,6 +745,7 @@ export function DownloaderPanel({
           key={info.video.id}
           info={info.video}
           onDownload={onDownload}
+          onAddToQueue={onAddToQueue}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
           defaultEmbedSubs={defaultEmbedSubs}
@@ -761,9 +776,9 @@ export function DownloaderPanel({
       )}
 
       {downloading && queueTotal > 1 && (
-        <p className="text-xs text-zinc-400 px-1">
+        <p className="text-xs text-fg-dim px-1">
           {t("panel.downloadingOf", { current: queueIndex + 1, total: queueTotal })}{" "}
-          <span className="text-zinc-200">{currentTitle}</span>
+          <span className="text-fg">{currentTitle}</span>
         </p>
       )}
 
@@ -775,17 +790,33 @@ export function DownloaderPanel({
         onDismiss={() => setCompleted(null)}
       />
 
-      {completed?.filepath && lastKind === "audio" && !downloading && !tagDismissedSingle && (
-        <Suspense fallback={null}>
-          <AutoTagPanel
-            path={completed.filepath}
-            filename={completed.filename}
-            onDismiss={() => setTagDismissedSingle(true)}
-            onApplied={onDownloadFinished}
-            fetchLyrics={fetchLyrics}
-          />
-        </Suspense>
-      )}
+      {/* Audio auto-tagging now opens in a right-side drawer instead of
+          expanding inline — the complex form no longer shoves the main view
+          around. Auto-opens after a single audio download (same trigger as
+          before, so the identify-on-finish convenience is preserved). */}
+      <Drawer
+        open={
+          !!completed?.filepath &&
+          lastKind === "audio" &&
+          !downloading &&
+          !tagDismissedSingle
+        }
+        onClose={() => setTagDismissedSingle(true)}
+      >
+        {completed?.filepath && (
+          <Suspense fallback={null}>
+            <AutoTagPanel
+              path={completed.filepath}
+              filename={completed.filename}
+              onDismiss={() => setTagDismissedSingle(true)}
+              onApplied={onDownloadFinished}
+              fetchLyrics={fetchLyrics}
+              autoOpen
+              panelClassName="!border-0 !bg-transparent !p-0"
+            />
+          </Suspense>
+        )}
+      </Drawer>
 
       {batchItems.length > 0 && !downloading && !tagDismissedBatch && (
         <Suspense fallback={null}>
@@ -800,7 +831,7 @@ export function DownloaderPanel({
       {summary && (
         <GlassPanel className="p-4">
           <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2 text-sm text-zinc-200">
+            <span className="flex items-center gap-2 text-sm text-fg">
               <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
               {t("panel.summaryDone", { count: summary.completed })}
               {summary.failed > 0 &&
@@ -811,7 +842,7 @@ export function DownloaderPanel({
                 <button
                   type="button"
                   onClick={handleRetryFailed}
-                  className="flex items-center gap-1.5 text-sm text-zinc-300 transition hover:text-white"
+                  className="flex items-center gap-1.5 text-sm text-fg transition hover:text-fg"
                 >
                   <RotateCw size={15} />
                   {t("panel.retryFailed", { count: retryJobs.length })}
@@ -820,7 +851,7 @@ export function DownloaderPanel({
               <button
                 type="button"
                 onClick={() => setSummary(null)}
-                className="text-zinc-400 hover:text-white transition"
+                className="text-fg-dim hover:text-fg transition"
                 aria-label={t("panel.closeSummary")}
               >
                 <X size={16} />
@@ -842,7 +873,7 @@ export function DownloaderPanel({
               <button
                 type="button"
                 onClick={handleRetry}
-                className="flex items-center gap-1.5 text-sm text-zinc-300 hover:text-white transition"
+                className="flex items-center gap-1.5 text-sm text-fg hover:text-fg transition"
               >
                 <RotateCw size={15} />
                 {t("panel.retry")}
@@ -850,7 +881,7 @@ export function DownloaderPanel({
             </div>
           </div>
           {/forbidden|\b403\b/i.test(downloadError) && (
-            <p className="mt-2 pl-[30px] text-xs text-zinc-400">
+            <p className="mt-2 pl-[30px] text-xs text-fg-dim">
               {t("panel.blockedHint")}
             </p>
           )}

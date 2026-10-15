@@ -70,7 +70,7 @@ export function DownloadProgressCard({
             <button
               type="button"
               onClick={onDismiss}
-              className="shrink-0 text-zinc-400 transition hover:text-white"
+              className="shrink-0 text-fg-dim transition hover:text-fg"
               aria-label={t("progress.dismiss")}
             >
               <X size={16} />
@@ -81,7 +81,7 @@ export function DownloadProgressCard({
           <button
             type="button"
             onClick={() => void openInFileManager(completed.filepath, true)}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface px-3 py-1.5 text-sm text-zinc-200 transition hover:border-white/20 hover:text-white"
+            className="flex items-center gap-1.5 rounded-lg border border-line/10 bg-surface px-3 py-1.5 text-sm text-fg transition hover:border-line/20 hover:text-fg"
           >
             <ExternalLink size={15} />
             {t("progress.openFile")}
@@ -89,7 +89,7 @@ export function DownloadProgressCard({
           <button
             type="button"
             onClick={() => void openInFileManager(completed.filepath)}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface px-3 py-1.5 text-sm text-zinc-200 transition hover:border-white/20 hover:text-white"
+            className="flex items-center gap-1.5 rounded-lg border border-line/10 bg-surface px-3 py-1.5 text-sm text-fg transition hover:border-line/20 hover:text-fg"
           >
             <FolderOpen size={15} />
             {t("progress.openFolder")}
@@ -127,20 +127,20 @@ export function DownloadProgressCard({
       <div className="flex items-center justify-between mb-3">
         <span
           aria-live="polite"
-          className="flex items-center gap-2 text-sm text-zinc-300"
+          className="flex items-center gap-2 text-sm text-fg"
         >
-          <Loader2 size={14} className="animate-spin text-violet-400" />
+          <Loader2 size={14} className="animate-spin text-accent-soft" />
           {label}
         </span>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-violet-400">
+          <span className="text-sm font-medium text-accent-soft">
             {Math.round(progress.percent)}%{detail && ` • ${detail}`}
           </span>
           {onCancel && (
             <button
               type="button"
               onClick={onCancel}
-              className="text-zinc-400 hover:text-red-400 transition"
+              className="text-fg-dim hover:text-red-400 transition"
               aria-label={t("progress.cancel")}
             >
               <X size={16} />

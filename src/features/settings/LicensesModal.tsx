@@ -38,27 +38,27 @@ export function LicensesModal({ onClose }: LicensesModalProps) {
       onClick={onClose}
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
     >
-      <GlassPanel
+      <GlassPanel boxed
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="licenses-title"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-[#16181f] outline-none"
+        className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto p-6 !bg-surface outline-none"
       >
         <div className="mb-1 flex items-center justify-between">
           <h2
             id="licenses-title"
-            className="flex items-center gap-2 text-lg font-semibold"
+            className="flex items-center gap-2 font-display text-xl font-normal"
           >
-            <Scale size={18} className="text-violet-400" />
+            <Scale size={18} className="text-accent-soft" />
             {t("settings.openSourceLicenses")}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 transition hover:text-white"
+            className="text-fg-dim transition hover:text-fg"
             aria-label={t("sites.close")}
           >
             <X size={18} />

@@ -1,12 +1,18 @@
-import { ClipboardPaste, Link2, Loader2, Search } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { ChevronDown, ClipboardPaste, Loader2, Search } from "lucide-react";
+import { lazy, memo, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GlassPanel } from "../../../components/ui/GlassPanel";
 import { Button } from "../../../components/ui/Button";
 import { Thumbnail } from "../../../components/ui/Thumbnail";
 import { searchYoutube, type SearchSource } from "../../../lib/api";
-import { SOURCE_NAMES } from "../../../lib/searchSource";
+import { SEARCH_SOURCES, SOURCE_NAMES } from "../../../lib/searchSource";
+import { SearchSourceIcon } from "./SearchSourceIcon";
 import type { PlaylistEntry } from "../../../types/download";
+
+const SupportedSitesModal = lazy(() =>
+  import("./SupportedSitesModal").then((m) => ({
+    default: m.SupportedSitesModal,
+  })),
+);
 
 interface UrlInputProps {
   value: string;
@@ -14,8 +20,9 @@ interface UrlInputProps {
   onAnalyze: () => void;
   /** Picking a search result: analyze that video directly. */
   onSelectResult: (entry: PlaylistEntry) => void;
-  /** Platform the typeahead searches (picked in the header). */
+  /** Platform the typeahead searches (selected in the field's source picker). */
   searchSource: SearchSource;
+  onSearchSourceChange: (source: SearchSource) => void;
   loading?: boolean;
 }
 
@@ -73,13 +80,15 @@ function isSearchQuery(s: string): boolean {
   return s.trim().length >= MIN_CHARS && !looksLikeUrl(s);
 }
 
-/** URL field with live search (YouTube/SoundCloud): type a query → pick a result. */
+/** URL field with an in-field source picker (YouTube/SoundCloud) and live search:
+ *  type a query → pick a result; paste a URL → analyze. */
 export const UrlInput = memo(function UrlInput({
   value,
   onChange,
   onAnalyze,
   onSelectResult,
   searchSource,
+  onSearchSourceChange,
   loading,
 }: UrlInputProps) {
   const { t } = useTranslation();
@@ -87,11 +96,15 @@ export const UrlInput = memo(function UrlInput({
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
-  // Tracks the active search platform to detect a flip (from the header toggle).
+  // The in-field source dropdown (YouTube / SoundCloud).
+  const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  const [showSites, setShowSites] = useState(false);
+  // Tracks the active search platform to detect a flip (from the source picker).
   const [prevSource, setPrevSource] = useState(searchSource);
   // Index of the option with real focus, for aria-selected (managed-focus combobox).
   const [activeIdx, setActiveIdx] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
+  const sourceRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -109,10 +122,7 @@ export const UrlInput = memo(function UrlInput({
   // Cache key is per-source so YouTube and SoundCloud hits never collide.
   const ckey = (q: string) => `${searchSource} ${q}`;
 
-  // The platform changed (header toggle): adjust the dropdown during render —
-  // the React-blessed way to react to a prop change without an effect. Show the
-  // new source's cached hits instantly, or the spinner (the fetch effect below
-  // re-searches when there's no cache).
+  // The platform changed (source picker): adjust the dropdown during render.
   if (searchSource !== prevSource) {
     setPrevSource(searchSource);
     if (isSearch) {
@@ -129,12 +139,9 @@ export const UrlInput = memo(function UrlInput({
     inputRef.current?.focus();
   }, []);
 
-  // Debounced live search. setState happens only inside the timer/promise (never
-  // synchronously in the effect body), so it can't trip cascading renders. A
-  // cached query is already shown by handleChange, so the effect skips the fetch.
+  // Debounced live search.
   useEffect(() => {
     const key = ckey(query);
-    // cacheGet (not cache.has) so an *expired* entry doesn't suppress the refetch.
     if (!isSearch || cacheGet(key) !== undefined) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -159,7 +166,7 @@ export const UrlInput = memo(function UrlInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, isSearch, searchSource]);
 
-  // Close the dropdown when clicking outside the field.
+  // Close the result dropdown when clicking outside the field.
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: MouseEvent) => {
@@ -169,9 +176,17 @@ export const UrlInput = memo(function UrlInput({
     return () => window.removeEventListener("mousedown", onPointer);
   }, [open]);
 
-  // Drive the dropdown from the edit event (not an effect): show cached results
-  // instantly or the spinner, and clear stale results when the query changes so
-  // a result from a previous search can't be clicked.
+  // Close the source menu when clicking outside it.
+  useEffect(() => {
+    if (!sourceMenuOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!sourceRef.current?.contains(event.target as Node))
+        setSourceMenuOpen(false);
+    };
+    window.addEventListener("mousedown", onPointer);
+    return () => window.removeEventListener("mousedown", onPointer);
+  }, [sourceMenuOpen]);
+
   const handleChange = (next: string) => {
     onChange(next);
     setError(false);
@@ -227,145 +242,219 @@ export const UrlInput = memo(function UrlInput({
       .filter(Boolean)
       .join(" · ");
 
-  return (
-    <GlassPanel className="p-5">
-      <div className="flex gap-3">
-        <div ref={boxRef} className="relative flex-1">
-          {isSearch ? (
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-zinc-500" />
-          ) : (
-            <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-zinc-500" />
-          )}
-          <input
-            ref={inputRef}
-            id="yoink-url-input"
-            type="text"
-            role="combobox"
-            aria-label={t("url.placeholder", { source: SOURCE_NAMES[searchSource] })}
-            aria-autocomplete="list"
-            aria-expanded={showDropdown}
-            aria-controls={showDropdown ? LISTBOX_ID : undefined}
-            placeholder={t("url.placeholder", { source: SOURCE_NAMES[searchSource] })}
-            value={value}
-            onChange={(event) => handleChange(event.target.value)}
-            onFocusCapture={() => {
-              setActiveIdx(-1);
-              if (isSearch) setOpen(true);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setOpen(false);
-                return;
-              }
-              if (event.key === "ArrowDown" && showDropdown && results.length) {
-                event.preventDefault();
-                optionEls()[0]?.focus();
-                return;
-              }
-              if (event.key === "Enter") submit();
-            }}
-            className="w-full h-14 pl-12 pr-12 rounded-2xl bg-surface border border-white/10 outline-none focus:border-violet-500 text-sm"
-          />
-          <button
-            type="button"
-            onClick={handlePaste}
-            aria-label={t("url.paste")}
-            title={t("url.paste")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
-          >
-            <ClipboardPaste size={18} />
-          </button>
+  const placeholder = t("url.placeholder");
 
-          {showDropdown && (
-            <div
-              ref={listRef}
-              id={LISTBOX_ID}
-              role="listbox"
-              aria-label={t("url.placeholder", { source: SOURCE_NAMES[searchSource] })}
-              className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-96 overflow-y-auto rounded-2xl border border-white/10 bg-[#1a1d27] p-1 shadow-xl"
-            >
-              {searching && results.length === 0 ? (
-                <div className="flex items-center gap-2 px-3 py-3 text-sm text-zinc-400">
-                  <Loader2 size={16} className="animate-spin" />
-                  {t("url.searching", { source: SOURCE_NAMES[searchSource] })}
-                </div>
-              ) : error && results.length === 0 ? (
-                <div className="px-3 py-3 text-sm text-red-300">
-                  {t("url.searchError")}
-                </div>
-              ) : results.length === 0 ? (
-                <div className="px-3 py-3 text-sm text-zinc-400">
-                  {t("url.noResults")}
-                </div>
-              ) : (
-                results.map((entry, i) => (
-                  <button
-                    key={entry.id || entry.url}
-                    id={optionId(i)}
-                    role="option"
-                    aria-selected={activeIdx === i}
-                    type="button"
-                    onClick={() => choose(entry)}
-                    onFocus={() => setActiveIdx(i)}
-                    onKeyDown={(event) => {
-                      const els = optionEls();
-                      if (event.key === "ArrowDown") {
-                        event.preventDefault();
-                        (els[i + 1] ?? els[i])?.focus();
-                      } else if (event.key === "ArrowUp") {
-                        event.preventDefault();
-                        if (i === 0) inputRef.current?.focus();
-                        else els[i - 1]?.focus();
-                      } else if (event.key === "Escape") {
-                        setOpen(false);
-                        inputRef.current?.focus();
-                      }
-                    }}
-                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/5 focus:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500"
+  return (
+    <>
+      <div>
+        <div className="flex gap-3">
+          <div ref={boxRef} className="relative flex-1">
+            {/* One field: a source picker + the URL/search input + paste. */}
+            <div className="url-field flex h-14 items-center gap-1.5 rounded-2xl border border-line/10 bg-surface pl-1.5 pr-2 transition focus-within:border-accent">
+              {/* Source picker (YouTube / SoundCloud) */}
+              <div ref={sourceRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSourceMenuOpen((v) => !v)}
+                  aria-haspopup="listbox"
+                  aria-expanded={sourceMenuOpen}
+                  aria-label={t("url.searchSource")}
+                  className="flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-medium text-fg transition hover:bg-surface-hover focus-visible:bg-surface-hover"
+                >
+                  <SearchSourceIcon source={searchSource} className="size-4" />
+                  <span className="hidden sm:inline">
+                    {SOURCE_NAMES[searchSource]}
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`text-fg-dim transition-transform ${sourceMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {sourceMenuOpen && (
+                  <div
+                    role="listbox"
+                    aria-label={t("url.searchSource")}
+                    className="absolute left-0 top-[calc(100%+0.75rem)] z-40 w-44 rounded-xl border border-line/10 bg-surface p-1 shadow-xl"
                   >
-                    <div className="relative h-10 w-[72px] shrink-0 overflow-hidden rounded-md bg-black/40">
-                      {entry.thumbnail_url && (
-                        <Thumbnail
-                          src={entry.thumbnail_url}
-                          alt={entry.title}
-                          className="h-full w-full object-cover"
-                          fallback={null}
-                        />
-                      )}
-                      {entry.duration_string && (
-                        <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] text-white">
-                          {entry.duration_string}
-                        </span>
-                      )}
-                    </div>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm">{entry.title}</span>
-                      {meta(entry) && (
-                        <span className="block truncate text-xs text-zinc-400">
-                          {meta(entry)}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                ))
-              )}
+                    {SEARCH_SOURCES.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        role="option"
+                        aria-selected={s === searchSource}
+                        onClick={() => {
+                          onSearchSourceChange(s);
+                          setSourceMenuOpen(false);
+                          inputRef.current?.focus();
+                        }}
+                        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
+                          s === searchSource
+                            ? "bg-accent/15 text-fg"
+                            : "text-fg-dim hover:bg-surface-hover hover:text-fg"
+                        }`}
+                      >
+                        <SearchSourceIcon source={s} className="size-4" />
+                        {SOURCE_NAMES[s]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="h-6 w-px shrink-0 bg-line/10" />
+
+              <input
+                ref={inputRef}
+                id="yoink-url-input"
+                type="text"
+                role="combobox"
+                aria-label={placeholder}
+                aria-autocomplete="list"
+                aria-expanded={showDropdown}
+                aria-controls={showDropdown ? LISTBOX_ID : undefined}
+                placeholder={placeholder}
+                value={value}
+                onChange={(event) => handleChange(event.target.value)}
+                onFocusCapture={() => {
+                  setActiveIdx(-1);
+                  if (isSearch) setOpen(true);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setOpen(false);
+                    return;
+                  }
+                  if (event.key === "ArrowDown" && showDropdown && results.length) {
+                    event.preventDefault();
+                    optionEls()[0]?.focus();
+                    return;
+                  }
+                  if (event.key === "Enter") submit();
+                }}
+                className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-fg-faint"
+              />
+
+              <button
+                type="button"
+                onClick={handlePaste}
+                aria-label={t("url.paste")}
+                title={t("url.paste")}
+                className="shrink-0 rounded-lg p-1.5 text-fg-dim transition hover:bg-surface-hover hover:text-fg focus-visible:bg-surface-hover focus-visible:text-fg"
+              >
+                <ClipboardPaste size={18} />
+              </button>
             </div>
-          )}
+
+            {showDropdown && (
+              <div
+                ref={listRef}
+                id={LISTBOX_ID}
+                role="listbox"
+                aria-label={placeholder}
+                className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-96 overflow-y-auto rounded-2xl border border-line/10 bg-surface p-1 shadow-xl"
+              >
+                {searching && results.length === 0 ? (
+                  <div className="flex items-center gap-2 px-3 py-3 text-sm text-fg-dim">
+                    <Loader2 size={16} className="animate-spin" />
+                    {t("url.searching", { source: SOURCE_NAMES[searchSource] })}
+                  </div>
+                ) : error && results.length === 0 ? (
+                  <div className="px-3 py-3 text-sm text-red-300">
+                    {t("url.searchError")}
+                  </div>
+                ) : results.length === 0 ? (
+                  <div className="px-3 py-3 text-sm text-fg-dim">
+                    {t("url.noResults")}
+                  </div>
+                ) : (
+                  results.map((entry, i) => (
+                    <button
+                      key={entry.id || entry.url}
+                      id={optionId(i)}
+                      role="option"
+                      aria-selected={activeIdx === i}
+                      type="button"
+                      onClick={() => choose(entry)}
+                      onFocus={() => setActiveIdx(i)}
+                      onKeyDown={(event) => {
+                        const els = optionEls();
+                        if (event.key === "ArrowDown") {
+                          event.preventDefault();
+                          (els[i + 1] ?? els[i])?.focus();
+                        } else if (event.key === "ArrowUp") {
+                          event.preventDefault();
+                          if (i === 0) inputRef.current?.focus();
+                          else els[i - 1]?.focus();
+                        } else if (event.key === "Escape") {
+                          setOpen(false);
+                          inputRef.current?.focus();
+                        }
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-surface-hover focus:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                    >
+                      <div className="relative h-10 w-[72px] shrink-0 overflow-hidden rounded-md bg-black/40">
+                        {entry.thumbnail_url && (
+                          <Thumbnail
+                            src={entry.thumbnail_url}
+                            alt={entry.title}
+                            className="h-full w-full object-cover"
+                            fallback={null}
+                          />
+                        )}
+                        {entry.duration_string && (
+                          <span className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 text-[10px] text-white">
+                            {entry.duration_string}
+                          </span>
+                        )}
+                      </div>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm">
+                          {entry.title}
+                        </span>
+                        {meta(entry) && (
+                          <span className="block truncate text-xs text-fg-dim">
+                            {meta(entry)}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={submit}
+            disabled={disabled}
+            className="h-14 px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Search size={18} />
+            )}
+            {loading ? t("url.analyzing") : t("url.analyze")}
+          </Button>
         </div>
 
-        <Button
-          onClick={submit}
-          disabled={disabled}
-          className="h-14 px-6 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <Search size={18} />
-          )}
-          {loading ? t("url.analyzing") : t("url.analyze")}
-        </Button>
+        {/* Supported sites — a quiet link under the field. */}
+        <div className="mt-2.5 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowSites(true)}
+            className="text-xs text-fg-faint underline-offset-2 transition hover:text-fg-dim hover:underline"
+          >
+            {t("sites.title")}
+          </button>
+        </div>
       </div>
-    </GlassPanel>
+
+      {showSites && (
+        <Suspense fallback={null}>
+          <SupportedSitesModal onClose={() => setShowSites(false)} />
+        </Suspense>
+      )}
+    </>
   );
 });

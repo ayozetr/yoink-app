@@ -8,12 +8,14 @@ import { memo,
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Download,
   Loader2,
   Music4,
   Search,
   SkipForward,
+  SlidersHorizontal,
   Square,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -66,6 +68,7 @@ export const MusicImportCard = memo(function MusicImportCard({
       ? defaultAudioFormat
       : DEFAULT_AUDIO_FORMAT,
   );
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [rows, setRows] = useState<Record<number, RowStatus>>({});
   // Failure reason per track (shown in the row, like the queue) — set alongside
   // the "error" status so the user sees *why*, not just an icon.
@@ -93,6 +96,7 @@ export const MusicImportCard = memo(function MusicImportCard({
   // not the row's — and the cover doesn't feed back into it.
   const rowRef = useRef<HTMLDivElement>(null);
   const infoColRef = useRef<HTMLDivElement>(null);
+  const advPanelRef = useRef<HTMLDivElement>(null);
   const [coverSize, setCoverSize] = useState<number>();
   useEffect(() => {
     const info = infoColRef.current;
@@ -101,14 +105,21 @@ export const MusicImportCard = memo(function MusicImportCard({
     // Cap the square cover to a share of the row width so it can't feed back on the
     // controls' height (a narrower row wraps the controls taller, which would widen
     // the square cover, which narrows the controls further — until they overlap).
-    const update = () =>
-      setCoverSize(Math.min(info.offsetHeight, row.clientWidth * 0.42));
+    // Also exclude the expanded "advanced options" panel from the measured height,
+    // so opening it doesn't grow the cover (it stays sized to the base header).
+    const update = () => {
+      const panel = advPanelRef.current;
+      const advH = panel ? panel.offsetHeight + 16 /* parent gap-4 */ : 0;
+      setCoverSize(
+        Math.min(info.offsetHeight - advH, row.clientWidth * 0.42),
+      );
+    };
     const observer = new ResizeObserver(update);
     observer.observe(info);
     observer.observe(row);
     update();
     return () => observer.disconnect();
-  }, []);
+  }, [advancedOpen]);
 
   const runningRef = useRef(false);
   // Monotonic run token: each start() bumps it; every async continuation captures
@@ -418,22 +429,11 @@ export const MusicImportCard = memo(function MusicImportCard({
 
   return (
     <GlassPanel className="p-5">
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-violet-400">
+      <div className="flex items-center gap-3">
+        <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-accent-soft">
           <Music4 size={14} />
           {t("music.label")}
         </span>
-        {!isSingle && !running && (
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="text-xs text-zinc-400 hover:text-white transition"
-          >
-            {allVisibleSelected
-              ? t("playlist.deselectAll")
-              : t("playlist.selectAll")}
-          </button>
-        )}
       </div>
 
       <div ref={rowRef} className="mt-3 flex flex-col gap-5 sm:flex-row">
@@ -456,30 +456,20 @@ export const MusicImportCard = memo(function MusicImportCard({
         {/* Info + controls */}
         <div ref={infoColRef} className="flex min-w-0 flex-1 flex-col gap-4 sm:self-start">
           <div>
-            <h2 className="text-2xl font-semibold leading-tight">{info.name}</h2>
+            <h2 className="font-display text-2xl font-normal leading-tight">{info.name}</h2>
             {headerArtist && (
-              <p className="mt-1 truncate text-zinc-300">{headerArtist}</p>
+              <p className="mt-1 truncate text-fg">{headerArtist}</p>
             )}
-            {headerMeta && <p className="mt-1 text-sm text-zinc-400">{headerMeta}</p>}
+            {headerMeta && <p className="mt-1 text-sm text-fg-dim">{headerMeta}</p>}
           </div>
 
-          <div className="flex flex-col gap-3">
-            <Select
-              ariaLabel={t("preview.audioFormat")}
-              value={audioFormat}
-              onChange={(v) => setAudioFormat(v as AudioFormat)}
-              options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
-                value: o.value,
-                label: o.label,
-              }))}
-              className="h-12 w-full rounded-xl bg-surface border border-white/10 px-4 text-sm"
-            />
-            <p className="flex items-center gap-2 text-xs text-zinc-400">
+          <div className="flex flex-col gap-4">
+            <p className="flex items-center gap-2 text-xs text-fg-dim">
               <AlertCircle size={14} className="shrink-0" />
               {t("music.hint")}
             </p>
             {!isSingle && !running && (
-              <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+              <p className="flex items-center gap-1.5 text-xs text-fg-dim">
                 <Clock3 size={12} className="shrink-0" />
                 {selected.size === 0 || selectedMs > 0
                   ? t("playlist.selectionSummary", {
@@ -489,39 +479,41 @@ export const MusicImportCard = memo(function MusicImportCard({
                   : t("playlist.selectionCount", { count: selected.size })}
               </p>
             )}
-            {running ? (
-              <button
-                type="button"
-                onClick={stop}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-surface px-6 text-sm transition hover:bg-surface-hover"
-              >
-                <Square size={16} />
-                {t("queue.stop")}
-              </button>
-            ) : isSingle && status0 === "done" ? (
-              <span className="flex h-12 items-center justify-center gap-2 text-sm text-violet-300">
-                <CheckCircle2 size={18} />
-                {t("music.done")}
-              </span>
-            ) : (
-              <Button
-                variant="gradient"
-                onClick={start}
-                disabled={selected.size === 0 || lockedByOther}
-                title={lockedByOther ? t("common.busy") : undefined}
-                className="h-12 w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download size={18} />
-                {isSingle
-                  ? t("music.download")
-                  : t("music.import", { count: selected.size })}
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {running ? (
+                <button
+                  type="button"
+                  onClick={stop}
+                  className="flex h-12 min-w-[200px] flex-1 items-center justify-center gap-2 rounded-2xl border border-line/10 bg-surface px-6 text-base transition hover:bg-surface-hover"
+                >
+                  <Square size={16} />
+                  {t("queue.stop")}
+                </button>
+              ) : isSingle && status0 === "done" ? (
+                <span className="flex h-12 flex-1 items-center justify-center gap-2 text-sm text-accent-soft">
+                  <CheckCircle2 size={18} />
+                  {t("music.done")}
+                </span>
+              ) : (
+                <Button
+                  variant="gradient"
+                  onClick={start}
+                  disabled={selected.size === 0 || lockedByOther}
+                  title={lockedByOther ? t("common.busy") : undefined}
+                  className="h-12 min-w-[200px] flex-1 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download size={20} />
+                  {isSingle
+                    ? t("music.download")
+                    : t("music.import", { count: selected.size })}
+                </Button>
+              )}
+            </div>
 
             {running && (
               <div className="flex flex-col gap-1.5">
                 {!isSingle && (
-                  <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <div className="flex items-center justify-between text-xs text-fg-dim">
                     <span className="truncate">
                       {activeIdx != null ? info.tracks[activeIdx].title : ""}
                     </span>
@@ -533,12 +525,12 @@ export const MusicImportCard = memo(function MusicImportCard({
                 <div className="flex items-center justify-between gap-3 text-xs">
                   <span
                     aria-live="polite"
-                    className="flex items-center gap-2 text-zinc-300"
+                    className="flex items-center gap-2 text-fg"
                   >
-                    <Loader2 size={13} className="animate-spin text-violet-400" />
+                    <Loader2 size={13} className="animate-spin text-accent-soft" />
                     {progressLabel}
                   </span>
-                  <span className="shrink-0 font-medium text-violet-400">
+                  <span className="shrink-0 font-medium text-accent-soft">
                     {Math.round(percent)}%{progressDetail && ` • ${progressDetail}`}
                   </span>
                 </div>
@@ -556,6 +548,40 @@ export const MusicImportCard = memo(function MusicImportCard({
                   : t("music.noMatch")}
               </p>
             )}
+
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((v) => !v)}
+              aria-expanded={advancedOpen}
+              className="flex w-fit items-center gap-2 text-sm text-fg-dim transition hover:text-fg"
+            >
+              <SlidersHorizontal size={15} />
+              {t("preview.advanced")}
+              <ChevronDown
+                size={15}
+                className={`transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {advancedOpen && (
+              <div
+                ref={advPanelRef}
+                className="flex flex-col gap-4 border-t border-line/10 pt-4"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    ariaLabel={t("preview.audioFormat")}
+                    value={audioFormat}
+                    onChange={(v) => setAudioFormat(v as AudioFormat)}
+                    options={AUDIO_FORMATS.filter((o) => !o.lossless).map((o) => ({
+                      value: o.value,
+                      label: o.label,
+                    }))}
+                    className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -563,30 +589,49 @@ export const MusicImportCard = memo(function MusicImportCard({
       {/* Track selection — albums/playlists only, with a filter for long lists. */}
       {info.tracks.length > 1 && (
         <>
-          {info.tracks.length > 8 && (
-            <div className="relative mt-5">
-              <Search
-                size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
-              />
-              <input
-                type="text"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder={t("playlist.filter")}
-                aria-label={t("playlist.filter")}
-                disabled={running}
-                className="h-10 w-full rounded-xl border border-white/10 bg-surface pl-9 pr-3 text-sm outline-none focus:border-violet-500 disabled:opacity-50"
-              />
-            </div>
-          )}
+          {/* Toolbar sitting right above the list: filter (long lists) on the
+              left, select/deselect-all on the right — next to what it controls. */}
+          <div className="mt-5 flex items-center gap-3">
+            {info.tracks.length > 8 && (
+              <div className="relative flex-1">
+                <Search
+                  size={15}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-faint"
+                />
+                <input
+                  type="text"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder={t("playlist.filter")}
+                  aria-label={t("playlist.filter")}
+                  disabled={running}
+                  className="h-10 w-full rounded-xl border border-line/10 bg-surface pl-9 pr-3 text-sm outline-none focus:border-accent disabled:opacity-50"
+                />
+              </div>
+            )}
+            {!running && (
+              <button
+                type="button"
+                onClick={toggleAll}
+                className="ml-auto shrink-0 text-xs text-fg-dim transition hover:text-fg"
+              >
+                {allVisibleSelected
+                  ? t("playlist.deselectAll")
+                  : t("playlist.selectAll")}
+              </button>
+            )}
+          </div>
           <div
-            className={`flex max-h-[320px] flex-col gap-1.5 overflow-auto pr-1 ${
-              info.tracks.length > 8 ? "mt-3" : "mt-5"
-            }`}
+            style={{
+              maskImage:
+                "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
+              WebkitMaskImage:
+                "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
+            }}
+            className="mt-3 flex max-h-[340px] flex-col gap-1.5 overflow-auto pb-2 pr-1"
           >
             {visible.length === 0 ? (
-              <p className="py-6 text-center text-sm text-zinc-500">
+              <p className="py-6 text-center text-sm text-fg-faint">
                 {t("playlist.noMatches")}
               </p>
             ) : (
@@ -607,7 +652,7 @@ export const MusicImportCard = memo(function MusicImportCard({
                         clickTrack(i, pos, e.shiftKey);
                       }
                     }}
-                    className="flex select-none items-center gap-3 rounded-xl border border-white/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-visible:!outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/70"
+                    className="flex select-none items-center gap-3 rounded-xl border border-line/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-visible:!outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70"
                   >
                     <input
                       type="checkbox"
@@ -616,7 +661,7 @@ export const MusicImportCard = memo(function MusicImportCard({
                       disabled={running}
                       tabIndex={-1}
                       aria-hidden="true"
-                      className="size-4 accent-violet-500 shrink-0 pointer-events-none disabled:opacity-40"
+                      className="size-4 accent-accent shrink-0 pointer-events-none disabled:opacity-40"
                     />
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-violet-500/40 to-blue-500/40">
                       {cover ? (
@@ -638,7 +683,7 @@ export const MusicImportCard = memo(function MusicImportCard({
                           {rowErrors[i]}
                         </span>
                       ) : (
-                        <span className="block truncate text-xs text-zinc-400">
+                        <span className="block truncate text-xs text-fg-dim">
                           {track.artists}
                         </span>
                       )}
@@ -646,20 +691,20 @@ export const MusicImportCard = memo(function MusicImportCard({
                     {status === "active" && (
                       <Loader2
                         size={15}
-                        className="shrink-0 animate-spin text-violet-400"
+                        className="shrink-0 animate-spin text-accent-soft"
                       />
                     )}
                     {status === "done" && (
-                      <CheckCircle2 size={15} className="shrink-0 text-violet-400" />
+                      <CheckCircle2 size={15} className="shrink-0 text-accent-soft" />
                     )}
                     {status === "error" && (
                       <AlertCircle size={15} className="shrink-0 text-red-400" />
                     )}
                     {status === "skipped" && (
-                      <SkipForward size={15} className="shrink-0 text-zinc-500" />
+                      <SkipForward size={15} className="shrink-0 text-fg-faint" />
                     )}
                     {!status && duration && (
-                      <span className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
+                      <span className="flex items-center gap-1 text-xs text-fg-dim shrink-0">
                         <Clock3 size={12} />
                         {fmtMs(duration)}
                       </span>

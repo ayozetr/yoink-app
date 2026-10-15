@@ -22,8 +22,8 @@ interface AutoTagBatchPanelProps {
 }
 
 const INPUT =
-  "w-full min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm " +
-  "text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50";
+  "w-full min-w-0 rounded-xl border border-line/10 bg-surface px-3 py-2 text-sm " +
+  "text-fg placeholder:text-fg-faint focus:outline-none focus:border-accent/40";
 
 type TrackStatus = "loading" | "ready" | "nomatch" | "applied" | "error";
 
@@ -222,22 +222,22 @@ export function AutoTagBatchPanel({
         type="button"
         onClick={toggleOpen}
         aria-expanded={open}
-        className="flex w-full items-center justify-between text-sm font-semibold text-zinc-200 hover:text-white transition"
+        className="flex w-full items-center justify-between text-sm font-semibold text-fg hover:text-fg transition"
       >
         <span className="flex items-center gap-2">
-          <Music4 size={16} className="text-violet-400" />
+          <Music4 size={16} className="text-accent-soft" />
           {t("autotag.batchTitle", { count: tracks.length })}
         </span>
         <ChevronDown
           size={18}
-          className={`text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`text-fg-dim transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
 
       {open && (
         <div className="mt-3 space-y-1">
           {tracks.map((tr, i) => (
-            <div key={tr.path} className="rounded-xl border border-white/5">
+            <div key={tr.path} className="rounded-xl border border-line/10">
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <input
                   type="checkbox"
@@ -245,7 +245,7 @@ export function AutoTagBatchPanel({
                   checked={tr.included}
                   disabled={applying || tr.status === "applied" || tr.status === "loading"}
                   onChange={() => patch(i, { included: !tr.included })}
-                  className="size-4 accent-violet-500 shrink-0 disabled:opacity-40"
+                  className="size-4 accent-accent shrink-0 disabled:opacity-40"
                 />
                 <button
                   type="button"
@@ -253,22 +253,22 @@ export function AutoTagBatchPanel({
                   aria-expanded={expanded === i}
                   className="flex flex-1 items-center gap-2 min-w-0 text-left"
                 >
-                  <div className="relative w-9 h-9 rounded bg-white/5 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className="relative w-9 h-9 rounded bg-surface-2 overflow-hidden shrink-0 flex items-center justify-center">
                     {tr.coverUrl ? (
                       <Thumbnail
                         key={tr.coverUrl}
                         src={tr.coverUrl}
                         alt={tr.album}
                         className="h-full w-full object-cover"
-                        fallback={<Music4 className="size-4 text-white/40" />}
+                        fallback={<Music4 className="size-4 text-fg-faint" />}
                       />
                     ) : (
-                      <Music4 className="size-4 text-white/40" />
+                      <Music4 className="size-4 text-fg-faint" />
                     )}
                   </div>
                   <span className="min-w-0 flex-1 text-xs">
                     {tr.status === "loading" ? (
-                      <span className="flex items-center gap-1.5 text-zinc-400">
+                      <span className="flex items-center gap-1.5 text-fg-dim">
                         <Loader2 size={12} className="animate-spin" />
                         {t("autotag.identifying")}
                       </span>
@@ -287,10 +287,10 @@ export function AutoTagBatchPanel({
                       </span>
                     ) : (
                       <>
-                        <span className="block truncate text-zinc-200">
+                        <span className="block truncate text-fg">
                           {tr.artist} — {tr.title}
                         </span>
-                        <span className="block truncate text-zinc-400">
+                        <span className="block truncate text-fg-dim">
                           {tr.album}
                           {tr.year ? ` (${tr.year})` : ""}
                         </span>
@@ -299,16 +299,16 @@ export function AutoTagBatchPanel({
                   </span>
                   <ChevronDown
                     size={14}
-                    className={`text-zinc-500 shrink-0 transition-transform ${expanded === i ? "rotate-180" : ""}`}
+                    className={`text-fg-faint shrink-0 transition-transform ${expanded === i ? "rotate-180" : ""}`}
                   />
                 </button>
               </div>
 
               {expanded === i && tr.status !== "loading" && (
-                <div className="border-t border-white/5 px-3 py-3 space-y-2">
+                <div className="border-t border-line/10 px-3 py-3 space-y-2">
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <label className="block">
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-fg-dim">
                         {t("autotag.fieldTitle")}
                       </span>
                       <input
@@ -318,7 +318,7 @@ export function AutoTagBatchPanel({
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-fg-dim">
                         {t("autotag.fieldArtist")}
                       </span>
                       <input
@@ -328,7 +328,7 @@ export function AutoTagBatchPanel({
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-fg-dim">
                         {t("autotag.fieldAlbum")}
                       </span>
                       <input
@@ -338,7 +338,7 @@ export function AutoTagBatchPanel({
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-fg-dim">
                         {t("autotag.fieldYear")}
                       </span>
                       <input
@@ -348,7 +348,7 @@ export function AutoTagBatchPanel({
                       />
                     </label>
                     <label className="block">
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-fg-dim">
                         {t("autotag.fieldGenre")}
                       </span>
                       <input
@@ -362,7 +362,7 @@ export function AutoTagBatchPanel({
                   <button
                     type="button"
                     onClick={() => void searchForTrack(i, tr.artist, tr.title)}
-                    className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition"
+                    className="flex items-center gap-1.5 text-xs text-accent-soft hover:text-accent transition"
                   >
                     <Search size={12} /> {t("autotag.searchAction")}
                   </button>
@@ -376,11 +376,11 @@ export function AutoTagBatchPanel({
                           onClick={() => loadInto(i, r, ci)}
                           className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1 text-left transition ${
                             ci === tr.selected
-                              ? "border-violet-500/50 bg-violet-600/15"
-                              : "border-white/5 hover:bg-white/5"
+                              ? "border-accent/40 bg-accent/15"
+                              : "border-line/10 hover:bg-surface-hover"
                           }`}
                         >
-                          <div className="relative w-7 h-7 rounded bg-white/5 overflow-hidden shrink-0">
+                          <div className="relative w-7 h-7 rounded bg-surface-2 overflow-hidden shrink-0">
                             {r.cover_url && (
                               <Thumbnail
                                 key={r.cover_url}
@@ -392,10 +392,10 @@ export function AutoTagBatchPanel({
                             )}
                           </div>
                           <span className="min-w-0 text-[11px]">
-                            <span className="block truncate text-zinc-200">
+                            <span className="block truncate text-fg">
                               {r.album ?? r.title}
                             </span>
-                            <span className="block truncate text-zinc-400">
+                            <span className="block truncate text-fg-dim">
                               {r.year ?? ""}
                             </span>
                           </span>
@@ -413,7 +413,7 @@ export function AutoTagBatchPanel({
               type="button"
               onClick={onDismiss}
               disabled={applying}
-              className="text-sm text-zinc-300 hover:text-white transition disabled:opacity-50"
+              className="text-sm text-fg-dim hover:text-fg transition disabled:opacity-50"
             >
               {t("autotag.dismiss")}
             </button>

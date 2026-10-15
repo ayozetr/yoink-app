@@ -25,6 +25,7 @@ import {
   useDownloadLock,
 } from "../../lib/downloadLock";
 import { notify } from "../../lib/notify";
+import { toast } from "../../lib/toast";
 import { useEventCallback } from "../../lib/useEventCallback";
 import {
   applyAudioTags,
@@ -120,17 +121,17 @@ function itemDone(item: QueueItem): boolean {
 function statusIcon(status: QueueStatus) {
   switch (status) {
     case "active":
-      return <Loader2 size={16} className="animate-spin text-violet-400" />;
+      return <Loader2 size={16} className="animate-spin text-accent-soft" />;
     case "resolving":
-      return <Loader2 size={16} className="animate-spin text-zinc-500" />;
+      return <Loader2 size={16} className="animate-spin text-fg-faint" />;
     case "done":
       return <CheckCircle2 size={16} className="text-emerald-400" />;
     case "error":
       return <AlertCircle size={16} className="text-red-400" />;
     case "skipped":
-      return <SkipForward size={16} className="text-zinc-500" />;
+      return <SkipForward size={16} className="text-fg-faint" />;
     default:
-      return <span className="block size-2 rounded-full bg-zinc-500" />;
+      return <span className="block size-2 rounded-full bg-fg-faint" />;
   }
 }
 
@@ -216,14 +217,14 @@ const QueueRow = memo(function QueueRow({
       onDragEnd={onDragEnd}
       className={isDragging ? "opacity-50" : ""}
     >
-      <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-surface/60 p-2.5">
-        <GripVertical size={15} className="shrink-0 cursor-grab text-zinc-600" />
+      <div className="flex items-center gap-2.5 rounded-xl border border-line/10 bg-surface/60 p-2.5">
+        <GripVertical size={15} className="shrink-0 cursor-grab text-fg-faint" />
         {item.children && (
           <button
             type="button"
             onClick={() => onToggleExpanded(item.id)}
             aria-label={t("queue.expand")}
-            className="shrink-0 text-zinc-400 transition hover:text-white"
+            className="shrink-0 text-fg-dim transition hover:text-fg"
           >
             <ChevronRight
               size={15}
@@ -240,13 +241,13 @@ const QueueRow = memo(function QueueRow({
                 : (item.title ?? item.url)}
             </span>
             {status === "active" && (
-              <span className="shrink-0 text-xs font-medium text-violet-400">
+              <span className="shrink-0 text-xs font-medium text-accent-soft">
                 {Math.round(percent)}%
               </span>
             )}
           </span>
           {item.sourceLabel && item.status !== "resolving" && (
-            <span className="mt-0.5 block truncate text-xs text-zinc-500">
+            <span className="mt-0.5 block truncate text-xs text-fg-faint">
               {item.children
                 ? `${item.sourceLabel} · ${t("queue.selectedOfTracks", {
                     selected: selectedCount,
@@ -259,7 +260,7 @@ const QueueRow = memo(function QueueRow({
             <>
               <ProgressBar percent={percent} className="mt-1 h-1" />
               {progressDetail && (
-                <span className="mt-1 block truncate text-xs text-zinc-400">
+                <span className="mt-1 block truncate text-xs text-fg-dim">
                   {progressDetail}
                 </span>
               )}
@@ -276,7 +277,7 @@ const QueueRow = memo(function QueueRow({
             type="button"
             onClick={() => onRemove(item.id)}
             aria-label={t("queue.remove")}
-            className="shrink-0 text-zinc-500 transition hover:text-white"
+            className="shrink-0 text-fg-faint transition hover:text-fg"
           >
             <X size={15} />
           </button>
@@ -284,12 +285,12 @@ const QueueRow = memo(function QueueRow({
       </div>
 
       {item.children && item.expanded && (
-        <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-white/10 py-1 pl-3">
+        <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-line/10 py-1 pl-3">
           <li className="flex justify-end pr-1">
             <button
               type="button"
               onClick={() => onSetAllChildren(item.id, selectedCount < total)}
-              className="text-[11px] text-zinc-400 transition hover:text-white"
+              className="text-[11px] text-fg-dim transition hover:text-fg"
             >
               {selectedCount < total
                 ? t("playlist.selectAll")
@@ -302,18 +303,18 @@ const QueueRow = memo(function QueueRow({
                 type="checkbox"
                 checked={child.selected}
                 onChange={() => onToggleChild(item.id, child.id)}
-                className="mt-0.5 size-3.5 shrink-0 accent-violet-500"
+                className="mt-0.5 size-3.5 shrink-0 accent-accent"
               />
               <span className="mt-px shrink-0">{statusIcon(child.status)}</span>
               <span
                 className={`min-w-0 flex-1 break-words text-xs leading-snug ${
-                  child.selected ? "text-zinc-300" : "text-zinc-600"
+                  child.selected ? "text-fg" : "text-fg-faint"
                 }`}
               >
                 {child.title}
               </span>
               {child.id === activeChildId && (
-                <span className="mt-px shrink-0 text-[11px] font-medium text-violet-400">
+                <span className="mt-px shrink-0 text-[11px] font-medium text-accent-soft">
                   {Math.round(percent)}%
                 </span>
               )}
@@ -367,6 +368,9 @@ export function QueuePanel({
   });
   const [items, setItems] = useState<QueueItem[]>(() => loadQueue());
   const [input, setInput] = useState("");
+  // The "add batch" modal: keeps the big paste-links textarea out of the main
+  // view so the queue reads as a clean progress list by default.
+  const [addOpen, setAddOpen] = useState(false);
   const [running, setRunning] = useState(false);
   // Full live progress event (percent + speed + ETA + status) for the active
   // item, so its row shows the same readout as a normal download.
@@ -412,7 +416,7 @@ export function QueuePanel({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, [input, open]);
+  }, [input, addOpen]);
 
   // Mirror state into the ref on every change (needed synchronously elsewhere).
   useEffect(() => {
@@ -493,29 +497,6 @@ export function QueuePanel({
 
   // --- Adding URLs: resolve each into a single item or a selectable group ---
 
-  const addUrls = () => {
-    const urls = parsedInput;
-    if (urls.length === 0) return;
-    // Skip URLs already queued (by source url) so re-pasting is idempotent;
-    // failed items can be re-added to retry.
-    const existing = new Set(
-      itemsRef.current.filter((i) => i.status !== "error").map((i) => i.url),
-    );
-    const fresh = urls.filter((url) => !existing.has(url));
-    if (fresh.length === 0) {
-      setInput("");
-      return;
-    }
-    const placeholders = fresh.map((url) => ({
-      id: newQueueId(),
-      url,
-      status: "resolving" as const,
-    }));
-    setItems((prev) => [...prev, ...placeholders]);
-    setInput("");
-    placeholders.forEach((p) => void resolveItem(p.id, p.url));
-  };
-
   // Turn a placeholder into a plain single item, or a group of selectable
   // children (a music album/playlist, or a regular video playlist).
   const resolveItem = async (id: string, url: string) => {
@@ -591,6 +572,42 @@ export function QueuePanel({
         });
     }
   };
+
+  // Enqueue a set of URLs (shared by the textarea's Add button and the external
+  // "add to queue" event dispatched from the Inicio preview card). Deduped by
+  // source url (failed items can be re-added to retry). Returns how many were new.
+  const enqueueUrls = useEventCallback((urls: string[]): number => {
+    if (urls.length === 0) return 0;
+    const existing = new Set(
+      itemsRef.current.filter((i) => i.status !== "error").map((i) => i.url),
+    );
+    const fresh = urls.filter((url) => !existing.has(url));
+    if (fresh.length === 0) return 0;
+    const placeholders = fresh.map((url) => ({
+      id: newQueueId(),
+      url,
+      status: "resolving" as const,
+    }));
+    setItems((prev) => [...prev, ...placeholders]);
+    placeholders.forEach((p) => void resolveItem(p.id, p.url));
+    return fresh.length;
+  });
+
+  const addUrls = () => {
+    enqueueUrls(parsedInput);
+    setInput("");
+  };
+
+  // Let the Inicio preview card's "Add to queue" hand a URL to the (always-
+  // mounted) queue without prop-drilling through the whole tree.
+  useEffect(() => {
+    const onAdd = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { urls?: string[] } | null;
+      if (Array.isArray(detail?.urls)) enqueueUrls(detail.urls);
+    };
+    window.addEventListener("yoink:queue-add", onAdd);
+    return () => window.removeEventListener("yoink:queue-add", onAdd);
+  }, [enqueueUrls]);
 
   // --- Download engine: an async drain loop over singles + group children ---
 
@@ -763,6 +780,12 @@ export function QueuePanel({
           tRef.current("notify.queueDone"),
           tRef.current("notify.queueSummary", { completed: done, failed }),
         );
+      // In-app toast so the queue's finish is visible from any tab (not gated by
+      // the OS-notification setting — that only governs the desktop notification).
+      toast.show(
+        tRef.current("notify.queueSummary", { completed: done, failed }),
+        { kind: failed > 0 ? "info" : "success" },
+      );
       return prev;
     });
   };
@@ -889,18 +912,24 @@ export function QueuePanel({
   if (!open) return null;
 
   return (
+    <>
     <GlassPanel className="p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-xs uppercase tracking-wider text-violet-400">
-          <ListPlus size={14} />
-          {t("queue.title")}
-        </span>
+        <h2 className="font-display text-2xl font-normal">{t("tabs.queue")}</h2>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-medium text-fg transition hover:bg-accent/25"
+          >
+            <ListPlus size={14} />
+            {t("queue.addBatch")}
+          </button>
           {hasDone && (
             <button
               type="button"
               onClick={clearDone}
-              className="flex items-center gap-1.5 text-xs text-zinc-400 transition hover:text-white"
+              className="flex items-center gap-1.5 text-xs text-fg-dim transition hover:text-fg"
             >
               <Trash2 size={13} />
               {t("queue.clearDone")}
@@ -910,69 +939,18 @@ export function QueuePanel({
             type="button"
             onClick={onClose}
             aria-label={t("queue.close")}
-            className="text-zinc-400 transition hover:text-white"
+            className="text-fg-dim transition hover:text-fg"
           >
             <X size={16} />
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          aria-label={t("queue.placeholder")}
-          placeholder={t("queue.placeholder")}
-          rows={2}
-          className="flex-1 resize-none overflow-y-auto rounded-xl border border-white/10 bg-surface px-4 py-2.5 text-sm outline-none focus:border-violet-500"
-        />
-        <div className="flex gap-2 sm:flex-col">
-          <Button
-            onClick={addUrls}
-            disabled={parsedInput.length === 0}
-            className="h-10 px-4 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ListPlus size={16} />
-            {t("queue.add")}
-          </Button>
-          {running ? (
-            <>
-              <button
-                type="button"
-                onClick={skipCurrent}
-                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface px-4 text-sm text-zinc-200 transition hover:border-white/20"
-              >
-                <SkipForward size={15} />
-                {t("queue.skip")}
-              </button>
-              <button
-                type="button"
-                onClick={stop}
-                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-surface px-4 text-sm text-zinc-200 transition hover:border-white/20"
-              >
-                <Square size={15} />
-                {t("queue.stop")}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={start}
-              disabled={pending === 0 || lockedByOther}
-              title={lockedByOther ? t("common.busy") : undefined}
-              className="flex h-10 items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-600/10 px-4 text-sm text-white transition hover:bg-violet-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Play size={15} />
-              {t("queue.start")}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Format for the whole queue (music URLs always download audio). */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-zinc-500">{t("preview.format")}</span>
+      {/* Controls: queue-wide format on the left, run buttons on the right. The
+          paste-links textarea lives in the "Add batch" modal, so the queue view
+          itself stays focused on progress. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-fg-faint">{t("preview.format")}</span>
         <Select
           ariaLabel={t("preview.format")}
           value={kind}
@@ -981,7 +959,7 @@ export function QueuePanel({
             { value: "video", label: t("preview.video") },
             { value: "audio", label: t("preview.audio") },
           ]}
-          className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
+          className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
         />
         {isVideo ? (
           <>
@@ -993,14 +971,14 @@ export function QueuePanel({
                 value: o,
                 label: o === "best" ? t("settings.qualityBest") : o,
               }))}
-              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
+              className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
             />
             <Select
               ariaLabel={t("preview.container")}
               value={container}
               onChange={(v) => setContainer(v as VideoContainer)}
               options={VIDEO_CONTAINERS}
-              className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
+              className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
             />
           </>
         ) : (
@@ -1009,21 +987,55 @@ export function QueuePanel({
             value={audioFormat}
             onChange={(v) => setAudioFormat(v as AudioFormat)}
             options={AUDIO_FORMATS.map((o) => ({ value: o.value, label: o.label }))}
-            className="h-9 rounded-lg border border-white/10 bg-surface px-3 text-sm"
+            className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
           />
         )}
+
+        <div className="ml-auto flex gap-2">
+          {running ? (
+            <>
+              <button
+                type="button"
+                onClick={skipCurrent}
+                className="flex h-9 items-center justify-center gap-2 rounded-lg border border-line/10 bg-surface px-4 text-sm text-fg transition hover:border-line/20"
+              >
+                <SkipForward size={15} />
+                {t("queue.skip")}
+              </button>
+              <button
+                type="button"
+                onClick={stop}
+                className="flex h-9 items-center justify-center gap-2 rounded-lg border border-line/10 bg-surface px-4 text-sm text-fg transition hover:border-line/20"
+              >
+                <Square size={15} />
+                {t("queue.stop")}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={start}
+              disabled={pending === 0 || lockedByOther}
+              title={lockedByOther ? t("common.busy") : undefined}
+              className="flex h-9 items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/15 px-4 text-sm text-fg transition hover:bg-accent/25 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Play size={15} />
+              {t("queue.start")}
+            </button>
+          )}
+        </div>
       </div>
 
       {mediaTotals > 0 && (
-        <div className="mt-3 border-t border-white/5 pt-3">
+        <div className="mt-3 border-t border-line/10 pt-3">
           <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-zinc-400">
+            <span className="text-fg-dim">
               {t("queue.progressCount", {
                 done: mediaDoneCount,
                 total: mediaTotals,
               })}
             </span>
-            <span className="tabular-nums text-zinc-500">
+            <span className="tabular-nums text-fg-faint">
               {Math.round(queuePercent)}%
             </span>
           </div>
@@ -1032,9 +1044,17 @@ export function QueuePanel({
       )}
 
       {items.length === 0 && (
-        <div className="mt-3 flex flex-col items-center gap-2 py-6 text-center text-zinc-500">
-          <ListPlus size={28} className="opacity-60" />
-          <p className="text-xs">{t("queue.empty")}</p>
+        <div className="mt-6 flex flex-col items-center gap-3 py-8 text-center">
+          <ListPlus size={28} className="text-fg-faint opacity-60" />
+          <p className="text-xs text-fg-faint">{t("queue.empty")}</p>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-medium text-fg transition hover:bg-accent/25"
+          >
+            <ListPlus size={14} />
+            {t("queue.addBatch")}
+          </button>
         </div>
       )}
 
@@ -1068,5 +1088,70 @@ export function QueuePanel({
         </ul>
       )}
     </GlassPanel>
+
+      {/* Add-batch modal: paste one or more links. Kept out of the main view so
+          the queue reads as a clean progress list by default. */}
+      {addOpen && (
+        <div
+          role="presentation"
+          onClick={() => setAddOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+        >
+          <GlassPanel
+            boxed
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            className="flex w-full max-w-lg flex-col gap-4 p-5"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-normal">
+                {t("queue.addBatch")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                aria-label={t("queue.close")}
+                className="text-fg-dim transition hover:text-fg"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              aria-label={t("queue.placeholder")}
+              placeholder={t("queue.placeholder")}
+              rows={4}
+              autoFocus
+              className="w-full resize-none overflow-y-auto rounded-xl border border-line/10 bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent"
+            />
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                className="px-3 text-sm text-fg-dim transition hover:text-fg"
+              >
+                {t("settings.cancel")}
+              </button>
+              <Button
+                onClick={() => {
+                  addUrls();
+                  setAddOpen(false);
+                }}
+                disabled={parsedInput.length === 0}
+                className="h-10 px-5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ListPlus size={16} />
+                {t("queue.add")}
+              </Button>
+            </div>
+          </GlassPanel>
+        </div>
+      )}
+    </>
   );
 }

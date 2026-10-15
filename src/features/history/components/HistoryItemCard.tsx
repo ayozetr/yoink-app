@@ -62,7 +62,7 @@ function relativeTime(iso: string, lang: string): string | null {
   }
 }
 
-/** One row in the download history list. */
+/** One hairline row in the download history list (v4 editorial design). */
 export function HistoryItemCard({
   item,
   onOpenFolder,
@@ -74,8 +74,7 @@ export function HistoryItemCard({
   const [coverFailed, setCoverFailed] = useState(false);
   const [coverNonce, setCoverNonce] = useState(item.mtime);
   // Re-check the cover only when THIS file changed (its mtime bumped, e.g. after
-  // tagging), not on every global history refresh — so the other rows' covers
-  // stay cached instead of all refetching (and re-404ing the cover-less ones).
+  // tagging), not on every global history refresh.
   if (item.mtime !== coverNonce) {
     setCoverNonce(item.mtime);
     setCoverFailed(false);
@@ -89,127 +88,107 @@ export function HistoryItemCard({
   const showCover =
     isCompleted && item.kind === "audio" && !!item.filepath && !coverFailed;
 
-  // The flexible lead ("1080p · 45 MB" / "Failed") may truncate if space is
-  // tight; the time (`when`) is rendered separately and pinned (shrink-0) so it's
-  // always shown in full — a long relative time ("hace 3 horas") no longer gets
-  // cut off the end.
   const metaLead = isCompleted
     ? [item.quality, size].filter(Boolean).join(" · ")
     : t("history.error");
 
+  const actionBtn = "grid size-7 place-items-center rounded-lg text-fg-dim transition hover:bg-surface-hover hover:text-fg";
+
   return (
-    <div className="group rounded-2xl border border-white/10 bg-surface/70 hover:bg-surface-hover transition p-3">
-      <div className="relative flex items-center gap-3">
-        {/* Cover art (tagged audio) or a kind icon over a gradient, with the
-            output format as a small chip in the corner — so it stays visible
-            without taking width from the "quality · size · time" line. */}
-        <div className="relative w-12 h-12 rounded-lg bg-gradient-to-br from-violet-500/40 to-blue-500/40 flex items-center justify-center shrink-0 overflow-hidden">
-          {showCover && item.filepath ? (
-            <img
-              src={coverUrl(item.filepath, item.mtime ?? undefined)}
-              alt=""
-              className="h-full w-full object-cover"
-              onError={() => setCoverFailed(true)}
-            />
-          ) : item.kind === "audio" ? (
-            <Music4 size={18} />
-          ) : item.kind === "image" ? (
-            <ImageIcon size={18} />
+    <div className="group flex items-center gap-3.5 rounded-xl px-2.5 py-2.5 transition hover:bg-surface">
+      {/* Cover art (tagged audio) or a kind icon, with the output format chip. */}
+      <div className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-violet-500/40 to-blue-500/40">
+        {showCover && item.filepath ? (
+          <img
+            src={coverUrl(item.filepath, item.mtime ?? undefined)}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={() => setCoverFailed(true)}
+          />
+        ) : item.kind === "audio" ? (
+          <Music4 size={18} />
+        ) : item.kind === "image" ? (
+          <ImageIcon size={18} />
+        ) : (
+          <Video size={18} />
+        )}
+        {fmt && (
+          <span className="absolute bottom-0 right-0 rounded-tl-md bg-black/75 px-1 py-px text-[9px] font-semibold leading-tight tracking-wide text-white">
+            {fmt}
+          </span>
+        )}
+      </div>
+
+      {/* Title + meta */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm">{item.title}</p>
+        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-dim">
+          {isCompleted ? (
+            <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
           ) : (
-            <Video size={18} />
+            <AlertCircle size={13} className="shrink-0 text-red-400" />
           )}
-          {fmt && (
-            <span className="absolute bottom-0 right-0 rounded-tl-md bg-black/75 px-1 py-px text-[9px] font-semibold leading-tight tracking-wide text-white">
-              {fmt}
-            </span>
-          )}
+          {metaLead && <span className="truncate">{metaLead}</span>}
         </div>
 
-        {/* Title + meta fade fully out on hover so only the cover + action pill
-            remain (the info reads when not hovering). A fade, not a CSS blur —
-            blur ghosts in the packaged WebKitGTK build over the scrollable list.
-            The cover is a sibling, so it stays sharp. */}
-        <div className="flex-1 min-w-0 transition-opacity duration-150 sm:group-hover:opacity-0">
-          <p className="text-sm font-medium truncate">{item.title}</p>
-
-          {/* Status icon + "format · quality · size" (truncates if tight) + the
-              time, pinned so it always shows in full. */}
-          <div className="mt-1.5 flex items-center gap-1.5 text-xs min-w-0">
-            {isCompleted ? (
-              <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
-            ) : (
-              <AlertCircle size={13} className="shrink-0 text-red-400" />
-            )}
-            {metaLead && <span className="truncate text-zinc-400">{metaLead}</span>}
-            {when && (
-              <span className="shrink-0 text-zinc-400">
-                {metaLead ? "· " : ""}
-                {when}
-              </span>
-            )}
+        {!isCompleted && item.error_message && (
+          <div className="mt-1 flex items-start gap-1">
+            <p
+              className="line-clamp-2 min-w-0 flex-1 text-xs text-red-300/80"
+              title={item.error_message}
+            >
+              {item.error_message}
+            </p>
+            <CopyButton text={item.error_message} label={t("common.copyError")} />
           </div>
+        )}
+      </div>
 
-          {!isCompleted && item.error_message && (
-            <div className="mt-1 flex items-start gap-1">
-              <p
-                className="line-clamp-2 min-w-0 flex-1 text-xs text-red-300/80"
-                title={item.error_message}
-              >
-                {item.error_message}
-              </p>
-              <CopyButton
-                text={item.error_message}
-                label={t("common.copyError")}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Actions in a row so their count (audio has an extra "re-tag") doesn't
-            change the card's height. On ≥sm they're absolutely positioned and
-            revealed on hover, so they reserve no width — the title/meta (format ·
-            quality · size · time) keeps the full row and isn't truncated. On
-            touch/narrow screens (no hover) they stay in flow, always visible. */}
+      {/* Right: the time, swapped for the action icons on hover. */}
+      <div className="shrink-0">
+        {when && (
+          <span className="text-xs text-fg-faint group-hover:hidden">{when}</span>
+        )}
         {isCompleted && (
-          <div className="flex items-center gap-2 shrink-0 opacity-100 transition group-hover:opacity-100 has-[:focus-visible]:opacity-100 sm:absolute sm:left-[calc(50%_+_1.875rem)] sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-surface-hover sm:px-2 sm:py-1.5 sm:opacity-0 sm:shadow-md sm:shadow-black/20">
+          <div className="hidden items-center gap-0.5 group-hover:flex has-[:focus-visible]:flex">
             {item.url && (
               <button
                 type="button"
                 onClick={() => onReanalyze?.(item)}
-                className="text-zinc-400 hover:text-white transition"
+                className={actionBtn}
                 aria-label={t("history.reanalyze")}
                 title={t("history.reanalyze")}
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={15} />
               </button>
             )}
             <button
               type="button"
               onClick={() => onOpenFolder?.(item)}
-              className="text-zinc-400 hover:text-white transition"
+              className={actionBtn}
               aria-label={t("history.openFolder")}
               title={t("history.openFolder")}
             >
-              <FolderOpen size={16} />
+              <FolderOpen size={15} />
             </button>
             <button
               type="button"
               onClick={() => onOpenFile?.(item)}
-              className="text-zinc-400 hover:text-white transition"
+              className={actionBtn}
               aria-label={t("history.openFile")}
               title={t("history.openFile")}
             >
-              <Play size={16} />
+              <Play size={15} />
             </button>
             {item.kind === "audio" && (
               <button
                 type="button"
                 onClick={() => onRetag?.(item)}
-                className="text-zinc-400 hover:text-white transition"
+                className={actionBtn}
                 aria-label={t("history.retag")}
                 title={t("history.retag")}
               >
-                <Tag size={16} />
+                <Tag size={15} />
               </button>
             )}
           </div>

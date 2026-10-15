@@ -48,12 +48,12 @@ export const ImagePreviewCard = memo(function ImagePreviewCard({
         {/* Info + download */}
         <div className="flex flex-1 flex-col justify-between">
           <div>
-            <span className="text-xs uppercase tracking-wider text-violet-400">
+            <span className="text-xs uppercase tracking-wider text-accent-soft">
               {t("preview.imageLabel")}
             </span>
             <h2 className="mt-2 text-xl font-semibold">{info.title}</h2>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-400">
-              <span className="flex items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-violet-300 ring-1 ring-violet-500/30">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-fg-dim">
+              <span className="flex items-center gap-1.5 rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent-soft ring-1 ring-accent/30">
                 <ImageIcon size={14} />
                 {t("preview.imageBadge")}
               </span>

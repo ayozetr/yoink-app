@@ -5,26 +5,18 @@ import {
   ArrowUpCircle,
   Ban,
   CheckCircle2,
+  ChevronRight,
   Coffee,
   CornerDownRight,
   Download,
   FolderOpen,
-  Globe,
   HelpCircle,
-  Info,
-  Keyboard,
   Loader2,
   Monitor,
-  MousePointerClick,
-  Music,
-  Puzzle,
-  Settings as SettingsIcon,
-  Shield,
-  SlidersHorizontal,
+  Moon,
   Sparkles,
-  X,
+  Sun,
 } from "lucide-react";
-import { GlassPanel } from "../../components/ui/GlassPanel";
 import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
 import { Toggle } from "../../components/ui/Toggle";
@@ -39,8 +31,8 @@ import logoUrl from "../../assets/logo.png";
 import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
-import { useFocusTrap } from "../../lib/useFocusTrap";
 import { isTauri } from "../../lib/desktop";
+import type { ThemePref } from "../../lib/theme";
 import { checkForUpdate, RELEASES_URL, type UpdateCheck } from "../../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import {
@@ -65,6 +57,10 @@ const LANG_STORAGE_KEY = "yoink-lang";
 
 interface SettingsModalProps {
   settings: AppSettings;
+  /** Current theme preference ("system" | "dark" | "light"). */
+  theme: ThemePref;
+  /** Change the theme preference (applied + persisted by the caller). */
+  onThemeChange: (theme: ThemePref) => void;
   onClose: () => void;
   onSaved: (next: AppSettings) => void;
   /** Open the "what's new" popup (closes this modal first). */
@@ -74,6 +70,21 @@ interface SettingsModalProps {
 }
 
 const QUALITY_OPTIONS = ["1440p", "1080p", "720p", "480p", "360p"];
+
+// Sections in document order — drive the right-rail "on this page" index. Each id
+// is set on the matching <section> so the index can scroll to it and the
+// scrollspy (IntersectionObserver) can highlight the one currently in view.
+const SETTINGS_SECTIONS = [
+  { id: "settings-general", labelKey: "settings.catGeneral" },
+  { id: "settings-downloads", labelKey: "settings.secDownloads" },
+  { id: "settings-quality", labelKey: "settings.secQuality" },
+  { id: "settings-processing", labelKey: "settings.secProcessing" },
+  { id: "settings-sponsorblock", labelKey: "settings.sponsorblock" },
+  { id: "settings-network", labelKey: "settings.secNetwork" },
+  { id: "settings-shortcuts", labelKey: "settings.catShortcuts" },
+  { id: "settings-extension", labelKey: "settings.catExtension" },
+  { id: "settings-about", labelKey: "settings.catAbout" },
+] as const;
 
 // UI languages (besides "system") with a representative country flag (ISO code
 // under /public/flags). pt → br (the locale is Brazilian), uk → ua (Ukraine),
@@ -144,7 +155,10 @@ function templateExample(tpl: string, ext: string): string {
   return `${name}.${ext}`;
 }
 const INPUT_CLASS =
-  "h-11 rounded-xl bg-surface border border-white/10 px-3 text-sm outline-none focus:border-violet-500";
+  "h-10 rounded-full bg-surface-2 border border-line/10 px-4 text-sm outline-none focus:border-accent";
+/** Toggle restyled from a card into a flat settings row. */
+const TOGGLE_ROW =
+  "w-full !rounded-none !border-0 !border-t !bg-transparent !px-0 !py-4 first:!border-t-0";
 
 /**
  * Browsers yt-dlp can read cookies from directly (same names on Linux &
@@ -163,18 +177,6 @@ const COOKIE_BROWSERS = [
 ] as const;
 
 /** Left-rail categories for the settings modal (sidebar + content panel). */
-const SECTIONS = [
-  { id: "general", labelKey: "settings.catGeneral", icon: <Monitor size={16} /> },
-  { id: "downloads", labelKey: "settings.secDownloads", icon: <Download size={16} /> },
-  { id: "quality", labelKey: "settings.secQuality", icon: <SlidersHorizontal size={16} /> },
-  { id: "processing", labelKey: "settings.secProcessing", icon: <Music size={16} /> },
-  { id: "sponsorblock", labelKey: "settings.sponsorblock", icon: <Shield size={16} /> },
-  { id: "network", labelKey: "settings.secNetwork", icon: <Globe size={16} /> },
-  { id: "shortcuts", labelKey: "settings.catShortcuts", icon: <Keyboard size={16} /> },
-  { id: "extension", labelKey: "settings.catExtension", icon: <Puzzle size={16} /> },
-  { id: "about", labelKey: "settings.catAbout", icon: <Info size={16} /> },
-] as const;
-
 // Keyboard shortcuts shown (read-only) in the Shortcuts section. `mod` is the
 // platform modifier (⌘ on macOS, Ctrl elsewhere); "⇧" is Shift.
 const SHORTCUTS = [
@@ -221,19 +223,18 @@ const SHORTCUTS = [
 const IS_MAC =
   typeof navigator !== "undefined" && /mac/i.test(navigator.userAgent);
 const SHORTCUT_MOD = IS_MAC ? "⌘" : "Ctrl";
-type SectionId = (typeof SECTIONS)[number]["id"];
 
 /** One shortcut row: its label + the key combo as <kbd> chips. */
 function ShortcutRow({ shortcut }: { shortcut: (typeof SHORTCUTS)[number] }) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm">
-      <span className="min-w-0 truncate text-zinc-200">{t(shortcut.labelKey)}</span>
+      <span className="min-w-0 truncate text-fg">{t(shortcut.labelKey)}</span>
       <span className="flex shrink-0 items-center gap-1">
         {shortcut.keys(SHORTCUT_MOD).map((k, i) => (
           <kbd
             key={i}
-            className="inline-flex min-w-[1.75rem] items-center justify-center rounded-md border border-white/15 bg-white/[0.06] px-1.5 py-0.5 font-sans text-xs text-zinc-300 shadow-sm"
+            className="inline-flex min-w-[1.75rem] items-center justify-center rounded-md border border-line/10 bg-surface px-1.5 py-0.5 font-sans text-xs text-fg shadow-sm"
           >
             {k}
           </kbd>
@@ -246,13 +247,14 @@ function ShortcutRow({ shortcut }: { shortcut: (typeof SHORTCUTS)[number] }) {
 /** Modal to view and edit user settings (download dir, defaults, cookies). */
 export function SettingsModal({
   settings,
+  theme,
+  onThemeChange,
   onClose,
   onSaved,
   onShowWhatsNew,
   onInstall,
 }: SettingsModalProps) {
   const { t } = useTranslation();
-  const dialogRef = useFocusTrap<HTMLDivElement>();
   const [form, setForm] = useState<AppSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,10 +269,63 @@ export function SettingsModal({
   const [templateCustom, setTemplateCustom] = useState(
     () => !TEMPLATE_PRESETS.includes(settings.filename_template),
   );
-  // Which sidebar category is showing in the content panel.
-  const [section, setSection] = useState<SectionId>("general");
   const [termsOpen, setTermsOpen] = useState(false);
   const [licensesOpen, setLicensesOpen] = useState(false);
+  // Right-rail index: which section is currently in view.
+  const [activeSection, setActiveSection] = useState<string>(
+    SETTINGS_SECTIONS[0].id,
+  );
+  // Scrollspy: highlight the section whose heading has passed an activation line
+  // near the top of the scroll area (AppShell's <main>). Computed from scroll
+  // position rather than IntersectionObserver so the short trailing sections
+  // still win when the page bottoms out (their heading never reaches the top).
+  useEffect(() => {
+    const scrollEl = document.querySelector("main");
+    if (!scrollEl) return;
+    const onScroll = () => {
+      const els = SETTINGS_SECTIONS.map((s) =>
+        document.getElementById(s.id),
+      ).filter((el): el is HTMLElement => el !== null);
+      if (els.length === 0) return;
+      const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+      if (maxScroll <= 0) {
+        setActiveSection(els[0].id);
+        return;
+      }
+      // Activation line (in content coordinates) that sweeps from a small top
+      // offset at the top of the page to near the content bottom as you reach
+      // the end. A fixed near-top line skips the short trailing sections (they
+      // bottom out before their heading can reach it); a fixed low line skips
+      // the short leading ones. Sweeping it gives every section a scroll range.
+      const offset = 120;
+      const ratio = Math.min(1, Math.max(0, scrollEl.scrollTop / maxScroll));
+      const probe =
+        scrollEl.scrollTop + offset + ratio * (scrollEl.clientHeight - 2 * offset);
+      const mt = scrollEl.getBoundingClientRect().top;
+      let current = els[0].id;
+      for (const el of els) {
+        const topInContent =
+          el.getBoundingClientRect().top - mt + scrollEl.scrollTop;
+        if (topInContent <= probe) current = el.id;
+        else break;
+      }
+      setActiveSection(current);
+    };
+    onScroll();
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    document
+      .getElementById(id)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setActiveSection(id);
+  };
 
   const pickFolder = async () => {
     const dir = await pickDirectory(form.download_dir);
@@ -339,60 +394,12 @@ export function SettingsModal({
 
   return (
     <>
-    <div
-      role="presentation"
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-    >
-      <GlassPanel
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        className="flex w-full max-w-3xl h-[85vh] max-h-[620px] flex-col overflow-hidden !bg-[#16181f] p-0 outline-none"
-      >
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <SettingsIcon size={18} className="text-violet-400" />
-            {t("settings.title")}
+      <div className="md:grid md:grid-cols-[minmax(0,1fr)_168px] md:items-start md:gap-10">
+        <div className="flex min-w-0 flex-col gap-12 pb-24">
+        <section id="settings-general" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.catGeneral")}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-zinc-400 hover:text-white transition"
-            aria-label={t("settings.close")}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1">
-          {/* Icon-only rail on a narrow window (collapses below sm so it doesn't
-              eat the content width); full labels once there's room. */}
-          <nav className="flex w-14 shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-white/10 p-2 sm:w-44 sm:p-3">
-            {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSection(s.id)}
-                title={t(s.labelKey)}
-                className={`flex items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition sm:justify-start ${
-                  section === s.id
-                    ? "bg-violet-600/15 font-medium text-white"
-                    : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-                }`}
-              >
-                <span className="shrink-0">{s.icon}</span>
-                <span className="hidden truncate sm:inline">{t(s.labelKey)}</span>
-              </button>
-            ))}
-          </nav>
-
-          <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
-            <div className="flex min-h-full flex-col gap-4">
-              {section === "general" && (
-                <>
                   <Field label={t("settings.language")}>
                     <Select
                       ariaLabel={t("settings.language")}
@@ -405,7 +412,7 @@ export function SettingsModal({
                           icon: (
                             <Monitor
                               size={16}
-                              className="shrink-0 text-zinc-400"
+                              className="shrink-0 text-fg-dim"
                             />
                           ),
                         },
@@ -418,17 +425,51 @@ export function SettingsModal({
                       className={`${INPUT_CLASS} w-full`}
                     />
                   </Field>
+                  <Field label={t("settings.theme")}>
+                    <Select
+                      ariaLabel={t("settings.theme")}
+                      value={theme}
+                      onChange={(v) => onThemeChange(v as ThemePref)}
+                      options={[
+                        {
+                          value: "system",
+                          label: t("settings.themeSystem"),
+                          icon: (
+                            <Monitor
+                              size={16}
+                              className="shrink-0 text-fg-dim"
+                            />
+                          ),
+                        },
+                        {
+                          value: "dark",
+                          label: t("settings.themeDark"),
+                          icon: (
+                            <Moon size={16} className="shrink-0 text-fg-dim" />
+                          ),
+                        },
+                        {
+                          value: "light",
+                          label: t("settings.themeLight"),
+                          icon: (
+                            <Sun size={16} className="shrink-0 text-fg-dim" />
+                          ),
+                        },
+                      ]}
+                      className={`${INPUT_CLASS} w-full`}
+                    />
+                  </Field>
                   <Toggle
                     checked={form.check_updates}
                     onChange={(v) => set("check_updates", v)}
                     label={t("settings.autoCheckUpdates")}
-                    className="w-full"
+                    className={TOGGLE_ROW}
                   />
                   <Toggle
                     checked={form.notify_on_complete}
                     onChange={(v) => set("notify_on_complete", v)}
                     label={t("settings.notifyOnComplete")}
-                    className="w-full"
+                    className={TOGGLE_ROW}
                   />
                   {isTauri() && (
                     <>
@@ -437,22 +478,23 @@ export function SettingsModal({
                         onChange={(v) => set("minimize_to_tray", v)}
                         label={t("settings.minimizeToTray")}
                         help={<MinimizeToTrayHelp />}
-                        className="w-full"
+                        className={TOGGLE_ROW}
                       />
                       <Toggle
                         checked={form.launch_at_startup}
                         onChange={(v) => set("launch_at_startup", v)}
                         label={t("settings.launchAtStartup")}
-                        className="w-full"
+                        className={TOGGLE_ROW}
                       />
                     </>
                   )}
-                </>
-              )}
+        </section>
 
-              {section === "downloads" && (
-                <>
-          <Field label={t("settings.downloadDir")}>
+        <section id="settings-downloads" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.secDownloads")}
+          </h2>
+          <Field label={t("settings.downloadDir")} wide>
             <div className="relative">
               <input
                 type="text"
@@ -466,14 +508,14 @@ export function SettingsModal({
                 onClick={pickFolder}
                 aria-label={t("settings.browse")}
                 title={t("settings.browse")}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-fg-dim transition hover:bg-surface-hover hover:text-fg"
               >
                 <FolderOpen size={18} />
               </button>
             </div>
           </Field>
 
-          <Field label={t("settings.filenameTemplate")}>
+          <Field label={t("settings.filenameTemplate")} wide>
             <Select
               ariaLabel={t("settings.filenameTemplate")}
               value={templateCustom ? "__custom__" : form.filename_template}
@@ -507,12 +549,12 @@ export function SettingsModal({
               value={form.filename_template}
               onChange={(e) => set("filename_template", e.target.value)}
               placeholder="%(title)s"
-              className={`${INPUT_CLASS} w-full font-mono text-xs`}
+              className={`${INPUT_CLASS} mb-3 w-full font-mono text-xs`}
             />
           )}
-          <p className="-mt-1 flex items-center gap-1.5 truncate text-[11px] text-zinc-500">
+          <p className="mb-4 flex items-center gap-1.5 truncate text-[11px] text-fg-faint">
             <CornerDownRight size={12} className="shrink-0" />
-            <span className="truncate font-mono text-zinc-400">
+            <span className="truncate font-mono text-fg-dim">
               {templateExample(
                 form.filename_template,
                 form.default_kind === "audio"
@@ -522,8 +564,8 @@ export function SettingsModal({
             </span>
           </p>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label={t("settings.defaultFormat")} className="col-span-2">
+          <>
+            <Field label={t("settings.defaultFormat")}>
               <Select
                 ariaLabel={t("settings.defaultFormat")}
                 value={form.default_kind}
@@ -559,29 +601,30 @@ export function SettingsModal({
                 className={`${INPUT_CLASS} w-full`}
               />
             </Field>
-          </div>
+          </>
 
-          <div className="flex flex-col gap-2">
+          <>
             <Toggle
               checked={form.default_embed_subs}
               onChange={(v) => set("default_embed_subs", v)}
               label={t("settings.defaultEmbedSubs")}
               help={<EmbedSubsHelp />}
-              className="w-full"
+              className={TOGGLE_ROW}
             />
             <Toggle
               checked={form.default_embed_chapters}
               onChange={(v) => set("default_embed_chapters", v)}
               label={t("settings.defaultEmbedChapters")}
-              className="w-full"
+              className={TOGGLE_ROW}
             />
-          </div>
-                </>
-              )}
+          </>
+        </section>
 
-              {section === "quality" && (
-                <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <section id="settings-quality" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.secQuality")}
+          </h2>
+          <>
             <Field label={t("settings.defaultQuality")}>
               <Select
                 ariaLabel={t("settings.defaultQuality")}
@@ -623,13 +666,17 @@ export function SettingsModal({
                 className={`${INPUT_CLASS} w-full`}
               />
             </Field>
-          </div>
-                </>
-              )}
+          </>
+        </section>
 
-              {section === "processing" && (
-                <>
-          <Field label={t("settings.autotagSource")}>
+        <section id="settings-processing" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.secProcessing")}
+          </h2>
+          <Field
+            label={t("settings.autotagSource")}
+            description={t(`settings.autotagHint_${form.autotag_source}`)}
+          >
             <Select
               ariaLabel={t("settings.autotagSource")}
               value={form.autotag_source}
@@ -661,16 +708,12 @@ export function SettingsModal({
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
-          <p className="text-[11px] italic text-zinc-400 -mt-1">
-            {t(`settings.autotagHint_${form.autotag_source}`)}
-          </p>
-
           <Toggle
             checked={form.normalize_audio}
             onChange={(v) => set("normalize_audio", v)}
             label={t("settings.normalizeAudio")}
             help={<NormalizeAudioHelp />}
-            className="w-full"
+            className={TOGGLE_ROW}
           />
 
           {form.normalize_audio && (
@@ -686,7 +729,7 @@ export function SettingsModal({
             onChange={(v) => set("nfo_sidecars", v)}
             label={t("settings.nfoSidecars")}
             help={<NfoHelp />}
-            className="w-full"
+            className={TOGGLE_ROW}
           />
 
           <Toggle
@@ -694,45 +737,51 @@ export function SettingsModal({
             onChange={(v) => set("music_folders", v)}
             label={t("settings.musicFolders")}
             help={<MusicFoldersHelp />}
-            className="w-full"
+            className={TOGGLE_ROW}
           />
 
-          <div className="flex flex-col gap-2">
+          <>
             <Toggle
               checked={form.fetch_lyrics}
               onChange={(v) => set("fetch_lyrics", v)}
               label={t("settings.fetchLyrics")}
               help={<LyricsHelp />}
-              className="w-full"
+              className={TOGGLE_ROW}
             />
             {form.fetch_lyrics && (
-              <div className="border-l border-white/10 pl-3">
+              <div className="ml-1 border-l border-line/10 pl-4">
                 <Toggle
                   checked={form.lyrics_lrc}
                   onChange={(v) => set("lyrics_lrc", v)}
                   label={t("settings.lyricsLrc")}
                   help={<LyricsLrcHelp />}
-                  className="w-full"
+                  className={TOGGLE_ROW}
                 />
               </div>
             )}
-          </div>
-                </>
-              )}
+          </>
+        </section>
 
-              {section === "sponsorblock" && (
-                <>
-          <div className="flex flex-col gap-2">
+        <section id="settings-sponsorblock" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.sponsorblock")}
+          </h2>
+          <>
             <Toggle
               checked={form.sponsorblock_enabled}
               onChange={(v) => set("sponsorblock_enabled", v)}
               label={t("settings.sponsorblock")}
               icon={<SponsorBlockIcon className="size-4 shrink-0" />}
               help={<SponsorBlockHelp />}
-              className="w-full"
+              className={TOGGLE_ROW}
             />
             {form.sponsorblock_enabled && (
-              <>
+              <Field
+                label={t("settings.sponsorblockAction")}
+                description={t(
+                  `settings.sponsorblockHint_${form.sponsorblock_action}`,
+                )}
+              >
                 <Select
                   ariaLabel={t("settings.sponsorblockAction")}
                   value={form.sponsorblock_action}
@@ -745,17 +794,15 @@ export function SettingsModal({
                   ]}
                   className={`${INPUT_CLASS} w-full`}
                 />
-                <p className="text-[11px] italic text-zinc-400">
-                  {t(`settings.sponsorblockHint_${form.sponsorblock_action}`)}
-                </p>
-              </>
+              </Field>
             )}
-          </div>
-                </>
-              )}
+          </>
+        </section>
 
-              {section === "network" && (
-                <>
+        <section id="settings-network" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.secNetwork")}
+          </h2>
           <Field label={t("settings.rateLimit")}>
             <Select
               ariaLabel={t("settings.rateLimit")}
@@ -777,17 +824,21 @@ export function SettingsModal({
             checked={form.use_aria2c}
             onChange={(v) => set("use_aria2c", v)}
             label={t("settings.useAria2c")}
-            className="w-full"
+            className={TOGGLE_ROW}
           />
-          <p className="text-[11px] italic text-zinc-400 -mt-1">
+          <p className="-mt-2 pb-4 text-xs text-fg-faint">
             {t("settings.useAria2cHelp")}
           </p>
 
-          <p className="text-xs text-zinc-400 -mb-1">
+          <p className="border-t border-line/10 pt-4 text-xs text-fg-faint">
             {t("settings.cookiesHint")}
           </p>
 
-          <Field label={t("settings.cookiesBrowser")} hint={<BrowserCookiesHelp />}>
+          <Field
+            label={t("settings.cookiesBrowser")}
+            hint={<BrowserCookiesHelp />}
+            description={t("settings.cookiesBrowserNote")}
+          >
             <Select
               ariaLabel={t("settings.cookiesBrowser")}
               value={form.cookies_from_browser ?? ""}
@@ -812,11 +863,7 @@ export function SettingsModal({
               className={`${INPUT_CLASS} w-full`}
             />
           </Field>
-          <p className="text-[11px] italic text-zinc-400 -mt-1">
-            {t("settings.cookiesBrowserNote")}
-          </p>
-
-          <Field label={t("settings.cookiesFile")} hint={<CookiesHelp />}>
+          <Field label={t("settings.cookiesFile")} hint={<CookiesHelp />} wide>
             <div className="relative">
               <input
                 type="text"
@@ -831,14 +878,14 @@ export function SettingsModal({
                 onClick={pickCookiesFile}
                 aria-label={t("settings.browse")}
                 title={t("settings.browse")}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-fg-dim transition hover:bg-surface-hover hover:text-fg"
               >
                 <FolderOpen size={18} />
               </button>
             </div>
           </Field>
 
-          <Field label={t("settings.proxy")} hint={<ProxyHelp />}>
+          <Field label={t("settings.proxy")} hint={<ProxyHelp />} wide>
             <input
               type="text"
               aria-label={t("settings.proxy")}
@@ -849,7 +896,15 @@ export function SettingsModal({
             />
           </Field>
 
-          <Field label={t("settings.poTokenMode")} hint={<PoTokenHelp />}>
+          <Field
+            label={t("settings.poTokenMode")}
+            hint={<PoTokenHelp />}
+            description={
+              form.po_token_mode === "auto"
+                ? t("settings.poTokenModeAutoHint")
+                : undefined
+            }
+          >
             <Select
               ariaLabel={t("settings.poTokenMode")}
               value={form.po_token_mode}
@@ -863,16 +918,10 @@ export function SettingsModal({
             />
           </Field>
 
-          {form.po_token_mode === "auto" && (
-            <p className="-mt-1 px-1 text-xs text-zinc-500">
-              {t("settings.poTokenModeAutoHint")}
-            </p>
-          )}
-
           {/* The manual token is the source in "manual" mode and the fallback in
               "auto" (the CLI / an unminted request still uses it); hidden in "off". */}
           {form.po_token_mode !== "off" && (
-            <Field label={t("settings.poToken")}>
+            <Field label={t("settings.poToken")} wide>
               <input
                 type="text"
                 aria-label={t("settings.poToken")}
@@ -883,17 +932,19 @@ export function SettingsModal({
               />
             </Field>
           )}
-                </>
-              )}
+        </section>
 
-              {section === "shortcuts" && (
-                <div className="flex flex-col gap-0.5">
+        <section id="settings-shortcuts" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.catShortcuts")}
+          </h2>
+          <div className="flex flex-col gap-0.5">
                   {SHORTCUTS.filter((s) => !s.desktopOnly).map((s) => (
                     <ShortcutRow key={s.labelKey} shortcut={s} />
                   ))}
                   {isTauri() && (
                     <>
-                      <p className="mb-0.5 mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      <p className="mb-0.5 mt-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
                         {t("settings.shortcutsGlobal")}
                       </p>
                       {SHORTCUTS.filter((s) => s.desktopOnly).map((s) => (
@@ -904,202 +955,200 @@ export function SettingsModal({
                         onChange={(v) => set("disable_global_hotkeys", v)}
                         label={t("settings.disableGlobalHotkeys")}
                         help={<DisableGlobalHotkeysHelp />}
-                        className="mt-1.5 w-full"
+                        className={TOGGLE_ROW}
                       />
                     </>
                   )}
-                  <p className="mt-2 px-3 text-xs text-zinc-500">
+                  <p className="mt-2 px-3 text-xs text-fg-faint">
                     {t("settings.shortcutsNote")}
                   </p>
-                </div>
-              )}
+          </div>
+        </section>
 
-              {section === "extension" && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col items-center gap-2 pt-1 text-center">
-                    <Puzzle size={30} className="text-violet-400" />
-                    <p className="max-w-xs text-sm text-zinc-400">
-                      {t("settings.extensionIntro")}
-                    </p>
-                  </div>
-                  <div className="w-full divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
-                    <div className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <BrowserIcon browser="firefox" className="size-5 text-zinc-200" />
-                        <div className="text-sm font-medium">Firefox</div>
-                      </div>
-                      <a
-                        href={EXT_FIREFOX_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          void openExternal(EXT_FIREFOX_URL);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
-                      >
-                        <Download size={13} /> {t("settings.extensionGet")}
-                      </a>
-                    </div>
-                    <div className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <BrowserIcon browser="chrome" className="size-5 text-zinc-200" />
-                        <div className="text-sm font-medium">Chrome</div>
-                      </div>
-                      <a
-                        href={EXT_CHROME_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          void openExternal(EXT_CHROME_URL);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
-                      >
-                        <Download size={13} /> {t("settings.extensionGet")}
-                      </a>
-                    </div>
-                  </div>
-                  <a
-                    href={EXT_MANUAL_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      void openExternal(EXT_MANUAL_URL);
-                    }}
-                    className="px-1 text-center text-xs text-zinc-500 transition hover:text-violet-300"
-                  >
-                    {t("settings.extensionManual")}
-                  </a>
-                  <div className="mt-1 flex items-start gap-2.5 rounded-xl border border-violet-500/15 bg-violet-500/[0.06] px-3.5 py-3">
-                    <MousePointerClick
-                      size={16}
-                      className="mt-0.5 shrink-0 text-violet-400"
-                    />
-                    <p className="text-xs leading-relaxed text-zinc-300">
-                      {t("settings.extensionUsage")
-                        .split("Download with Yoink")
-                        .flatMap((part, i) =>
-                          i === 0
-                            ? [part]
-                            : [
-                                <span
-                                  key={i}
-                                  className="font-medium text-violet-300"
-                                >
-                                  Download with Yoink
-                                </span>,
-                                part,
-                              ],
-                        )}
-                    </p>
-                  </div>
-                </div>
-              )}
+        <section id="settings-extension" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.catExtension")}
+          </h2>
+          <p className="mb-5 max-w-prose text-sm leading-relaxed text-fg-dim">
+            {t("settings.extensionIntro")}
+          </p>
 
-              {section === "about" && (
-                <>
-        <div className="flex flex-col items-center gap-3 pt-1 text-center">
+          <div className="flex items-center justify-between gap-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <BrowserIcon browser="firefox" className="size-6 text-fg" />
+              <div>
+                <div className="text-sm text-fg">Firefox</div>
+                <div className="text-xs text-fg-faint">Mozilla Add-ons</div>
+              </div>
+            </div>
+            <a
+              href={EXT_FIREFOX_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                void openExternal(EXT_FIREFOX_URL);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3.5 py-1.5 text-xs text-accent-soft transition hover:bg-accent/25"
+            >
+              <Download size={13} /> {t("settings.extensionGet")}
+            </a>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t border-line/10 py-3.5">
+            <div className="flex items-center gap-3">
+              <BrowserIcon browser="chrome" className="size-6 text-fg" />
+              <div>
+                <div className="text-sm text-fg">Chrome</div>
+                <div className="text-xs text-fg-faint">Chrome Web Store</div>
+              </div>
+            </div>
+            <a
+              href={EXT_CHROME_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                void openExternal(EXT_CHROME_URL);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3.5 py-1.5 text-xs text-accent-soft transition hover:bg-accent/25"
+            >
+              <Download size={13} /> {t("settings.extensionGet")}
+            </a>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t border-line/10 py-3.5">
+            <span className="text-sm text-fg-dim">
+              {t("settings.extensionOther")}
+            </span>
+            <a
+              href={EXT_MANUAL_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                void openExternal(EXT_MANUAL_URL);
+              }}
+              className="text-xs text-accent-soft transition hover:underline"
+            >
+              {t("settings.extensionManual")}
+            </a>
+          </div>
+
+          <div className="mt-4 flex items-start gap-2.5 border-t border-line/10 pt-4 text-xs leading-relaxed text-fg-dim">
+            <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-accent-soft" />
+            <p>
+              {t("settings.extensionUsage")
+                .split("Download with Yoink")
+                .flatMap((part, i) =>
+                  i === 0
+                    ? [part]
+                    : [
+                        <span key={i} className="font-medium text-accent-soft">
+                          Download with Yoink
+                        </span>,
+                        part,
+                      ],
+                )}
+            </p>
+          </div>
+        </section>
+
+        <section id="settings-about" className="scroll-mt-4">
+          <h2 className="mb-5 font-display text-2xl font-normal">
+            {t("settings.catAbout")}
+          </h2>
+          <div className="flex flex-col gap-6">
+        <div className="flex items-center gap-4">
           <img
             src={logoUrl}
             alt="Yoink"
-            className="size-16 rounded-[1.15rem] shadow-lg shadow-violet-950/50 ring-1 ring-white/10"
+            className="size-14 rounded-2xl shadow-lg shadow-violet-950/50 ring-1 ring-line/10"
           />
-          <div>
+          <div className="min-w-0">
             <div className="text-lg font-semibold tracking-tight">Yoink</div>
-            <div className="text-xs text-zinc-400">Media Downloader</div>
+            <div className="text-xs text-fg-dim">Media Downloader</div>
+            <div className="mt-0.5 font-mono text-[11px] text-fg-faint">
+              v{__APP_VERSION__}
+              {ytdlp && !ytdlp.error && ytdlp.current !== "unknown"
+                ? ` · yt-dlp ${ytdlp.current}`
+                : ""}
+            </div>
           </div>
         </div>
 
-        <div className="w-full divide-y divide-white/5 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <div>
-              <div className="text-sm font-medium">{t("settings.version")}</div>
-              <div className="font-mono text-xs text-zinc-400">
-                v{__APP_VERSION__}
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5">
-              {result?.status === "up-to-date" && (
-                <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+        <div className="flex items-center justify-between gap-4 border-y border-line/10 py-4">
+          <div className="min-w-0">
+            <div className="text-sm text-fg">{t("settings.updates")}</div>
+            <div className="mt-1 text-xs">
+              {result?.status === "up-to-date" ? (
+                <span className="inline-flex items-center gap-1 text-emerald-400">
                   <CheckCircle2 size={13} /> {t("settings.upToDate")}
                 </span>
-              )}
-              {result?.status === "error" && (
-                <span className="text-xs text-zinc-400">
-                  {t("settings.checkError")}
-                </span>
-              )}
-              {result?.status === "tauri-unavailable" && (
-                <span className="text-xs text-zinc-400">
+              ) : result?.status === "error" ? (
+                <span className="text-fg-faint">{t("settings.checkError")}</span>
+              ) : result?.status === "tauri-unavailable" ? (
+                <span className="text-fg-faint">
                   {t("settings.checkDesktopOnly")}
                 </span>
-              )}
-              {result?.status === "available" && result.autoInstallable ? (
-                <button
-                  type="button"
-                  onClick={() => onInstall(result.update)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
-                >
-                  <ArrowUpCircle size={13} /> {t("settings.downloadInstall")}
-                </button>
-              ) : result?.status === "available" ? (
-                <a
-                  href={RELEASES_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    void openExternal(RELEASES_URL);
-                  }}
-                  className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs text-violet-200 transition hover:bg-violet-600/30"
-                >
-                  <ArrowUpCircle size={13} /> {t("settings.viewRelease")}
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleCheck}
-                  disabled={checking}
-                  className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-zinc-300 transition hover:border-white/20 hover:text-white disabled:opacity-50"
-                >
-                  {checking && <Loader2 size={12} className="animate-spin" />}
-                  {t("settings.checkUpdates")}
-                </button>
-              )}
+              ) : null}
+              {ytdlp &&
+                !ytdlp.error &&
+                ytdlp.current !== "unknown" &&
+                ytdlp.update_available &&
+                ytdlp.latest && (
+                  <span className="mt-0.5 block text-accent-soft">
+                    {t("settings.updateAvailable", { version: ytdlp.latest })}
+                  </span>
+                )}
             </div>
           </div>
-
-          {ytdlp && !ytdlp.error && ytdlp.current !== "unknown" && (
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <div>
-                <div className="text-sm font-medium">yt-dlp</div>
-                <div className="font-mono text-xs text-zinc-400">
-                  {ytdlp.current}
-                </div>
-              </div>
-              {ytdlp.update_available && ytdlp.latest ? (
-                <span className="text-xs text-violet-300">
-                  {t("settings.updateAvailable", { version: ytdlp.latest })}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs text-emerald-400/80">
-                  <CheckCircle2 size={12} /> {t("settings.upToDate")}
-                </span>
-              )}
-            </div>
+          {result?.status === "available" && result.autoInstallable ? (
+            <button
+              type="button"
+              onClick={() => onInstall(result.update)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3.5 py-1.5 text-xs text-accent-soft transition hover:bg-accent/25"
+            >
+              <ArrowUpCircle size={13} /> {t("settings.downloadInstall")}
+            </button>
+          ) : result?.status === "available" ? (
+            <a
+              href={RELEASES_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                void openExternal(RELEASES_URL);
+              }}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3.5 py-1.5 text-xs text-accent-soft transition hover:bg-accent/25"
+            >
+              <ArrowUpCircle size={13} /> {t("settings.viewRelease")}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCheck}
+              disabled={checking}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line/10 px-3.5 py-1.5 text-xs text-fg transition hover:border-line/20 disabled:opacity-50"
+            >
+              {checking && <Loader2 size={12} className="animate-spin" />}
+              {t("settings.checkUpdates")}
+            </button>
           )}
         </div>
 
-        <div className="flex w-full flex-col gap-0.5">
+        <div className="flex flex-col">
           <button
             type="button"
             onClick={onShowWhatsNew}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-200 transition hover:bg-white/5"
+            className="group flex items-center gap-3 border-t border-line/10 py-3 text-sm text-fg transition first:border-t-0 hover:text-accent-soft"
           >
-            <Sparkles size={16} className="shrink-0 text-violet-400" />
+            <Sparkles size={16} className="shrink-0 text-accent-soft" />
             {t("whatsNew.button")}
+            <ChevronRight
+              size={15}
+              className="ml-auto text-fg-faint transition group-hover:translate-x-0.5"
+            />
           </button>
           <a
             href="https://github.com/ayozetr"
@@ -1109,13 +1158,17 @@ export function SettingsModal({
               e.preventDefault();
               void openExternal("https://github.com/ayozetr");
             }}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-200 transition hover:bg-white/5"
+            className="group flex items-center gap-3 border-t border-line/10 py-3 text-sm text-fg transition hover:text-accent-soft"
           >
-            <GithubIcon className="size-4 shrink-0" />
+            <GithubIcon className="size-4 shrink-0 text-accent-soft" />
             <span>
               {t("settings.developedBy")}{" "}
-              <strong className="font-medium text-white">ayozetr</strong>
+              <strong className="font-medium text-fg">ayozetr</strong>
             </span>
+            <ChevronRight
+              size={15}
+              className="ml-auto text-fg-faint transition group-hover:translate-x-0.5"
+            />
           </a>
           <a
             href="https://ko-fi.com/ayozetr"
@@ -1125,59 +1178,77 @@ export function SettingsModal({
               e.preventDefault();
               void openExternal("https://ko-fi.com/ayozetr");
             }}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-200 transition hover:bg-white/5 hover:text-violet-200"
+            className="group flex items-center gap-3 border-t border-line/10 py-3 text-sm text-fg transition hover:text-accent-soft"
           >
-            <Coffee size={16} className="shrink-0 text-violet-400" />
+            <Coffee size={16} className="shrink-0 text-accent-soft" />
             {t("settings.donate")}
+            <ChevronRight
+              size={15}
+              className="ml-auto text-fg-faint transition group-hover:translate-x-0.5"
+            />
           </a>
         </div>
-        <div className="mt-auto flex flex-col items-start gap-1">
+        <div className="flex flex-wrap gap-x-5 gap-y-1">
           <button
             type="button"
             onClick={() => setLicensesOpen(true)}
-            className="self-start px-3 text-[11px] text-zinc-500 transition hover:text-zinc-300"
+            className="text-[11px] text-fg-faint transition hover:text-fg"
           >
             {t("settings.openSourceLicenses")}
           </button>
           <button
             type="button"
             onClick={() => setTermsOpen(true)}
-            className="self-start px-3 text-[11px] text-zinc-500 transition hover:text-zinc-300"
+            className="text-[11px] text-fg-faint transition hover:text-fg"
           >
             {t("settings.terms")}
           </button>
         </div>
-                </>
-              )}
-            </div>
-          </div>
+                </div>
+        </section>
         </div>
 
-        <div className="flex items-center gap-3 border-t border-white/10 px-6 py-4">
-          {error && <p className="text-sm text-red-400">{error}</p>}
-          <div className="ml-auto flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 h-11 rounded-2xl text-sm text-zinc-300 hover:text-white transition"
-            >
-              {t("settings.cancel")}
-            </button>
-            <Button
-              variant="gradient"
-              onClick={handleSave}
-              disabled={saving}
-              className="px-5 h-11 disabled:opacity-50"
-            >
-              {saving && <Loader2 size={16} className="animate-spin" />}
-              {t("settings.save")}
-            </Button>
-          </div>
-        </div>
-      </GlassPanel>
-    </div>
-    {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
-    {licensesOpen && <LicensesModal onClose={() => setLicensesOpen(false)} />}
+        {/* "On this page" index — sticky right rail, highlights the section in
+            view (scrollspy). Hidden on narrow widths (the page is pure scroll). */}
+        <aside className="sticky top-2 hidden self-start md:block">
+          <nav className="flex flex-col gap-1.5 border-l border-line/10 pl-4">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+              {t("settings.onThisPage")}
+            </p>
+            {SETTINGS_SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => scrollToSection(s.id)}
+                className={`text-left text-[13px] leading-tight transition ${
+                  activeSection === s.id
+                    ? "font-semibold text-accent-soft"
+                    : "text-fg-dim hover:text-fg"
+                }`}
+              >
+                {t(s.labelKey)}
+              </button>
+            ))}
+          </nav>
+        </aside>
+      </div>
+
+      {/* Save — sticky at the bottom so it's always reachable while scrolling. */}
+      <div className="sticky bottom-0 z-10 -mx-4 flex items-center gap-3 border-t border-line/10 bg-canvas/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <Button
+          variant="gradient"
+          onClick={handleSave}
+          disabled={saving}
+          className="ml-auto h-11 px-6 disabled:opacity-50"
+        >
+          {saving && <Loader2 size={16} className="animate-spin" />}
+          {t("settings.save")}
+        </Button>
+      </div>
+
+      {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
+      {licensesOpen && <LicensesModal onClose={() => setLicensesOpen(false)} />}
     </>
   );
 }
@@ -1199,21 +1270,34 @@ function GithubIcon({ className }: { className?: string }) {
 function Field({
   label,
   hint,
+  description,
+  wide = false,
   children,
   className = "",
 }: {
   label: string;
   hint?: ReactNode;
+  /** Muted sub-line under the label (existing helper text). */
+  description?: ReactNode;
+  /** Give the control more room (text inputs, long select labels). */
+  wide?: boolean;
   children: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="flex items-center gap-1.5 text-xs text-zinc-400">
-        {label}
-        {hint}
-      </span>
-      {children}
+    <div
+      className={`flex items-center justify-between gap-6 border-t border-line/10 py-4 first:border-t-0 ${className}`}
+    >
+      <div className="min-w-0">
+        <span className="flex items-center gap-1.5 text-sm text-fg">
+          {label}
+          {hint}
+        </span>
+        {description && (
+          <p className="mt-1 text-xs text-fg-faint">{description}</p>
+        )}
+      </div>
+      <div className={`shrink-0 ${wide ? "w-72" : "w-52"}`}>{children}</div>
     </div>
   );
 }
@@ -1297,7 +1381,7 @@ function HelpPopover({
         onClick={() => setOpen((o) => !o)}
         aria-label={label ?? t("settings.cookiesHelp")}
         title={label ?? t("settings.cookiesHelp")}
-        className="inline-flex text-zinc-500 transition hover:text-zinc-200"
+        className="inline-flex text-fg-faint transition hover:text-fg"
       >
         <HelpCircle size={13} />
       </button>
@@ -1306,7 +1390,7 @@ function HelpPopover({
           ref={popRef}
           data-popover="true"
           style={{ position: "fixed", top: pos.top, left: pos.left, width: WIDTH }}
-          className="z-[200] rounded-lg border border-white/10 bg-[#1a1d27] p-3 text-xs leading-relaxed text-zinc-300 shadow-xl"
+          className="z-[200] rounded-lg border border-line/10 bg-surface-2 p-3 text-xs leading-relaxed text-fg shadow-xl"
         >
           {children}
         </div>
@@ -1325,14 +1409,14 @@ function CookiesHelp() {
         <button
           type="button"
           onClick={() => void openExternal(COOKIES_EXT_CHROMIUM)}
-          className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
+          className="text-left text-accent-soft transition hover:text-accent-soft hover:underline"
         >
           {t("settings.cookiesHelpChromium")}
         </button>
         <button
           type="button"
           onClick={() => void openExternal(COOKIES_EXT_FIREFOX)}
-          className="text-left text-violet-300 transition hover:text-violet-200 hover:underline"
+          className="text-left text-accent-soft transition hover:text-accent-soft hover:underline"
         >
           {t("settings.cookiesHelpFirefox")}
         </button>
@@ -1413,13 +1497,13 @@ function LufsSlider({
   return (
     // Same card shell (bg/border/px-4) as the surrounding toggles so the slider
     // lines up with them instead of spilling a few pixels past each edge.
-    <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-surface px-4 py-3">
+    <div className="flex flex-col gap-1.5 rounded-xl border border-line/10 bg-surface px-4 py-3">
       <div className="flex items-baseline justify-between">
-        <span className="text-sm text-zinc-200">{label}</span>
-        <span className="text-sm font-medium tabular-nums text-violet-300">
+        <span className="text-sm text-fg">{label}</span>
+        <span className="text-sm font-medium tabular-nums text-accent-soft">
           {value} LUFS
           {note && (
-            <span className="ml-1.5 text-[11px] font-normal text-zinc-400">
+            <span className="ml-1.5 text-[11px] font-normal text-fg-dim">
               · {note}
             </span>
           )}
@@ -1433,7 +1517,7 @@ function LufsSlider({
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
-        className="w-full cursor-pointer accent-violet-500"
+        className="w-full cursor-pointer accent-accent"
       />
       <div className="relative mt-0.5 h-6 select-none">
         {LUFS_MARKS.map((m) => (
@@ -1445,12 +1529,12 @@ function LufsSlider({
             className="absolute flex -translate-x-1/2 flex-col items-center gap-0.5"
             aria-label={`${m.value} LUFS`}
           >
-            <span className="h-1.5 w-px bg-zinc-600" />
+            <span className="h-1.5 w-px bg-fg-faint" />
             <span
               className={`text-[10px] tabular-nums transition ${
                 m.value === value
-                  ? "font-medium text-violet-300"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "font-medium text-accent-soft"
+                  : "text-fg-faint hover:text-fg"
               }`}
             >
               {m.value}
