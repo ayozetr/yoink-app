@@ -805,6 +805,7 @@ export function DownloaderPanel({
           !tagDismissedSingle
         }
         onClose={() => setTagDismissedSingle(true)}
+        title={t("autotag.title")}
       >
         {completed?.filepath && (
           <Suspense fallback={null}>

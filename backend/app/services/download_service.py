@@ -652,6 +652,11 @@ _ERROR_HINTS: tuple[tuple[str, str], ...] = (
     ("unable to extract", "Couldn't read this page — the site may have changed or the link is wrong."),
     ("unsupported url", "This URL isn't supported."),
     ("no video formats found", "No downloadable formats were found for this URL."),
+    ("http error 404", "Page not found (404) — the link may be wrong or removed."),
+    (
+        "unable to download webpage",
+        "Couldn't reach this page — check the link or your connection.",
+    ),
 )
 
 
@@ -665,6 +670,8 @@ def friendly_download_error(raw: str) -> str:
     text = re.split(
         r"\bplease report this issue\b", raw.strip(), maxsplit=1, flags=re.IGNORECASE
     )[0].strip()
+    # Drop yt-dlp's "(caused by <…>)" chained-exception tail — it's noise to a user.
+    text = re.sub(r"\s*\(caused by .*\)\s*$", "", text, flags=re.IGNORECASE | re.DOTALL)
     low = text.lower()
     for marker, message in _ERROR_HINTS:
         if marker in low:
@@ -915,11 +922,18 @@ async def download_events(
             logger.error("Download for %s vanished after finishing: %s", request.url, path)
             yield ErrorEvent(message="Download finished but the output file is missing.")
             return
+        try:
+            total_bytes = path.stat().st_size
+        except OSError:
+            # Vanished between the exists() check and here (postprocessor/AV race).
+            logger.error("Download for %s vanished after finishing: %s", request.url, path)
+            yield ErrorEvent(message="Download finished but the output file is missing.")
+            return
         logger.info("Downloaded %s -> %s", request.url, path.name)
         yield CompletedEvent(
             filename=path.name,
             filepath=str(path),
-            total_bytes=path.stat().st_size,
+            total_bytes=total_bytes,
         )
     finally:
         # Tear down the bridge on every exit path — including when the consumer

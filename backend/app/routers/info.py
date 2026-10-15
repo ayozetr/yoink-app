@@ -9,9 +9,11 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from app.core.safe_http import host_is_blocked
 from app.core.ytdlp_options import normalize_url
 from app.models.media import InfoRequest, InfoResponse, SearchResponse
 from app.services import history_store
+from app.services.download_service import friendly_download_error
 from app.services.ytdlp_service import (
     MediaExtractionError,
     extract_info,
@@ -54,8 +56,17 @@ def get_media_info(request: InfoRequest) -> InfoResponse:
     Returns either a single video (preview card + formats) or a flat playlist
     listing, depending on the URL.
     """
+    # Defense-in-depth SSRF guard: yt-dlp fetches the URL outside safe_http, and
+    # the desktop deep-link check is the only other barrier, so reject a target
+    # that resolves to a non-public address here too (covers the web/server builds).
+    url = str(request.url)
+    if host_is_blocked(urlsplit(url).hostname):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="This URL points to a non-public address.",
+        )
     try:
-        info = extract_info(str(request.url))
+        info = extract_info(url)
     except MediaExtractionError as exc:
         # Transient (anti-bot 403 / network blip, already retried) → 503 so the
         # client can offer a clean "try again"; permanent (unsupported/private
@@ -67,7 +78,7 @@ def get_media_info(request: InfoRequest) -> InfoResponse:
             ) from exc
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Could not extract media info: {exc}",
+            detail=friendly_download_error(str(exc)),
         ) from exc
 
     # Playlist sync: flag items you've already downloaded (matched by normalized

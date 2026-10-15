@@ -78,7 +78,10 @@ def _apply(data: dict[str, Any]) -> None:
 
     if data.get("filename_template"):
         settings.filename_template = str(data["filename_template"])
-    settings.rate_limit = str(data["rate_limit"]) if data.get("rate_limit") else None
+    # Guard on key presence (like cookies/proxy/po_token above) so a partial or
+    # pre-field settings.json doesn't wipe a YOINK_RATE_LIMIT provided via env.
+    if "rate_limit" in data:
+        settings.rate_limit = str(data["rate_limit"]) if data["rate_limit"] else None
     if data.get("video_codec") in ("any", "h264", "vp9", "av1"):
         settings.video_codec = data["video_codec"]
     if data.get("audio_bitrate") in ("best", "320", "256", "192", "128"):

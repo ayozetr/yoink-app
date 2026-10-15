@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -17,17 +18,39 @@ from app.services import history_store
 
 router = APIRouter(tags=["history"])
 
+# Files the /open endpoint will launch with the OS default app. Anything else
+# (e.g. a .desktop / .bat that a prior download dropped in the dir) only gets the
+# containing folder revealed, never executed.
+_OPENABLE_SUFFIXES = {
+    ".mp3", ".m4a", ".flac", ".wav", ".opus", ".ogg", ".aac",
+    ".mp4", ".mkv", ".mov", ".webm", ".avi", ".m4v",
+    ".jpg", ".jpeg", ".png", ".webp", ".gif",
+    ".srt", ".vtt", ".lrc", ".nfo",
+}
+
 
 @router.get("/history", response_model=list[HistoryEntry], summary="Recent downloads")
 def list_history() -> list[HistoryEntry]:
     """Return recent download records, newest first."""
-    return history_store.list_entries()
+    try:
+        return history_store.list_entries()
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="History is temporarily unavailable.",
+        ) from exc
 
 
 @router.get("/history/stats", response_model=HistoryStats, summary="Aggregate stats")
 def history_stats() -> HistoryStats:
     """Return aggregate download statistics (count, total transferred)."""
-    return history_store.get_stats()
+    try:
+        return history_store.get_stats()
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="History is temporarily unavailable.",
+        ) from exc
 
 
 @router.delete(
@@ -37,7 +60,13 @@ def history_stats() -> HistoryStats:
 )
 def clear_history() -> Response:
     """Delete all download history records."""
-    history_store.clear()
+    try:
+        history_store.clear()
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="History is temporarily unavailable.",
+        ) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -75,8 +104,18 @@ def open_in_file_manager(request: OpenRequest) -> dict[str, str]:
             status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found."
         )
 
-    # Open the file itself (with its default app) when asked; else reveal folder.
-    to_open = target if (request.open_file and target.is_file()) else folder
+    # Open the file itself (with its default app) only when asked AND it's a known
+    # media/sidecar type; otherwise reveal the folder — never launch an arbitrary
+    # (possibly executable) file sitting in the download dir.
+    to_open = (
+        target
+        if (
+            request.open_file
+            and target.is_file()
+            and target.suffix.lower() in _OPENABLE_SUFFIXES
+        )
+        else folder
+    )
     try:
         _open_folder(to_open)
     except OSError as exc:

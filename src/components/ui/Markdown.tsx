@@ -21,6 +21,9 @@ const INLINE =
 function safeHref(url: string): string | undefined {
   const trimmed = url.trim();
   if (/^(https?:|mailto:)/i.test(trimmed)) return trimmed;
+  // A protocol-relative `//host` has no scheme but resolves to an external host —
+  // drop it so it isn't mistaken for a safe relative path below.
+  if (trimmed.startsWith("//")) return undefined;
   // Relative/anchor links (no scheme) are safe; anything else with a scheme is not.
   if (!/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
   return undefined;

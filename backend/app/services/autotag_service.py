@@ -645,7 +645,11 @@ def rename_to_tagged(path: Path, new_title: str) -> Path:
         return path  # don't clobber a different file that already has this name
     prefix = path.stem + "."
     try:
-        for sib in _movable_siblings(path, prefix):
+        # Rename the audio file LAST (see organize_music_library) so a partial
+        # failure can't leave the audio renamed while we return the old path.
+        movable = _movable_siblings(path, prefix)
+        movable.sort(key=lambda s: s == path)  # the audio (== path) sorts last
+        for sib in movable:
             dest = sib.with_name(new_stem + sib.name[len(path.stem) :])
             if dest.exists():
                 continue  # a different file already owns this sidecar name — keep it
@@ -685,11 +689,25 @@ def organize_music_library(
     target = folder / (safe_stem + path.suffix)
     if target == path:
         return path
+    # Confinement: a crafted artist/album (e.g. a bare "..") must not relocate the
+    # file or create folders outside the download dir. sanitize_filename neutralises
+    # path separators but leaves a lone ".." intact, so re-check before touching
+    # disk, like every other file endpoint in the codebase.
+    download_root = settings.ensure_download_dir().resolve()
+    try:
+        if not target.resolve().is_relative_to(download_root):
+            return path
+    except OSError:
+        return path
     if target.exists():
         return path  # don't clobber a different file that already owns the name
     prefix = path.stem + "."
     try:
+        # Move the sidecars first and the audio file LAST: a mid-move failure then
+        # never leaves the audio relocated while we return (and history keeps) the
+        # original path — the returned path must match where the audio really is.
         movable = _movable_siblings(path, prefix)
+        movable.sort(key=lambda s: s == path)  # the audio (== path) sorts last
         folder.mkdir(parents=True, exist_ok=True)
         for sib in movable:
             dest = folder / (safe_stem + sib.name[len(path.stem) :])

@@ -61,7 +61,25 @@ fn is_blocked_host(host: &str) -> bool {
                 || v4.is_unspecified()
                 || v4.is_broadcast()
         }
-        Ok(std::net::IpAddr::V6(v6)) => v6.is_loopback() || v6.is_unspecified(),
+        Ok(std::net::IpAddr::V6(v6)) => {
+            // An IPv4-mapped literal (e.g. ::ffff:127.0.0.1 / ::ffff:169.254.169.254)
+            // reaches the same host as its v4 form, so normalise and re-run the v4
+            // checks — otherwise it bypasses the IPv4 guard above.
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return v4.is_loopback()
+                    || v4.is_private()
+                    || v4.is_link_local()
+                    || v4.is_unspecified()
+                    || v4.is_broadcast();
+            }
+            // std has no stable is_unique_local/is_unicast_link_local, so match the
+            // prefixes by hand: ULA fc00::/7 and unicast link-local fe80::/10.
+            let seg = v6.octets();
+            v6.is_loopback()
+                || v6.is_unspecified()
+                || (seg[0] & 0xfe) == 0xfc
+                || (seg[0] == 0xfe && (seg[1] & 0xc0) == 0x80)
+        }
         Err(_) => false, // a hostname (not an IP literal) — allowed
     }
 }
@@ -522,7 +540,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::deep_link_target;
+    use super::{deep_link_target, is_blocked_host};
     use url::Url;
 
     fn target(link: &str) -> Option<String> {
@@ -551,5 +569,27 @@ mod tests {
             target("yoink://download?url=%20https%3A%2F%2Fy.com%20"),
             Some("https://y.com".to_string())
         );
+    }
+
+    #[test]
+    fn blocks_internal_hosts_including_ipv6() {
+        // IPv4 internal / metadata / localhost.
+        for h in ["127.0.0.1", "10.0.0.5", "169.254.169.254", "localhost"] {
+            assert!(is_blocked_host(h), "{h} should be blocked");
+        }
+        // IPv6 forms that previously slipped through the v6 arm.
+        for h in [
+            "[::1]",
+            "[::ffff:127.0.0.1]",       // IPv4-mapped loopback
+            "[::ffff:169.254.169.254]", // IPv4-mapped cloud-metadata
+            "[fd00::1]",                // unique-local (fc00::/7)
+            "[fe80::1]",                // link-local (fe80::/10)
+        ] {
+            assert!(is_blocked_host(h), "{h} should be blocked");
+        }
+        // Public hosts stay allowed.
+        for h in ["example.com", "8.8.8.8", "[2606:4700:4700::1111]"] {
+            assert!(!is_blocked_host(h), "{h} should be allowed");
+        }
     }
 }

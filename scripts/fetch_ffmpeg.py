@@ -31,7 +31,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 VENDOR = ROOT / "backend" / "vendor" / "ffmpeg"
 
-BASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
+# BtbN's moving `latest` release by default. The sha256 check below catches a
+# corrupted/MITM'd download, but the checksum file ships in the SAME release, so it
+# can't catch a compromised/retagged upstream (both move together). For a reproducible
+# or pinned build, point YOINK_FFMPEG_BASE at a specific release tag or a vetted mirror
+# that hosts the same-named assets + checksums.sha256.
+BASE = os.environ.get(
+    "YOINK_FFMPEG_BASE",
+    "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest",
+)
 CHECKSUMS_URL = f"{BASE}/checksums.sha256"
 
 

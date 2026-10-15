@@ -3,6 +3,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useFocusTrap } from "../../lib/useFocusTrap";
 
 interface DrawerProps {
@@ -22,6 +23,7 @@ interface DrawerProps {
  * animationend — CSS-keyframe driven, matching the toast pattern.
  */
 export function Drawer({ open, onClose, title, children }: DrawerProps) {
+  const { t } = useTranslation();
   const ref = useFocusTrap<HTMLDivElement>(open);
   const [mounted, setMounted] = useState(open);
 
@@ -58,6 +60,7 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         ref={ref}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="yoink-drawer-title"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         // Unmount once the exit slide finishes (only the panel's own animation,
@@ -70,12 +73,17 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         }`}
       >
         <div className="flex items-center justify-between border-b border-line/10 px-5 py-4">
-          <div className="min-w-0 truncate font-semibold text-fg">{title}</div>
+          <div
+            id="yoink-drawer-title"
+            className="min-w-0 truncate font-semibold text-fg"
+          >
+            {title}
+          </div>
           <button
             type="button"
             onClick={onClose}
             className="-mr-1 shrink-0 text-fg-faint transition hover:text-fg"
-            aria-label="×"
+            aria-label={t("common.close")}
           >
             <X size={18} />
           </button>
