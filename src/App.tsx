@@ -1,13 +1,16 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AppLayout } from "./components/layout/AppLayout";
+import { AppShell } from "./components/layout/AppShell";
+import type { TabId } from "./components/layout/TabBar";
+import { useTheme } from "./lib/theme";
 import { Splash } from "./components/layout/Splash";
 import { EditMenu } from "./components/ui/EditMenu";
 import { BackendMismatchBanner } from "./components/ui/BackendMismatchBanner";
 import { BackendUnreachableBanner } from "./components/ui/BackendUnreachableBanner";
 import { UpdateBanner } from "./components/ui/UpdateBanner";
 import { UpdatingModal } from "./components/ui/UpdatingModal";
-import { useFocusTrap } from "./lib/useFocusTrap";
+import { Toaster } from "./components/ui/Toaster";
+import { Drawer } from "./components/ui/Drawer";
 import { checkForUpdate, installUpdate, type UpdateCheck } from "./lib/updater";
 import { notify } from "./lib/notify";
 import { startPoTokenMinter } from "./lib/poTokenMinter";
@@ -77,7 +80,10 @@ export default function App() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [stats, setStats] = useState<DownloadStats>(EMPTY_STATS);
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // The active top-level view (Flat Minimal tabs). Downloads keep running while
+  // hidden because the downloader + queue panels stay mounted across switches.
+  const [activeTab, setActiveTab] = useState<TabId>("home");
+  const { theme, setTheme } = useTheme();
   const [ready, setReady] = useState(false);
   const [retagItem, setRetagItem] = useState<HistoryEntry | null>(null);
   // External "analyze this URL" requests for the downloader (re-analyze from a
@@ -88,8 +94,8 @@ export default function App() {
     const url = rawUrl.trim();
     if (url) setAnalyzeReq({ url, nonce: (nonceRef.current += 1) });
   }, []);
-  // Download queue: opened from the header button; keeps running while hidden.
-  const [queueOpen, setQueueOpen] = useState(false);
+  // Download queue: its own tab now; keeps running while another tab is active
+  // (the panel stays mounted). This tracks the unfinished count for the tab badge.
   const [queuePending, setQueuePending] = useState(0);
 
   // Update experience: an opt-in launch check raises a banner (+ notification)
@@ -121,8 +127,6 @@ export default function App() {
   );
   const updateCheckedRef = useRef(false);
   const { t } = useTranslation();
-  // Trap focus inside the re-tag dialog while it's open (a11y).
-  const retagDialogRef = useFocusTrap<HTMLDivElement>(retagItem?.filepath != null);
 
   const refresh = useCallback(async () => {
     try {
@@ -294,14 +298,8 @@ export default function App() {
         input?.select();
       } else if (mod && e.key === ",") {
         e.preventDefault();
-        setSettingsOpen((open) => !open);
-      } else if (e.key === "Escape") {
-        // Let an open inner dropdown/popover consume Escape first; only close
-        // Settings when none is open (so one Esc closes the dropdown, not both).
-        if (document.querySelector('[role="listbox"], [data-popover="true"]')) {
-          return;
-        }
-        setSettingsOpen(false);
+        // Toggle the Settings tab (jump to it, or back to Home if already there).
+        setActiveTab((tab) => (tab === "settings" ? "home" : "settings"));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -356,67 +354,75 @@ export default function App() {
 
   return (
     <>
-      <AppLayout
-        main={
-          <>
-            <DownloaderPanel
-              onDownloadFinished={refresh}
-              onOpenSettings={() => setSettingsOpen(true)}
-              onToggleQueue={() => setQueueOpen((o) => !o)}
-              queueCount={queuePending}
-              queueOpen={queueOpen}
-              defaultKind={settings?.default_kind}
-              defaultQuality={settings?.default_quality}
-              defaultAudioFormat={settings?.default_audio_format}
-              defaultEmbedSubs={settings?.default_embed_subs}
-              defaultEmbedChapters={settings?.default_embed_chapters}
-              fetchLyrics={settings?.fetch_lyrics}
-              notifyOnComplete={settings?.notify_on_complete}
-              analyzeRequest={analyzeReq}
-            />
-            <QueuePanel
-              open={queueOpen}
-              onClose={() => setQueueOpen(false)}
-              defaultKind={settings?.default_kind}
-              defaultQuality={settings?.default_quality}
-              defaultContainer={settings?.default_container}
-              defaultAudioFormat={settings?.default_audio_format}
-              notifyOnComplete={settings?.notify_on_complete}
-              onDownloadFinished={refresh}
-              onPendingChange={setQueuePending}
-            />
-          </>
-        }
-        sidebar={
+      <AppShell
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        queueCount={queuePending}
+      >
+        {/* Every view stays mounted (just hidden when inactive) so an active
+            download in the Home/Queue panels keeps running across tab switches.
+            Note: toggle visibility with the Tailwind `hidden` class, not the
+            `hidden` attribute — a display utility on the element would override
+            the attribute. */}
+        <div className={activeTab === "home" ? "flex flex-col gap-4" : "hidden"}>
+          <DownloaderPanel
+            onDownloadFinished={refresh}
+            defaultKind={settings?.default_kind}
+            defaultQuality={settings?.default_quality}
+            defaultAudioFormat={settings?.default_audio_format}
+            defaultEmbedSubs={settings?.default_embed_subs}
+            defaultEmbedChapters={settings?.default_embed_chapters}
+            fetchLyrics={settings?.fetch_lyrics}
+            notifyOnComplete={settings?.notify_on_complete}
+            analyzeRequest={analyzeReq}
+          />
+        </div>
+
+        <div className={activeTab === "queue" ? "" : "hidden"}>
+          <QueuePanel
+            open
+            onClose={() => setActiveTab("home")}
+            defaultKind={settings?.default_kind}
+            defaultQuality={settings?.default_quality}
+            defaultContainer={settings?.default_container}
+            defaultAudioFormat={settings?.default_audio_format}
+            notifyOnComplete={settings?.notify_on_complete}
+            onDownloadFinished={refresh}
+            onPendingChange={setQueuePending}
+          />
+        </div>
+
+        <div className={activeTab === "history" ? "" : "hidden"}>
           <HistorySidebar
             items={history}
             stats={stats}
             onOpenFolder={handleOpenFolder}
             onOpenFile={handleOpenFile}
             onRetag={setRetagItem}
-            onReanalyze={(entry) => requestAnalyze(entry.url)}
+            onReanalyze={(entry) => {
+              setActiveTab("home");
+              requestAnalyze(entry.url);
+            }}
             onClear={handleClear}
           />
-        }
-      />
+        </div>
 
-      {settingsOpen && settings && (
-        <Suspense fallback={null}>
-          <SettingsModal
-            settings={settings}
-            onClose={() => setSettingsOpen(false)}
-            onSaved={setSettings}
-            onShowWhatsNew={() => {
-              setSettingsOpen(false);
-              setWhatsNewOpen(true);
-            }}
-            onInstall={(update) => {
-              setSettingsOpen(false);
-              startUpdate(update);
-            }}
-          />
-        </Suspense>
-      )}
+        <div className={activeTab === "settings" ? "h-full" : "hidden"}>
+          {activeTab === "settings" && settings && (
+            <Suspense fallback={null}>
+              <SettingsModal
+                settings={settings}
+                theme={theme}
+                onThemeChange={setTheme}
+                onClose={() => setActiveTab("home")}
+                onSaved={setSettings}
+                onShowWhatsNew={() => setWhatsNewOpen(true)}
+                onInstall={(update) => startUpdate(update)}
+              />
+            </Suspense>
+          )}
+        </div>
+      </AppShell>
 
       {whatsNewOpen && (
         <Suspense fallback={null}>
@@ -427,44 +433,22 @@ export default function App() {
         </Suspense>
       )}
 
-      {retagItem?.filepath && (
-        <div
-          role="presentation"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setRetagItem(null)}
-        >
-          <div
-            ref={retagDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("autotag.title")}
-            tabIndex={-1}
-            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto outline-none"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              // Esc closes the dialog — unless an inner dropdown should eat it first.
-              if (
-                e.key === "Escape" &&
-                !document.querySelector('[role="listbox"], [data-popover="true"]')
-              ) {
-                setRetagItem(null);
-              }
-            }}
-          >
-            <Suspense fallback={null}>
-              <AutoTagPanel
-                path={retagItem.filepath}
-                filename={retagItem.filename ?? undefined}
-                onDismiss={() => setRetagItem(null)}
-                onApplied={refresh}
-                autoOpen
-                fetchLyrics={settings?.fetch_lyrics}
-                panelClassName="!bg-[#16181f]"
-              />
-            </Suspense>
-          </div>
-        </div>
-      )}
+      {/* Re-tag from history: opens the auto-tag form in the right-side drawer. */}
+      <Drawer open={!!retagItem?.filepath} onClose={() => setRetagItem(null)}>
+        {retagItem?.filepath && (
+          <Suspense fallback={null}>
+            <AutoTagPanel
+              path={retagItem.filepath}
+              filename={retagItem.filename ?? undefined}
+              onDismiss={() => setRetagItem(null)}
+              onApplied={refresh}
+              autoOpen
+              fetchLyrics={settings?.fetch_lyrics}
+              panelClassName="!border-0 !bg-transparent !p-0"
+            />
+          </Suspense>
+        )}
+      </Drawer>
 
       {availableUpdate && (
         <UpdateBanner
@@ -473,9 +457,10 @@ export default function App() {
             if (availableUpdate.autoInstallable) {
               startUpdate(availableUpdate.update);
             } else {
-              // .deb/.rpm can't self-install — send them to the release page.
+              // .deb/.rpm can't self-install — send them to the release page
+              // (the About section of the Settings tab has the link + version).
               setAvailableUpdate(null);
-              setSettingsOpen(true);
+              setActiveTab("settings");
             }
           }}
           onDismiss={() => setAvailableUpdate(null)}
@@ -512,6 +497,7 @@ export default function App() {
 
       <Splash visible={!ready} />
       <EditMenu />
+      <Toaster />
     </>
   );
 }

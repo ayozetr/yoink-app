@@ -34,15 +34,12 @@ export function Splash({ visible }: SplashProps) {
   return (
     <div
       aria-hidden={!visible}
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 transition-opacity duration-500 ${
+      className={`fixed inset-0 z-[100] flex bg-canvas flex-col items-center justify-center gap-5 transition-opacity duration-500 ${
         visible ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
-      style={{
-        background: "radial-gradient(circle at center, #16131f, #0a0a0f 70%)",
-      }}
     >
-      <Loader2 className="size-9 animate-spin text-violet-400" />
-      <p className="text-sm text-zinc-400">{t("splash.preparing")}</p>
+      <Loader2 className="size-9 animate-spin text-accent-soft" />
+      <p className="text-sm text-fg-dim">{t("splash.preparing")}</p>
     </div>
   );
 }
