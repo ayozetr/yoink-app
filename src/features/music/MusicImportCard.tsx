@@ -631,7 +631,7 @@ export const MusicImportCard = memo(function MusicImportCard({
               WebkitMaskImage:
                 "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
             }}
-            className="mt-3 flex max-h-[340px] flex-col gap-1.5 overflow-auto pb-2 pr-1"
+            className="mt-3 flex max-h-[340px] flex-col divide-y divide-line/[0.06] overflow-auto pb-2 pr-1"
           >
             {visible.length === 0 ? (
               <p className="py-6 text-center text-sm text-fg-faint">
@@ -655,7 +655,7 @@ export const MusicImportCard = memo(function MusicImportCard({
                         clickTrack(i, pos, e.shiftKey);
                       }
                     }}
-                    className="flex select-none items-center gap-3 rounded-xl border border-line/10 bg-surface/60 hover:bg-surface-hover transition p-2.5 cursor-pointer focus-visible:!outline-none focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70"
+                    className="flex cursor-pointer select-none items-center gap-3 rounded-xl px-2.5 py-2.5 transition hover:bg-surface focus-visible:!outline-none focus-visible:bg-surface focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/70"
                   >
                     <input
                       type="checkbox"

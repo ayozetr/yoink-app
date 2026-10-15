@@ -408,7 +408,9 @@ export const PreviewCard = memo(function PreviewCard({
                 {isVideo
                   ? `${qualities.length > 0 ? quality : t("preview.bestQuality")} · ${container.toUpperCase()}`
                   : effectiveAudioFormat.toUpperCase()}
-                {estimatedSize ? ` · ≈ ${estimatedSize}` : ""}
+                {estimatedSize && (
+                  <span className="hidden sm:inline">{` · ≈ ${estimatedSize}`}</span>
+                )}
               </span>
             </Button>
           </div>
