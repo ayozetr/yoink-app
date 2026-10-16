@@ -9,8 +9,10 @@ pulls in further open-source libraries under the same permissive licenses.
 - **ffmpeg / ffprobe** — LGPL v2.1+ (dynamically bundled; see THIRD_PARTY_LICENSES.md)
 - **yt-dlp** — The Unlicense (public domain) — the download engine
 
-## Frontend — npm (14)
+## Frontend — npm (16)
 
+- **@fontsource-variable/inter** v5.3.0 — OFL-1.1
+- **@fontsource/gloock** v5.3.0 — OFL-1.1
 - **@tauri-apps/plugin-dialog** v2.7.1 — MIT OR Apache-2.0
 - **@tauri-apps/plugin-notification** v2.3.3 — MIT OR Apache-2.0
 - **@tauri-apps/plugin-opener** v2.5.4 — MIT OR Apache-2.0
