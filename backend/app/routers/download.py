@@ -99,11 +99,9 @@ def _quality_label(request: DownloadRequest, filepath: str | None) -> str | None
     never repeat it). Lossy with a fixed target uses that; otherwise (lossless
     or "best") the real bitrate is probed from the file."""
     if request.kind == "audio":
-        if (
-            request.audio_format not in ("flac", "wav")
-            and settings.audio_bitrate != "best"
-        ):
-            return f"{settings.audio_bitrate} kbps"
+        bitrate = request.audio_bitrate or settings.audio_bitrate
+        if request.audio_format not in ("flac", "wav") and bitrate != "best":
+            return f"{bitrate} kbps"
         kbps = _audio_bitrate_kbps(filepath)
         return f"{kbps} kbps" if kbps else None
     quality = request.quality

@@ -64,6 +64,8 @@ export const es = {
       "El contenido no tiene audio sin pérdida — FLAC/WAV no disponibles.",
     wavCoverWarning:
       "WAV no admite carátula — el auto-etiquetado añadirá los datos pero no la portada.",
+    codecContainerWarning:
+      "{{codec}} no cabe en {{container}}: el vídeo se recodificará (más lento) o podría fallar. Elige MKV para conservarlo intacto.",
     noAudio: "Audio no detectado para este vídeo: la descarga será muda.",
     subtitles: "Subtítulos",
     subtitlesNone: "Ningún subtítulo",
@@ -355,8 +357,9 @@ export const es = {
     themeSystem: "Sistema",
     themeDark: "Oscuro",
     themeLight: "Claro",
+    cookiesTitle: "Cookies",
     cookiesHint:
-      "Cookies (solo para contenido que requiere sesión; no para contenido público)",
+      "Solo para contenido que requiere sesión; no para contenido público.",
     cookiesBrowser: "Navegador para cookies",
     cookiesBrowserNone: "Ninguno",
     cookiesBrowserNote: "Si tu navegador no está en la lista, usa el método alternativo.",

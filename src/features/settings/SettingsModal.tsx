@@ -648,6 +648,7 @@ export function SettingsModal({
                 options={[
                   { value: "any", label: t("settings.videoCodecAny") },
                   { value: "h264", label: "H.264" },
+                  { value: "h265", label: "H.265" },
                   { value: "vp9", label: "VP9" },
                   { value: "av1", label: "AV1" },
                 ]}
@@ -833,14 +834,20 @@ export function SettingsModal({
             {t("settings.useAria2cHelp")}
           </p>
 
-          <p className="border-t border-line/10 pt-4 text-xs text-fg-faint">
-            {t("settings.cookiesHint")}
-          </p>
+          <div className="mt-2 border-t border-line/10 pt-5">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-faint">
+              {t("settings.cookiesTitle")}
+            </h3>
+            <p className="mt-1.5 text-xs text-fg-faint">
+              {t("settings.cookiesHint")}
+            </p>
+          </div>
 
           <Field
             label={t("settings.cookiesBrowser")}
             hint={<BrowserCookiesHelp />}
             description={t("settings.cookiesBrowserNote")}
+            className="!border-t-0 !pt-2"
           >
             <Select
               ariaLabel={t("settings.cookiesBrowser")}

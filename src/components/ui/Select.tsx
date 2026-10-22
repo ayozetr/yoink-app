@@ -220,7 +220,10 @@ export function Select({
             top: rect.top,
             bottom: rect.bottom,
             left: rect.left,
-            width: rect.width,
+            // At least as wide as the trigger, but grow to fit a longer option
+            // (e.g. "Mejor disponible · AV1") up to the space left to the edge.
+            minWidth: rect.width,
+            maxWidth: `calc(100vw - ${rect.left}px - 8px)`,
           }}
           className="z-[100] max-h-60 overflow-y-auto rounded-xl border border-line/10 bg-surface p-1 shadow-xl"
         >

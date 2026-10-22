@@ -64,6 +64,8 @@ export const fr = {
       "Ce contenu n'a pas d'audio sans perte — FLAC/WAV indisponibles.",
     wavCoverWarning:
       "Le WAV ne peut pas stocker de pochette — l'étiquetage automatique ajoutera les métadonnées mais pas la pochette de l'album.",
+    codecContainerWarning:
+      "{{codec}} n'entre pas dans {{container}} — la vidéo sera réencodée (plus lent) ou échouera. Choisis MKV pour la garder intacte.",
     noAudio: "Aucun audio détecté pour cette vidéo — le téléchargement sera muet.",
     subtitles: "Sous-titres",
     subtitlesNone: "Aucun sous-titre",
@@ -355,8 +357,9 @@ export const fr = {
     themeSystem: "Système",
     themeDark: "Sombre",
     themeLight: "Clair",
+    cookiesTitle: "Cookies",
     cookiesHint:
-      "Cookies (uniquement pour le contenu nécessitant une connexion ; pas pour le contenu public)",
+      "Uniquement pour le contenu nécessitant une connexion ; pas pour le contenu public.",
     cookiesBrowser: "Navigateur pour les cookies",
     cookiesBrowserNone: "Aucun",
     cookiesBrowserNote: "Si votre navigateur n'est pas listé, utilisez la méthode alternative.",

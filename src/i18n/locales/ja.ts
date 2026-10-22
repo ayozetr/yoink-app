@@ -64,6 +64,8 @@ export const ja = {
       "このコンテンツにはロスレス音声がありません — FLAC/WAV は利用できません。",
     wavCoverWarning:
       "WAV はカバーアートを保存できません — 自動タグ付けはメタデータを追加しますが、アルバムカバーは付きません。",
+    codecContainerWarning:
+      "{{codec}} は {{container}} に格納できません。動画は再エンコードされる（遅くなる）か失敗する可能性があります。そのまま保持するには MKV を選んでください。",
     noAudio: "この動画では音声が検出されませんでした。ダウンロードは無音になります。",
     subtitles: "字幕",
     subtitlesNone: "字幕なし",
@@ -355,8 +357,9 @@ export const ja = {
     themeSystem: "システム",
     themeDark: "ダーク",
     themeLight: "ライト",
+    cookiesTitle: "Cookies",
     cookiesHint:
-      "Cookies（ログインが必要なコンテンツ専用。公開コンテンツには不要）",
+      "ログインが必要なコンテンツ専用。公開コンテンツには不要。",
     cookiesBrowser: "Cookies 用のブラウザ",
     cookiesBrowserNone: "なし",
     cookiesBrowserNote: "お使いのブラウザが一覧にない場合は、代替方法をご利用ください。",

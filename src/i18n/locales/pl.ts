@@ -64,6 +64,8 @@ export const pl = {
       "Ta treść nie ma bezstratnego audio — FLAC/WAV niedostępne.",
     wavCoverWarning:
       "WAV nie obsługuje okładki — automatyczne tagowanie doda metadane, ale bez okładki albumu.",
+    codecContainerWarning:
+      "{{codec}} nie zmieści się w {{container}} — wideo zostanie przekodowane (wolniej) lub operacja się nie powiedzie. Wybierz MKV, aby zachować oryginał.",
     noAudio: "Nie wykryto dźwięku dla tego filmu — pobrany plik będzie niemy.",
     subtitles: "Napisy",
     subtitlesNone: "Bez napisów",
@@ -367,8 +369,9 @@ export const pl = {
     themeSystem: "System",
     themeDark: "Ciemny",
     themeLight: "Jasny",
+    cookiesTitle: "Cookies",
     cookiesHint:
-      "Cookies (tylko dla treści wymagających logowania; nie dla treści publicznych)",
+      "Tylko dla treści wymagających logowania; nie dla treści publicznych.",
     cookiesBrowser: "Przeglądarka dla cookies",
     cookiesBrowserNone: "Brak",
     cookiesBrowserNote: "Jeśli Twojej przeglądarki nie ma na liście, użyj metody alternatywnej.",

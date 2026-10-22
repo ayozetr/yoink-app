@@ -49,6 +49,7 @@ import {
   onGlobalQuickDownload,
 } from "../../lib/desktop";
 import type {
+  AudioBitrate,
   DownloadCompletedEvent,
   DownloadProgressEvent,
   DownloadRequest,
@@ -56,6 +57,7 @@ import type {
   InfoResponse,
   MediaKind,
   PlaylistEntry,
+  VideoCodec,
 } from "../../types/download";
 
 interface DownloaderPanelProps {
@@ -65,6 +67,9 @@ interface DownloaderPanelProps {
   defaultKind?: MediaKind;
   defaultQuality?: string;
   defaultAudioFormat?: AudioFormat;
+  /** Default video codec / audio bitrate from settings (seed the preview pickers). */
+  defaultVideoCodec?: VideoCodec;
+  defaultAudioBitrate?: AudioBitrate;
   /** Persisted "embed subtitles/chapters by default" toggles (seed the preview). */
   defaultEmbedSubs?: boolean;
   defaultEmbedChapters?: boolean;
@@ -121,6 +126,8 @@ export function DownloaderPanel({
   defaultKind,
   defaultQuality,
   defaultAudioFormat,
+  defaultVideoCodec,
+  defaultAudioBitrate,
   defaultEmbedSubs,
   defaultEmbedChapters,
   fetchLyrics,
@@ -547,6 +554,8 @@ export function DownloaderPanel({
           quality: selection.quality,
           container: selection.container,
           audio_format: selection.audio_format,
+          video_codec: selection.video_codec,
+          audio_bitrate: selection.audio_bitrate,
           embed_subs: selection.embed_subs,
           subtitle_lang: selection.subtitle_lang,
           embed_chapters: selection.embed_chapters,
@@ -751,6 +760,8 @@ export function DownloaderPanel({
           onAddToQueue={onAddToQueue}
           defaultKind={defaultKind}
           defaultQuality={defaultQuality}
+          defaultVideoCodec={defaultVideoCodec}
+          defaultAudioBitrate={defaultAudioBitrate}
           defaultEmbedSubs={defaultEmbedSubs}
           defaultEmbedChapters={defaultEmbedChapters}
           locked={lockedByOther}

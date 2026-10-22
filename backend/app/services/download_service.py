@@ -16,6 +16,7 @@ import asyncio
 import logging
 import re
 import shutil
+import tempfile
 import threading
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable
@@ -74,25 +75,26 @@ _Event = ProgressEvent | CompletedEvent | ErrorEvent
 _AUDIO_POSTPROCESSORS: dict[AudioFormat, dict[str, str]] = {
     "mp3": {"preferredcodec": "mp3", "preferredquality": "192"},
     "m4a": {"preferredcodec": "m4a", "preferredquality": "192"},
+    "opus": {"preferredcodec": "opus", "preferredquality": "192"},
     "flac": {"preferredcodec": "flac"},
     "wav": {"preferredcodec": "wav"},
 }
 
 
 # Map a video-codec preference to a yt-dlp format-sort key (best-effort bias).
-_VCODEC_SORT = {"h264": "h264", "vp9": "vp9", "av1": "av01"}
+_VCODEC_SORT = {"h264": "h264", "h265": "h265", "vp9": "vp9", "av1": "av01"}
 
 
-def _audio_postprocessor(audio_format: AudioFormat) -> dict[str, str]:
+def _audio_postprocessor(audio_format: AudioFormat, bitrate: str) -> dict[str, str]:
     """Build the FFmpegExtractAudio postprocessor for an output audio format."""
     pp = {"key": "FFmpegExtractAudio", **_AUDIO_POSTPROCESSORS[audio_format]}
-    # Apply the user's bitrate to lossy formats only ("best" = no target;
+    # Apply the chosen bitrate to lossy formats only ("best" = no target;
     # lossless formats carry no preferredquality to override).
     if "preferredquality" in pp:
-        if settings.audio_bitrate == "best":
+        if bitrate == "best":
             pp.pop("preferredquality")
         else:
-            pp["preferredquality"] = settings.audio_bitrate
+            pp["preferredquality"] = bitrate
     return pp
 
 
@@ -321,13 +323,27 @@ def _build_options(
     pp_hook: Any = None,
     *,
     net: dict[str, Any] | None = None,
+    work_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Assemble yt-dlp options for the requested kind/quality.
 
     ``net`` overrides the network options (cookies/proxy/impersonation) — used by
-    the cookie fallback to rebuild without the browser.
+    the cookie fallback to rebuild without the browser. ``work_dir`` is the
+    isolated per-job directory the job downloads into; one is created under the
+    download dir when not supplied.
     """
     download_dir = settings.ensure_download_dir()
+    # Run the whole job inside a private, per-download working directory and move
+    # only the finished file into the download dir afterward (see `_run`). An
+    # isolated dir means yt-dlp never sees — and so can never clobber — an
+    # unrelated file that happens to share this download's name: extracting audio
+    # from a video already saved as "<title>.webm" would otherwise make yt-dlp
+    # treat that video as the audio source and delete it (its bestaudio source is
+    # itself a "<title>.webm"). It also keeps stray .part files out of the user's
+    # folder on a failure. The dir lives inside the download dir so the final move
+    # is a fast same-filesystem rename; `_run` removes it when the job ends.
+    if work_dir is None:
+        work_dir = Path(tempfile.mkdtemp(prefix=".yoink-dl-", dir=download_dir))
     # Filename template: the user-configured name part + the real extension.
     # Strip first (so a whitespace-only value falls back) and neutralise path
     # traversal / absolute paths so a template can't write outside download_dir.
@@ -373,7 +389,11 @@ def _build_options(
         "concurrent_fragment_downloads": 4,
         # Resume an interrupted .part on retry instead of restarting from zero.
         "continuedl": True,
-        "outtmpl": str(download_dir / f"{name_template}.%(ext)s"),
+        # Relative outtmpl + `paths` so yt-dlp downloads into `temp` and moves the
+        # finished file into `home`. An ABSOLUTE outtmpl would make yt-dlp ignore
+        # `paths` entirely (its own rule), defeating the temp isolation above.
+        "outtmpl": f"{name_template}.%(ext)s",
+        "paths": {"home": str(work_dir), "temp": str(work_dir)},
         "progress_hooks": [hook],
         # Cancel is also honoured between post-processing steps (ffmpeg, …).
         "postprocessor_hooks": [pp_hook] if pp_hook else [],
@@ -458,14 +478,18 @@ def _build_options(
             options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
         else:
             options["format"] = "bestaudio/best"
-        audio_pps = [*sponsorblock, _audio_postprocessor(request.audio_format)]
+        bitrate = request.audio_bitrate or settings.audio_bitrate
+        audio_pps = [
+            *sponsorblock,
+            _audio_postprocessor(request.audio_format, bitrate),
+        ]
         if mark_chapters:
             audio_pps.append(chapters_pp)
         # Embed the source thumbnail as a *fallback* cover (formats that can hold
         # cover art; WAV can't). Auto-tagging later overrides it when it finds
         # real album art and preserves it when it doesn't, so the thumbnail only
         # ever shows when nothing better is available. Runs after extraction.
-        if request.audio_format in ("mp3", "m4a", "flac"):
+        if request.audio_format in ("mp3", "m4a", "opus", "flac"):
             options["writethumbnail"] = True
             # YouTube thumbnails are WebP; Windows/most players can't display
             # WebP as embedded cover art (only JPEG/PNG). Convert before embed.
@@ -508,8 +532,9 @@ def _build_options(
 
         # Prefer a specific video codec when set (best-effort: yt-dlp falls back
         # to the next codec if a quality has no stream in the preferred one).
-        if settings.video_codec != "any":
-            options["format_sort"] = [f"vcodec:{_VCODEC_SORT[settings.video_codec]}"]
+        codec = request.video_codec or settings.video_codec
+        if codec != "any":
+            options["format_sort"] = [f"vcodec:{_VCODEC_SORT[codec]}"]
 
         # Subtitles and chapters are video-only concerns; collect any FFmpeg
         # postprocessors needed to embed them into the merged output.
@@ -597,6 +622,19 @@ def _final_path(info: dict[str, Any]) -> str | None:
                 if path:
                     return path
     return None
+
+
+def _relocate(src: Path, download_dir: Path) -> Path:
+    """Move a finished download out of its isolated work dir into the download
+    dir, overwriting any previous file of the same name (a re-download replaces
+    it). Same filesystem, so this is a fast rename. Returns the new path.
+    """
+    dest = download_dir / src.name
+    if dest != src:
+        if dest.exists():
+            dest.unlink()
+        shutil.move(str(src), str(dest))
+    return dest
 
 
 def _downloaded_node(info: dict[str, Any]) -> dict[str, Any]:
@@ -744,6 +782,12 @@ async def download_events(
         )
         return
 
+    # One isolated working directory for the whole job (reused across the cookie
+    # and transient-ffmpeg retries). yt-dlp downloads into it and `_run` moves the
+    # finished file out to the download dir; the finally below removes it, so no
+    # intermediate ever lands next to — or clobbers — the user's files.
+    work_dir = Path(tempfile.mkdtemp(prefix=".yoink-dl-", dir=settings.ensure_download_dir()))
+
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[ProgressEvent] = asyncio.Queue()
     last_percent = 0.0
@@ -786,7 +830,7 @@ async def download_events(
             raise _DownloadCancelled
 
     def _run(net: dict[str, Any]) -> str | None:
-        options = _build_options(request, hook, pp_hook, net=net)
+        options = _build_options(request, hook, pp_hook, net=net, work_dir=work_dir)
         with YoutubeDL(options) as ydl:
             register_threads_ie(ydl)  # Threads support (no native yt-dlp extractor)
             register_embedded_vr(ydl)  # player-config sources (overrides stale ones)
@@ -795,6 +839,13 @@ async def download_events(
             info = ydl.extract_info(normalize_url(str(request.url)), download=True)
             info = ydl.sanitize_info(info)
             path = _final_path(info) or ydl.prepare_filename(info)
+            # Move the finished file out of the isolated work dir into the download
+            # dir *before* the post-steps (VR rename, loudness re-encode, .nfo add
+            # sidecars / rename in place) and before the path reaches the client.
+            if path:
+                produced = Path(path)
+                if produced.exists():
+                    path = str(_relocate(produced, settings.ensure_download_dir()))
             # Metadata for the post-download steps comes from the *downloaded*
             # node: the top level for a single video, or the matching entry for a
             # playlist-wrapper (Instagram story/highlight) so VR detection and the
@@ -833,7 +884,7 @@ async def download_events(
                     audio_normalize.normalize(
                         audio_file,
                         request.audio_format,
-                        settings.audio_bitrate,
+                        request.audio_bitrate or settings.audio_bitrate,
                         target_i=float(settings.normalize_lufs),
                     )
             # Optional Kodi/Jellyfin .nfo sidecar, next to the final file. Audio
@@ -956,3 +1007,6 @@ async def download_events(
             _download_lock.release()
             lock_held = False
         await asyncio.gather(worker, return_exceptions=True)
+        # Remove the isolated work dir (and any leftover .part from a failed or
+        # cancelled job) — the finished file was already moved into the download dir.
+        shutil.rmtree(work_dir, ignore_errors=True)

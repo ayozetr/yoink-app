@@ -17,14 +17,14 @@ MediaKind = Literal["video", "audio", "image"]
 HistoryStatus = Literal["completed", "error"]
 
 # Output containers for a video download (merge target).
-VideoContainer = Literal["mp4", "mov", "mkv"]
-# Output formats for an audio-only download. mp3/m4a are lossy; flac/wav are
+VideoContainer = Literal["mp4", "mov", "mkv", "webm"]
+# Output formats for an audio-only download. mp3/m4a/opus are lossy; flac/wav are
 # lossless and only meaningful when the source itself is lossless.
-AudioFormat = Literal["mp3", "m4a", "flac", "wav"]
+AudioFormat = Literal["mp3", "m4a", "opus", "flac", "wav"]
 AutotagSource = Literal["auto", "apple", "deezer", "musicbrainz"]
 SponsorblockAction = Literal["remove", "mark"]
 PoTokenMode = Literal["off", "manual", "auto"]
-VideoCodec = Literal["any", "h264", "vp9", "av1"]
+VideoCodec = Literal["any", "h264", "h265", "vp9", "av1"]
 AudioBitrate = Literal["best", "320", "256", "192", "128"]
 # Stereo + projection layout for immersive (VR) video.
 VRLayout = Literal[
@@ -222,6 +222,20 @@ class DownloadRequest(BaseModel):
     )
     audio_format: AudioFormat = Field(
         default="mp3", description="Output format when kind=audio."
+    )
+    video_codec: VideoCodec | None = Field(
+        default=None,
+        description=(
+            "Preferred video codec for this download, or None to use the "
+            "app-wide setting. Ignored for audio."
+        ),
+    )
+    audio_bitrate: AudioBitrate | None = Field(
+        default=None,
+        description=(
+            "Lossy audio bitrate (kbps) for this download, or None to use the "
+            "app-wide setting. Ignored for video."
+        ),
     )
     embed_subs: bool = Field(
         default=False,

@@ -64,6 +64,8 @@ export const id = {
       "Konten ini tidak memiliki audio lossless — FLAC/WAV tidak tersedia.",
     wavCoverWarning:
       "WAV tidak dapat menyimpan sampul album — pemberian tag otomatis akan menambahkan metadata tetapi tanpa sampul album.",
+    codecContainerWarning:
+      "{{codec}} tidak muat di {{container}} — video akan di-encode ulang (lebih lambat) atau bisa gagal. Pilih MKV agar tetap utuh.",
     noAudio: "Tidak ada audio terdeteksi untuk video ini — unduhan akan senyap.",
     subtitles: "Subtitle",
     subtitlesNone: "Tanpa subtitle",
@@ -355,8 +357,9 @@ export const id = {
     themeSystem: "Sistem",
     themeDark: "Gelap",
     themeLight: "Terang",
+    cookiesTitle: "Cookies",
     cookiesHint:
-      "Cookies (hanya untuk konten yang perlu masuk; bukan untuk konten publik)",
+      "Hanya untuk konten yang perlu masuk; bukan untuk konten publik.",
     cookiesBrowser: "Peramban untuk cookies",
     cookiesBrowserNone: "Tidak ada",
     cookiesBrowserNote: "Jika peramban Anda tidak terdaftar, gunakan metode alternatif.",

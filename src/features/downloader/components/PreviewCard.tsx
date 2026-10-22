@@ -20,8 +20,10 @@ import { Button } from "../../../components/ui/Button";
 import { Select } from "../../../components/ui/Select";
 import { Thumbnail } from "../../../components/ui/Thumbnail";
 import type {
+  AudioBitrate,
   AudioFormat,
   MediaKind,
+  VideoCodec,
   VideoContainer,
   VideoInfo,
   VRLayout,
@@ -31,8 +33,11 @@ import {
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_CONTAINER,
   VIDEO_CONTAINERS,
+  VIDEO_CODEC_LABELS,
   VR_LAYOUTS,
   availableKinds,
+  bestAvailableCodec,
+  codecFitsContainer,
   estimatedSizeBytes,
   videoQualities,
 } from "../formatOptions";
@@ -53,6 +58,10 @@ export interface DownloadSelection {
   container?: VideoContainer;
   /** Output format, only meaningful for audio downloads. */
   audio_format?: AudioFormat;
+  /** Preferred video codec. Only set for video downloads. */
+  video_codec?: VideoCodec;
+  /** Lossy audio bitrate (kbps). Only set for audio downloads. */
+  audio_bitrate?: AudioBitrate;
   /** Embed subtitles into the video output. Only set for video downloads. */
   embed_subs?: boolean;
   /** Subtitle language to embed: a code like "en"/"es" or "all". */
@@ -95,6 +104,10 @@ interface PreviewCardProps {
   onAddToQueue?: () => void;
   defaultKind?: MediaKind;
   defaultQuality?: string;
+  /** Seed the video-codec picker from the app setting ("any" = best available). */
+  defaultVideoCodec?: VideoCodec;
+  /** Seed the audio-bitrate picker from the app setting ("best" = best available). */
+  defaultAudioBitrate?: AudioBitrate;
   /** Seed the subtitle picker to "embed all" by default (persisted setting). */
   defaultEmbedSubs?: boolean;
   /** Seed the chapters toggle on by default (persisted setting). */
@@ -149,6 +162,8 @@ export const PreviewCard = memo(function PreviewCard({
   onAddToQueue,
   defaultKind,
   defaultQuality,
+  defaultVideoCodec,
+  defaultAudioBitrate,
   defaultEmbedSubs,
   defaultEmbedChapters,
   locked = false,
@@ -169,6 +184,14 @@ export const PreviewCard = memo(function PreviewCard({
   const [container, setContainer] = useState<VideoContainer>(DEFAULT_CONTAINER);
   const [audioFormat, setAudioFormat] = useState<AudioFormat>(
     DEFAULT_AUDIO_FORMAT,
+  );
+  // Codec (video) and bitrate (audio) default to the app-wide setting; the user
+  // can override either just for this download.
+  const [videoCodec, setVideoCodec] = useState<VideoCodec>(
+    defaultVideoCodec ?? "any",
+  );
+  const [audioBitrate, setAudioBitrate] = useState<AudioBitrate>(
+    defaultAudioBitrate ?? "best",
   );
   // Subtitles are opt-in, but the user can persist an "embed by default" choice
   // that seeds the picker to "all" (it only takes effect once a container that
@@ -233,6 +256,18 @@ export const PreviewCard = memo(function PreviewCard({
   );
   const estimatedSize = formatBytes(estimatedBytes);
 
+  // Which codec "best available" (any) would actually resolve to for the chosen
+  // quality — shown next to the option so the user knows what they'll get.
+  const resolvedCodec = useMemo(
+    () => bestAvailableCodec(info, qualities.length > 0 ? quality : undefined),
+    [info, quality, qualities.length],
+  );
+
+  // Warn when a forced codec can't mux into the chosen container (ffmpeg would
+  // re-encode or the mux could fail). "Best available" (any) never clashes.
+  const codecMismatch =
+    isVideo && videoCodec !== "any" && !codecFitsContainer(container, videoCodec);
+
   const trimStartSec = parseTime(trimStart);
   const trimEndSec = parseTime(trimEnd);
   // Invalid when a given end isn't past the (effective) start — also catches a
@@ -294,6 +329,8 @@ export const PreviewCard = memo(function PreviewCard({
       quality: isVideo ? quality : undefined,
       container: isVideo ? container : undefined,
       audio_format: isVideo ? undefined : effectiveAudioFormat,
+      video_codec: isVideo ? videoCodec : undefined,
+      audio_bitrate: isVideo ? undefined : audioBitrate,
       embed_subs: showSubtitles ? embedSubs : undefined,
       subtitle_lang: showSubtitles && embedSubs ? subtitle : undefined,
       embed_chapters: isVideo ? embedChapters : undefined,
@@ -427,6 +464,17 @@ export const PreviewCard = memo(function PreviewCard({
               {t("preview.wavCoverWarning")}
             </p>
           )}
+          {codecMismatch && (
+            <p className="flex items-center gap-2 text-xs text-amber-500">
+              <AlertCircle size={14} className="shrink-0" />
+              {t("preview.codecContainerWarning", {
+                codec: VIDEO_CODEC_LABELS[videoCodec],
+                container:
+                  VIDEO_CONTAINERS.find((c) => c.value === container)?.label ??
+                  container.toUpperCase(),
+              })}
+            </p>
+          )}
 
           {/* Quiet secondary row: queue it, or reveal the rest. */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -485,19 +533,52 @@ export const PreviewCard = memo(function PreviewCard({
                       options={VIDEO_CONTAINERS}
                       className={PILL_SELECT}
                     />
+                    <Select
+                      ariaLabel={t("settings.videoCodec")}
+                      value={videoCodec}
+                      onChange={(v) => setVideoCodec(v as VideoCodec)}
+                      options={[
+                        {
+                          value: "any",
+                          label: resolvedCodec
+                            ? `${t("settings.videoCodecAny")} · ${resolvedCodec}`
+                            : t("settings.videoCodecAny"),
+                        },
+                        { value: "h264", label: "H.264" },
+                        { value: "h265", label: "H.265" },
+                        { value: "vp9", label: "VP9" },
+                        { value: "av1", label: "AV1" },
+                      ]}
+                      className={PILL_SELECT}
+                    />
                   </>
                 ) : (
-                  <Select
-                    ariaLabel={t("preview.audioFormat")}
-                    value={effectiveAudioFormat}
-                    onChange={(v) => setAudioFormat(v as AudioFormat)}
-                    options={AUDIO_FORMATS.map((option) => ({
-                      value: option.value,
-                      label: option.label,
-                      disabled: option.lossless && !losslessAllowed,
-                    }))}
-                    className={PILL_SELECT}
-                  />
+                  <>
+                    <Select
+                      ariaLabel={t("preview.audioFormat")}
+                      value={effectiveAudioFormat}
+                      onChange={(v) => setAudioFormat(v as AudioFormat)}
+                      options={AUDIO_FORMATS.map((option) => ({
+                        value: option.value,
+                        label: option.label,
+                        disabled: option.lossless && !losslessAllowed,
+                      }))}
+                      className={PILL_SELECT}
+                    />
+                    <Select
+                      ariaLabel={t("settings.audioBitrate")}
+                      value={audioBitrate}
+                      onChange={(v) => setAudioBitrate(v as AudioBitrate)}
+                      options={[
+                        { value: "best", label: t("settings.audioBitrateBest") },
+                        { value: "320", label: "320 kbps" },
+                        { value: "256", label: "256 kbps" },
+                        { value: "192", label: "192 kbps" },
+                        { value: "128", label: "128 kbps" },
+                      ]}
+                      className={PILL_SELECT}
+                    />
+                  </>
                 )}
               </div>
 

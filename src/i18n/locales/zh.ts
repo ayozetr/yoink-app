@@ -64,6 +64,8 @@ export const zh = {
       "此内容没有无损音频——无法使用 FLAC/WAV。",
     wavCoverWarning:
       "WAV 无法存储封面——自动标记会写入元数据，但不会有专辑封面。",
+    codecContainerWarning:
+      "{{codec}} 无法装入 {{container}}——视频将被重新编码（更慢）或可能失败。选择 MKV 可保持原样。",
     noAudio: "未检测到此视频的音频——下载将没有声音。",
     subtitles: "字幕",
     subtitlesNone: "无字幕",
@@ -355,8 +357,9 @@ export const zh = {
     themeSystem: "跟随系统",
     themeDark: "深色",
     themeLight: "浅色",
+    cookiesTitle: "Cookies",
     cookiesHint:
-      "Cookies（仅用于需要登录的内容；公开内容无需）",
+      "仅用于需要登录的内容；公开内容无需。",
     cookiesBrowser: "用于读取 cookies 的浏览器",
     cookiesBrowserNone: "无",
     cookiesBrowserNote: "如果列表中没有你的浏览器，请使用备用方法。",

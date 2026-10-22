@@ -35,9 +35,9 @@ def _apply(data: dict[str, Any]) -> None:
         settings.default_kind = data["default_kind"]
     if data.get("default_quality"):
         settings.default_quality = str(data["default_quality"])
-    if data.get("default_container") in ("mp4", "mov", "mkv"):
+    if data.get("default_container") in ("mp4", "mov", "mkv", "webm"):
         settings.default_container = data["default_container"]
-    if data.get("default_audio_format") in ("mp3", "m4a", "flac", "wav"):
+    if data.get("default_audio_format") in ("mp3", "m4a", "opus", "flac", "wav"):
         settings.default_audio_format = data["default_audio_format"]
     if isinstance(data.get("default_embed_subs"), bool):
         settings.default_embed_subs = data["default_embed_subs"]
@@ -82,7 +82,7 @@ def _apply(data: dict[str, Any]) -> None:
     # pre-field settings.json doesn't wipe a YOINK_RATE_LIMIT provided via env.
     if "rate_limit" in data:
         settings.rate_limit = str(data["rate_limit"]) if data["rate_limit"] else None
-    if data.get("video_codec") in ("any", "h264", "vp9", "av1"):
+    if data.get("video_codec") in ("any", "h264", "h265", "vp9", "av1"):
         settings.video_codec = data["video_codec"]
     if data.get("audio_bitrate") in ("best", "320", "256", "192", "128"):
         settings.audio_bitrate = data["audio_bitrate"]

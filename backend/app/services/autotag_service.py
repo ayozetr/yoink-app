@@ -16,6 +16,7 @@ releases the iTunes Search API hasn't indexed yet; MusicBrainz is rate-limited t
 
 from __future__ import annotations
 
+import base64
 import json
 import locale
 import logging
@@ -835,7 +836,9 @@ def _write_tags(
         return _write_flac(path, tags, cover)
     if ext == ".wav":
         return _write_wav(path, tags)
-    return _write_generic(path, tags)  # opus/ogg: text only, no cover frame
+    if ext in (".opus", ".ogg", ".oga"):
+        return _write_opus(path, tags, cover)
+    return _write_generic(path, tags)  # other formats: text only, no cover frame
 
 
 def _write_mp3(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None) -> bool:
@@ -938,8 +941,37 @@ def _write_wav(path: Path, tags: dict[str, Any]) -> bool:
     return False
 
 
+def _write_opus(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None) -> bool:
+    """Text tags + cover art for Ogg/Opus (and Ogg Vorbis) via vorbis comments.
+
+    The cover is a base64-encoded FLAC ``Picture`` block in the standard
+    ``metadata_block_picture`` comment, which mutagen and players both read.
+    """
+    audio = mutagen.File(path)
+    if audio is None:
+        raise AutotagError("Unsupported audio format for tagging.")
+    for key in ("title", "artist", "album", "date", "genre", "tracknumber"):
+        if tags.get(key):
+            audio[key] = str(tags[key])
+    if tags.get("lyrics"):
+        audio["lyrics"] = str(tags["lyrics"])
+    embedded = False
+    if cover:
+        data, ctype = cover
+        picture = Picture()
+        picture.type = 3  # front cover
+        picture.mime = ctype
+        picture.data = data
+        audio["metadata_block_picture"] = [
+            base64.b64encode(picture.write()).decode("ascii")
+        ]
+        embedded = True
+    audio.save()
+    return embedded
+
+
 def _write_generic(path: Path, tags: dict[str, Any]) -> bool:
-    """Best-effort text tags for opus/ogg via mutagen's Easy interface."""
+    """Best-effort text tags for any other taggable format via mutagen's Easy interface."""
     audio = mutagen.File(path, easy=True)
     if audio is None:
         raise AutotagError("Unsupported audio format for tagging.")

@@ -42,6 +42,7 @@ def _fake_ydl(out_path):
 
 
 def _setup(monkeypatch, out):
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(b"video")
     monkeypatch.setattr(settings, "nfo_sidecars", False)  # isolate the VR step
     monkeypatch.setattr(ds, "YoutubeDL", _fake_ydl(out))
@@ -60,7 +61,7 @@ async def _drain(request):
 
 
 def test_auto_vr_detects_and_tags(temp_dirs, monkeypatch):
-    out = temp_dirs / "clip.mp4"
+    out = temp_dirs / "downloads" / "clip.mp4"
     _setup(monkeypatch, out)
     applied: list[tuple[str, str]] = []
     monkeypatch.setattr(ds, "detect_vr", lambda info, strict=True: (True, "360_tb"))
@@ -77,7 +78,7 @@ def test_auto_vr_detects_and_tags(temp_dirs, monkeypatch):
 
 
 def test_auto_vr_skips_when_not_detected(temp_dirs, monkeypatch):
-    out = temp_dirs / "clip.mp4"
+    out = temp_dirs / "downloads" / "clip.mp4"
     _setup(monkeypatch, out)
     applied: list[int] = []
     monkeypatch.setattr(ds, "detect_vr", lambda info, strict=True: (False, None))
@@ -90,7 +91,7 @@ def test_auto_vr_skips_when_not_detected(temp_dirs, monkeypatch):
 
 
 def test_is_vr_wins_over_auto_vr(temp_dirs, monkeypatch):
-    out = temp_dirs / "clip.mp4"
+    out = temp_dirs / "downloads" / "clip.mp4"
     _setup(monkeypatch, out)
     detect_calls: list[int] = []
     applied: list[tuple[str, str]] = []

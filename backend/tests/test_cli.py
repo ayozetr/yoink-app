@@ -165,7 +165,7 @@ def test_completion_script_per_shell(shell, marker):
     script = _completion_script(shell)
     assert marker in script
     # The volatile bits come from the parser, so a choice list must show through.
-    assert "mp3 m4a flac wav" in script
+    assert "mp3 m4a opus flac wav" in script
 
 
 def test_print_completion_exits_before_url_is_required(capsys):

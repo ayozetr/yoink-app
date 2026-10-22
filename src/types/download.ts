@@ -13,14 +13,14 @@ export type DownloadStatus = "completed" | "error" | "downloading" | "queued";
 export type MediaKind = "video" | "audio" | "image";
 
 /** Output container for a video download (mirrors backend `VideoContainer`). */
-export type VideoContainer = "mp4" | "mov" | "mkv";
+export type VideoContainer = "mp4" | "mov" | "mkv" | "webm";
 
 /**
  * Output format for an audio-only download (mirrors backend `AudioFormat`).
- * mp3/m4a are lossy; flac/wav are lossless and only meaningful when the source
- * itself is lossless.
+ * mp3/m4a/opus are lossy; flac/wav are lossless and only meaningful when the
+ * source itself is lossless.
  */
-export type AudioFormat = "mp3" | "m4a" | "flac" | "wav";
+export type AudioFormat = "mp3" | "m4a" | "opus" | "flac" | "wav";
 
 /** Stereo/projection layout for immersive (VR) video (mirrors backend `VRLayout`). */
 export type VRLayout =
@@ -179,6 +179,10 @@ export interface DownloadRequest {
   container?: VideoContainer;
   /** Output format when kind=audio. Defaults to "mp3". */
   audio_format?: AudioFormat;
+  /** Preferred video codec for this download; omitted = use the app setting. */
+  video_codec?: VideoCodec;
+  /** Lossy audio bitrate (kbps) for this download; omitted = use the app setting. */
+  audio_bitrate?: AudioBitrate;
   /** Embed subtitles into the video output when available. */
   embed_subs?: boolean;
   /** Subtitle language to embed: a code like "en"/"es", "all", or omitted. */
@@ -259,7 +263,7 @@ export interface LogsResponse {
 export type AutotagSource = "auto" | "apple" | "deezer" | "musicbrainz";
 export type SponsorblockAction = "remove" | "mark";
 export type PoTokenMode = "off" | "manual" | "auto";
-export type VideoCodec = "any" | "h264" | "vp9" | "av1";
+export type VideoCodec = "any" | "h264" | "h265" | "vp9" | "av1";
 export type AudioBitrate = "best" | "320" | "256" | "192" | "128";
 
 /** User-editable settings (mirrors backend `AppSettings`). */

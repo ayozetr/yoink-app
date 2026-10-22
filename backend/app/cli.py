@@ -97,9 +97,9 @@ def _build_parser() -> argparse.ArgumentParser:
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--audio", action="store_true", help="download audio only")
     mode.add_argument("--video", action="store_true", help="download video (default)")
-    p.add_argument("-f", "--format", choices=["mp3", "m4a", "flac", "wav"],
+    p.add_argument("-f", "--format", choices=["mp3", "m4a", "opus", "flac", "wav"],
                    help="audio format (with --audio)")
-    p.add_argument("-c", "--container", choices=["mp4", "mov", "mkv"],
+    p.add_argument("-c", "--container", choices=["mp4", "mov", "mkv", "webm"],
                    help="video container")
     p.add_argument("-q", "--quality", help='video quality, e.g. "1080", "720", "best"')
     p.add_argument("-o", "--output", metavar="DIR",
@@ -124,7 +124,7 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="loudness target in LUFS (implies --normalize), e.g. -14 "
                         "(streaming) / -16 (Apple Music) / -23 (broadcast). Any value "
                         "in loudnorm's range -70..-5")
-    p.add_argument("--video-codec", choices=["any", "h264", "vp9", "av1"],
+    p.add_argument("--video-codec", choices=["any", "h264", "h265", "vp9", "av1"],
                    help="prefer a video codec when picking the format")
     p.add_argument("--audio-bitrate", choices=["best", "320", "256", "192", "128"],
                    metavar="KBPS", help="lossy audio bitrate in kbps, or 'best'")

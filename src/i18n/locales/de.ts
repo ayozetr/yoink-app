@@ -64,6 +64,8 @@ export const de = {
       "Dieser Inhalt hat kein verlustfreies Audio — FLAC/WAV nicht verfügbar.",
     wavCoverWarning:
       "WAV kann kein Cover speichern — das automatische Taggen fügt die Metadaten hinzu, aber kein Albumcover.",
+    codecContainerWarning:
+      "{{codec}} passt nicht in {{container}} – das Video wird neu kodiert (langsamer) oder schlägt fehl. Wähle MKV, um es unverändert zu lassen.",
     noAudio: "Kein Audio für dieses Video erkannt – der Download ist stumm.",
     subtitles: "Untertitel",
     subtitlesNone: "Keine Untertitel",
@@ -355,8 +357,9 @@ export const de = {
     themeSystem: "System",
     themeDark: "Dunkel",
     themeLight: "Hell",
+    cookiesTitle: "Cookies",
     cookiesHint:
-      "Cookies (nur für Inhalte, die eine Anmeldung erfordern; nicht für öffentliche Inhalte)",
+      "Nur für Inhalte, die eine Anmeldung erfordern; nicht für öffentliche Inhalte.",
     cookiesBrowser: "Browser für Cookies",
     cookiesBrowserNone: "Keiner",
     cookiesBrowserNote: "Wenn dein Browser nicht aufgeführt ist, nutze die alternative Methode.",

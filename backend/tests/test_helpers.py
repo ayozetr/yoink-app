@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from app.core.config import settings
@@ -20,6 +22,7 @@ from app.services.download_service import (
     _map_progress,
     _parse_height,
     _parse_rate_limit,
+    _relocate,
 )
 from app.services.ytdlp_service import (
     _audio_langs,
@@ -1093,13 +1096,45 @@ def test_parse_rate_limit():
 
 
 def test_filename_template_cannot_escape_download_dir(temp_dirs):
-    download_root = str(settings.ensure_download_dir())
+    download_dir = settings.ensure_download_dir()
     for evil in ("../../etc/evil", "/etc/passwd", "..\\..\\x", "   "):
         settings.filename_template = evil
         options = _build_options(
             DownloadRequest(url="http://x/v", kind="video"),
             hook=lambda raw: None,
         )
-        # The resolved output template stays inside the download directory.
-        assert options["outtmpl"].startswith(download_root)
+        # The template is relative (an absolute one would make yt-dlp ignore
+        # `paths`), the job's work dir sits inside the download dir, and the
+        # resolved output can't climb out of it.
+        assert not Path(options["outtmpl"]).is_absolute()
+        home = Path(options["paths"]["home"])
+        home.resolve().relative_to(download_dir.resolve())  # work dir is contained
+        (home / options["outtmpl"]).resolve().relative_to(download_dir.resolve())
     settings.filename_template = "%(title)s"
+
+
+def test_relocate_moves_into_download_dir_and_overwrites(tmp_path):
+    download_dir = tmp_path / "downloads"
+    work_dir = tmp_path / "downloads" / ".yoink-dl-xyz"
+    download_dir.mkdir()
+    work_dir.mkdir()
+
+    # A finished audio file in the work dir, next to an unrelated same-stem video
+    # already in the download dir (the old collision case).
+    produced = work_dir / "Song.opus"
+    produced.write_bytes(b"audio")
+    video = download_dir / "Song.webm"
+    video.write_bytes(b"video-keep-me")
+
+    dest = _relocate(produced, download_dir)
+    assert dest == download_dir / "Song.opus"
+    assert dest.read_bytes() == b"audio"
+    assert not produced.exists()  # moved, not copied
+    assert video.read_bytes() == b"video-keep-me"  # the .webm is untouched
+
+    # A re-download of the same file overwrites the previous one in place.
+    again = work_dir / "Song.opus"
+    again.write_bytes(b"audio-v2")
+    dest2 = _relocate(again, download_dir)
+    assert dest2 == dest
+    assert dest2.read_bytes() == b"audio-v2"

@@ -95,7 +95,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Yoink Backend"
-    app_version: str = "4.0.0"
+    app_version: str = "4.1.0"
     api_prefix: str = "/api"
 
     # GitHub repo used to check for newer releases (owner/name).
@@ -148,8 +148,8 @@ class Settings(BaseSettings):
     default_quality: str = "best"
     # Default output container/audio format — used to seed the cards and as the
     # queue's per-item format (the queue has no per-item picker).
-    default_container: Literal["mp4", "mov", "mkv"] = "mp4"
-    default_audio_format: Literal["mp3", "m4a", "flac", "wav"] = "mp3"
+    default_container: Literal["mp4", "mov", "mkv", "webm"] = "mp4"
+    default_audio_format: Literal["mp3", "m4a", "opus", "flac", "wav"] = "mp3"
     # Whether new video downloads default to embedding subtitles (the "all"
     # languages option, applied only when the container can carry them) and
     # chapter markers. Container/audio already persist; these complete the set.
@@ -183,7 +183,7 @@ class Settings(BaseSettings):
     use_aria2c: bool = False
 
     # Preferred video codec: "any" = no preference, else bias the format sort.
-    video_codec: Literal["any", "h264", "vp9", "av1"] = "any"
+    video_codec: Literal["any", "h264", "h265", "vp9", "av1"] = "any"
 
     # Audio bitrate for lossy formats (kbps), or "best" for no target (default).
     audio_bitrate: Literal["best", "320", "256", "192", "128"] = "best"

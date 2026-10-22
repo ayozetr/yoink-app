@@ -2,7 +2,12 @@
 // Copyright (C) 2026 Ayoze Torres
 
 import { describe, it, expect } from "vitest";
-import { videoQualities, estimatedSizeBytes } from "./formatOptions";
+import {
+  videoQualities,
+  estimatedSizeBytes,
+  bestAvailableCodec,
+  codecFitsContainer,
+} from "./formatOptions";
 import type { VideoInfo } from "../../types/download";
 
 /** Minimal VideoInfo carrying only the fields videoQualities reads. */
@@ -113,5 +118,65 @@ describe("estimatedSizeBytes", () => {
       { resolution: "1920x1080", has_video: true, has_audio: true, filesize: 15_000_000 },
     ]);
     expect(estimatedSizeBytes(i, "video", undefined)).toBe(15_000_000);
+  });
+});
+
+describe("bestAvailableCodec", () => {
+  it("prefers AV1 over VP9 and H.264 at the same resolution (yt-dlp default)", () => {
+    const i = withFormats([
+      { resolution: "1920x1080", has_video: true, vcodec: "avc1.640028", fps: 30 },
+      { resolution: "1920x1080", has_video: true, vcodec: "vp09.00.40.08", fps: 30 },
+      { resolution: "1920x1080", has_video: true, vcodec: "av01.0.08M.08", fps: 30 },
+    ]);
+    expect(bestAvailableCodec(i, "1080p")).toBe("AV1");
+  });
+
+  it("picks the codec for the chosen tier, not a higher one", () => {
+    // 4K is AV1-only; 1080p only has H.264 — asking for 1080p must say H.264.
+    const i = withFormats([
+      { resolution: "3840x2160", has_video: true, vcodec: "av01.0.12M.08", fps: 30 },
+      { resolution: "1920x1080", has_video: true, vcodec: "avc1.640028", fps: 30 },
+    ]);
+    expect(bestAvailableCodec(i, "1080p")).toBe("H.264");
+    expect(bestAvailableCodec(i, "2160p")).toBe("AV1");
+  });
+
+  it("prefers the higher fps before codec order", () => {
+    // VP9 at 60fps beats AV1 at 30fps — fps sorts before vcodec.
+    const i = withFormats([
+      { resolution: "1920x1080", has_video: true, vcodec: "av01.0.08M.08", fps: 30 },
+      { resolution: "1920x1080", has_video: true, vcodec: "vp09.00.40.08", fps: 60 },
+    ]);
+    expect(bestAvailableCodec(i, "1080p")).toBe("VP9");
+  });
+
+  it("maps HEVC and returns null when no codec is exposed", () => {
+    const hevc = withFormats([
+      { resolution: "1920x1080", has_video: true, vcodec: "hev1.1.6.L120", fps: 30 },
+    ]);
+    expect(bestAvailableCodec(hevc, "1080p")).toBe("H.265");
+    const none = withFormats([
+      { resolution: "1920x1080", has_video: true, vcodec: null, fps: 30 },
+    ]);
+    expect(bestAvailableCodec(none, "1080p")).toBeNull();
+  });
+});
+
+describe("codecFitsContainer", () => {
+  it("flags codecs a container can't hold natively", () => {
+    expect(codecFitsContainer("webm", "h264")).toBe(false); // WebM is VP9/AV1
+    expect(codecFitsContainer("webm", "h265")).toBe(false);
+    expect(codecFitsContainer("mov", "vp9")).toBe(false); // QuickTime: no VP9/AV1
+    expect(codecFitsContainer("mov", "av1")).toBe(false);
+    expect(codecFitsContainer("mp4", "vp9")).toBe(false); // VP9-in-MP4 is fragile
+  });
+
+  it("accepts native pairings and never warns for 'any'", () => {
+    expect(codecFitsContainer("webm", "vp9")).toBe(true);
+    expect(codecFitsContainer("webm", "av1")).toBe(true);
+    expect(codecFitsContainer("mp4", "h264")).toBe(true);
+    expect(codecFitsContainer("mp4", "av1")).toBe(true);
+    expect(codecFitsContainer("mkv", "vp9")).toBe(true); // MKV holds everything
+    expect(codecFitsContainer("webm", "any")).toBe(true); // "best available" never clashes
   });
 });

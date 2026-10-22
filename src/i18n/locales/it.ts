@@ -64,6 +64,8 @@ export const it = {
       "Questo contenuto non ha audio lossless — FLAC/WAV non disponibili.",
     wavCoverWarning:
       "WAV non può contenere la copertina — l'auto-tagging aggiungerà i metadati ma non la copertina dell'album.",
+    codecContainerWarning:
+      "{{codec}} non entra in {{container}}: il video verrà ricodificato (più lento) o potrebbe fallire. Scegli MKV per mantenerlo intatto.",
     noAudio: "Nessun audio rilevato per questo video: il download sarà muto.",
     subtitles: "Sottotitoli",
     subtitlesNone: "Nessun sottotitolo",
@@ -355,8 +357,9 @@ export const it = {
     themeSystem: "Sistema",
     themeDark: "Scuro",
     themeLight: "Chiaro",
+    cookiesTitle: "Cookie",
     cookiesHint:
-      "Cookie (solo per contenuti che richiedono l'accesso; non per i contenuti pubblici)",
+      "Solo per contenuti che richiedono l'accesso; non per i contenuti pubblici.",
     cookiesBrowser: "Browser per i cookie",
     cookiesBrowserNone: "Nessuno",
     cookiesBrowserNote: "Se il tuo browser non è in elenco, usa il metodo alternativo.",

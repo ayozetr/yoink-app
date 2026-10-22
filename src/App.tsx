@@ -379,6 +379,8 @@ export default function App() {
             defaultKind={settings?.default_kind}
             defaultQuality={settings?.default_quality}
             defaultAudioFormat={settings?.default_audio_format}
+            defaultVideoCodec={settings?.video_codec}
+            defaultAudioBitrate={settings?.audio_bitrate}
             defaultEmbedSubs={settings?.default_embed_subs}
             defaultEmbedChapters={settings?.default_embed_chapters}
             fetchLyrics={settings?.fetch_lyrics}

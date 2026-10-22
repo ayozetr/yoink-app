@@ -10,6 +10,7 @@ import type {
   AudioFormat,
   MediaFormat,
   MediaKind,
+  VideoCodec,
   VideoContainer,
   VideoInfo,
   VRLayout,
@@ -39,10 +40,40 @@ export const VIDEO_CONTAINERS: { value: VideoContainer; label: string }[] = [
   { value: "mp4", label: "MP4" },
   { value: "mov", label: "MOV" },
   { value: "mkv", label: "MKV" },
+  { value: "webm", label: "WebM" },
 ];
 
 /** Default video container (mirrors the backend default). */
 export const DEFAULT_CONTAINER: VideoContainer = "mp4";
+
+/** Friendly labels for the video codecs offered in the picker. */
+export const VIDEO_CODEC_LABELS: Record<Exclude<VideoCodec, "any">, string> = {
+  h264: "H.264",
+  h265: "H.265",
+  vp9: "VP9",
+  av1: "AV1",
+};
+
+/**
+ * Which video codecs each container can hold without re-encoding. A forced
+ * codec outside this set means ffmpeg must re-encode the video (slow) or the
+ * mux may fail — we warn the user. MKV is universal; WebM is VP9/AV1 only.
+ */
+const CONTAINER_CODECS: Record<VideoContainer, Exclude<VideoCodec, "any">[]> = {
+  mp4: ["h264", "h265", "av1"],
+  mov: ["h264", "h265"],
+  mkv: ["h264", "h265", "vp9", "av1"],
+  webm: ["vp9", "av1"],
+};
+
+/** Whether a (forced) codec muxes natively into the container ("any" always fits). */
+export function codecFitsContainer(
+  container: VideoContainer,
+  codec: VideoCodec,
+): boolean {
+  if (codec === "any") return true;
+  return CONTAINER_CODECS[container]?.includes(codec) ?? true;
+}
 
 export interface AudioFormatOption {
   value: AudioFormat;
@@ -55,6 +86,7 @@ export interface AudioFormatOption {
 export const AUDIO_FORMATS: AudioFormatOption[] = [
   { value: "mp3", label: "MP3", lossless: false },
   { value: "m4a", label: "M4A", lossless: false },
+  { value: "opus", label: "Opus", lossless: false },
   { value: "flac", label: "FLAC", lossless: true },
   { value: "wav", label: "WAV", lossless: true },
 ];
@@ -180,6 +212,75 @@ export function estimatedSizeBytes(
   if (progressive) return videoBytes;
   const audio = bestAudioOnlyBytes(info);
   return audio != null ? videoBytes + audio : videoBytes;
+}
+
+/**
+ * yt-dlp's default video-codec preference, best first (mirrors FormatSorter's
+ * `vcodec` order). Each entry maps a raw `vcodec` string (e.g. "av01.0.08M.08",
+ * "avc1.640028") to a friendly name and its rank.
+ */
+const VCODEC_RANK: { re: RegExp; name: string }[] = [
+  { re: /^av0?1/i, name: "AV1" },
+  { re: /^vp0?9\.0?2/i, name: "VP9" },
+  { re: /^vp0?9/i, name: "VP9" },
+  { re: /^([hx]265|he?vc?)/i, name: "H.265" },
+  { re: /^([hx]264|avc)/i, name: "H.264" },
+  { re: /^vp0?8/i, name: "VP8" },
+  { re: /^(mp4v|h263)/i, name: "H.263" },
+  { re: /^theora/i, name: "Theora" },
+];
+
+/** Rank a raw vcodec string (lower rank = more preferred by yt-dlp's default). */
+function rankVcodec(vcodec: string): { name: string; rank: number } {
+  const i = VCODEC_RANK.findIndex((e) => e.re.test(vcodec));
+  if (i >= 0) return { name: VCODEC_RANK[i].name, rank: i };
+  return { name: vcodec.split(/[.\s]/)[0].toUpperCase(), rank: 99 };
+}
+
+/**
+ * Predict which video codec yt-dlp would actually pick for the chosen quality
+ * when no codec is forced ("best available"). Mirrors yt-dlp's default sort:
+ * within the target resolution, prefer the highest fps, then the best codec by
+ * {@link VCODEC_RANK}. Returns a friendly name ("AV1", "VP9", …) or null when
+ * the formats don't expose a codec.
+ */
+export function bestAvailableCodec(
+  info: VideoInfo,
+  quality: string | undefined,
+): string | null {
+  const normalize = isYoutube(info);
+  const target = quality ? Number.parseInt(quality, 10) : NaN;
+  let candidates = info.formats.filter((f) => f.has_video && f.vcodec);
+  if (candidates.length === 0) return null;
+
+  // Narrow to the chosen resolution tier (or the best one at/below it; without a
+  // target, the highest resolution overall) — yt-dlp sorts by `res` first.
+  const heightOf = (f: MediaFormat) => formatHeight(f, normalize) ?? 0;
+  if (Number.isFinite(target)) {
+    const atTier = candidates.filter((f) => heightOf(f) === target);
+    if (atTier.length > 0) {
+      candidates = atTier;
+    } else {
+      const below = candidates.filter((f) => heightOf(f) <= target);
+      const pool = below.length > 0 ? below : candidates;
+      const maxH = Math.max(...pool.map(heightOf));
+      candidates = pool.filter((f) => heightOf(f) === maxH);
+    }
+  } else {
+    const maxH = Math.max(...candidates.map(heightOf));
+    candidates = candidates.filter((f) => heightOf(f) === maxH);
+  }
+
+  // Within the resolution, prefer the highest fps, then the best codec.
+  const maxFps = Math.max(...candidates.map((f) => f.fps ?? 0));
+  const topFps = candidates.filter((f) => (f.fps ?? 0) === maxFps);
+  return topFps.reduce(
+    (best: { name: string; rank: number } | null, f) => {
+      const r = rankVcodec(f.vcodec as string);
+      return best === null || r.rank < best.rank ? r : best;
+    },
+    null,
+  )?.name ?? null;
 }
 
 /** A compact, locale-formatted duration: "1h 18m" / "18m" / "45s" (units via

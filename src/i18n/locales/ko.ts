@@ -64,6 +64,8 @@ export const ko = {
       "이 콘텐츠에는 무손실 오디오가 없습니다 — FLAC/WAV를 사용할 수 없습니다.",
     wavCoverWarning:
       "WAV는 커버 아트를 저장할 수 없습니다 — 자동 태그 지정 시 메타데이터는 추가되지만 앨범 커버는 추가되지 않습니다.",
+    codecContainerWarning:
+      "{{codec}}은(는) {{container}}에 넣을 수 없습니다 — 영상이 재인코딩되거나(느림) 실패할 수 있습니다. 원본을 유지하려면 MKV를 선택하세요.",
     noAudio: "이 동영상에서 오디오가 감지되지 않았습니다 — 다운로드에 소리가 없습니다.",
     subtitles: "자막",
     subtitlesNone: "자막 없음",
@@ -355,8 +357,9 @@ export const ko = {
     themeSystem: "시스템",
     themeDark: "다크",
     themeLight: "라이트",
+    cookiesTitle: "쿠키",
     cookiesHint:
-      "쿠키 (로그인이 필요한 콘텐츠 전용, 공개 콘텐츠에는 불필요)",
+      "로그인이 필요한 콘텐츠 전용, 공개 콘텐츠에는 불필요.",
     cookiesBrowser: "쿠키용 브라우저",
     cookiesBrowserNone: "없음",
     cookiesBrowserNote: "목록에 브라우저가 없으면 대체 방법을 사용하세요.",
