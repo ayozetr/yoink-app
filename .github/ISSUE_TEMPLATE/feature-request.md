@@ -7,6 +7,10 @@ assignees: ayozetr
 
 ---
 
+<!-- Before filing: -->
+
+- [ ] I searched open issues and didn't find the same request.
+
 ## The problem
 
 <!--
@@ -31,11 +35,17 @@ than the one you had in mind.
 
 <!--
 Mark with x where it lands so I can route it:
-- [ ] Downloading / yt-dlp options (formats, containers, quality, subtitles, chapters, audio formats)
-- [ ] The desktop shell / packaging (Tauri, installers, auto-update)
-- [ ] Settings (download dir, defaults, cookies, language)
+- [ ] Downloading / yt-dlp options (formats, containers, codecs, bitrate, quality, subtitles, chapters, trimming)
+- [ ] Audio auto-tagging (Apple Music / Deezer / MusicBrainz, cover art, lyrics, .nfo)
+- [ ] Music import (Spotify / Deezer / Apple / Tidal / Amazon → matched download)
+- [ ] Search (YouTube / SoundCloud)
+- [ ] VR / immersive video
+- [ ] SponsorBlock
 - [ ] History / statistics
+- [ ] Logs (the Registro tab)
+- [ ] Settings (download dir, defaults, bandwidth, cookies, proxy, language, theme)
 - [ ] UI / UX / internationalization
+- [ ] The desktop shell / packaging (Tauri, installers, auto-update, deep links, browser extension)
 - [ ] A new source/platform support
 - [ ] Other — explain below
 -->
