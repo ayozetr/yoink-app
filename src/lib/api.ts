@@ -261,6 +261,12 @@ export async function clearHistory(): Promise<void> {
   await request("/history", { method: "DELETE" });
 }
 
+/** Clear yt-dlp's on-disk cache (flagged visitor_data) via `DELETE /api/ytdlp-cache`. */
+export async function clearYtdlpCache(): Promise<{ path: string; existed: boolean }> {
+  const response = await request("/ytdlp-cache", { method: "DELETE" });
+  return (await response.json()) as { path: string; existed: boolean };
+}
+
 /** Reveal a file/folder in the OS file manager via `POST /api/open`. With
  * `openFile`, the file itself is opened with its default app. */
 export async function openInFileManager(

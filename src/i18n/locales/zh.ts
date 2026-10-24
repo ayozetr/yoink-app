@@ -66,7 +66,8 @@ export const zh = {
       "WAV 无法存储封面——自动标记会写入元数据，但不会有专辑封面。",
     codecContainerWarning:
       "{{codec}} 无法装入 {{container}}——视频将被重新编码（更慢）或可能失败。选择 MKV 可保持原样。",
-    noAudio: "未检测到此视频的音频——下载将没有声音。",
+    noAudio:
+      "未检测到此视频的音频——下载将没有声音。如果是 YouTube 在拦截，请在「设置 › 网络与访问」中清除 yt-dlp 缓存。",
     subtitles: "字幕",
     subtitlesNone: "无字幕",
     subtitlesAll: "全部字幕",
@@ -80,6 +81,7 @@ export const zh = {
     trimHint: "例如 0:30 → 2:10。终点留空则截取至结尾。",
     trimError: "终点必须晚于起点。",
     trimInvalid: "时间无效 — 请使用 m:ss。",
+    hlsTrimNote: "此来源会完整下载后再裁剪。",
     vrBadge: "VR",
     imageLabel: "图片",
     imageBadge: "图片",
@@ -310,6 +312,12 @@ export const zh = {
       "通过 HTTP/HTTPS/SOCKS 代理转发元数据和下载。留空则使用直接连接。",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "yt-dlp 缓存",
+    ytdlpCacheHint:
+      "当 YouTube 开始出问题时清除它：视频没有声音，或出现“confirm you're not a bot”。",
+    ytdlpCacheClear: "清除缓存",
+    ytdlpCacheCleared: "已清除 yt-dlp 缓存。",
+    ytdlpCacheError: "无法清除缓存。",
     poTokenHelp:
       "YouTube 的匿名「证明你是真实客户端」令牌 — 无需 Cookie 即可通过反机器人检查。「手动」使用你粘贴的令牌；「自动」在本地为每个视频生成一个新令牌（无法生成时回退到你粘贴的令牌）；「关闭」从不发送。",
     poTokenMode: "PO token (YouTube)",

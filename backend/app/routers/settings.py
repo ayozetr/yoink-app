@@ -6,13 +6,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import settings as app_settings
 from app.models.media import AppSettings, VersionInfo, WhatsNew
-from app.services import settings_store, updates
+from app.services import settings_store, updates, ytdlp_service
 
 router = APIRouter(tags=["settings"])
 
@@ -61,6 +62,20 @@ def get_ytdlp_version() -> VersionInfo:
     with the next Yoink release (no in-app yt-dlp update).
     """
     return updates.check_ytdlp_update()
+
+
+@router.delete("/ytdlp-cache", summary="Clear yt-dlp's on-disk cache")
+def clear_ytdlp_cache() -> dict[str, Any]:
+    """Remove yt-dlp's cache dir. Recovers from a flagged YouTube ``visitor_data``
+    (videos showing up with no audio, or "confirm you're not a bot") when a PO
+    token and cookies don't help. Returns the cleared path and whether it existed.
+    """
+    try:
+        return ytdlp_service.clear_cache()
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Could not clear the yt-dlp cache: {exc}"
+        ) from exc
 
 
 @router.get("/settings", response_model=AppSettings, summary="Current settings")

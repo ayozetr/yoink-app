@@ -105,6 +105,9 @@ export interface VideoInfo {
   auto_caption_langs: string[];
   /** Whether the source exposes chapter markers. */
   has_chapters: boolean;
+  /** True when the source streams over HLS (m3u8) — trimming it needs a
+   * full download + ffmpeg clip instead of a range download. */
+  is_hls: boolean;
   /** Languages of the available audio tracks (>1 means multi-audio). */
   audio_langs: string[];
   /** Heuristically detected as immersive (VR) video. */
@@ -194,6 +197,9 @@ export interface DownloadRequest {
   /** Clip start/end in seconds — download only that range. */
   trim_start?: number;
   trim_end?: number;
+  /** Source is HLS (from the analyzed info): when trimming, the backend fetches
+   * the full stream and clips it with ffmpeg instead of a range download. */
+  is_hls?: boolean;
   /** Tag the output as immersive VR (name suffix + spherical metadata). */
   is_vr?: boolean;
   /** Stereo/projection layout to tag with when is_vr is set. */

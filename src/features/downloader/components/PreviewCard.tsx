@@ -339,10 +339,12 @@ export const PreviewCard = memo(function PreviewCard({
       trim_end: !trimError && !trimInvalid ? trimEndSec : undefined,
       is_vr: isVideo ? isVr : undefined,
       vr_layout: isVideo && isVr ? vrLayout : undefined,
-      // Only when not trimming — the estimate is for the full video, so a small
-      // clip of a big video shouldn't be blocked on size.
+      // The estimate is for the full video, so skip it when trimming (a small
+      // clip of a big video shouldn't be blocked on size) — except for an HLS
+      // source, which downloads in full and clips afterward, so the full size
+      // does apply.
       estimated_size:
-        trimStartSec == null && trimEndSec == null
+        info.is_hls || (trimStartSec == null && trimEndSec == null)
           ? (estimatedBytes ?? undefined)
           : undefined,
     });
@@ -793,6 +795,15 @@ export const PreviewCard = memo(function PreviewCard({
                       : t("preview.trimError")}
                   </p>
                 )}
+                {info.is_hls &&
+                  (trimStartSec != null || trimEndSec != null) &&
+                  !trimError &&
+                  !trimInvalid && (
+                    <p className="flex items-center gap-2 text-xs text-fg-dim">
+                      <Info size={14} className="shrink-0" />
+                      {t("preview.hlsTrimNote")}
+                    </p>
+                  )}
               </div>
             </div>
           )}

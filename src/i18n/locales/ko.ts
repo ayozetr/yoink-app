@@ -66,7 +66,8 @@ export const ko = {
       "WAV는 커버 아트를 저장할 수 없습니다 — 자동 태그 지정 시 메타데이터는 추가되지만 앨범 커버는 추가되지 않습니다.",
     codecContainerWarning:
       "{{codec}}은(는) {{container}}에 넣을 수 없습니다 — 영상이 재인코딩되거나(느림) 실패할 수 있습니다. 원본을 유지하려면 MKV를 선택하세요.",
-    noAudio: "이 동영상에서 오디오가 감지되지 않았습니다 — 다운로드에 소리가 없습니다.",
+    noAudio:
+      "이 동영상에서 오디오가 감지되지 않았습니다 — 다운로드에 소리가 없습니다. YouTube가 차단하는 경우 설정 › 네트워크 및 접근에서 yt-dlp 캐시를 지우세요.",
     subtitles: "자막",
     subtitlesNone: "자막 없음",
     subtitlesAll: "모든 자막",
@@ -80,6 +81,7 @@ export const ko = {
     trimHint: "예: 0:30 → 2:10. 끝을 비워 두면 나머지 전체가 포함됩니다.",
     trimError: "끝이 시작보다 뒤여야 합니다.",
     trimInvalid: "잘못된 시간 — m:ss 형식을 사용하세요.",
+    hlsTrimNote: "이 소스는 전체를 내려받은 뒤 잘라냅니다.",
     vrBadge: "VR",
     imageLabel: "이미지",
     imageBadge: "이미지",
@@ -310,6 +312,12 @@ export const ko = {
       "메타데이터와 다운로드를 HTTP/HTTPS/SOCKS 프록시를 통해 라우팅합니다. 직접 연결하려면 비워 두세요.",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "yt-dlp 캐시",
+    ytdlpCacheHint:
+      "YouTube가 오작동하면 지우세요: 소리 없는 영상이나 “confirm you're not a bot”.",
+    ytdlpCacheClear: "캐시 지우기",
+    ytdlpCacheCleared: "yt-dlp 캐시를 지웠습니다.",
+    ytdlpCacheError: "캐시를 지우지 못했습니다.",
     poTokenHelp:
       "YouTube용 익명 '실제 클라이언트임을 증명하는' 토큰 — 쿠키 없이 봇 검사를 통과할 수 있습니다. '수동'은 붙여넣은 토큰을 사용합니다. '자동'은 동영상마다 로컬로 새 토큰을 생성합니다(생성할 수 없으면 붙여넣은 토큰으로 대체). '끄기'는 절대 보내지 않습니다.",
     poTokenMode: "PO token (YouTube)",

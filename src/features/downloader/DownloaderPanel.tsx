@@ -562,6 +562,9 @@ export function DownloaderPanel({
           audio_multistreams: selection.audio_multistreams,
           trim_start: selection.trim_start,
           trim_end: selection.trim_end,
+          // Source-level: an HLS source is trimmed by a full fetch + ffmpeg clip
+          // on the backend (its range download can't cut HLS).
+          is_hls: info?.video?.is_hls,
           is_vr: selection.is_vr,
           vr_layout: selection.vr_layout,
           estimated_size: selection.estimated_size,

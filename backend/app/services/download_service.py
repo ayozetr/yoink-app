@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import shutil
+import subprocess
 import tempfile
 import threading
 from pathlib import Path
@@ -571,7 +573,11 @@ def _build_options(
         if (request.trim_end is not None and request.trim_end > start)
         else float("inf")
     )
-    if start > 0 or end != float("inf"):
+    # HLS sources (e.g. ok.ru) can't be trimmed by yt-dlp's range download — its
+    # FFmpegFD range fetch fails ("ffmpeg exited with code 8"). For those, skip the
+    # range here (download the full stream) and clip the finished file with ffmpeg
+    # in `_run` instead. Non-HLS keeps the efficient range download below.
+    if (start > 0 or end != float("inf")) and not request.is_hls:
         options["download_ranges"] = download_range_func(None, [(start, end)])
         # Cut by stream copy — never force_keyframes_at_cuts. Forcing keyframes
         # re-encodes the clip, and the bundled ffmpeg is an LGPL build with no
@@ -624,6 +630,32 @@ def _final_path(info: dict[str, Any]) -> str | None:
     return None
 
 
+def _ffmpeg_trim(path: Path, start: float, end: float | None) -> None:
+    """Clip a fully-downloaded file to [start, end] in place, by stream copy.
+
+    Used for HLS sources, where yt-dlp's range download can't trim. Stream-copies
+    (no re-encode) for the same reason the download-ranges path does: the bundled
+    ffmpeg is an LGPL build without libx264/x265, so re-encoding would fall back to
+    a low-quality built-in codec. The cut lands on the nearest keyframe.
+    """
+    location = ffmpeg_location()
+    ffmpeg = os.path.join(location, "ffmpeg") if location else "ffmpeg"
+    tmp = path.with_name(f"{path.stem}.trim{path.suffix}")
+    cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{start:.3f}"]
+    if end is not None and end > start:
+        cmd += ["-t", f"{end - start:.3f}"]
+    cmd += ["-i", str(path), "-map", "0", "-c", "copy", str(tmp)]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        tmp.unlink(missing_ok=True)
+        detail = exc.stderr.decode(errors="replace")[-300:] if isinstance(
+            exc, subprocess.CalledProcessError
+        ) else str(exc)
+        raise RuntimeError(f"ffmpeg trim failed: {detail}") from exc
+    tmp.replace(path)
+
+
 def _relocate(src: Path, download_dir: Path) -> Path:
     """Move a finished download out of its isolated work dir into the download
     dir, overwriting any previous file of the same name (a re-download replaces
@@ -658,8 +690,9 @@ def _downloaded_node(info: dict[str, Any]) -> dict[str, Any]:
 _ERROR_HINTS: tuple[tuple[str, str], ...] = (
     (
         "confirm you're not a bot",
-        "The site is blocking automated access. Try again later, or point Yoink "
-        "at your browser in Settings → cookies.",
+        "The site is blocking automated access. Try again later, clear the yt-dlp "
+        "cache in Settings → Network & access, or point Yoink at your browser in "
+        "Settings → cookies.",
     ),
     ("http error 429", "The site is rate-limiting downloads — wait a bit and try again."),
     (
@@ -857,6 +890,19 @@ async def download_events(
             # worker returns promptly instead of blocking WS teardown on work the
             # user no longer wants.
             cancelled = lambda: cancel_event is not None and cancel_event.is_set()  # noqa: E731
+            # HLS trim fallback: the range download was skipped for an HLS source
+            # (it can't be trimmed that way), so the full stream was fetched — clip
+            # it now, before the other post-steps rewrite the file. Non-HLS was
+            # already trimmed during the download.
+            if path and request.is_hls and not cancelled():
+                t_start = request.trim_start or 0.0
+                t_end = (
+                    request.trim_end
+                    if (request.trim_end is not None and request.trim_end > t_start)
+                    else None
+                )
+                if (t_start > 0 or t_end is not None) and Path(path).exists():
+                    _ffmpeg_trim(Path(path), t_start, t_end)
             # Immersive (VR) tagging: add the projection name suffix + inject
             # spherical metadata. Runs here on the worker thread (it rewrites the
             # file) and updates the path so the completed event/history point at

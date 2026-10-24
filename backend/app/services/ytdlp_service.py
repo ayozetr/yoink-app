@@ -10,6 +10,7 @@ actual download + progress-streaming logic will live alongside it later.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from collections import Counter
@@ -37,6 +38,28 @@ from app.models.media import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def clear_cache() -> dict[str, Any]:
+    """Remove yt-dlp's on-disk cache and report the directory.
+
+    yt-dlp caches a YouTube ``visitor_data`` (and player data) there; when that
+    cached identity gets flagged by YouTube's anti-bot, every request from it is
+    degraded (audio formats withheld) or walled ("confirm you're not a bot"),
+    and neither a PO token nor cookies help until it's cleared. Removing the
+    cache regenerates a clean identity. ``remove()`` targets whatever dir yt-dlp
+    actually uses; the returned path mirrors its default for the UI.
+    """
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache"
+    )
+    cache_dir = os.path.join(base, "yt-dlp")
+    existed = os.path.isdir(cache_dir)
+    with YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
+        ydl.cache.remove()
+    logger.info("Cleared yt-dlp cache (%s, existed=%s)", cache_dir, existed)
+    return {"path": cache_dir, "existed": existed}
+
 
 # Cap the number of playlist entries returned so huge playlists stay snappy.
 _ENTRY_CAP = 200
@@ -376,6 +399,26 @@ def _is_image_item(raw_formats: Any) -> bool:
     return True
 
 
+def _is_hls_source(raw_formats: Any) -> bool:
+    """True when the top available quality is only offered over HLS (``m3u8``) —
+    so a best-quality download will pick an HLS format, which yt-dlp's range
+    download can't trim (it fails with "ffmpeg exited with code 8"). The backend
+    then fetches the full stream and clips it with ffmpeg afterward.
+
+    Detected by protocol at the maximum resolution, not "any m3u8": YouTube exposes
+    HLS variants too but always a progressive/DASH option at the top height (so it
+    keeps the efficient range path), whereas ok.ru's high qualities are HLS-only.
+    """
+    if not isinstance(raw_formats, list):
+        return False
+    heighted = [f for f in raw_formats if isinstance(f, dict) and f.get("height")]
+    if not heighted:
+        return False
+    max_height = max(f["height"] for f in heighted)
+    top = [f for f in heighted if f.get("height") == max_height]
+    return all("m3u8" in (f.get("protocol") or "") for f in top)
+
+
 def _build_video(info: dict[str, Any]) -> VideoInfo:
     """Build a fully-typed VideoInfo from a resolved yt-dlp info dict."""
     raw_formats = info.get("formats")
@@ -411,6 +454,7 @@ def _build_video(info: dict[str, Any]) -> VideoInfo:
         subtitle_langs=manual_subs,
         auto_caption_langs=_auto_caption_langs(info, manual_subs),
         has_chapters=bool(info.get("chapters")),
+        is_hls=_is_hls_source(raw_formats),
         audio_langs=_audio_langs(info),
         is_vr=is_vr,
         vr_layout=vr_layout,

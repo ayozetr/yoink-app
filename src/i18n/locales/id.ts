@@ -66,7 +66,8 @@ export const id = {
       "WAV tidak dapat menyimpan sampul album — pemberian tag otomatis akan menambahkan metadata tetapi tanpa sampul album.",
     codecContainerWarning:
       "{{codec}} tidak muat di {{container}} — video akan di-encode ulang (lebih lambat) atau bisa gagal. Pilih MKV agar tetap utuh.",
-    noAudio: "Tidak ada audio terdeteksi untuk video ini — unduhan akan senyap.",
+    noAudio:
+      "Tidak ada audio terdeteksi untuk video ini — unduhan akan senyap. Jika YouTube memblokirnya, bersihkan cache yt-dlp di Pengaturan › Jaringan & akses.",
     subtitles: "Subtitle",
     subtitlesNone: "Tanpa subtitle",
     subtitlesAll: "Semua subtitle",
@@ -80,6 +81,7 @@ export const id = {
     trimHint: "mis. 0:30 → 2:10. Biarkan akhir kosong untuk sisanya.",
     trimError: "Akhir harus setelah awal.",
     trimInvalid: "Waktu tidak valid — gunakan m:dd.",
+    hlsTrimNote: "Sumber ini diunduh penuh lalu dipotong.",
     vrBadge: "VR",
     imageLabel: "Gambar",
     imageBadge: "Gambar",
@@ -310,6 +312,12 @@ export const id = {
       "Salurkan metadata dan unduhan melalui proxy HTTP/HTTPS/SOCKS. Biarkan kosong untuk koneksi langsung.",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "Cache yt-dlp",
+    ytdlpCacheHint:
+      "Bersihkan jika YouTube mulai bermasalah: video tanpa audio atau “confirm you're not a bot”.",
+    ytdlpCacheClear: "Bersihkan cache",
+    ytdlpCacheCleared: "Cache yt-dlp dibersihkan.",
+    ytdlpCacheError: "Gagal membersihkan cache.",
     poTokenHelp:
       "Token anonim 'bukti kamu klien asli' untuk YouTube — bisa lolos cek bot tanpa cookie. 'Manual' memakai token yang kamu tempel; 'Otomatis' membuat token baru per video secara lokal (dan beralih ke token tempelanmu saat tidak bisa); 'Mati' tidak pernah mengirimnya.",
     poTokenMode: "PO token (YouTube)",

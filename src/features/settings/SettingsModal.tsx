@@ -12,6 +12,7 @@ import {
   Coffee,
   CornerDownRight,
   Download,
+  Eraser,
   FolderOpen,
   HelpCircle,
   Loader2,
@@ -31,7 +32,8 @@ import { FlagIcon } from "../../components/ui/FlagIcon";
 import { TermsModal } from "./TermsModal";
 import { LicensesModal } from "./LicensesModal";
 import logoUrl from "../../assets/logo.png";
-import { fetchYtdlpVersion, updateSettings } from "../../lib/api";
+import { clearYtdlpCache, fetchYtdlpVersion, updateSettings } from "../../lib/api";
+import { toast } from "../../lib/toast";
 import { openExternal } from "../../lib/openExternal";
 import { pickDirectory, pickFile } from "../../lib/pickDirectory";
 import { isTauri } from "../../lib/desktop";
@@ -264,6 +266,7 @@ export function SettingsModal({
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<UpdateCheck | null>(null);
   const [ytdlp, setYtdlp] = useState<VersionInfo | null>(null);
+  const [clearingCache, setClearingCache] = useState(false);
   // "system" = follow the OS/browser language; otherwise a forced choice.
   const [lang, setLang] = useState<string>(
     () => localStorage.getItem(LANG_STORAGE_KEY) ?? "system",
@@ -369,6 +372,18 @@ export function SettingsModal({
       if (ytdlpResult.status === "fulfilled") setYtdlp(ytdlpResult.value);
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    setClearingCache(true);
+    try {
+      await clearYtdlpCache();
+      toast.success(t("settings.ytdlpCacheCleared"));
+    } catch {
+      toast.error(t("settings.ytdlpCacheError"));
+    } finally {
+      setClearingCache(false);
     }
   };
 
@@ -942,6 +957,25 @@ export function SettingsModal({
               />
             </Field>
           )}
+
+          <Field
+            label={t("settings.ytdlpCache")}
+            description={t("settings.ytdlpCacheHint")}
+          >
+            <button
+              type="button"
+              onClick={handleClearCache}
+              disabled={clearingCache}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line/10 px-3.5 py-1.5 text-sm text-fg transition hover:border-line/20 disabled:opacity-50"
+            >
+              {clearingCache ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Eraser className="size-4" />
+              )}
+              {t("settings.ytdlpCacheClear")}
+            </button>
+          </Field>
         </section>
 
         <section id="settings-shortcuts" className="scroll-mt-4">

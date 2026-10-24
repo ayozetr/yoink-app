@@ -66,7 +66,8 @@ export const en = {
       "WAV can't store cover art — auto-tagging will add the metadata but no album cover.",
     codecContainerWarning:
       "{{codec}} can't go in {{container}} — the video will be re-encoded (slower) or may fail. Pick MKV to keep it untouched.",
-    noAudio: "No audio detected for this video — the download will be silent.",
+    noAudio:
+      "No audio detected for this video — the download will be silent. If YouTube is blocking it, clear the yt-dlp cache in Settings › Network & access.",
     subtitles: "Subtitles",
     subtitlesNone: "No subtitles",
     subtitlesAll: "All subtitles",
@@ -80,6 +81,7 @@ export const en = {
     trimHint: "e.g. 0:30 → 2:10. Leave the end empty for the rest.",
     trimError: "The end must be after the start.",
     trimInvalid: "Invalid time — use m:ss.",
+    hlsTrimNote: "This source is downloaded in full and then clipped.",
     vrBadge: "VR",
     imageLabel: "Image",
     imageBadge: "Image",
@@ -310,6 +312,12 @@ export const en = {
       "Route metadata and downloads through an HTTP/HTTPS/SOCKS proxy. Leave empty for a direct connection.",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "yt-dlp cache",
+    ytdlpCacheHint:
+      "Clear it if YouTube starts failing — videos showing up with no audio, or \"confirm you're not a bot\".",
+    ytdlpCacheClear: "Clear cache",
+    ytdlpCacheCleared: "yt-dlp cache cleared.",
+    ytdlpCacheError: "Couldn't clear the cache.",
     poTokenHelp:
       "An anonymous 'proof you're a real client' token for YouTube — it can pass the bot-check without cookies. 'Manual' uses the token(s) you paste; 'Auto' mints a fresh one per video locally (falling back to your pasted token when it can't); 'Off' never sends one.",
     poTokenMode: "PO token (YouTube)",

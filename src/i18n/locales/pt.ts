@@ -66,7 +66,8 @@ export const pt = {
       "WAV não armazena capa — a marcação automática adicionará os metadados, mas não a capa do álbum.",
     codecContainerWarning:
       "{{codec}} não cabe em {{container}} — o vídeo será recodificado (mais lento) ou pode falhar. Escolhe MKV para o manter intacto.",
-    noAudio: "Nenhum áudio detetado para este vídeo — a transferência ficará muda.",
+    noAudio:
+      "Nenhum áudio detetado para este vídeo — a transferência ficará muda. Se o YouTube estiver a bloquear, limpa a cache do yt-dlp em Definições › Rede e acesso.",
     subtitles: "Legendas",
     subtitlesNone: "Nenhuma legenda",
     subtitlesAll: "Todas as legendas",
@@ -80,6 +81,7 @@ export const pt = {
     trimHint: "ex.: 0:30 → 2:10. Deixe o fim vazio para o restante.",
     trimError: "O fim deve ser posterior ao início.",
     trimInvalid: "Hora inválida — use m:ss.",
+    hlsTrimNote: "Esta fonte é transferida por completo e depois recortada.",
     vrBadge: "VR",
     imageLabel: "Imagem",
     imageBadge: "Imagem",
@@ -310,6 +312,12 @@ export const pt = {
       "Roteia os metadados e os downloads por um proxy HTTP/HTTPS/SOCKS. Deixe vazio para conexão direta.",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "Cache do yt-dlp",
+    ytdlpCacheHint:
+      "Limpa-a se o YouTube começar a falhar: vídeos sem áudio ou «confirm you're not a bot».",
+    ytdlpCacheClear: "Limpar cache",
+    ytdlpCacheCleared: "Cache do yt-dlp limpa.",
+    ytdlpCacheError: "Não foi possível limpar a cache.",
     poTokenHelp:
       "Um token anónimo de 'prova de que és um cliente real' para o YouTube — pode passar o anti-bot sem cookies. 'Manual' usa o(s) token(s) que colas; 'Auto' gera um novo por vídeo localmente (recorrendo ao token que colaste quando não consegue); 'Desligado' nunca envia nenhum.",
     poTokenMode: "PO token (YouTube)",

@@ -66,7 +66,8 @@ export const pl = {
       "WAV nie obsługuje okładki — automatyczne tagowanie doda metadane, ale bez okładki albumu.",
     codecContainerWarning:
       "{{codec}} nie zmieści się w {{container}} — wideo zostanie przekodowane (wolniej) lub operacja się nie powiedzie. Wybierz MKV, aby zachować oryginał.",
-    noAudio: "Nie wykryto dźwięku dla tego filmu — pobrany plik będzie niemy.",
+    noAudio:
+      "Nie wykryto dźwięku dla tego filmu — pobrany plik będzie niemy. Jeśli YouTube to blokuje, wyczyść pamięć podręczną yt-dlp w Ustawienia › Sieć i dostęp.",
     subtitles: "Napisy",
     subtitlesNone: "Bez napisów",
     subtitlesAll: "Wszystkie napisy",
@@ -80,6 +81,7 @@ export const pl = {
     trimHint: "np. 0:30 → 2:10. Pozostaw koniec pusty, aby pobrać resztę.",
     trimError: "Koniec musi być późniejszy niż początek.",
     trimInvalid: "Nieprawidłowy czas — użyj m:ss.",
+    hlsTrimNote: "To źródło jest pobierane w całości i następnie przycinane.",
     vrBadge: "VR",
     imageLabel: "Obraz",
     imageBadge: "Obraz",
@@ -322,6 +324,12 @@ export const pl = {
       "Kieruj metadane i pobierania przez proxy HTTP/HTTPS/SOCKS. Pozostaw puste dla połączenia bezpośredniego.",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "Pamięć podręczna yt-dlp",
+    ytdlpCacheHint:
+      "Wyczyść ją, gdy YouTube zacznie zawodzić: filmy bez dźwięku lub „confirm you're not a bot”.",
+    ytdlpCacheClear: "Wyczyść pamięć",
+    ytdlpCacheCleared: "Pamięć podręczna yt-dlp wyczyszczona.",
+    ytdlpCacheError: "Nie udało się wyczyścić pamięci podręcznej.",
     poTokenHelp:
       "Anonimowy token 'dowodu, że jesteś prawdziwym klientem' dla YouTube — przechodzi anty-bota bez plików cookie. 'Ręczny' używa wklejonych przez Ciebie tokenów; 'Auto' generuje nowy dla każdego wideo lokalnie (wracając do wklejonego tokena, gdy nie może); 'Wyłączone' nigdy go nie wysyła.",
     poTokenMode: "PO token (YouTube)",

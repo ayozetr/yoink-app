@@ -66,7 +66,8 @@ export const fr = {
       "Le WAV ne peut pas stocker de pochette — l'étiquetage automatique ajoutera les métadonnées mais pas la pochette de l'album.",
     codecContainerWarning:
       "{{codec}} n'entre pas dans {{container}} — la vidéo sera réencodée (plus lent) ou échouera. Choisis MKV pour la garder intacte.",
-    noAudio: "Aucun audio détecté pour cette vidéo — le téléchargement sera muet.",
+    noAudio:
+      "Aucun audio détecté pour cette vidéo — le téléchargement sera muet. Si YouTube le bloque, videz le cache yt-dlp dans Paramètres › Réseau et accès.",
     subtitles: "Sous-titres",
     subtitlesNone: "Aucun sous-titre",
     subtitlesAll: "Tous les sous-titres",
@@ -80,6 +81,7 @@ export const fr = {
     trimHint: "p. ex. 0:30 → 2:10. Laissez la fin vide pour le reste.",
     trimError: "La fin doit être après le début.",
     trimInvalid: "Heure invalide — utilisez m:ss.",
+    hlsTrimNote: "Cette source est téléchargée en entier puis découpée.",
     vrBadge: "VR",
     imageLabel: "Image",
     imageBadge: "Image",
@@ -310,6 +312,12 @@ export const fr = {
       "Acheminez les métadonnées et les téléchargements via un proxy HTTP/HTTPS/SOCKS. Laissez vide pour une connexion directe.",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "Cache yt-dlp",
+    ytdlpCacheHint:
+      "Videz-le si YouTube commence à échouer : vidéos sans audio, ou « confirm you're not a bot ».",
+    ytdlpCacheClear: "Vider le cache",
+    ytdlpCacheCleared: "Cache yt-dlp vidé.",
+    ytdlpCacheError: "Impossible de vider le cache.",
     poTokenHelp:
       "Un jeton anonyme de « preuve de client réel » pour YouTube — il peut passer l'anti-bot sans cookies. « Manuel » utilise le ou les jetons que tu colles ; « Auto » en génère un nouveau par vidéo localement (et se rabat sur ton jeton collé s'il ne peut pas) ; « Désactivé » n'en envoie jamais.",
     poTokenMode: "PO token (YouTube)",

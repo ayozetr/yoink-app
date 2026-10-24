@@ -66,7 +66,8 @@ export const ja = {
       "WAV はカバーアートを保存できません — 自動タグ付けはメタデータを追加しますが、アルバムカバーは付きません。",
     codecContainerWarning:
       "{{codec}} は {{container}} に格納できません。動画は再エンコードされる（遅くなる）か失敗する可能性があります。そのまま保持するには MKV を選んでください。",
-    noAudio: "この動画では音声が検出されませんでした。ダウンロードは無音になります。",
+    noAudio:
+      "この動画では音声が検出されませんでした。ダウンロードは無音になります。YouTube によるブロックの場合は、設定 › ネットワークとアクセスで yt-dlp のキャッシュを削除してください。",
     subtitles: "字幕",
     subtitlesNone: "字幕なし",
     subtitlesAll: "すべての字幕",
@@ -80,6 +81,7 @@ export const ja = {
     trimHint: "例：0:30 → 2:10。終了を空欄にすると最後まで残します。",
     trimError: "終了は開始より後にしてください。",
     trimInvalid: "無効な時間です — m:ss 形式で入力してください。",
+    hlsTrimNote: "このソースは全体をダウンロードしてから切り出します。",
     vrBadge: "VR",
     imageLabel: "画像",
     imageBadge: "画像",
@@ -310,6 +312,12 @@ export const ja = {
       "メタデータとダウンロードを HTTP/HTTPS/SOCKS プロキシ経由で行います。空欄にすると直接接続します。",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "yt-dlp のキャッシュ",
+    ytdlpCacheHint:
+      "YouTube が不調になったら削除してください（音声なしの動画や「confirm you're not a bot」）。",
+    ytdlpCacheClear: "キャッシュを削除",
+    ytdlpCacheCleared: "yt-dlp のキャッシュを削除しました。",
+    ytdlpCacheError: "キャッシュを削除できませんでした。",
     poTokenHelp:
       "YouTube 用の匿名の「本物のクライアントである証明」トークン — Cookie なしでボット確認を通過できます。「手動」は貼り付けたトークンを使用します。「自動」は動画ごとにローカルで新しいトークンを生成します（生成できない場合は貼り付けたトークンにフォールバック）。「オフ」は一切送信しません。",
     poTokenMode: "PO token (YouTube)",

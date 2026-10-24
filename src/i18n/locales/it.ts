@@ -66,7 +66,8 @@ export const it = {
       "WAV non può contenere la copertina — l'auto-tagging aggiungerà i metadati ma non la copertina dell'album.",
     codecContainerWarning:
       "{{codec}} non entra in {{container}}: il video verrà ricodificato (più lento) o potrebbe fallire. Scegli MKV per mantenerlo intatto.",
-    noAudio: "Nessun audio rilevato per questo video: il download sarà muto.",
+    noAudio:
+      "Nessun audio rilevato per questo video: il download sarà muto. Se YouTube lo sta bloccando, svuota la cache di yt-dlp in Impostazioni › Rete e accesso.",
     subtitles: "Sottotitoli",
     subtitlesNone: "Nessun sottotitolo",
     subtitlesAll: "Tutti i sottotitoli",
@@ -80,6 +81,7 @@ export const it = {
     trimHint: "es. 0:30 → 2:10. Lascia vuota la fine per il resto.",
     trimError: "La fine deve essere successiva all'inizio.",
     trimInvalid: "Ora non valida — usa m:ss.",
+    hlsTrimNote: "Questa sorgente viene scaricata per intero e poi tagliata.",
     vrBadge: "VR",
     imageLabel: "Immagine",
     imageBadge: "Immagine",
@@ -310,6 +312,12 @@ export const it = {
       "Instrada metadati e download attraverso un proxy HTTP/HTTPS/SOCKS. Lascia vuoto per una connessione diretta.",
     poToken: "PO token (YouTube)",
     poTokenPlaceholder: "web.gvs+…",
+    ytdlpCache: "Cache di yt-dlp",
+    ytdlpCacheHint:
+      "Svuotala se YouTube inizia a non funzionare: video senza audio o «confirm you're not a bot».",
+    ytdlpCacheClear: "Svuota cache",
+    ytdlpCacheCleared: "Cache di yt-dlp svuotata.",
+    ytdlpCacheError: "Impossibile svuotare la cache.",
     poTokenHelp:
       "Un token anonimo di 'prova che sei un client reale' per YouTube — può superare l'anti-bot senza cookie. 'Manuale' usa il o i token che incolli; 'Auto' ne genera uno nuovo per video localmente (ripiegando sul token che hai incollato quando non può); 'Disattivato' non ne invia mai.",
     poTokenMode: "PO token (YouTube)",

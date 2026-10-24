@@ -103,6 +103,12 @@ class VideoInfo(BaseModel):
     has_chapters: bool = Field(
         default=False, description="Whether the source exposes chapter markers."
     )
+    is_hls: bool = Field(
+        default=False,
+        description="True when the source streams over HLS (m3u8). yt-dlp's range "
+        "download can't trim HLS, so a trimmed download fetches the full stream and "
+        "clips it with ffmpeg afterward.",
+    )
     audio_langs: list[str] = Field(
         default_factory=list,
         description="Languages of the available audio tracks (>1 means multi-audio).",
@@ -258,6 +264,12 @@ class DownloadRequest(BaseModel):
     )
     trim_end: float | None = Field(
         default=None, ge=0, description="Clip end in seconds (download up to here)."
+    )
+    is_hls: bool = Field(
+        default=False,
+        description="The source is HLS (from InfoResponse). When trimming, yt-dlp's "
+        "range download can't cut HLS, so the backend fetches the full stream and "
+        "clips it with ffmpeg afterward instead.",
     )
     is_vr: bool = Field(
         default=False,
