@@ -135,8 +135,8 @@ def mint_session() -> tuple[str, str] | None:
 # `<client>.gvs` token only when it actually uses that client, so listing several
 # is harmless. `mweb` is the one that reliably yields the GVS-gated formats when
 # logged out — the default `web` client degrades to images-only — which is why
-# `youtube_extractor_args` also adds `mweb` to `player_client` (the logged-out
-# defaults are visionos + web, and neither makes our token do anything on its own).
+# `youtube_extractor_args` also adds `mweb` to `player_client` (yt-dlp's logged-out
+# default clients don't include one our token backs, so without this it's a no-op).
 _WEB_CLIENTS = ("mweb", "web", "web_safari", "web_embedded")
 
 
@@ -164,8 +164,8 @@ def youtube_extractor_args(url: str) -> dict[str, Any]:
     """Extra ``youtube`` extractor_args for a *download*: in auto mode, the minted
     session GVS token (bound to ``visitor_data``, which yt-dlp needs alongside it or
     it rejects the token), handed to the web-based clients, plus ``mweb`` added to
-    the client list so a token-backed client is actually tried (the logged-out
-    defaults are visionos + web, and `web` degrades to images-only). Empty for
+    the client list so a token-backed client is actually tried (yt-dlp's logged-out
+    default clients don't back our token, and `web` degrades to images-only). Empty for
     manual/off (``network_options`` already set the manual token) and non-YouTube URLs."""
     if settings.po_token_mode != "auto" or youtube_video_id(url) is None:
         return {}
