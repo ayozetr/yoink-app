@@ -47,6 +47,8 @@ def _apply(data: dict[str, Any]) -> None:
         settings.nfo_sidecars = data["nfo_sidecars"]
     if isinstance(data.get("music_folders"), bool):
         settings.music_folders = data["music_folders"]
+    if isinstance(data.get("prefer_soundcloud_lossless"), bool):
+        settings.prefer_soundcloud_lossless = data["prefer_soundcloud_lossless"]
     if isinstance(data.get("fetch_lyrics"), bool):
         settings.fetch_lyrics = data["fetch_lyrics"]
     if isinstance(data.get("lyrics_lrc"), bool):
@@ -133,6 +135,7 @@ def get_current() -> AppSettings:
         default_embed_chapters=settings.default_embed_chapters,
         nfo_sidecars=settings.nfo_sidecars,
         music_folders=settings.music_folders,
+        prefer_soundcloud_lossless=settings.prefer_soundcloud_lossless,
         fetch_lyrics=settings.fetch_lyrics,
         lyrics_lrc=settings.lyrics_lrc,
         cookies_from_browser=settings.cookies_from_browser,

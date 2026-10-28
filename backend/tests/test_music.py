@@ -396,6 +396,8 @@ def test_find_youtube_match_widens_on_miss(monkeypatch):
             return False
 
         def extract_info(self, query, download=False):
+            if "ytsearch" not in query:
+                return {"entries": []}  # no SoundCloud lossless source for this track
             n = int(query.split("ytsearch", 1)[1].split(":", 1)[0])
             calls.append(n)
             # The correct upload only appears once the net widens past 5.
@@ -433,6 +435,8 @@ def test_find_youtube_match_no_fallback_when_top5_hits(monkeypatch):
             return False
 
         def extract_info(self, query, download=False):
+            if "ytsearch" not in query:
+                return {"entries": []}  # no SoundCloud lossless source for this track
             calls.append(int(query.split("ytsearch", 1)[1].split(":", 1)[0]))
             return {"entries": [
                 {"title": "salute - Check Check", "channel": "salute",
@@ -444,3 +448,127 @@ def test_find_youtube_match_no_fallback_when_top5_hits(monkeypatch):
                        duration_ms=180000, source_url="http://x")
     assert mi.find_youtube_match(track) == "https://www.youtube.com/watch?v=TOP"
     assert calls == [5]  # never widened — no wasted search
+
+
+# --- ISRC resolution + match + SoundCloud lossless -------------------------
+
+from app.models.music import MusicTrack
+
+
+def _fake_ydl(responder):
+    """A YoutubeDL stand-in whose extract_info returns responder(query)."""
+    class FakeYDL:
+        def __init__(self, opts):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def extract_info(self, query, download=False):
+            return responder(query)
+
+    return FakeYDL
+
+
+def test_sp_track_from_api_reads_isrc():
+    item = {"track": {
+        "name": "Song", "artists": [{"name": "A"}], "duration_ms": 180000,
+        "external_ids": {"isrc": "USUM71703861"},
+        "album": {"name": "Alb", "images": []}, "id": "tid",
+    }}
+    track = mi._sp_track_from_api(item, "playlist", {})
+    assert track is not None and track.isrc == "USUM71703861"
+
+
+def test_deezer_isrc_accepts_on_duration_match(monkeypatch):
+    def fake_search(url):
+        if "/search/track" in url:
+            return {"data": [{"id": 1, "duration": 180}]}
+        return {"isrc": "USUM71703861", "duration": 180}  # /track/1
+
+    monkeypatch.setattr(mi, "_deezer_search", fake_search)
+    assert mi._deezer_isrc("Song", "A", 180000) == "USUM71703861"
+
+
+def test_deezer_isrc_rejects_on_duration_mismatch(monkeypatch):
+    # Every query returns a hit whose length is 999 s vs the track's 180 s.
+    monkeypatch.setattr(mi, "_deezer_search",
+                        lambda url: {"data": [{"id": 1, "duration": 999}]})
+    assert mi._deezer_isrc("Song", "A", 180000) is None
+
+
+def test_find_youtube_match_uses_isrc(monkeypatch):
+    def respond(query):
+        if "scsearch" in query:
+            return {"entries": []}  # no SoundCloud lossless source
+        if "music.youtube.com/search" in query:
+            return {"entries": [{"id": "ISRCVID"}]}
+        if "music.youtube.com/watch" in query:
+            return {"duration": 180}  # matches the track length
+        return {"entries": []}
+
+    monkeypatch.setattr(mi, "YoutubeDL", _fake_ydl(respond))
+    track = MusicTrack(title="S", artists="A", duration_ms=180000, source_url="x")
+    url = mi.find_youtube_match(track, isrc="USUM71703861")
+    assert url == "https://music.youtube.com/watch?v=ISRCVID"
+
+
+def test_find_youtube_match_isrc_mismatch_falls_back_to_text(monkeypatch):
+    def respond(query):
+        if "scsearch" in query:
+            return {"entries": []}
+        if "music.youtube.com/search" in query:
+            return {"entries": [{"id": "WRONG"}]}
+        if "music.youtube.com/watch" in query:
+            return {"duration": 999}  # length doesn't match -> reject the ISRC hit
+        if "ytsearch" in query:
+            return {"entries": [{"title": "A - S", "channel": "A",
+                                 "duration": 180, "id": "TEXT"}]}
+        return {"entries": []}
+
+    monkeypatch.setattr(mi, "YoutubeDL", _fake_ydl(respond))
+    track = MusicTrack(title="S", artists="A", duration_ms=180000, source_url="x")
+    url = mi.find_youtube_match(track, isrc="USUM71703861")
+    assert url == "https://www.youtube.com/watch?v=TEXT"
+
+
+def test_soundcloud_lossless_is_preferred(monkeypatch):
+    monkeypatch.setattr(mi.settings, "prefer_soundcloud_lossless", True)
+    sc_url = "https://soundcloud.com/a/s"
+
+    def respond(query):
+        if "scsearch" in query:
+            return {"entries": [{"title": "A - S", "channel": "A",
+                                 "duration": 180, "id": "SC1", "url": sc_url}]}
+        if query == sc_url:
+            return {"formats": [{"ext": "wav"}]}  # the resolve; lossless flag mocked
+        return {"entries": [{"title": "A - S", "channel": "A",
+                             "duration": 180, "id": "YT"}]}
+
+    monkeypatch.setattr(mi, "YoutubeDL", _fake_ydl(respond))
+    monkeypatch.setattr("app.services.ytdlp_service._audio_summary",
+                        lambda formats: (True, True, 1000.0))  # lossless source
+    track = MusicTrack(title="S", artists="A", duration_ms=180000, source_url="x")
+    assert mi.find_youtube_match(track) == sc_url
+
+
+def test_soundcloud_not_preferred_when_lossy(monkeypatch):
+    monkeypatch.setattr(mi.settings, "prefer_soundcloud_lossless", True)
+    def respond(query):
+        if "scsearch" in query:
+            return {"entries": [{"title": "A - S", "channel": "A",
+                                 "duration": 180, "id": "SC1",
+                                 "url": "https://soundcloud.com/a/s"}]}
+        if query.startswith("https://soundcloud.com"):
+            return {"formats": [{"ext": "mp3"}]}
+        return {"entries": [{"title": "A - S", "channel": "A",
+                             "duration": 180, "id": "YT"}]}
+
+    monkeypatch.setattr(mi, "YoutubeDL", _fake_ydl(respond))
+    monkeypatch.setattr("app.services.ytdlp_service._audio_summary",
+                        lambda formats: (True, False, 320.0))  # lossy source
+    track = MusicTrack(title="S", artists="A", duration_ms=180000, source_url="x")
+    assert mi.find_youtube_match(track) == "https://www.youtube.com/watch?v=YT"

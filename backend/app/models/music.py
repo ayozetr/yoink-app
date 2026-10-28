@@ -20,6 +20,12 @@ class MusicTrack(BaseModel):
 
     title: str
     artists: str = Field(description="Joined artist names, e.g. 'Tame Impala, JENNIE'.")
+    isrc: str | None = Field(
+        default=None,
+        description="ISRC of the recording, e.g. 'USUM71703861' — identifies the "
+        "exact recording for a precise YouTube Music match and gets tagged onto "
+        "the file.",
+    )
     duration_ms: int | None = None
     is_explicit: bool = False
     album: str | None = None

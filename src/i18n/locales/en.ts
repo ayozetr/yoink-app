@@ -260,6 +260,9 @@ export const en = {
     nfoSidecarsHelp: "Write a Kodi/Jellyfin-style .nfo metadata file next to each download, so media servers read your exact title/artist/date instead of guessing.",
     musicFolders: "Organize music into Artist/Album folders",
     musicFoldersHelp: "Move each auto-tagged track into <Artist>/<Album> folders — the Jellyfin/Plex/Navidrome music layout. With .nfo sidecars on, also writes album.nfo/artist.nfo in those folders.",
+    preferSoundcloudLossless: "Prefer lossless from SoundCloud",
+    preferSoundcloudLosslessHelp:
+      "When matching an imported track, also search SoundCloud and prefer a lossless original there (WAV/FLAC) over the lossy YouTube match. Adds a SoundCloud search to every match, so it's slower — off by default.",
     defaultEmbedSubs: "Embed subtitles by default",
     defaultEmbedSubsHint: "Only supported by the MKV video format; others like MP4 or MOV don't allow it.",
     defaultEmbedChapters: "Embed chapters by default",

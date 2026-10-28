@@ -9,6 +9,8 @@ export type MusicKind = "track" | "album" | "playlist";
 export interface MusicTrack {
   title: string;
   artists: string;
+  /** ISRC of the recording — exact-match on YouTube Music and tagged onto the file. */
+  isrc: string | null;
   duration_ms: number | null;
   is_explicit: boolean;
   album: string | null;

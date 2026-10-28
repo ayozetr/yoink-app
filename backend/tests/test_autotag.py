@@ -421,6 +421,32 @@ def test_write_and_reread_tags(tmp_path, ext):
 
 @pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
 @pytest.mark.parametrize("ext", ["mp3", "m4a", "flac"])
+def test_write_embeds_isrc(tmp_path, ext):
+    path = tmp_path / f"track.{ext}"
+    subprocess.run(
+        [FFMPEG, "-loglevel", "error", "-f", "lavfi",
+         "-i", "anullsrc=r=44100:cl=mono", "-t", "1", str(path)],
+        check=True,
+    )
+    svc._write_tags(path, {"title": "T", "isrc": "USUM71703861"}, None)
+
+    if ext == "mp3":
+        from mutagen.id3 import ID3
+
+        assert ID3(str(path)).getall("TSRC")[0].text[0] == "USUM71703861"
+    elif ext == "m4a":
+        from mutagen.mp4 import MP4
+
+        atom = MP4(str(path))["----:com.apple.iTunes:ISRC"][0]
+        assert bytes(atom).decode() == "USUM71703861"
+    else:
+        from mutagen.flac import FLAC
+
+        assert FLAC(str(path))["isrc"][0] == "USUM71703861"
+
+
+@pytest.mark.skipif(not FFMPEG, reason="ffmpeg not available to synth audio")
+@pytest.mark.parametrize("ext", ["mp3", "m4a", "flac"])
 def test_write_embeds_lyrics(tmp_path, ext):
     path = tmp_path / f"track.{ext}"
     subprocess.run(

@@ -759,6 +759,14 @@ export function SettingsModal({
             className={TOGGLE_ROW}
           />
 
+          <Toggle
+            checked={form.prefer_soundcloud_lossless}
+            onChange={(v) => set("prefer_soundcloud_lossless", v)}
+            label={t("settings.preferSoundcloudLossless")}
+            help={<SoundCloudLosslessHelp />}
+            className={TOGGLE_ROW}
+          />
+
           <>
             <Toggle
               checked={form.fetch_lyrics}
@@ -1509,6 +1517,15 @@ function MusicFoldersHelp() {
   return (
     <HelpPopover label={t("settings.musicFolders")}>
       {t("settings.musicFoldersHelp")}
+    </HelpPopover>
+  );
+}
+
+function SoundCloudLosslessHelp() {
+  const { t } = useTranslation();
+  return (
+    <HelpPopover label={t("settings.preferSoundcloudLossless")}>
+      {t("settings.preferSoundcloudLosslessHelp")}
     </HelpPopover>
   );
 }

@@ -672,7 +672,7 @@ export function QueuePanel({
 
   // Music: match on YouTube → download audio → tag with the source metadata.
   const downloadMusic = async (work: Work, track: MusicTrack, runId: number) => {
-    const url = await matchMusic(track);
+    const { youtube_url: url, isrc: matchedIsrc } = await matchMusic(track);
     if (!runningRef.current || runIdRef.current !== runId) throw new StopSignal();
     // A Skip clicked while matching (no download to cancel yet) is honoured here.
     if (skipRequestedRef.current) throw new SkipSignal();
@@ -694,6 +694,7 @@ export function QueuePanel({
       artist: track.artists,
       album: track.album,
       year: track.year,
+      isrc: track.isrc ?? matchedIsrc,
       cover_url: track.cover_url,
     }).catch(() => undefined); // tagging is best-effort
   };

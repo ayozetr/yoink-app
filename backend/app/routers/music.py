@@ -11,13 +11,14 @@ search, so the frontend calls it per track as it downloads).
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.music import MusicImportInfo, MusicResolveRequest, MusicTrack
 from app.services.music_import import (
     MusicImportError,
     find_youtube_match,
     resolve,
+    resolve_isrc,
     track_meta,
 )
 
@@ -64,13 +65,21 @@ def cover_endpoint(track: MusicTrack) -> TrackMetaResponse:
 
 class MatchResponse(BaseModel):
     youtube_url: str | None = None
+    isrc: str | None = Field(
+        default=None,
+        description="The track's ISRC (resolved via Deezer when the source lacked "
+        "one), so the client can tag it onto the download.",
+    )
 
 
 @router.post(
     "/music/match",
     response_model=MatchResponse,
-    summary="Find the best-ranked YouTube video for a track",
+    summary="Find the best source for a track (SoundCloud lossless / YouTube)",
 )
 def match_endpoint(track: MusicTrack) -> MatchResponse:
-    """Rank YouTube results for the track; None if nothing clears the thresholds."""
-    return MatchResponse(youtube_url=find_youtube_match(track))
+    """Best source URL for the track (lossless SoundCloud, then YouTube Music by
+    ISRC, then a text search); None if nothing clears the thresholds. Also returns
+    the resolved ISRC for tagging."""
+    isrc = resolve_isrc(track)
+    return MatchResponse(youtube_url=find_youtube_match(track, isrc=isrc), isrc=isrc)

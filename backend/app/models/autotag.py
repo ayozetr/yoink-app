@@ -54,6 +54,9 @@ class ApplyRequest(BaseModel):
     year: str | None = Field(default=None)
     genre: str | None = Field(default=None)
     track_number: int | None = Field(default=None)
+    isrc: str | None = Field(
+        default=None, description="ISRC of the recording, written as TSRC/ISRC."
+    )
     cover_url: str | None = Field(default=None, description="Cover art to embed.")
     embed_lyrics: bool | None = Field(
         default=None,

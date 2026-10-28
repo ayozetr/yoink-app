@@ -260,6 +260,9 @@ export const ko = {
     nfoSidecarsHelp: "각 다운로드 옆에 Kodi/Jellyfin 형식의 .nfo 메타데이터 파일을 생성해 미디어 서버가 정확한 정보를 읽도록 합니다.",
     musicFolders: "음악을 아티스트/앨범 폴더로 정리",
     musicFoldersHelp: "자동 태그된 각 트랙을 <아티스트>/<앨범> 폴더(Jellyfin/Plex/Navidrome 레이아웃)로 이동합니다. .nfo가 켜져 있으면 해당 폴더에 album.nfo/artist.nfo도 씁니다.",
+    preferSoundcloudLossless: "SoundCloud 무손실 우선",
+    preferSoundcloudLosslessHelp:
+      "가져온 트랙을 매칭할 때 SoundCloud도 검색하여 손실 있는 YouTube 결과 대신 SoundCloud의 무손실 원본(WAV/FLAC)을 우선합니다. 매칭마다 SoundCloud 검색이 추가되어 느려지므로 기본값은 꺼짐입니다.",
     defaultEmbedSubs: "기본적으로 자막 포함",
     defaultEmbedSubsHint: "MKV 동영상 형식에서만 지원됩니다. MP4나 MOV 등 다른 형식은 허용하지 않습니다.",
     defaultEmbedChapters: "기본적으로 챕터 포함",

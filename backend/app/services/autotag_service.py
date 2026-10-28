@@ -42,9 +42,10 @@ from mutagen.id3 import (
     TIT2,
     TPE1,
     TRCK,
+    TSRC,
     USLT,
 )
-from mutagen.mp4 import MP4, MP4Cover
+from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
 from mutagen.wave import WAVE
 
 from yt_dlp.utils import sanitize_filename
@@ -567,6 +568,7 @@ def apply(request: ApplyRequest, path: Path) -> ApplyResponse:
         "date": request.year,
         "genre": request.genre,
         "tracknumber": request.track_number,
+        "isrc": request.isrc,
     }
     # The card's checkbox (embed_lyrics) overrides the global setting per track.
     want_lyrics = (
@@ -852,6 +854,8 @@ def _write_mp3(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
             audio.setall(frame.__name__, [frame(encoding=3, text=str(tags[key]))])
     if tags.get("tracknumber"):
         audio.setall("TRCK", [TRCK(encoding=3, text=str(tags["tracknumber"]))])
+    if tags.get("isrc"):
+        audio.setall("TSRC", [TSRC(encoding=3, text=str(tags["isrc"]))])
     if tags.get("lyrics"):
         audio.setall(
             "USLT", [USLT(encoding=3, lang="eng", desc="", text=str(tags["lyrics"]))]
@@ -884,6 +888,10 @@ def _write_mp4(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
             audio[atom] = [str(tags[key])]
     if tags.get("tracknumber"):
         audio["trkn"] = [(int(tags["tracknumber"]), 0)]
+    if tags.get("isrc"):
+        audio["----:com.apple.iTunes:ISRC"] = [
+            MP4FreeForm(str(tags["isrc"]).encode("utf-8"))
+        ]
     if tags.get("lyrics"):
         audio["\xa9lyr"] = [str(tags["lyrics"])]
     embedded = False
@@ -898,7 +906,7 @@ def _write_mp4(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None
 
 def _write_flac(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | None) -> bool:
     audio = FLAC(path)
-    for key in ("title", "artist", "album", "date", "genre", "tracknumber"):
+    for key in ("title", "artist", "album", "date", "genre", "tracknumber", "isrc"):
         if tags.get(key):
             audio[key] = str(tags[key])
     if tags.get("lyrics"):
@@ -933,6 +941,8 @@ def _write_wav(path: Path, tags: dict[str, Any]) -> bool:
             audio.tags.setall(frame.__name__, [frame(encoding=3, text=str(tags[key]))])
     if tags.get("tracknumber"):
         audio.tags.setall("TRCK", [TRCK(encoding=3, text=str(tags["tracknumber"]))])
+    if tags.get("isrc"):
+        audio.tags.setall("TSRC", [TSRC(encoding=3, text=str(tags["isrc"]))])
     if tags.get("lyrics"):
         audio.tags.setall(
             "USLT", [USLT(encoding=3, lang="eng", desc="", text=str(tags["lyrics"]))]
@@ -950,7 +960,7 @@ def _write_opus(path: Path, tags: dict[str, Any], cover: tuple[bytes, str] | Non
     audio = mutagen.File(path)
     if audio is None:
         raise AutotagError("Unsupported audio format for tagging.")
-    for key in ("title", "artist", "album", "date", "genre", "tracknumber"):
+    for key in ("title", "artist", "album", "date", "genre", "tracknumber", "isrc"):
         if tags.get(key):
             audio[key] = str(tags[key])
     if tags.get("lyrics"):

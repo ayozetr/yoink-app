@@ -301,10 +301,13 @@ export const MusicImportCard = memo(function MusicImportCard({
     setProgress(null);
     setRow(idx, "active");
 
-    // 1. Find the best YouTube match for this track.
+    // 1. Find the best source for this track (and the ISRC to tag it with).
     let url: string | null;
+    let matchedIsrc: string | null = null;
     try {
-      url = await matchMusic(track);
+      const match = await matchMusic(track);
+      url = match.youtube_url;
+      matchedIsrc = match.isrc;
     } catch {
       url = null;
     }
@@ -340,6 +343,7 @@ export const MusicImportCard = memo(function MusicImportCard({
               artist: track.artists,
               album: track.album,
               year: track.year,
+              isrc: track.isrc ?? matchedIsrc,
               cover_url: coverOf(idx),
             })
               .catch(() => undefined) // tagging is best-effort

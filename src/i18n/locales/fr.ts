@@ -260,6 +260,9 @@ export const fr = {
     nfoSidecarsHelp: "Crée un fichier de métadonnées .nfo (façon Kodi/Jellyfin) à côté de chaque téléchargement, pour que les serveurs multimédias lisent vos données exactes.",
     musicFolders: "Organiser la musique en dossiers Artiste/Album",
     musicFoldersHelp: "Déplace chaque piste auto-taguée dans des dossiers <Artiste>/<Album> (la structure Jellyfin/Plex/Navidrome). Avec les fichiers .nfo activés, écrit aussi album.nfo/artist.nfo dans ces dossiers.",
+    preferSoundcloudLossless: "Préférer le lossless de SoundCloud",
+    preferSoundcloudLosslessHelp:
+      "Lors de l'association d'une piste importée, chercher aussi sur SoundCloud et préférer un original lossless (WAV/FLAC) au résultat YouTube (avec perte). Ajoute une recherche SoundCloud à chaque association, donc plus lent — désactivé par défaut.",
     defaultEmbedSubs: "Intégrer les sous-titres par défaut",
     defaultEmbedSubsHint: "Pris en charge uniquement par le format vidéo MKV ; d'autres comme MP4 ou MOV ne le permettent pas.",
     defaultEmbedChapters: "Intégrer les chapitres par défaut",

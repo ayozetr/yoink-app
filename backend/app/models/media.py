@@ -430,6 +430,12 @@ class AppSettings(BaseModel):
         description="Organize auto-tagged music into <Artist>/<Album>/ folders "
         "(media-server layout); writes album.nfo/artist.nfo there when NFO is on.",
     )
+    prefer_soundcloud_lossless: bool = Field(
+        default=False,
+        description="When matching an imported track, also search SoundCloud and "
+        "prefer a lossless original there over the lossy YouTube match. Adds a "
+        "SoundCloud search to every match, so it's off by default.",
+    )
     fetch_lyrics: bool = Field(
         default=False,
         description="Fetch + embed song lyrics (LRCLIB) during audio auto-tagging.",

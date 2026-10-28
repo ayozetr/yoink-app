@@ -260,6 +260,9 @@ export const zh = {
     nfoSidecarsHelp: "在每个下载文件旁生成 Kodi/Jellyfin 风格的 .nfo 元数据文件，让媒体服务器读取你的准确信息。",
     musicFolders: "将音乐整理到 艺术家/专辑 文件夹",
     musicFoldersHelp: "将每个自动标记的曲目移动到 <艺术家>/<专辑> 文件夹（Jellyfin/Plex/Navidrome 布局）。启用 .nfo 时，还会在这些文件夹中写入 album.nfo/artist.nfo。",
+    preferSoundcloudLossless: "优先使用 SoundCloud 的无损音源",
+    preferSoundcloudLosslessHelp:
+      "匹配导入的曲目时，也会搜索 SoundCloud，并优先选择那里的无损原始文件（WAV/FLAC），而不是有损的 YouTube 结果。每次匹配都会增加一次 SoundCloud 搜索，因此更慢——默认关闭。",
     defaultEmbedSubs: "默认嵌入字幕",
     defaultEmbedSubsHint: "仅 MKV 视频格式支持；MP4 或 MOV 等其他格式不允许。",
     defaultEmbedChapters: "默认嵌入章节",

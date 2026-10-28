@@ -272,6 +272,9 @@ export const ru = {
     nfoSidecarsHelp: "Создаёт рядом с каждой загрузкой файл метаданных .nfo (в стиле Kodi/Jellyfin), чтобы медиасерверы читали ваши точные данные.",
     musicFolders: "Раскладывать музыку по папкам Исполнитель/Альбом",
     musicFoldersHelp: "Перемещает каждый автоматически размеченный трек в папки <Исполнитель>/<Альбом> (раскладка Jellyfin/Plex/Navidrome). Если включены файлы .nfo, также создаёт в этих папках album.nfo/artist.nfo.",
+    preferSoundcloudLossless: "Предпочитать lossless из SoundCloud",
+    preferSoundcloudLosslessHelp:
+      "При сопоставлении импортированного трека также ищет в SoundCloud и предпочитает lossless-оригинал (WAV/FLAC) вместо результата с YouTube (с потерями). Добавляет поиск в SoundCloud к каждому сопоставлению, поэтому медленнее — по умолчанию выключено.",
     defaultEmbedSubs: "Встраивать субтитры по умолчанию",
     defaultEmbedSubsHint: "Поддерживается только видеоформатом MKV; другие, например MP4 или MOV, этого не позволяют.",
     defaultEmbedChapters: "Встраивать главы по умолчанию",

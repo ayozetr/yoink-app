@@ -260,6 +260,9 @@ export const id = {
     nfoSidecarsHelp: "Membuat berkas metadata .nfo (gaya Kodi/Jellyfin) di samping setiap unduhan, agar server media membaca data Anda yang tepat.",
     musicFolders: "Atur musik ke folder Artis/Album",
     musicFoldersHelp: "Memindahkan setiap trek yang di-tag otomatis ke folder <Artis>/<Album> (tata letak Jellyfin/Plex/Navidrome). Jika .nfo aktif, juga menulis album.nfo/artist.nfo di folder tersebut.",
+    preferSoundcloudLossless: "Utamakan lossless dari SoundCloud",
+    preferSoundcloudLosslessHelp:
+      "Saat mencocokkan trek yang diimpor, juga mencari di SoundCloud dan mengutamakan original lossless (WAV/FLAC) di sana daripada hasil YouTube (lossy). Menambahkan pencarian SoundCloud ke setiap pencocokan, jadi lebih lambat — nonaktif secara bawaan.",
     defaultEmbedSubs: "Sematkan subtitle secara default",
     defaultEmbedSubsHint: "Hanya didukung oleh format video MKV; format lain seperti MP4 atau MOV tidak mengizinkannya.",
     defaultEmbedChapters: "Sematkan bab secara default",

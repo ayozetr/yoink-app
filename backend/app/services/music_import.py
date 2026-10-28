@@ -28,6 +28,7 @@ from urllib.request import Request
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
+from app.core.config import settings
 from app.core.safe_http import OPENER, SafeHTTPError, fetch_public, host_is_blocked
 from app.core.ytdlp_options import with_cookie_fallback
 from app.models.music import MusicImportInfo, MusicKind, MusicSource, MusicTrack
@@ -39,6 +40,7 @@ _USER_AGENT = (
 )
 _SEARCH_N = 5  # YouTube candidates to rank per track (first, tight pass)
 _SEARCH_N_FALLBACK = 10  # widened pass, used only when the tight one finds nothing
+_DURATION_TOLERANCE_MS = 3000  # how far an ISRC/SoundCloud hit's length may differ
 
 
 class MusicImportError(RuntimeError):
@@ -216,14 +218,137 @@ def _youtube_candidates(query: str, count: int) -> list[dict[str, Any]]:
     ]
 
 
-def find_youtube_match(track: MusicTrack) -> str | None:
-    """Search YouTube for a track and return the best-ranked video URL (or None).
+def resolve_isrc(track: MusicTrack) -> str | None:
+    """The track's ISRC — its own (from Spotify's ``external_ids``) or resolved via
+    Deezer when the source didn't carry one. Used for both the YouTube Music match
+    and tagging, so the caller resolves it once and hands it to both."""
+    return track.isrc or _deezer_isrc(track.title, track.artists, track.duration_ms)
 
-    Ranks a tight top-5 first; only if nothing clears the thresholds does it widen
-    the net to top-10 and try again. A candidate already accepted at top-5 is
-    returned immediately, so the fallback can never displace a passing match — it
-    only gives the tracks that would otherwise be skipped a second chance.
+
+def _ytmusic_isrc_match(isrc: str, duration_ms: int | None) -> str | None:
+    """Find the exact recording on YouTube Music by ISRC.
+
+    YT Music's search returns the matching Art Track first, so take entry #1 — the
+    rest of the results are unrelated noise, not near-matches. ``extract_flat``
+    gives no duration, so when the track's duration is known, resolve #1 and accept
+    it only if it lands within 3 s: that catches the case where YT Music has no
+    entry for the ISRC and falls back to a loose text match. Returns a
+    ``music.youtube.com`` watch URL, or None to fall through to the text search.
     """
+    def _search(net: dict[str, Any]) -> dict[str, Any] | None:
+        options: dict[str, Any] = {
+            "quiet": True, "no_warnings": True, "skip_download": True,
+            "extract_flat": True, "playlist_items": "1", **net,
+        }
+        with YoutubeDL(options) as ydl:
+            return ydl.extract_info(
+                f"https://music.youtube.com/search?q={quote(isrc)}#songs", download=False
+            )
+
+    try:
+        info = with_cookie_fallback(_search)
+    except DownloadError:
+        return None
+    entries = (info or {}).get("entries") or []
+    vid = entries[0].get("id") if entries and isinstance(entries[0], dict) else None
+    if not vid:
+        return None
+
+    if duration_ms:
+        def _resolve(net: dict[str, Any]) -> dict[str, Any] | None:
+            with YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True, **net}) as ydl:
+                return ydl.extract_info(f"https://music.youtube.com/watch?v={vid}", download=False)
+        try:
+            full = with_cookie_fallback(_resolve)
+        except DownloadError:
+            return None
+        dur = (full or {}).get("duration")
+        if dur and abs(int(dur) * 1000 - duration_ms) > _DURATION_TOLERANCE_MS:
+            return None
+    return f"https://music.youtube.com/watch?v={vid}"
+
+
+def _soundcloud_candidates(query: str, count: int = _SEARCH_N) -> list[dict[str, Any]]:
+    """Flat-search SoundCloud and shape the hits into ranking candidates (same
+    shape as :func:`_youtube_candidates`, but via ``scsearch``)."""
+    def _search(net: dict[str, Any]) -> dict[str, Any] | None:
+        options: dict[str, Any] = {
+            "quiet": True, "no_warnings": True, "skip_download": True,
+            "extract_flat": True, **net,
+        }
+        with YoutubeDL(options) as ydl:
+            return ydl.extract_info(f"scsearch{count}:{query}", download=False)
+
+    try:
+        info = with_cookie_fallback(_search)
+    except DownloadError:
+        return []
+    return [
+        {
+            "title": e.get("title"),
+            "channel": e.get("channel") or e.get("uploader"),
+            "duration": e.get("duration"),
+            "id": e.get("id"),
+            "url": e.get("url") or e.get("webpage_url"),
+        }
+        for e in (info or {}).get("entries") or []
+        if isinstance(e, dict)
+    ]
+
+
+def _soundcloud_lossless_match(track: MusicTrack) -> str | None:
+    """A lossless SoundCloud source for the track, if one exists and matches.
+
+    When the artist enabled the original-file download, yt-dlp exposes it as a WAV
+    or FLAC format, so SoundCloud can beat YouTube (always lossy). Flat-searches
+    SoundCloud, resolves the best title/duration candidate, and returns its URL
+    only when the source is lossless and the duration lines up. None otherwise.
+    """
+    from app.services.ytdlp_service import _audio_summary
+
+    query = f"{track.artists} {track.title}".strip()
+    if not query:
+        return None
+    best = best_match(
+        track_title=track.title,
+        track_artists=track.artists,
+        track_duration_ms=track.duration_ms,
+        candidates=_soundcloud_candidates(query),
+    )
+    if not best or not best.get("url"):
+        return None
+
+    def _resolve(net: dict[str, Any]) -> dict[str, Any] | None:
+        with YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True, **net}) as ydl:
+            return ydl.extract_info(best["url"], download=False)
+    try:
+        info = with_cookie_fallback(_resolve)
+    except DownloadError:
+        return None
+    _, source_lossless, _ = _audio_summary((info or {}).get("formats"))
+    return best["url"] if source_lossless else None
+
+
+def find_youtube_match(track: MusicTrack, isrc: str | None = None) -> str | None:
+    """Best source URL for a track, or None if nothing clears the thresholds.
+
+    Prefers, in order: a lossless SoundCloud source, then the exact recording on
+    YouTube Music matched by ``isrc`` (the caller resolves it once), then a ranked
+    text search on YouTube. The text pass ranks a tight top-5 first and only widens
+    to top-10 when nothing clears the thresholds, so a passing match is never
+    displaced — the fallback just gives the skipped tracks a second chance.
+    """
+    # Off by default — it adds a SoundCloud search (and a resolve) to every match.
+    if settings.prefer_soundcloud_lossless:
+        sc_url = _soundcloud_lossless_match(track)
+        if sc_url:
+            return sc_url
+
+    if isrc:
+        yt_music = _ytmusic_isrc_match(isrc, track.duration_ms)
+        if yt_music:
+            return yt_music
+
     query = f"{track.artists} {track.title}".strip()
     if not query:
         return None
@@ -327,6 +452,7 @@ def _sp_track_from_api(item: dict[str, Any], kind: str, album_entity: dict[str, 
     return MusicTrack(
         title=track["name"],
         artists=", ".join(a.get("name", "") for a in track.get("artists", []) if a.get("name")),
+        isrc=(track.get("external_ids") or {}).get("isrc") or None,
         duration_ms=track.get("duration_ms"),
         is_explicit=bool(track.get("explicit")),
         album=album_name,
@@ -814,6 +940,48 @@ def _deezer_track_meta(title: str, artist: str) -> tuple[str | None, int | None]
     except (MusicImportError, KeyError, ValueError, TypeError):
         pass
     return None, None
+
+
+def _deezer_isrc(title: str, artists: str, duration_ms: int | None) -> str | None:
+    """Resolve a recording's ISRC via a keyless Deezer lookup, for sources that
+    don't carry one (a single Spotify track, Apple/Tidal, …). Gated on duration:
+    the ISRC is accepted only when the hit's length is within 3 s of ``duration_ms``
+    (or no duration is known), so a wrong search result can't hand us a bad ISRC.
+    Best-effort — None on any miss or error."""
+    if not title:
+        return None
+    primary = re.split(r"\s*(?:,|&|/|\bfeat\.?\b|\bft\.?\b|\bcon\b)\s*",
+                       artists, maxsplit=1, flags=re.I)[0].strip() if artists else ""
+    queries = [f'artist:"{artists}" track:"{title}"', f"{artists} {title}".strip()]
+    if primary and primary != artists:
+        queries.append(f'artist:"{primary}" track:"{title}"')
+    try:
+        seen: set[str] = set()
+        for query in queries:
+            if not query or query in seen:
+                continue
+            seen.add(query)
+            found = _deezer_search(
+                "https://api.deezer.com/search/track?limit=1&q=" + quote(query)
+            )
+            data = found.get("data") if isinstance(found, dict) else None
+            if not data:
+                continue
+            hit = data[0]
+            dur = hit.get("duration")
+            # Gate on the search hit's duration before the extra per-track fetch.
+            if duration_ms and dur and abs(int(dur) * 1000 - duration_ms) > _DURATION_TOLERANCE_MS:
+                continue
+            tid = hit.get("id")
+            if not tid:
+                continue
+            full = _deezer_search(f"https://api.deezer.com/track/{tid}")
+            isrc = full.get("isrc") if isinstance(full, dict) else None
+            if isrc:
+                return str(isrc)
+    except (MusicImportError, KeyError, ValueError, TypeError):
+        pass
+    return None
 
 
 def _deezer_enrich_each(tracks: list[MusicTrack]) -> str | None:

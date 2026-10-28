@@ -34,6 +34,8 @@ export interface ApplyRequest {
   year?: string | null;
   genre?: string | null;
   track_number?: number | null;
+  /** ISRC of the recording, written as TSRC/ISRC. */
+  isrc?: string | null;
   cover_url?: string | null;
   /** Embed lyrics for this track (omitted = use the global setting). */
   embed_lyrics?: boolean | null;

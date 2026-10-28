@@ -163,6 +163,11 @@ class Settings(BaseSettings):
     # layout); writes album.nfo/artist.nfo in those folders when nfo_sidecars is on.
     music_folders: bool = False
 
+    # When matching an imported music track, also search SoundCloud and prefer a
+    # lossless original there over the (always lossy) YouTube match. Off by
+    # default: it adds a SoundCloud search (and a resolve) to every match.
+    prefer_soundcloud_lossless: bool = False
+
     # Fetch + embed song lyrics (from LRCLIB) during audio auto-tagging.
     fetch_lyrics: bool = False
 

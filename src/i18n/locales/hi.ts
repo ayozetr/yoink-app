@@ -260,6 +260,9 @@ export const hi = {
     nfoSidecarsHelp: "हर डाउनलोड के साथ एक .nfo मेटाडेटा फ़ाइल (Kodi/Jellyfin शैली) बनाता है, ताकि मीडिया सर्वर आपके सटीक डेटा को पढ़ें।",
     musicFolders: "संगीत को कलाकार/एल्बम फ़ोल्डर में व्यवस्थित करें",
     musicFoldersHelp: "हर ऑटो-टैग किए गए ट्रैक को <कलाकार>/<एल्बम> फ़ोल्डर में ले जाता है (Jellyfin/Plex/Navidrome लेआउट)। .nfo चालू होने पर उन फ़ोल्डरों में album.nfo/artist.nfo भी लिखता है।",
+    preferSoundcloudLossless: "SoundCloud से lossless को प्राथमिकता दें",
+    preferSoundcloudLosslessHelp:
+      "इंपोर्ट की गई ट्रैक को मैच करते समय SoundCloud में भी खोजता है और YouTube के (लॉसी) नतीजे की जगह वहाँ के lossless ओरिजिनल (WAV/FLAC) को प्राथमिकता देता है। हर मैच में एक SoundCloud खोज जुड़ती है, इसलिए धीमा — डिफ़ॉल्ट रूप से बंद।",
     defaultEmbedSubs: "डिफ़ॉल्ट रूप से उपशीर्षक एम्बेड करें",
     defaultEmbedSubsHint: "केवल MKV वीडियो फ़ॉर्मेट में समर्थित; MP4 या MOV जैसे अन्य फ़ॉर्मेट इसकी अनुमति नहीं देते।",
     defaultEmbedChapters: "डिफ़ॉल्ट रूप से अध्याय एम्बेड करें",

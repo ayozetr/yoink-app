@@ -172,15 +172,17 @@ export async function getTrackMeta(
 export async function matchMusic(
   track: MusicTrack,
   signal?: AbortSignal,
-): Promise<string | null> {
+): Promise<{ youtube_url: string | null; isrc: string | null }> {
   const response = await request("/music/match", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(track),
     signal,
   });
-  const data = (await response.json()) as { youtube_url: string | null };
-  return data.youtube_url;
+  return (await response.json()) as {
+    youtube_url: string | null;
+    isrc: string | null;
+  };
 }
 
 /** Platform the URL-field typeahead searches. */

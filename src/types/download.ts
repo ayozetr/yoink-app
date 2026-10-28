@@ -287,6 +287,8 @@ export interface AppSettings {
   nfo_sidecars: boolean;
   /** Organize auto-tagged music into <Artist>/<Album>/ folders (+ album/artist .nfo). */
   music_folders: boolean;
+  /** Prefer a lossless SoundCloud original over the YouTube match when importing. */
+  prefer_soundcloud_lossless: boolean;
   /** Fetch + embed song lyrics (LRCLIB) during audio auto-tagging. */
   fetch_lyrics: boolean;
   /** Also write a synced .lrc sidecar next to the audio. */
