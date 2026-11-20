@@ -205,6 +205,16 @@ library and its helpers always match (the `.deb`/`.rpm` already depend on
 Tauri emitted (the script removes that stale `.sig`), so the AppImage must be
 re-signed with `tauri signer sign` in [§6](#6-signed-updater-artifacts-self-update).
 
+The same script also **normalises the AppDir** before repackaging, so the result
+is catalogue-grade (the [appimage.github.io](https://appimage.github.io) test
+rejected v4.3.0 for a dangling `.DirIcon`): it replaces `.DirIcon` and the root
+`Icon=` PNG with a real 256×256 image (Tauri/linuxdeploy leave `.DirIcon` an
+absolute symlink into the build host, and the root icon pointing at the 32×32
+copy), sets a single `Categories=AudioVideo;`, and installs the AppStream
+metainfo from `src-tauri/metainfo/app.yoink.desktop.metainfo.xml` (its
+`__VERSION__`/`__DATE__` are filled from the build). After a release lands, comment
+`/retest` on the catalogue PR.
+
 ### 3b. Make the `.rpm` from the `.deb` (seconds, not minutes)
 
 ```bash
