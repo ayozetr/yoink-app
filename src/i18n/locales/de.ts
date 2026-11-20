@@ -182,6 +182,8 @@ export const de = {
     clearDone: "Abgeschlossene entfernen",
     progressCount: "{{done}} von {{total}} heruntergeladen",
     remove: "Aus der Warteschlange entfernen",
+    itemFormat: "Format für dieses Element",
+    followQueue: "Der Warteschlange folgen",
     empty: "Links hinzufügen, um die Warteschlange zu starten.",
   },
   music: {

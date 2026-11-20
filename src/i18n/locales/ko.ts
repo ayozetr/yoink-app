@@ -182,6 +182,8 @@ export const ko = {
     clearDone: "완료 항목 지우기",
     progressCount: "{{total}}개 중 {{done}}개 다운로드됨",
     remove: "대기열에서 제거",
+    itemFormat: "이 항목의 형식",
+    followQueue: "대기열 따르기",
     empty: "링크를 추가하여 대기열을 시작하세요.",
   },
   music: {

@@ -182,6 +182,8 @@ export const fr = {
     clearDone: "Effacer les terminés",
     progressCount: "{{done}} sur {{total}} téléchargés",
     remove: "Retirer de la file",
+    itemFormat: "Format pour cet élément",
+    followQueue: "Suivre la file",
     empty: "Ajoutez des liens pour démarrer la file.",
   },
   music: {

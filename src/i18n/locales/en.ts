@@ -182,6 +182,8 @@ export const en = {
     clearDone: "Clear finished",
     progressCount: "{{done}} of {{total}} downloaded",
     remove: "Remove from queue",
+    itemFormat: "Format for this item",
+    followQueue: "Follow the queue",
     empty: "Add links to start the queue.",
   },
   music: {

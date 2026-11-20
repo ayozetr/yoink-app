@@ -10,6 +10,24 @@
  */
 
 import type { MusicTrack } from "../types/music";
+import type {
+  AudioBitrate,
+  AudioFormat,
+  MediaKind,
+  VideoContainer,
+} from "../types/download";
+
+/** A complete per-item format override. When set on a queue item it replaces the
+ * queue-wide format for that item (and its children); absent means "follow the
+ * queue". It's a full snapshot (not a partial) so the effective format is just
+ * `item.overrides ?? queueFormat` with no field-by-field merging. */
+export interface ItemFormat {
+  kind: MediaKind;
+  quality: string;
+  container: VideoContainer;
+  audioFormat: AudioFormat;
+  audioBitrate: AudioBitrate;
+}
 
 export type QueueStatus =
   | "pending"
@@ -49,6 +67,29 @@ export interface QueueItem {
   sourceLabel?: string;
   /** A single music track (no children): downloaded as audio via match + tag. */
   track?: MusicTrack;
+  /** Per-item format override; absent = follow the queue-wide format. */
+  overrides?: ItemFormat;
+}
+
+/** Validate a stored override blob (lenient: bad/missing fields drop it). */
+function parseOverrides(raw: unknown): ItemFormat | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  if (
+    (o.kind !== "video" && o.kind !== "audio") ||
+    typeof o.quality !== "string" ||
+    typeof o.container !== "string" ||
+    typeof o.audioFormat !== "string" ||
+    typeof o.audioBitrate !== "string"
+  )
+    return undefined;
+  return {
+    kind: o.kind,
+    quality: o.quality,
+    container: o.container as VideoContainer,
+    audioFormat: o.audioFormat as AudioFormat,
+    audioBitrate: o.audioBitrate as AudioBitrate,
+  };
 }
 
 const KEY = "yoink-queue";
@@ -101,6 +142,8 @@ export function loadQueue(): QueueItem[] {
         if (typeof i.sourceLabel === "string") item.sourceLabel = i.sourceLabel;
         if (i.track && typeof i.track === "object")
           item.track = i.track as MusicTrack;
+        const overrides = parseOverrides(i.overrides);
+        if (overrides) item.overrides = overrides;
         if (Array.isArray(i.children)) {
           item.children = i.children
             .map(parseChild)

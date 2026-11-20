@@ -182,6 +182,8 @@ export const ja = {
     clearDone: "完了分をクリア",
     progressCount: "{{total}} 件中 {{done}} 件ダウンロード済み",
     remove: "キューから削除",
+    itemFormat: "この項目の形式",
+    followQueue: "キューに従う",
     empty: "リンクを追加してキューを開始します。",
   },
   music: {

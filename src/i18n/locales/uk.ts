@@ -186,6 +186,8 @@ export const uk = {
     clearDone: "Очистити завершені",
     progressCount: "{{done}} з {{total}} завантажено",
     remove: "Видалити з черги",
+    itemFormat: "Формат для цього елемента",
+    followQueue: "Як у черзі",
     empty: "Додайте посилання, щоб запустити чергу.",
   },
   music: {

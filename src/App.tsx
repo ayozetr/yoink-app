@@ -401,6 +401,7 @@ export default function App() {
             defaultQuality={settings?.default_quality}
             defaultContainer={settings?.default_container}
             defaultAudioFormat={settings?.default_audio_format}
+            defaultAudioBitrate={settings?.audio_bitrate}
             notifyOnComplete={settings?.notify_on_complete}
             onDownloadFinished={refresh}
             onPendingChange={setQueuePending}

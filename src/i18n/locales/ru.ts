@@ -186,6 +186,8 @@ export const ru = {
     clearDone: "Очистить завершённые",
     progressCount: "{{done}} из {{total}} загружено",
     remove: "Убрать из очереди",
+    itemFormat: "Формат для этого элемента",
+    followQueue: "Как в очереди",
     empty: "Добавьте ссылки, чтобы запустить очередь.",
   },
   music: {

@@ -182,6 +182,8 @@ export const id = {
     clearDone: "Bersihkan yang selesai",
     progressCount: "{{done}} dari {{total}} diunduh",
     remove: "Hapus dari antrean",
+    itemFormat: "Format untuk item ini",
+    followQueue: "Ikuti antrean",
     empty: "Tambahkan tautan untuk memulai antrean.",
   },
   music: {

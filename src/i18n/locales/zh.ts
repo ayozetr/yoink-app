@@ -182,6 +182,8 @@ export const zh = {
     clearDone: "清除已完成",
     progressCount: "已下载 {{done}} / {{total}}",
     remove: "从队列移除",
+    itemFormat: "此项目的格式",
+    followQueue: "跟随队列",
     empty: "添加链接以开始队列。",
   },
   music: {

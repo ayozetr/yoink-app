@@ -182,6 +182,8 @@ export const it = {
     clearDone: "Rimuovi completati",
     progressCount: "{{done}} di {{total}} scaricati",
     remove: "Rimuovi dalla coda",
+    itemFormat: "Formato per questo elemento",
+    followQueue: "Segui la coda",
     empty: "Aggiungi link per avviare la coda.",
   },
   music: {

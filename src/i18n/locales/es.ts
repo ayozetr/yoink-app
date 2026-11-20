@@ -182,6 +182,8 @@ export const es = {
     clearDone: "Limpiar completadas",
     progressCount: "{{done}} de {{total}} descargados",
     remove: "Quitar de la cola",
+    itemFormat: "Formato de este elemento",
+    followQueue: "Seguir la cola",
     empty: "Añade enlaces para empezar la cola.",
   },
   music: {

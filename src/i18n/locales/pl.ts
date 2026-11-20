@@ -186,6 +186,8 @@ export const pl = {
     clearDone: "Wyczyść zakończone",
     progressCount: "{{done}} z {{total}} pobrano",
     remove: "Usuń z kolejki",
+    itemFormat: "Format tego elementu",
+    followQueue: "Zgodnie z kolejką",
     empty: "Dodaj linki, aby rozpocząć kolejkę.",
   },
   music: {

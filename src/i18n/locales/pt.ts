@@ -182,6 +182,8 @@ export const pt = {
     clearDone: "Limpar concluídos",
     progressCount: "{{done}} de {{total}} baixados",
     remove: "Remover da fila",
+    itemFormat: "Formato deste item",
+    followQueue: "Seguir a fila",
     empty: "Adicione links para iniciar a fila.",
   },
   music: {

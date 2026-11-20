@@ -182,6 +182,8 @@ export const hi = {
     clearDone: "पूर्ण हुए हटाएँ",
     progressCount: "{{total}} में से {{done}} डाउनलोड किए गए",
     remove: "कतार से हटाएँ",
+    itemFormat: "इस आइटम का फ़ॉर्मेट",
+    followQueue: "कतार का अनुसरण करें",
     empty: "कतार शुरू करने के लिए लिंक जोड़ें।",
   },
   music: {

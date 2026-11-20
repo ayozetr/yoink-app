@@ -12,6 +12,7 @@ import {
   Loader2,
   Play,
   SkipForward,
+  SlidersHorizontal,
   Square,
   Trash2,
   X,
@@ -42,12 +43,14 @@ import {
   newQueueId,
   parseUrls,
   saveQueue,
+  type ItemFormat,
   type QueueChild,
   type QueueItem,
   type QueueStatus,
 } from "../../lib/queueStore";
 import { MUSIC_SOURCE_NAMES, type MusicTrack } from "../../types/music";
 import type {
+  AudioBitrate,
   AudioFormat,
   DownloadRequest,
   DownloadProgressEvent,
@@ -58,6 +61,10 @@ import type {
 // The queue has no preview, so it offers a generic best-effort quality target
 // (yt-dlp caps to it or takes the closest lower tier).
 const QUALITY_OPTIONS = ["best", "1080p", "720p", "480p", "360p"];
+
+// Lossy audio bitrates (kbps), mirroring the single-download picker. "best" takes
+// the source's best available.
+const AUDIO_BITRATES: AudioBitrate[] = ["best", "320", "256", "192", "128"];
 
 // Control-flow signals for the drain loop: SkipSignal drops the current download
 // and moves on; StopSignal (Cancel-all) unwinds the whole run.
@@ -182,6 +189,10 @@ interface QueueRowProps {
   onRemove: (id: string) => void;
   onSetAllChildren: (id: string, selected: boolean) => void;
   onToggleChild: (itemId: string, childId: string) => void;
+  /** The queue-wide format, to seed and label a per-item override. */
+  queueFormat: ItemFormat;
+  onSetOverride: (id: string, fmt: ItemFormat) => void;
+  onClearOverride: (id: string) => void;
 }
 
 /** One queue row (+ its expandable children). Memoized so a progress tick — which
@@ -203,10 +214,32 @@ const QueueRow = memo(function QueueRow({
   onRemove,
   onSetAllChildren,
   onToggleChild,
+  queueFormat,
+  onSetOverride,
+  onClearOverride,
 }: QueueRowProps) {
   const { t } = useTranslation();
   const total = item.children?.length ?? 0;
   const selectedCount = item.children?.filter((c) => c.selected).length ?? 0;
+
+  // Per-item format override. Music items (a track, or an album/playlist of
+  // tracks) are always audio + tag, so their override is audio-only (no kind
+  // switch). A resolving placeholder has no real format yet.
+  const [editingFormat, setEditingFormat] = useState(false);
+  const isMusic = !!item.track || !!item.children?.some((c) => c.track);
+  const canOverride = item.status !== "resolving";
+  const ov = item.overrides;
+  // Seed the editor from the existing override, else the live queue format.
+  const base: ItemFormat = { ...(ov ?? queueFormat), ...(isMusic ? { kind: "audio" as const } : {}) };
+  const setFmt = (patch: Partial<ItemFormat>) =>
+    onSetOverride(item.id, { ...base, ...patch });
+  const fmtLabel = (f: ItemFormat) =>
+    f.kind === "video"
+      ? f.quality === "best"
+        ? t("preview.video")
+        : f.quality
+      : f.audioFormat.toUpperCase() +
+        (f.audioBitrate !== "best" ? ` · ${f.audioBitrate}` : "");
   return (
     <li
       draggable
@@ -282,6 +315,22 @@ const QueueRow = memo(function QueueRow({
             </span>
           )}
         </div>
+        {canOverride && (
+          <button
+            type="button"
+            onClick={() => setEditingFormat((v) => !v)}
+            aria-label={t("queue.itemFormat")}
+            title={t("queue.itemFormat")}
+            className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] transition ${
+              ov
+                ? "bg-accent/15 text-accent-soft"
+                : "text-fg-faint opacity-0 hover:text-fg group-hover:opacity-100"
+            }`}
+          >
+            <SlidersHorizontal size={13} />
+            {ov && <span className="max-w-[90px] truncate">{fmtLabel(ov)}</span>}
+          </button>
+        )}
         {status !== "active" && (
           <button
             type="button"
@@ -293,6 +342,76 @@ const QueueRow = memo(function QueueRow({
           </button>
         )}
       </div>
+
+      {editingFormat && canOverride && (
+        <div className="ml-5 mt-1 flex flex-wrap items-center gap-2 rounded-xl bg-surface px-3 py-2">
+          {!isMusic && (
+            <Select
+              ariaLabel={t("preview.format")}
+              value={base.kind}
+              onChange={(v) => setFmt({ kind: v as MediaKind })}
+              options={[
+                { value: "video", label: t("preview.video") },
+                { value: "audio", label: t("preview.audio") },
+              ]}
+              className="h-8 rounded-full border border-line/10 bg-surface-2 px-3 text-xs"
+            />
+          )}
+          {base.kind === "video" ? (
+            <>
+              <Select
+                ariaLabel={t("preview.quality")}
+                value={base.quality}
+                onChange={(v) => setFmt({ quality: v })}
+                options={QUALITY_OPTIONS.map((o) => ({
+                  value: o,
+                  label: o === "best" ? t("settings.qualityBest") : o,
+                }))}
+                className="h-8 rounded-full border border-line/10 bg-surface-2 px-3 text-xs"
+              />
+              <Select
+                ariaLabel={t("preview.container")}
+                value={base.container}
+                onChange={(v) => setFmt({ container: v as VideoContainer })}
+                options={VIDEO_CONTAINERS}
+                className="h-8 rounded-full border border-line/10 bg-surface-2 px-3 text-xs"
+              />
+            </>
+          ) : (
+            <>
+              <Select
+                ariaLabel={t("preview.audioFormat")}
+                value={base.audioFormat}
+                onChange={(v) => setFmt({ audioFormat: v as AudioFormat })}
+                options={AUDIO_FORMATS.map((o) => ({ value: o.value, label: o.label }))}
+                className="h-8 rounded-full border border-line/10 bg-surface-2 px-3 text-xs"
+              />
+              <Select
+                ariaLabel={t("settings.audioBitrate")}
+                value={base.audioBitrate}
+                onChange={(v) => setFmt({ audioBitrate: v as AudioBitrate })}
+                options={AUDIO_BITRATES.map((b) => ({
+                  value: b,
+                  label: b === "best" ? t("settings.audioBitrateBest") : `${b} kbps`,
+                }))}
+                className="h-8 rounded-full border border-line/10 bg-surface-2 px-3 text-xs"
+              />
+            </>
+          )}
+          {ov && (
+            <button
+              type="button"
+              onClick={() => {
+                onClearOverride(item.id);
+                setEditingFormat(false);
+              }}
+              className="text-[11px] text-fg-dim transition hover:text-fg"
+            >
+              {t("queue.followQueue")}
+            </button>
+          )}
+        </div>
+      )}
 
       {item.children && item.expanded && (
         <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-line/10 py-1 pl-3">
@@ -344,6 +463,7 @@ interface QueuePanelProps {
   defaultQuality?: string;
   defaultContainer?: VideoContainer;
   defaultAudioFormat?: AudioFormat;
+  defaultAudioBitrate?: AudioBitrate;
   /** Whether "notify on complete" is on (Settings) — gates the finish notification. */
   notifyOnComplete?: boolean;
   /** Refresh history/stats after each item finishes. */
@@ -359,6 +479,7 @@ export function QueuePanel({
   defaultQuality,
   defaultContainer,
   defaultAudioFormat,
+  defaultAudioBitrate,
   notifyOnComplete,
   onDownloadFinished,
   onPendingChange,
@@ -407,13 +528,22 @@ export function QueuePanel({
   const [audioFormat, setAudioFormat] = useState<AudioFormat>(
     defaultAudioFormat ?? "mp3",
   );
+  const [audioBitrate, setAudioBitrate] = useState<AudioBitrate>(
+    defaultAudioBitrate ?? "best",
+  );
   const isVideo = kind === "video";
   // Live snapshot so a running queue picks up format changes made mid-run
   // (processNext recurses from a closure and would otherwise keep the old values).
-  const optsRef = useRef({ kind, quality, container, audioFormat });
+  const optsRef = useRef({ kind, quality, container, audioFormat, audioBitrate });
   useEffect(() => {
-    optsRef.current = { kind, quality, container, audioFormat };
+    optsRef.current = { kind, quality, container, audioFormat, audioBitrate };
   });
+  // Stable object identity for the memoized rows (only changes when the format
+  // does, not on every progress tick), used to seed/label per-item overrides.
+  const queueFormat = useMemo<ItemFormat>(
+    () => ({ kind, quality, container, audioFormat, audioBitrate }),
+    [kind, quality, container, audioFormat, audioBitrate],
+  );
 
   // Auto-grow the input to fit its content (up to a cap) instead of using the
   // browser's native resize handle, which clashes with the dark theme.
@@ -454,6 +584,18 @@ export function QueuePanel({
 
   const update = (id: string, patch: Partial<QueueItem>) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+
+  const setOverride = (id: string, fmt: ItemFormat) =>
+    update(id, { overrides: fmt });
+  const clearOverride = (id: string) =>
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.id !== id) return i;
+        const copy = { ...i };
+        delete copy.overrides;
+        return copy;
+      }),
+    );
 
   const updateChild = (
     itemId: string,
@@ -677,10 +819,14 @@ export function QueuePanel({
     // A Skip clicked while matching (no download to cancel yet) is honoured here.
     if (skipRequestedRef.current) throw new SkipSignal();
     if (!url) throw new SkipSignal(); // nothing cleared the match threshold
+    // Music is always audio + tag; a per-item override only tweaks the audio
+    // format/bitrate (its kind stays audio), else follow the queue.
+    const o = work.item.overrides;
     const res = await downloadOne({
       url,
       kind: "audio",
-      audio_format: optsRef.current.audioFormat,
+      audio_format: o?.audioFormat ?? optsRef.current.audioFormat,
+      audio_bitrate: o?.audioBitrate ?? optsRef.current.audioBitrate,
     });
     // The file is on disk — mark it done *before* the best-effort tagging, so a
     // Stop landing during tagging can't reset a completed track (resetActive only
@@ -707,14 +853,18 @@ export function QueuePanel({
       await downloadMusic(work, track, runId);
       return;
     }
-    // Otherwise a plain video/audio download at the queue's chosen format.
+    // Otherwise a plain video/audio download. A per-item override (a full format
+    // snapshot) wins over the queue-wide format for this item and its children.
+    const eff: ItemFormat = work.item.overrides ?? opts;
     const url = work.child ? work.child.url! : work.item.url;
     await downloadOne({
       url,
-      kind: opts.kind,
-      quality: opts.quality,
-      container: opts.container,
-      audio_format: opts.audioFormat,
+      kind: eff.kind,
+      quality: eff.quality,
+      container: eff.container,
+      audio_format: eff.audioFormat,
+      // Only meaningful for an audio download (mirrors the single-download card).
+      audio_bitrate: eff.kind === "audio" ? eff.audioBitrate : undefined,
       auto_vr: true, // no preview, so auto-detect + tag VR during the download
     });
   };
@@ -885,6 +1035,10 @@ export function QueuePanel({
   const onRowToggleChild = useEventCallback((itemId: string, childId: string) =>
     toggleChild(itemId, childId),
   );
+  const onRowSetOverride = useEventCallback((id: string, fmt: ItemFormat) =>
+    setOverride(id, fmt),
+  );
+  const onRowClearOverride = useEventCallback((id: string) => clearOverride(id));
 
   // Downloadable pending work (excludes resolving/active) — gates the Start button.
   const pending = items.reduce((n, i) => {
@@ -1010,13 +1164,25 @@ export function QueuePanel({
             />
           </>
         ) : (
-          <Select
-            ariaLabel={t("preview.audioFormat")}
-            value={audioFormat}
-            onChange={(v) => setAudioFormat(v as AudioFormat)}
-            options={AUDIO_FORMATS.map((o) => ({ value: o.value, label: o.label }))}
-            className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
-          />
+          <>
+            <Select
+              ariaLabel={t("preview.audioFormat")}
+              value={audioFormat}
+              onChange={(v) => setAudioFormat(v as AudioFormat)}
+              options={AUDIO_FORMATS.map((o) => ({ value: o.value, label: o.label }))}
+              className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
+            />
+            <Select
+              ariaLabel={t("settings.audioBitrate")}
+              value={audioBitrate}
+              onChange={(v) => setAudioBitrate(v as AudioBitrate)}
+              options={AUDIO_BITRATES.map((b) => ({
+                value: b,
+                label: b === "best" ? t("settings.audioBitrateBest") : `${b} kbps`,
+              }))}
+              className="h-9 rounded-full border border-line/10 bg-surface-2 px-4 text-sm"
+            />
+          </>
         )}
 
         <div className="ml-auto flex gap-2">
@@ -1101,6 +1267,9 @@ export function QueuePanel({
                 onRemove={onRowRemove}
                 onSetAllChildren={onRowSetAllChildren}
                 onToggleChild={onRowToggleChild}
+                queueFormat={queueFormat}
+                onSetOverride={onRowSetOverride}
+                onClearOverride={onRowClearOverride}
               />
             );
           })}
