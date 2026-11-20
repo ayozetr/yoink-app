@@ -62,12 +62,17 @@ jobs:
       - name: Build the backend sidecar (PyInstaller onedir)
         run: python scripts/build_backend.py
 
-      - name: Verify impersonation survived packaging
+      - name: Verify curl_cffi native lib survived packaging
         run: |
-          src-tauri/binaries/yoink-backend/yoink-backend --list-impersonate-targets \
-            | head -n 5
-          test -n "$(src-tauri/binaries/yoink-backend/yoink-backend --list-impersonate-targets)" \
-            || { echo "::error::curl_cffi impersonation targets are empty"; exit 1; }
+          python - <<'PY'
+          import glob, sys
+          hits = glob.glob("src-tauri/binaries/yoink-backend/_internal/curl_cffi/_wrapper*")
+          print("curl_cffi native lib:", hits or "MISSING")
+          if not hits:
+              print("::error::PyInstaller dropped curl_cffi's native lib "
+                    "(impersonation would break) — ensure --collect-all curl_cffi")
+              sys.exit(1)
+          PY
 
       - name: Build bundles (deb + appimage), signed
         env:
@@ -140,6 +145,18 @@ jobs:
 
       - name: Build the backend sidecar (PyInstaller onedir)
         run: python scripts/build_backend.py
+
+      - name: Verify curl_cffi native lib survived packaging
+        run: |
+          python - <<'PY'
+          import glob, sys
+          hits = glob.glob("src-tauri/binaries/yoink-backend/_internal/curl_cffi/_wrapper*")
+          print("curl_cffi native lib:", hits or "MISSING")
+          if not hits:
+              print("::error::PyInstaller dropped curl_cffi's native lib "
+                    "(impersonation would break) — ensure --collect-all curl_cffi")
+              sys.exit(1)
+          PY
 
       - name: Build installers (msi + nsis), signed
         env:

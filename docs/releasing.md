@@ -73,9 +73,12 @@ Prerequisites on the build host (for the **manual local** flow, §1 onward):
 - The backend venv with PyInstaller (`python scripts/setup.py` then
   `backend/.venv/bin/pip install pyinstaller`).
   - **After building the sidecar, confirm impersonation survived packaging:**
-    run the built `yoink-backend ... --list-impersonate-targets` (or test a
-    Cloudflare URL); if targets are empty, PyInstaller dropped `curl_cffi`'s
-    native libs — add `--collect-all curl_cffi` in `scripts/build_backend.py`.
+    the bundle must contain `curl_cffi`'s native binding at
+    `src-tauri/binaries/yoink-backend/_internal/curl_cffi/_wrapper.*` (`.so` on
+    Linux, `.pyd` on Windows) — if it is missing, PyInstaller dropped
+    `curl_cffi`'s native libs; keep `--collect-all curl_cffi` in
+    `scripts/build_backend.py`. (The release workflow checks this automatically.)
+    For a live check, run a real download against a Cloudflare-protected URL.
 - Bundled **ffmpeg + ffprobe**: run `python scripts/fetch_ffmpeg.py` once per
   platform (downloads LGPL builds to `backend/vendor/ffmpeg/`). The sidecar
   embeds them, so the shipped app needs no system ffmpeg. See
