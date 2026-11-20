@@ -23,8 +23,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Gate: a broken tag must not produce (let alone publish) a release. Mirrors
+  # ci.yml, which does not run on a tag push (it only triggers on branch pushes).
+  test:
+    name: Test (lint · build · vitest · pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: ffmpeg (for tag-writing round-trip tests)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+      - run: python -m pytest
+        working-directory: backend
+
   build-linux:
     name: Build Linux (AppImage · deb · rpm)
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -113,6 +140,7 @@ jobs:
 
   build-windows:
     name: Build Windows (msi · nsis)
+    needs: test
     runs-on: windows-latest
     defaults:
       run:
