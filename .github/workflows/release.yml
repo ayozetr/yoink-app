@@ -1,0 +1,200 @@
+name: Release
+
+# Builds the signed desktop bundles for Linux + Windows and drafts the GitHub
+# release — replaces the hand-run build + the Windows VM (see docs/releasing.md).
+#
+#   Push a tag v<ver> (after bumping the five version files)  -> build + draft release
+#   Run manually (workflow_dispatch)                          -> build only, artifacts, no release
+#
+# The updater signing key lives in two repo secrets (never in the repo):
+#   TAURI_SIGNING_PRIVATE_KEY           contents of ~/.tauri/yoink.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
+# Fork pull requests never run this and never receive the secrets.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-linux:
+    name: Build Linux (AppImage · deb · rpm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: System build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libayatana-appindicator3-dev patchelf rpm fakeroot file xz-utils
+
+      - name: Install uv + Python 3.13 (backend runtime)
+        run: |
+          python -m pip install uv
+          uv python install 3.13
+
+      - name: Setup (backend venv + deps + npm install)
+        run: python scripts/setup.py
+
+      - name: Add PyInstaller to the backend venv
+        run: backend/.venv/bin/python -m pip install pyinstaller
+
+      - name: Fetch bundled ffmpeg + ffprobe
+        run: python scripts/fetch_ffmpeg.py
+
+      - name: Build the backend sidecar (PyInstaller onedir)
+        run: python scripts/build_backend.py
+
+      - name: Verify impersonation survived packaging
+        run: |
+          src-tauri/binaries/yoink-backend/yoink-backend --list-impersonate-targets \
+            | head -n 5
+          test -n "$(src-tauri/binaries/yoink-backend/yoink-backend --list-impersonate-targets)" \
+            || { echo "::error::curl_cffi impersonation targets are empty"; exit 1; }
+
+      - name: Build bundles (deb + appimage), signed
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          NO_STRIP: "1"
+        run: npx tauri build --bundles deb,appimage
+
+      - name: Strip the bundled WebKit from the AppImage (invalidates its .sig)
+        run: python scripts/strip_appimage_webkit.py
+
+      - name: Re-sign the stripped AppImage
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: npx tauri signer sign src-tauri/target/release/bundle/appimage/Yoink_*_amd64.AppImage
+
+      - name: Make the rpm from the deb
+        run: python scripts/build_rpm.py
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          cp src-tauri/target/release/bundle/appimage/Yoink_*_amd64.AppImage out/
+          cp src-tauri/target/release/bundle/appimage/Yoink_*_amd64.AppImage.sig out/
+          cp src-tauri/target/release/bundle/deb/Yoink_*_amd64.deb out/
+          cp src-tauri/target/release/bundle/rpm/Yoink-*-1.x86_64.rpm out/
+          ls -la out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: out/
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows (msi · nsis)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv + Python 3.13 (backend runtime)
+        run: |
+          python -m pip install uv
+          uv python install 3.13
+
+      - name: Setup (backend venv + deps + npm install)
+        run: python scripts/setup.py
+
+      - name: Add PyInstaller to the backend venv
+        run: backend/.venv/Scripts/python -m pip install pyinstaller
+
+      - name: Fetch bundled ffmpeg + ffprobe
+        run: python scripts/fetch_ffmpeg.py
+
+      - name: Build the backend sidecar (PyInstaller onedir)
+        run: python scripts/build_backend.py
+
+      - name: Build installers (msi + nsis), signed
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build --bundles nsis,msi
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          cp src-tauri/target/release/bundle/nsis/Yoink_*_x64-setup.exe out/
+          cp src-tauri/target/release/bundle/nsis/Yoink_*_x64-setup.exe.sig out/
+          cp src-tauri/target/release/bundle/msi/Yoink_*_x64_en-US.msi out/
+          ls -la out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/
+          if-no-files-found: error
+
+  release:
+    name: Draft GitHub release
+    needs: [build-linux, build-windows]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: "*"
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -la dist/
+
+      - name: Assemble latest.json (and verify tag == package.json)
+        run: python scripts/make_latest_json.py "${GITHUB_REF_NAME}" dist
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --draft \
+            --title "Yoink ${GITHUB_REF_NAME}" \
+            --notes "Draft release built by CI. Replace this with the release notes (keep the \`<!-- /whatsnew -->\` marker before the Downloads table), then publish. Publishing makes latest.json live for the in-app updater." \
+            dist/Yoink_*_amd64.AppImage \
+            dist/Yoink_*_amd64.deb \
+            dist/Yoink-*-1.x86_64.rpm \
+            dist/Yoink_*_x64-setup.exe \
+            dist/Yoink_*_x64_en-US.msi \
+            dist/latest.json
+          echo "::notice::Draft release created for ${GITHUB_REF_NAME} — add notes and publish."

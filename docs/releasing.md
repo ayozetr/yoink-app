@@ -1,7 +1,11 @@
 # Releasing Yoink
 
-How a new versioned release is cut and published. Releases are **manual**
-(no CI workflow yet). Each release ships three Linux bundles: `.AppImage`,
+How a new versioned release is cut and published. The **recommended** path is
+GitHub Actions (see [§0](#0-releasing-via-github-actions-recommended)) — it
+builds and signs every bundle on hosted Linux + Windows runners, so no local
+build host or Windows VM is needed. The manual local flow (§1 onward) still
+works and documents exactly what the workflow does. Each release ships three
+Linux bundles: `.AppImage`,
 `.deb` and `.rpm`, each with the FastAPI backend bundled as a PyInstaller
 **one-folder** distribution (a Tauri *resource*, launched by `main.rs`) so users
 need no Python. It's `--onedir`, not `--onefile`: the app starts faster (no
@@ -9,7 +13,53 @@ per-launch extraction of the ~180 MB payload) at the cost of a bigger install
 (the AppImage grew from ~173 MB to ~255 MB — the auto-update download grows to
 match).
 
-Prerequisites on the build host:
+## 0. Releasing via GitHub Actions (recommended)
+
+`.github/workflows/release.yml` builds and **signs** all five bundles on hosted
+runners (`ubuntu-latest` + `windows-latest`), then drafts the GitHub release with
+`latest.json` attached — replacing the local build host and the Windows VM.
+
+Steps:
+
+1. **Bump the five version files** and refresh the licenses + release notes
+   locally (§1, §1b) and commit — the workflow builds whatever the tag points at,
+   it does **not** bump for you. `make_latest_json.py` fails the run if the tag and
+   `package.json` disagree, so a stray version is caught before publishing.
+2. **Tag and push:**
+   ```bash
+   git tag -a v<ver> -m "Yoink v<ver>"
+   git push origin v<ver>
+   ```
+3. The **Release** workflow runs (watch it with `gh run watch`): it builds the
+   backend sidecar, bundles deb+AppImage (stripping the bundled WebKit and
+   re-signing the AppImage) and the rpm on Linux, the msi+NSIS installers on
+   Windows, assembles `latest.json`, and creates a **draft** GitHub release with
+   the installers + `latest.json` attached (not the `.sig` files).
+4. **Edit the draft's notes** (keep the hidden `<!-- /whatsnew -->` marker before
+   the Downloads table — see §5) and **Publish**. Publishing makes it
+   `releases/latest`, so `latest.json` goes live for the in-app updater.
+
+A manual `workflow_dispatch` run (Actions tab → *Release* → *Run workflow*) builds
+and uploads the bundles as run artifacts **without** creating a release — handy to
+test the pipeline on a branch.
+
+**Signing in CI.** The updater key lives in two repo secrets, never in the repo:
+`TAURI_SIGNING_PRIVATE_KEY` (the contents of `~/.tauri/yoink.key`) and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Set/rotate them with
+`gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/yoink.key` (gh encrypts the
+value client-side). The signing job runs only on a `v*` tag push or a manual
+dispatch; fork pull requests never run it and GitHub never hands them the secrets.
+The workflow uses only first-party `actions/*` actions plus the runner's
+preinstalled toolchain — no third-party action can read the secrets.
+
+> Prefer to keep the key off CI entirely? Flip the two `tauri build` steps to
+> build **unsigned** (set `createUpdaterArtifacts:false` via
+> `scripts/disable_updater.py`, drop the signing env + the AppImage re-sign step),
+> download the run artifacts, and sign locally with `tauri signer sign` as in §6.
+
+---
+
+Prerequisites on the build host (for the **manual local** flow, §1 onward):
 
 - Rust toolchain, and on Linux `webkit2gtk` (4.1).
 - **Python 3.13** for the backend venv (not 3.14): `curl_cffi`'s impersonation —
