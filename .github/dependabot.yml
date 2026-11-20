@@ -16,6 +16,12 @@ updates:
     groups:
       npm-minor-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # TypeScript 7.0 is the native (Go) compiler rewrite; typescript-eslint
+      # does not support it yet (tracking TS >=7.1). Adopting it breaks `npm run
+      # lint`. Hold the major until the linter catches up, then drop this ignore.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: pip
     directory: "/backend"
