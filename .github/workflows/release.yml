@@ -132,7 +132,7 @@ jobs:
           cp src-tauri/target/release/bundle/rpm/Yoink-*-1.x86_64.rpm out/
           ls -la out/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: out/
@@ -200,7 +200,7 @@ jobs:
           cp src-tauri/target/release/bundle/msi/Yoink_*_x64_en-US.msi out/
           ls -la out/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: out/
