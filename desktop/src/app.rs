@@ -84,6 +84,8 @@ impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> App {
         let dark = true;
         theme::apply(&cc.egui_ctx, dark);
+        // Enables egui::Image to load remote thumbnails (JPEG/PNG/WebP over http).
+        egui_extras::install_image_loaders(&cc.egui_ctx);
         App {
             backend: Backend::spawn(cc.egui_ctx.clone()),
             minter: crate::minter::Minter::new(crate::api::port()),
@@ -367,6 +369,15 @@ impl App {
                 let v = v.clone();
                 ui.add_space(14.0);
                 card(ui, p, |ui| {
+                    if let Some(thumb) = v.thumbnail_url.as_deref().filter(|s| !s.is_empty()) {
+                        ui.add(
+                            egui::Image::from_uri(thumb.to_string())
+                                .max_width(ui.available_width())
+                                .max_height(200.0)
+                                .corner_radius(8),
+                        );
+                        ui.add_space(10.0);
+                    }
                     ui.label(RichText::new(&v.title).size(17.0).strong().color(p.fg));
                     ui.add_space(4.0);
                     let mut meta = Vec::new();

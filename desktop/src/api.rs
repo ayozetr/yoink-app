@@ -126,6 +126,8 @@ pub struct DownloadReq {
 pub struct VideoLite {
     pub title: String,
     #[serde(default)]
+    pub thumbnail_url: Option<String>,
+    #[serde(default)]
     pub uploader: Option<String>,
     #[serde(default)]
     pub duration_string: Option<String>,

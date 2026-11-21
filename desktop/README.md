@@ -27,9 +27,11 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
 - **Phase 4 (done):** the Cola (queue) — paste URLs, they download one at a time
   (sharing the single in-flight slot with the Inicio screen) using the default
   format, with per-item status and progress, remove, and "clear completed".
+- **Phase 5 (done):** thumbnails in the preview card, loaded from the video's
+  `thumbnail_url` via `egui_extras` image loaders (remote JPEG/PNG/WebP over http).
 - **Later:** the music-import and auto-tag screens; i18n (reusing a Rust i18n
-  layer); thumbnails; then the Tauri shell concerns (updater, tray, deep link,
-  notifications) as native crates.
+  layer); then the Tauri shell concerns (updater, tray, deep link, notifications)
+  as native crates.
 
 ## Run
 
