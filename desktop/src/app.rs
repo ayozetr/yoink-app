@@ -274,7 +274,8 @@ impl App {
                 Evt::WhatsNew(entries) => {
                     if !entries.is_empty() {
                         self.whatsnew = entries;
-                        self.whatsnew_open = true;
+                        // Don't pop it over a screenshot capture.
+                        self.whatsnew_open = self.shot.is_none();
                     }
                 }
                 Evt::History(h) => self.history = h,
