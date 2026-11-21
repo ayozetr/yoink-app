@@ -821,17 +821,17 @@ impl eframe::App for App {
                             spread: 0,
                             color: egui::Color32::from_black_alpha(140),
                         })
-                        .inner_margin(egui::Margin::same(24)),
+                        .inner_margin(egui::Margin::same(22)),
                 )
                 .show(&ctx, |ui| {
-                    ui.set_width(600.0);
+                    ui.set_width(560.0);
                     // Header: globe + title (left), close (right).
                     ui.horizontal(|ui| {
                         crate::icons::show(ui, "globe", 18.0, p.accent);
                         ui.add_space(8.0);
                         ui.label(
                             RichText::new(tl(lang, "sites.title"))
-                                .size(21.0)
+                                .size(19.0)
                                 .family(crate::fonts::display())
                                 .color(p.fg),
                         );
@@ -856,66 +856,58 @@ impl eframe::App for App {
                     ui.add_space(6.0);
                     ui.label(RichText::new(tl(lang, "sites.intro")).color(p.fg_dim));
                     ui.add_space(16.0);
-                    egui::ScrollArea::vertical()
-                        .max_height(600.0)
-                        .auto_shrink([false, true])
-                        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
-                        .show(ui, |ui| {
-                            // A 4-column grid of clickable logo + name tiles, each
-                            // lightening and gaining an accent border on hover.
-                            let lighten = |c: egui::Color32, d: u8| {
-                                egui::Color32::from_rgb(
-                                    c.r().saturating_add(d),
-                                    c.g().saturating_add(d),
-                                    c.b().saturating_add(d),
-                                )
-                            };
-                            let cols = 4;
-                            for row in SUPPORTED_SITES.chunks(cols) {
-                                ui.columns(cols, |c| {
-                                    for (i, (slug, name, url)) in row.iter().enumerate() {
-                                        let col = &mut c[i];
-                                        let w = col.available_width();
-                                        let (rect, resp) = col.allocate_exact_size(
-                                            egui::vec2(w, 80.0),
-                                            egui::Sense::click(),
-                                        );
-                                        let hov = resp.hovered();
-                                        let fill = if hov {
-                                            lighten(p.surface_hi, 16)
-                                        } else {
-                                            p.surface_hi
-                                        };
-                                        let border = if hov { p.accent } else { p.line };
-                                        col.painter().rect_filled(rect, 12.0, fill);
-                                        col.painter().rect_stroke(
-                                            rect,
-                                            12.0,
-                                            egui::Stroke::new(1.0, border),
-                                            egui::StrokeKind::Inside,
-                                        );
-                                        let mut cui = col.new_child(
-                                            egui::UiBuilder::new().max_rect(rect).layout(
-                                                egui::Layout::top_down(egui::Align::Center),
-                                            ),
-                                        );
-                                        cui.add_space(15.0);
-                                        crate::icons::show_site(&mut cui, slug, 26.0, p.fg);
-                                        cui.add_space(9.0);
-                                        cui.label(RichText::new(*name).color(p.fg));
-                                        if hov {
-                                            col.ctx()
-                                                .set_cursor_icon(egui::CursorIcon::PointingHand);
-                                        }
-                                        if resp.clicked() {
-                                            open_url(url);
-                                        }
-                                    }
-                                });
-                                ui.add_space(12.0);
+                    // A 4-column grid of clickable logo + name tiles (no scroll, so
+                    // nothing is clipped and there's no scrollbar), each lightening
+                    // and gaining an accent border on hover.
+                    let lighten = |c: egui::Color32, d: u8| {
+                        egui::Color32::from_rgb(
+                            c.r().saturating_add(d),
+                            c.g().saturating_add(d),
+                            c.b().saturating_add(d),
+                        )
+                    };
+                    let cols = 4;
+                    for row in SUPPORTED_SITES.chunks(cols) {
+                        ui.columns(cols, |c| {
+                            for (i, (slug, name, url)) in row.iter().enumerate() {
+                                let col = &mut c[i];
+                                let w = col.available_width();
+                                let (rect, resp) = col
+                                    .allocate_exact_size(egui::vec2(w, 56.0), egui::Sense::click());
+                                let hov = resp.hovered();
+                                let fill = if hov {
+                                    lighten(p.surface_hi, 16)
+                                } else {
+                                    p.surface_hi
+                                };
+                                let border = if hov { p.accent } else { p.line };
+                                col.painter().rect_filled(rect, 12.0, fill);
+                                col.painter().rect_stroke(
+                                    rect,
+                                    12.0,
+                                    egui::Stroke::new(1.0, border),
+                                    egui::StrokeKind::Inside,
+                                );
+                                let mut cui = col.new_child(
+                                    egui::UiBuilder::new()
+                                        .max_rect(rect)
+                                        .layout(egui::Layout::top_down(egui::Align::Center)),
+                                );
+                                cui.add_space(8.0);
+                                crate::icons::show_site(&mut cui, slug, 22.0, p.fg);
+                                cui.add_space(5.0);
+                                cui.label(RichText::new(*name).small().color(p.fg));
+                                if hov {
+                                    col.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                }
+                                if resp.clicked() {
+                                    open_url(url);
+                                }
                             }
                         });
-                    ui.add_space(6.0);
+                        ui.add_space(8.0);
+                    }
+                    ui.add_space(10.0);
                     ui.vertical_centered(|ui| {
                         ui.label(
                             RichText::new(tl(lang, "sites.footer"))
