@@ -94,6 +94,7 @@ pub struct App {
     eta: Option<String>,
     settings: Option<Settings>,
     settings_note: Option<String>,
+    settings_scroll_to: Option<String>,
     history: Vec<HistoryEntry>,
     history_loaded: bool,
     hist_query: String,
@@ -153,6 +154,7 @@ impl App {
             eta: None,
             settings: None,
             settings_note: None,
+            settings_scroll_to: None,
             history: Vec::new(),
             history_loaded: false,
             hist_query: String::new(),
@@ -617,6 +619,45 @@ impl eframe::App for App {
                             }
                         });
                     });
+                });
+        }
+
+        // Settings "on this page" nav (sticky right column).
+        if self.tab == Tab::Ajustes {
+            egui::Panel::right("settings-nav")
+                .frame(
+                    egui::Frame::new()
+                        .fill(p.canvas)
+                        .inner_margin(egui::Margin::symmetric(20, 24)),
+                )
+                .show(ui, |ui| {
+                    ui.set_width(170.0);
+                    ui.label(
+                        RichText::new(tl(lang, "set.onpage"))
+                            .small()
+                            .color(p.fg_dim),
+                    );
+                    ui.add_space(8.0);
+                    for (key, label) in [
+                        ("sec.general", "set.general"),
+                        ("sec.downloads", "set.downloads"),
+                        ("sec.potoken", "set.potoken"),
+                        ("sec.quality", "set.quality"),
+                        ("sec.options", "set.options"),
+                        ("sec.sponsorblock", "set.sponsorblock"),
+                        ("sec.network", "set.network"),
+                    ] {
+                        if ui
+                            .add(
+                                egui::Button::new(RichText::new(tl(lang, label)).color(p.fg_dim))
+                                    .fill(egui::Color32::TRANSPARENT)
+                                    .frame(false),
+                            )
+                            .clicked()
+                        {
+                            self.settings_scroll_to = Some(key.to_string());
+                        }
+                    }
                 });
         }
 
@@ -1535,20 +1576,24 @@ impl App {
             return;
         };
         let mut new_lang = self.lang;
+        let scroll_to = self.settings_scroll_to.take();
 
-        let heading = |ui: &mut egui::Ui, key: &str| {
+        let heading = |ui: &mut egui::Ui, sec: &str, key: &str| {
             ui.add_space(10.0);
-            ui.label(
+            let r = ui.label(
                 RichText::new(tl(lang, key))
                     .size(26.0)
                     .family(crate::fonts::display())
                     .color(p.fg),
             );
+            if scroll_to.as_deref() == Some(sec) {
+                r.scroll_to_me(Some(egui::Align::TOP));
+            }
             ui.add_space(2.0);
         };
 
         // General.
-        heading(ui, "set.general");
+        heading(ui, "sec.general", "set.general");
         setting_row(ui, p, tl(lang, "set.language"), |ui| {
             egui::ComboBox::from_id_salt("lang")
                 .selected_text(self.lang.label())
@@ -1573,7 +1618,7 @@ impl App {
 
         // Downloads.
         ui.add_space(20.0);
-        heading(ui, "set.downloads");
+        heading(ui, "sec.downloads", "set.downloads");
         ui.add_space(12.0);
         ui.label(RichText::new(tl(lang, "set.dir")).small().color(p.fg_dim));
         ui.add_space(3.0);
@@ -1612,7 +1657,7 @@ impl App {
 
         // PO token.
         ui.add_space(20.0);
-        heading(ui, "set.potoken");
+        heading(ui, "sec.potoken", "set.potoken");
         ui.add_space(4.0);
         ui.label(
             RichText::new(tl(lang, "set.potoken_desc"))
@@ -1630,7 +1675,7 @@ impl App {
 
         // Quality.
         ui.add_space(20.0);
-        heading(ui, "set.quality");
+        heading(ui, "sec.quality", "set.quality");
         setting_row(ui, p, tl(lang, "set.bitrate"), |ui| {
             combo_bare(
                 ui,
@@ -1650,7 +1695,7 @@ impl App {
 
         // Processing.
         ui.add_space(20.0);
-        heading(ui, "set.options");
+        heading(ui, "sec.options", "set.options");
         setting_row(ui, p, tl(lang, "set.normalize"), |ui| {
             toggle(ui, &mut s.normalize_audio, p);
         });
@@ -1674,7 +1719,7 @@ impl App {
 
         // SponsorBlock.
         ui.add_space(20.0);
-        heading(ui, "set.sponsorblock");
+        heading(ui, "sec.sponsorblock", "set.sponsorblock");
         setting_row(ui, p, tl(lang, "set.sb_enabled"), |ui| {
             toggle(ui, &mut s.sponsorblock_enabled, p);
         });
@@ -1691,7 +1736,7 @@ impl App {
 
         // Network & access.
         ui.add_space(20.0);
-        heading(ui, "set.network");
+        heading(ui, "sec.network", "set.network");
         setting_row(ui, p, tl(lang, "set.proxy"), |ui| {
             let mut v = s.proxy.clone().unwrap_or_default();
             if ui

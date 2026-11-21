@@ -165,6 +165,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("time.now", Es) => "ahora",
         ("time.now", En) => "just now",
 
+        ("set.onpage", Es) => "EN ESTA PÁGINA",
+        ("set.onpage", En) => "ON THIS PAGE",
         ("set.general", Es) => "General",
         ("set.general", En) => "General",
         ("set.downloads", Es) => "Descargas",
