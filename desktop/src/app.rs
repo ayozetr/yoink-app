@@ -1170,6 +1170,7 @@ impl App {
                 if self.kind == "video" {
                     combo(
                         ui,
+                        lang,
                         "q",
                         tl(lang, "field.quality"),
                         &mut self.quality,
@@ -1177,6 +1178,7 @@ impl App {
                     );
                     combo(
                         ui,
+                        lang,
                         "c",
                         tl(lang, "field.container"),
                         &mut self.container,
@@ -1185,6 +1187,7 @@ impl App {
                 } else {
                     combo(
                         ui,
+                        lang,
                         "f",
                         tl(lang, "field.format"),
                         &mut self.audio_format,
@@ -1400,16 +1403,18 @@ impl App {
                     .color(p.fg_dim),
             );
             ui.add_space(6.0);
-            combo_bare(ui, "q.kind", &mut self.q_kind, &["video", "audio"]);
+            combo_bare(ui, lang, "q.kind", &mut self.q_kind, &["video", "audio"]);
             if self.q_kind == "video" {
                 combo_bare(
                     ui,
+                    lang,
                     "q.q",
                     &mut self.q_quality,
                     &["best", "2160", "1440", "1080", "720", "480"],
                 );
                 combo_bare(
                     ui,
+                    lang,
                     "q.c",
                     &mut self.q_container,
                     &["mp4", "mov", "mkv", "webm"],
@@ -1417,6 +1422,7 @@ impl App {
             } else {
                 combo_bare(
                     ui,
+                    lang,
                     "q.a",
                     &mut self.q_audio,
                     &["mp3", "m4a", "opus", "flac", "wav"],
@@ -1669,11 +1675,18 @@ impl App {
                 .margin(egui::Margin::symmetric(10, 7)),
         );
         setting_row(ui, p, tl(lang, "field.kind"), |ui| {
-            combo_bare(ui, "set.kind", &mut s.default_kind, &["video", "audio"]);
+            combo_bare(
+                ui,
+                lang,
+                "set.kind",
+                &mut s.default_kind,
+                &["video", "audio"],
+            );
         });
         setting_row(ui, p, tl(lang, "field.quality"), |ui| {
             combo_bare(
                 ui,
+                lang,
                 "set.q",
                 &mut s.default_quality,
                 &["best", "2160", "1440", "1080", "720", "480"],
@@ -1682,6 +1695,7 @@ impl App {
         setting_row(ui, p, tl(lang, "field.container"), |ui| {
             combo_bare(
                 ui,
+                lang,
                 "set.c",
                 &mut s.default_container,
                 &["mp4", "mov", "mkv", "webm"],
@@ -1690,6 +1704,7 @@ impl App {
         setting_row(ui, p, tl(lang, "field.audio"), |ui| {
             combo_bare(
                 ui,
+                lang,
                 "set.a",
                 &mut s.default_audio_format,
                 &["mp3", "m4a", "opus", "flac", "wav"],
@@ -1708,6 +1723,7 @@ impl App {
         setting_row(ui, p, tl(lang, "set.mode"), |ui| {
             combo_bare(
                 ui,
+                lang,
                 "set.mode",
                 &mut s.po_token_mode,
                 &["off", "manual", "auto"],
@@ -1720,6 +1736,7 @@ impl App {
         setting_row(ui, p, tl(lang, "set.bitrate"), |ui| {
             combo_bare(
                 ui,
+                lang,
                 "set.br",
                 &mut s.audio_bitrate,
                 &["best", "320", "256", "192", "128"],
@@ -1728,6 +1745,7 @@ impl App {
         setting_row(ui, p, tl(lang, "set.vcodec"), |ui| {
             combo_bare(
                 ui,
+                lang,
                 "set.vc",
                 &mut s.video_codec,
                 &["any", "h264", "h265", "vp9", "av1"],
@@ -1752,6 +1770,7 @@ impl App {
         setting_row(ui, p, tl(lang, "set.autotag"), |ui| {
             combo_bare(
                 ui,
+                lang,
                 "set.at",
                 &mut s.autotag_source,
                 &["auto", "apple", "deezer", "musicbrainz"],
@@ -1768,6 +1787,7 @@ impl App {
             setting_row(ui, p, tl(lang, "set.sb_action"), |ui| {
                 combo_bare(
                     ui,
+                    lang,
                     "set.sba",
                     &mut s.sponsorblock_action,
                     &["remove", "mark"],
@@ -1808,6 +1828,7 @@ impl App {
             let mut v = s.cookies_from_browser.clone().unwrap_or_default();
             combo_bare(
                 ui,
+                lang,
                 "set.ck",
                 &mut v,
                 &["", "chrome", "firefox", "chromium", "edge", "brave"],
@@ -2021,24 +2042,75 @@ fn card(ui: &mut egui::Ui, _p: theme::Palette, add: impl FnOnce(&mut egui::Ui)) 
 /// A labelled dropdown bound to a string from a fixed option list. `id` is a
 /// stable salt so the widget keeps its identity when the label is translated.
 /// Just the dropdown (no label), for the right slot of a settings row.
-fn combo_bare(ui: &mut egui::Ui, id: &str, value: &mut String, options: &[&str]) {
+/// A human label for a raw selector value (formats upper-cased, qualities as
+/// "1080p"/"320 kbps", the special ones translated) — so no combo shows a bare
+/// backend token like "best" or "mp4".
+fn opt_label(lang: Lang, v: &str) -> String {
+    let t =
+        |en: &'static str, es: &'static str| (if lang == Lang::En { en } else { es }).to_string();
+    match v {
+        "" => t("None", "Ninguna"),
+        "video" => tl(lang, "kind.video").to_string(),
+        "audio" => tl(lang, "kind.audio").to_string(),
+        "best" => t("Best available", "Mejor disponible"),
+        "off" => t("Off", "Desactivado"),
+        "manual" => "Manual".to_string(),
+        "auto" => t("Auto", "Automático"),
+        "any" => t("Any", "Cualquiera"),
+        "remove" => t("Remove", "Eliminar"),
+        "mark" => t("Mark as chapters", "Marcar como capítulos"),
+        "apple" => "Apple Music".to_string(),
+        "deezer" => "Deezer".to_string(),
+        "musicbrainz" => "MusicBrainz".to_string(),
+        "chrome" => "Chrome".to_string(),
+        "firefox" => "Firefox".to_string(),
+        "chromium" => "Chromium".to_string(),
+        "edge" => "Edge".to_string(),
+        "brave" => "Brave".to_string(),
+        "mp4" => "MP4".to_string(),
+        "mov" => "MOV".to_string(),
+        "mkv" => "MKV".to_string(),
+        "webm" => "WebM".to_string(),
+        "mp3" => "MP3".to_string(),
+        "m4a" => "M4A".to_string(),
+        "opus" => "Opus".to_string(),
+        "flac" => "FLAC".to_string(),
+        "wav" => "WAV".to_string(),
+        "h264" => "H.264".to_string(),
+        "h265" => "H.265".to_string(),
+        "vp9" => "VP9".to_string(),
+        "av1" => "AV1".to_string(),
+        "2160" | "1440" | "1080" | "720" | "480" | "360" => format!("{v}p"),
+        "320" | "256" | "192" | "128" => format!("{v} kbps"),
+        _ => v.to_string(),
+    }
+}
+
+fn combo_bare(ui: &mut egui::Ui, lang: Lang, id: &str, value: &mut String, options: &[&str]) {
     egui::ComboBox::from_id_salt(id)
-        .selected_text(value.clone())
+        .selected_text(opt_label(lang, value))
         .show_ui(ui, |ui| {
             for opt in options {
-                ui.selectable_value(value, opt.to_string(), *opt);
+                ui.selectable_value(value, opt.to_string(), opt_label(lang, opt));
             }
         });
 }
 
-fn combo(ui: &mut egui::Ui, id: &str, label: &str, value: &mut String, options: &[&str]) {
+fn combo(
+    ui: &mut egui::Ui,
+    lang: Lang,
+    id: &str,
+    label: &str,
+    value: &mut String,
+    options: &[&str],
+) {
     ui.vertical(|ui| {
         ui.label(RichText::new(label).small());
         egui::ComboBox::from_id_salt(id)
-            .selected_text(value.clone())
+            .selected_text(opt_label(lang, value))
             .show_ui(ui, |ui| {
                 for opt in options {
-                    ui.selectable_value(value, opt.to_string(), *opt);
+                    ui.selectable_value(value, opt.to_string(), opt_label(lang, opt));
                 }
             });
     });
