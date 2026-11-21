@@ -707,8 +707,25 @@ impl eframe::App for App {
                                         .family(crate::fonts::display())
                                         .color(p.fg),
                                 );
-                                ui.add_space(4.0);
-                                ui.label(RichText::new(notes).color(p.fg_dim));
+                                ui.add_space(6.0);
+                                for line in notes.lines() {
+                                    let t = line.trim();
+                                    if let Some(h) = t.strip_prefix("## ") {
+                                        ui.add_space(4.0);
+                                        ui.label(RichText::new(h).strong().color(p.fg));
+                                    } else if let Some(h) = t.strip_prefix("# ") {
+                                        ui.add_space(4.0);
+                                        ui.label(RichText::new(h).size(15.0).strong().color(p.fg));
+                                    } else if let Some(b) =
+                                        t.strip_prefix("- ").or_else(|| t.strip_prefix("* "))
+                                    {
+                                        ui.label(RichText::new(format!("•  {b}")).color(p.fg_dim));
+                                    } else if !t.is_empty() {
+                                        ui.label(RichText::new(t).color(p.fg_dim));
+                                    } else {
+                                        ui.add_space(4.0);
+                                    }
+                                }
                                 ui.add_space(14.0);
                             }
                         });
