@@ -8,7 +8,7 @@
 ![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
 [![Downloads](https://img.shields.io/github/downloads/ayozetr/yoink-app/total.svg?color=2ea44f)](https://github.com/ayozetr/yoink-app/releases/latest)
 
-![Yoink — the analyze view with the format and quality picker](docs/screenshot_v4.0.0.png)
+![Yoink — the analyze view with the format and quality picker](docs/screenshot.png)
 
 Yoink is a local desktop application for downloading high-fidelity video and
 audio from roughly 1,800 sites. It provides a clean user interface over
