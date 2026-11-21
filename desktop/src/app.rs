@@ -119,6 +119,7 @@ pub struct App {
     q_container: String,
     q_audio: String,
     advanced_open: bool,
+    supported_open: bool,
     update_available: Option<String>,
     update_dismissed: bool,
     whatsnew: Vec<(String, String)>,
@@ -186,6 +187,7 @@ impl App {
             q_container: "mp4".into(),
             q_audio: "mp3".into(),
             advanced_open: false,
+            supported_open: false,
             update_available: None,
             update_dismissed: false,
             whatsnew: Vec::new(),
@@ -249,6 +251,9 @@ impl App {
         }
         if std::env::var("YOINK_SHOT_ADV").is_ok() {
             app.advanced_open = true;
+        }
+        if std::env::var("YOINK_SHOT_SITES").is_ok() {
+            app.supported_open = true;
         }
         app
     }
@@ -463,6 +468,47 @@ impl App {
         }));
     }
 }
+
+/// Open a URL in the user's default browser (fire-and-forget).
+fn open_url(url: &str) {
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(url).spawn();
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("cmd")
+        .args(["/C", "start", "", url])
+        .spawn();
+}
+
+/// The manually-verified sites shown in the "supported sites" dialog
+/// (slug for the bundled logo, display name, homepage).
+const SUPPORTED_SITES: &[(&str, &str, &str)] = &[
+    ("youtube", "YouTube", "https://youtube.com"),
+    ("dailymotion", "Dailymotion", "https://dailymotion.com"),
+    ("tiktok", "TikTok", "https://tiktok.com"),
+    ("facebook", "Facebook", "https://facebook.com"),
+    ("instagram", "Instagram", "https://instagram.com"),
+    ("threads", "Threads", "https://threads.com"),
+    ("x", "X (Twitter)", "https://x.com"),
+    ("reddit", "Reddit", "https://reddit.com"),
+    ("bluesky", "Bluesky", "https://bsky.app"),
+    ("pinterest", "Pinterest", "https://pinterest.com"),
+    ("vk", "VK", "https://vk.com"),
+    ("vimeo", "Vimeo", "https://vimeo.com"),
+    ("twitch", "Twitch", "https://twitch.tv"),
+    ("kick", "Kick", "https://kick.com"),
+    ("medal", "Medal", "https://medal.tv"),
+    ("youtubemusic", "YouTube Music", "https://music.youtube.com"),
+    ("spotify", "Spotify", "https://spotify.com"),
+    ("deezer", "Deezer", "https://deezer.com"),
+    ("applemusic", "Apple Music", "https://music.apple.com"),
+    ("tidal", "Tidal", "https://tidal.com"),
+    ("amazonmusic", "Amazon Music", "https://music.amazon.com"),
+    ("soundcloud", "SoundCloud", "https://soundcloud.com"),
+    ("bandlab", "BandLab", "https://bandlab.com"),
+    ("bandcamp", "Bandcamp", "https://bandcamp.com"),
+];
 
 /// Parse a "m:ss" / "h:mm:ss" / plain-seconds timecode into seconds.
 fn parse_timecode(s: &str) -> Option<f64> {
@@ -717,6 +763,68 @@ impl eframe::App for App {
                 });
             });
 
+        // Supported-sites dialog (the "Supported sites" link under the URL bar).
+        if self.supported_open {
+            let mut open = true;
+            egui::Window::new(tl(lang, "sites.title"))
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .open(&mut open)
+                .show(&ctx, |ui| {
+                    ui.set_width(560.0);
+                    ui.label(
+                        RichText::new(tl(lang, "sites.intro"))
+                            .small()
+                            .color(p.fg_dim),
+                    );
+                    ui.add_space(12.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(440.0)
+                        .show(ui, |ui| {
+                            // A 4-column grid of clickable logo + name tiles.
+                            let cols = 4;
+                            for row in SUPPORTED_SITES.chunks(cols) {
+                                ui.columns(cols, |c| {
+                                    for (i, (slug, name, url)) in row.iter().enumerate() {
+                                        let resp = egui::Frame::new()
+                                            .fill(p.surface_hi)
+                                            .corner_radius(10)
+                                            .inner_margin(egui::Margin::symmetric(8, 12))
+                                            .show(&mut c[i], |ui| {
+                                                ui.vertical_centered(|ui| {
+                                                    ui.set_width(ui.available_width());
+                                                    crate::icons::show_site(ui, slug, 24.0, p.fg);
+                                                    ui.add_space(7.0);
+                                                    ui.label(
+                                                        RichText::new(*name).small().color(p.fg),
+                                                    );
+                                                });
+                                            })
+                                            .response
+                                            .interact(egui::Sense::click());
+                                        if resp.clicked() {
+                                            open_url(url);
+                                        }
+                                    }
+                                });
+                                ui.add_space(8.0);
+                            }
+                        });
+                    ui.add_space(6.0);
+                    ui.vertical_centered(|ui| {
+                        ui.label(
+                            RichText::new(tl(lang, "sites.footer"))
+                                .small()
+                                .color(p.fg_dim),
+                        );
+                    });
+                });
+            if !open {
+                self.supported_open = false;
+            }
+        }
+
         // "What's new" popup after an update.
         if self.whatsnew_open {
             let mut open = true;
@@ -891,11 +999,19 @@ impl App {
             egui::Layout::right_to_left(egui::Align::Center),
             |ui| {
                 ui.add_space(112.0);
-                ui.label(
-                    RichText::new(tl(lang, "inicio.supported"))
-                        .small()
-                        .color(p.fg_dim),
-                );
+                if ui
+                    .add(
+                        egui::Button::new(
+                            RichText::new(tl(lang, "inicio.supported"))
+                                .small()
+                                .color(p.fg_dim),
+                        )
+                        .frame(false),
+                    )
+                    .clicked()
+                {
+                    self.supported_open = true;
+                }
             },
         );
 

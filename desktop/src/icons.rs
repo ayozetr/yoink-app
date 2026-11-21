@@ -44,6 +44,45 @@ fn bytes(name: &str) -> (&'static str, &'static [u8]) {
     }
 }
 
+/// A supported-site brand logo (bundled from simple-icons), tinted at paint time.
+pub fn site_img(slug: &str, size: f32, color: Color32) -> Image<'static> {
+    macro_rules! s {
+        ($f:literal) => {
+            include_bytes!(concat!("../assets/icons/sites/", $f, ".svg")) as &[u8]
+        };
+    }
+    let data: &[u8] = match slug {
+        "youtube" => s!("youtube"),
+        "dailymotion" => s!("dailymotion"),
+        "tiktok" => s!("tiktok"),
+        "facebook" => s!("facebook"),
+        "instagram" => s!("instagram"),
+        "threads" => s!("threads"),
+        "x" => s!("x"),
+        "reddit" => s!("reddit"),
+        "bluesky" => s!("bluesky"),
+        "pinterest" => s!("pinterest"),
+        "vk" => s!("vk"),
+        "vimeo" => s!("vimeo"),
+        "twitch" => s!("twitch"),
+        "kick" => s!("kick"),
+        "medal" => s!("medal"),
+        "youtubemusic" => s!("youtubemusic"),
+        "spotify" => s!("spotify"),
+        "deezer" => s!("deezer"),
+        "applemusic" => s!("applemusic"),
+        "tidal" => s!("tidal"),
+        "amazonmusic" => s!("amazonmusic"),
+        "soundcloud" => s!("soundcloud"),
+        "bandlab" => s!("bandlab"),
+        "bandcamp" => s!("bandcamp"),
+        _ => s!("youtube"),
+    };
+    Image::from_bytes(format!("bytes://site/{slug}.svg"), data)
+        .fit_to_exact_size(Vec2::splat(size))
+        .tint(color)
+}
+
 /// An icon tinted to `color`, sized `size`×`size`.
 pub fn img(name: &str, size: f32, color: Color32) -> Image<'static> {
     let (key, data) = bytes(name);
@@ -55,4 +94,9 @@ pub fn img(name: &str, size: f32, color: Color32) -> Image<'static> {
 /// Add an icon inline (as a widget), vertically centered with surrounding text.
 pub fn show(ui: &mut egui::Ui, name: &str, size: f32, color: Color32) {
     ui.add(img(name, size, color));
+}
+
+/// Add a supported-site brand logo inline.
+pub fn show_site(ui: &mut egui::Ui, slug: &str, size: f32, color: Color32) {
+    ui.add(site_img(slug, size, color));
 }
