@@ -748,6 +748,17 @@ async fn run_download(mut socket: WebSocket) {
     // audio; VR-tag video (which renames the file, so this updates final_path).
     if ok {
         if let Some(path) = final_path.clone() {
+            // HLS trim: the range download was skipped for an HLS source (it can't
+            // be trimmed that way), so the full stream was fetched — clip it now.
+            if req.is_hls && (req.trim_start.is_some() || req.trim_end.is_some()) {
+                let start = req.trim_start.unwrap_or(0.0);
+                let end = req.trim_end;
+                let pp = path.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    audio_normalize::ffmpeg_trim(&pp, start, end)
+                })
+                .await;
+            }
             let info_json = std::path::Path::new(&path).with_extension("info.json");
             let info: Option<Value> = std::fs::read_to_string(&info_json)
                 .ok()

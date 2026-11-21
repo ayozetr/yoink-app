@@ -162,3 +162,39 @@ pub fn normalize(path: &str, audio_format: &str, bitrate: &str, target_i: f64) -
     }
     std::fs::rename(&tmp, path).is_ok()
 }
+
+/// Clip a fully-downloaded file to [start, end] in place by stream copy (no
+/// re-encode — the bundled LGPL ffmpeg has no x264/x265). Used for HLS sources,
+/// where yt-dlp's range download can't trim. Mirrors _ffmpeg_trim. Best-effort.
+pub fn ffmpeg_trim(path: &str, start: f64, end: Option<f64>) -> bool {
+    let p = Path::new(path);
+    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
+    let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("mp4");
+    let tmp = p.with_file_name(format!("{stem}.trim.{ext}"));
+    let mut args = vec![
+        "-y".into(),
+        "-loglevel".into(),
+        "error".into(),
+        "-ss".into(),
+        format!("{start:.3}"),
+    ];
+    if let Some(e) = end.filter(|e| *e > start) {
+        args.push("-t".into());
+        args.push(format!("{:.3}", e - start));
+    }
+    args.push("-i".into());
+    args.push(path.to_string());
+    args.push("-map".into());
+    args.push("0".into());
+    args.push("-c".into());
+    args.push("copy".into());
+    args.push(tmp.to_string_lossy().into_owned());
+    let out = run_ffmpeg(&args);
+    let wrote = matches!(&out, Some(o) if o.status.success())
+        && std::fs::metadata(&tmp).map(|m| m.len() > 0).unwrap_or(false);
+    if !wrote {
+        let _ = std::fs::remove_file(&tmp);
+        return false;
+    }
+    std::fs::rename(&tmp, path).is_ok()
+}
