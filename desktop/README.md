@@ -37,8 +37,11 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   with its cover; "Import all" enqueues each track, and the worker runs the full
   per-track pipeline — match on YouTube (`/api/music/match`), download the audio,
   and tag it with the exact source metadata (`/api/autotag/apply`).
-- **Later:** a standalone auto-tag screen for existing files; then the Tauri shell
-  concerns (updater, tray, deep link, notifications) as native crates.
+- **Phase 8 (done):** desktop notifications on download completion (via
+  `notify-rust`), gated by the existing `notify_on_complete` setting.
+- **Later:** a standalone auto-tag screen for existing files; then the remaining
+  Tauri shell concerns (in-app updater, system tray, `yoink://` deep link) as
+  native crates.
 
 ## Run
 

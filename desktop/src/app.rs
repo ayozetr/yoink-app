@@ -173,18 +173,23 @@ impl App {
                         }
                     }
                 }
-                Evt::Done(path) => match self.active.take() {
-                    Some(ActiveDl::Queue(id)) => {
-                        if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
-                            it.progress = 1.0;
-                            it.status = QStatus::Done;
+                Evt::Done(path) => {
+                    if self.settings.as_ref().is_some_and(|s| s.notify_on_complete) {
+                        notify_done(tl(self.lang, "inicio.downloaded"), &path);
+                    }
+                    match self.active.take() {
+                        Some(ActiveDl::Queue(id)) => {
+                            if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
+                                it.progress = 1.0;
+                                it.status = QStatus::Done;
+                            }
+                        }
+                        _ => {
+                            self.progress = 1.0;
+                            self.status = Status::Done(path);
                         }
                     }
-                    _ => {
-                        self.progress = 1.0;
-                        self.status = Status::Done(path);
-                    }
-                },
+                }
                 Evt::DownloadErr(e) => match self.active.take() {
                     Some(ActiveDl::Queue(id)) => {
                         if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
@@ -875,6 +880,23 @@ impl App {
         // Keep edits in the in-memory copy so they persist across frames until saved.
         self.settings = Some(s);
     }
+}
+
+/// Fire a desktop notification for a finished download (off the UI thread, since
+/// the D-Bus call can block briefly).
+fn notify_done(verb: &str, path: &str) {
+    let name = std::path::Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
+    let body = format!("{verb}: {name}");
+    std::thread::spawn(move || {
+        let _ = notify_rust::Notification::new()
+            .summary("Yoink")
+            .body(&body)
+            .show();
+    });
 }
 
 fn human_bytes(n: i64) -> String {
