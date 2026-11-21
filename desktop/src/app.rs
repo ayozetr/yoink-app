@@ -32,6 +32,29 @@ enum Status {
     Error(String),
 }
 
+/// Which download owns the single in-flight slot (the backend serves one at a
+/// time, so the UI gates on this).
+#[derive(Clone, Copy, PartialEq)]
+enum ActiveDl {
+    Inicio,
+    Queue(u64),
+}
+
+enum QStatus {
+    Pending,
+    Downloading,
+    Done,
+    Error(String),
+}
+
+struct QueueItem {
+    id: u64,
+    url: String,
+    kind: String,
+    status: QStatus,
+    progress: f32,
+}
+
 pub struct App {
     backend: Backend,
     minter: crate::minter::Minter,
@@ -51,6 +74,10 @@ pub struct App {
     settings_note: Option<String>,
     history: Vec<HistoryEntry>,
     history_loaded: bool,
+    active: Option<ActiveDl>,
+    queue: Vec<QueueItem>,
+    queue_url: String,
+    next_qid: u64,
 }
 
 impl App {
@@ -76,6 +103,10 @@ impl App {
             settings_note: None,
             history: Vec::new(),
             history_loaded: false,
+            active: None,
+            queue: Vec::new(),
+            queue_url: String::new(),
+            next_qid: 0,
         }
     }
 
@@ -106,18 +137,92 @@ impl App {
                     speed,
                     eta,
                 } => {
-                    self.status = Status::Downloading;
-                    self.progress = (percent / 100.0).clamp(0.0, 1.0);
-                    self.speed = speed;
-                    self.eta = eta;
+                    let frac = (percent / 100.0).clamp(0.0, 1.0);
+                    match self.active {
+                        Some(ActiveDl::Queue(id)) => {
+                            if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
+                                it.progress = frac;
+                            }
+                        }
+                        _ => {
+                            self.status = Status::Downloading;
+                            self.progress = frac;
+                            self.speed = speed;
+                            self.eta = eta;
+                        }
+                    }
                 }
-                Evt::Done(path) => {
-                    self.progress = 1.0;
-                    self.status = Status::Done(path);
-                }
-                Evt::DownloadErr(e) => self.status = Status::Error(e),
+                Evt::Done(path) => match self.active.take() {
+                    Some(ActiveDl::Queue(id)) => {
+                        if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
+                            it.progress = 1.0;
+                            it.status = QStatus::Done;
+                        }
+                    }
+                    _ => {
+                        self.progress = 1.0;
+                        self.status = Status::Done(path);
+                    }
+                },
+                Evt::DownloadErr(e) => match self.active.take() {
+                    Some(ActiveDl::Queue(id)) => {
+                        if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
+                            it.status = QStatus::Error(e);
+                        }
+                    }
+                    _ => self.status = Status::Error(e),
+                },
             }
         }
+    }
+
+    /// Start the next queued item when nothing is downloading.
+    fn pump_queue(&mut self) {
+        if self.active.is_some() {
+            return;
+        }
+        let Some(s) = self.settings.clone() else {
+            return;
+        };
+        let Some(it) = self
+            .queue
+            .iter_mut()
+            .find(|i| matches!(i.status, QStatus::Pending))
+        else {
+            return;
+        };
+        it.status = QStatus::Downloading;
+        it.progress = 0.0;
+        let (id, url, kind) = (it.id, it.url.clone(), it.kind.clone());
+        self.active = Some(ActiveDl::Queue(id));
+        self.backend.send(Cmd::Download(DownloadReq {
+            url,
+            quality: (kind == "video").then(|| s.default_quality.clone()),
+            kind,
+            container: s.default_container.clone(),
+            audio_format: s.default_audio_format.clone(),
+        }));
+    }
+
+    fn queue_add(&mut self) {
+        let url = self.queue_url.trim().to_string();
+        if url.is_empty() {
+            return;
+        }
+        let kind = self
+            .settings
+            .as_ref()
+            .map(|s| s.default_kind.clone())
+            .unwrap_or_else(|| "video".into());
+        self.queue.push(QueueItem {
+            id: self.next_qid,
+            url,
+            kind,
+            status: QStatus::Pending,
+            progress: 0.0,
+        });
+        self.next_qid += 1;
+        self.queue_url.clear();
     }
 
     fn analyze(&mut self) {
@@ -131,6 +236,10 @@ impl App {
     }
 
     fn start_download(&mut self) {
+        if self.active.is_some() {
+            return; // one download at a time
+        }
+        self.active = Some(ActiveDl::Inicio);
         self.progress = 0.0;
         self.speed = None;
         self.eta = None;
@@ -149,6 +258,7 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.drain_events();
+        self.pump_queue();
         // Lazy-load the history the first time its tab is opened.
         if self.tab == Tab::Historial && !self.history_loaded {
             self.history_loaded = true;
@@ -198,10 +308,7 @@ impl eframe::App for App {
                             Tab::Inicio => self.ui_inicio(ui, p),
                             Tab::Historial => self.ui_historial(ui, p),
                             Tab::Ajustes => self.ui_ajustes(ui, p),
-                            Tab::Cola => {
-                                ui.add_space(40.0);
-                                ui.label(RichText::new("Cola — próximamente").color(p.fg_dim));
-                            }
+                            Tab::Cola => self.ui_cola(ui, p),
                         }
                     });
                 });
@@ -329,7 +436,7 @@ impl App {
             }
         });
         ui.add_space(12.0);
-        let busy = matches!(self.status, Status::Downloading);
+        let busy = self.active.is_some();
         let btn =
             egui::Button::new(RichText::new("  Descargar  ").color(p.accent_fg)).fill(p.accent);
         if ui.add_enabled(!busy, btn).clicked() {
@@ -412,6 +519,91 @@ impl App {
                     });
                 });
             });
+        }
+    }
+
+    fn ui_cola(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        ui.add_space(12.0);
+        ui.label(RichText::new("Cola").heading().color(p.fg));
+        ui.add_space(8.0);
+
+        // Add box — uses the default format from Ajustes; downloads run one by one.
+        card(ui, p, |ui| {
+            ui.horizontal(|ui| {
+                let field = egui::TextEdit::singleline(&mut self.queue_url)
+                    .hint_text("Pega un enlace y añádelo a la cola")
+                    .desired_width(ui.available_width() - 90.0);
+                let resp = ui.add(field);
+                let enter = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                if ui.button("Añadir").clicked() || enter {
+                    self.queue_add();
+                }
+            });
+        });
+
+        if self.queue.is_empty() {
+            ui.add_space(24.0);
+            ui.label(RichText::new("La cola está vacía.").color(p.fg_dim));
+            return;
+        }
+
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            let done = self
+                .queue
+                .iter()
+                .filter(|i| matches!(i.status, QStatus::Done))
+                .count();
+            ui.label(
+                RichText::new(format!("{} en cola · {done} completadas", self.queue.len()))
+                    .small()
+                    .color(p.fg_dim),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("Limpiar completadas").clicked() {
+                    self.queue.retain(|i| !matches!(i.status, QStatus::Done));
+                }
+            });
+        });
+        ui.add_space(6.0);
+
+        let mut remove: Option<u64> = None;
+        for it in &self.queue {
+            card(ui, p, |ui| {
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.set_width(ui.available_width() - 80.0);
+                        let label: String = it.url.chars().take(60).collect();
+                        ui.label(RichText::new(label).color(p.fg));
+                        let (txt, col) = match &it.status {
+                            QStatus::Pending => ("en espera".to_string(), p.fg_dim),
+                            QStatus::Downloading => {
+                                (format!("{:.0}%", it.progress * 100.0), p.accent)
+                            }
+                            QStatus::Done => ("completada".to_string(), p.ok),
+                            QStatus::Error(e) => (format!("error: {e}"), p.err),
+                        };
+                        ui.label(
+                            RichText::new(format!("{}  ·  {txt}", it.kind))
+                                .small()
+                                .color(col),
+                        );
+                        if matches!(it.status, QStatus::Downloading) {
+                            ui.add(egui::ProgressBar::new(it.progress).desired_height(6.0));
+                        }
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if !matches!(it.status, QStatus::Downloading)
+                            && ui.button("✕").on_hover_text("Quitar").clicked()
+                        {
+                            remove = Some(it.id);
+                        }
+                    });
+                });
+            });
+        }
+        if let Some(id) = remove {
+            self.queue.retain(|i| i.id != id);
         }
     }
 

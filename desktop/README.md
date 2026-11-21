@@ -24,9 +24,12 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   date and an "Abrir" button via `POST /api/open`) and the Ajustes screen (reads
   the whole `AppSettings`, edits the common fields incl. `po_token_mode`, and saves
   the full object back so nothing is lost).
-- **Later:** the Cola (queue), music-import and auto-tag screens; i18n (reusing a
-  Rust i18n layer); thumbnails; then the Tauri shell concerns (updater, tray, deep
-  link, notifications) as native crates.
+- **Phase 4 (done):** the Cola (queue) — paste URLs, they download one at a time
+  (sharing the single in-flight slot with the Inicio screen) using the default
+  format, with per-item status and progress, remove, and "clear completed".
+- **Later:** the music-import and auto-tag screens; i18n (reusing a Rust i18n
+  layer); thumbnails; then the Tauri shell concerns (updater, tray, deep link,
+  notifications) as native crates.
 
 ## Run
 
