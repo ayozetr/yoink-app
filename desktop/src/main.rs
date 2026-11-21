@@ -54,8 +54,8 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Yoink")
             .with_app_id("app.yoink.desktop")
-            .with_inner_size([1000.0, 720.0])
-            .with_min_inner_size([520.0, 480.0])
+            .with_inner_size([1180.0, 840.0])
+            .with_min_inner_size([560.0, 520.0])
             .with_icon(icon()),
         ..Default::default()
     };

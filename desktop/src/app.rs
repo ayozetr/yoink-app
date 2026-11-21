@@ -139,6 +139,13 @@ impl App {
         let dark = true;
         crate::fonts::install(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, dark);
+        // The web UI renders at a more generous scale; match it so controls and
+        // text feel as spacious (overridable via YOINK_ZOOM for tuning).
+        let zoom = std::env::var("YOINK_ZOOM")
+            .ok()
+            .and_then(|z| z.parse().ok())
+            .unwrap_or(1.2_f32);
+        cc.egui_ctx.set_zoom_factor(zoom);
         // Enables egui::Image to load remote thumbnails (JPEG/PNG/WebP over http).
         egui_extras::install_image_loaders(&cc.egui_ctx);
         let mut app = App {
