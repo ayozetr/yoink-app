@@ -13,13 +13,18 @@
 use std::net::SocketAddr;
 
 use axum::{
-    extract::Json,
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Json,
+    },
     http::{HeaderValue, Method, StatusCode},
+    response::Response,
     routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tower_http::cors::CorsLayer;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -114,6 +119,34 @@ struct SearchParams {
     q: String,
     #[serde(default)]
     source: Option<String>,
+}
+
+/// What the UI sends over the download WebSocket. Unknown fields (the advanced
+/// options not handled by this slice — subs, chapters, trim, VR, HLS…) are
+/// ignored for now; see DownloadRequest in backend/app/models/media.py.
+#[derive(Deserialize)]
+struct DownloadRequest {
+    url: String,
+    #[serde(default = "d_video")]
+    kind: String,
+    #[serde(default)]
+    quality: Option<String>,
+    #[serde(default = "d_mp4")]
+    container: String,
+    #[serde(default = "d_mp3")]
+    audio_format: String,
+    #[serde(default)]
+    audio_bitrate: Option<String>,
+}
+
+fn d_video() -> String {
+    "video".into()
+}
+fn d_mp4() -> String {
+    "mp4".into()
+}
+fn d_mp3() -> String {
+    "mp3".into()
 }
 
 #[derive(Serialize)]
@@ -447,6 +480,185 @@ async fn search(
     }))
 }
 
+// ---- download (WebSocket) ----------------------------------------------------
+
+const PROGRESS_TEMPLATE: &str = "download:YPROG|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s";
+
+fn download_dir() -> std::path::PathBuf {
+    if let Ok(d) = std::env::var("YOINK_DOWNLOAD_DIR") {
+        return std::path::PathBuf::from(d);
+    }
+    // TODO(slice-settings): read the configured download directory.
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    std::path::Path::new(&home).join("Downloads").join("Yoink")
+}
+
+fn err_event(msg: &str) -> Message {
+    Message::Text(serde_json::json!({ "type": "error", "message": msg }).to_string())
+}
+
+/// yt-dlp arguments for the common video/audio download path. The advanced
+/// options (subtitles, chapters, trimming, VR, HLS, multistreams) are later
+/// slices — see download_service.py.
+fn download_args(req: &DownloadRequest, out_template: &str) -> Vec<String> {
+    let mut a: Vec<String> = vec![
+        "--newline".into(),
+        "--progress".into(),
+        "--no-warnings".into(),
+        "--no-playlist".into(),
+        "-o".into(),
+        out_template.into(),
+        "--progress-template".into(),
+        PROGRESS_TEMPLATE.into(),
+        "--print".into(),
+        "after_move:YDONE|%(filepath)s".into(),
+    ];
+    if req.kind == "audio" {
+        a.push("-x".into());
+        a.push("--audio-format".into());
+        a.push(req.audio_format.clone());
+        // "best" (or unset) -> yt-dlp's best (0); otherwise the chosen kbps.
+        let quality = match req.audio_bitrate.as_deref() {
+            Some(b) if b != "best" => format!("{b}K"),
+            _ => "0".into(),
+        };
+        a.push("--audio-quality".into());
+        a.push(quality);
+    } else {
+        let format = match req.quality.as_deref() {
+            Some(q) if q != "best" => {
+                let h = q.trim_end_matches('p');
+                format!("bv*[height<={h}]+ba/b")
+            }
+            _ => "bv*+ba/b".into(),
+        };
+        a.push("-f".into());
+        a.push(format);
+        a.push("--merge-output-format".into());
+        a.push(req.container.clone());
+    }
+    a.push(req.url.clone());
+    a
+}
+
+/// Parse one `YPROG|…` line into a serialized ProgressEvent, or None to skip.
+fn progress_event(rest: &str) -> Option<Message> {
+    let mut it = rest.split('|');
+    let percent = it.next()?.trim().trim_end_matches('%').parse::<f64>().ok()?;
+    let opt = |s: Option<&str>| {
+        let s = s.unwrap_or("").trim();
+        (!s.is_empty() && s != "NA").then(|| s.to_string())
+    };
+    let num = |s: Option<&str>| s.unwrap_or("").trim().parse::<i64>().ok();
+    let speed = opt(it.next());
+    let eta = opt(it.next());
+    let downloaded = num(it.next());
+    let total = num(it.next());
+    Some(Message::Text(
+        serde_json::json!({
+            "type": "progress",
+            "status": "downloading",
+            "percent": percent,
+            "downloaded_bytes": downloaded,
+            "total_bytes": total,
+            "speed": speed,
+            "eta": eta,
+            "filename": Value::Null,
+        })
+        .to_string(),
+    ))
+}
+
+async fn ws_download(ws: WebSocketUpgrade) -> Response {
+    ws.on_upgrade(run_download)
+}
+
+async fn run_download(mut socket: WebSocket) {
+    // The UI sends the DownloadRequest as the first message.
+    let req: DownloadRequest = match socket.recv().await {
+        Some(Ok(Message::Text(t))) => match serde_json::from_str(&t) {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = socket.send(err_event(&format!("bad request: {e}"))).await;
+                return;
+            }
+        },
+        _ => return,
+    };
+
+    let dir = download_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let template = format!("{}/%(title)s.%(ext)s", dir.display());
+    let args = download_args(&req, &template);
+
+    let mut child = match tokio::process::Command::new(ytdlp_bin())
+        .args(&args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = socket
+                .send(err_event(&format!("could not run yt-dlp: {e}")))
+                .await;
+            return;
+        }
+    };
+
+    let stdout = child.stdout.take().expect("piped");
+    let mut lines = tokio::io::BufReader::new(stdout).lines();
+    let mut final_path: Option<String> = None;
+    while let Ok(Some(line)) = lines.next_line().await {
+        if let Some(rest) = line.strip_prefix("YPROG|") {
+            if let Some(ev) = progress_event(rest) {
+                if socket.send(ev).await.is_err() {
+                    let _ = child.kill().await; // client went away — stop downloading
+                    return;
+                }
+            }
+        } else if let Some(p) = line.strip_prefix("YDONE|") {
+            final_path = Some(p.to_string());
+        }
+    }
+
+    let status = child.wait().await;
+    let ok = matches!(status, Ok(s) if s.success());
+    let msg = if ok {
+        match final_path {
+            Some(path) => {
+                let total_bytes = std::fs::metadata(&path).ok().map(|m| m.len() as i64);
+                let filename = std::path::Path::new(&path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                Message::Text(
+                    serde_json::json!({
+                        "type": "completed",
+                        "filename": filename,
+                        "filepath": path,
+                        "total_bytes": total_bytes,
+                    })
+                    .to_string(),
+                )
+            }
+            None => err_event("download finished but no output file was reported"),
+        }
+    } else {
+        // stderr is small (--no-warnings); read it for the failure reason.
+        // TODO(slice-later): drain stderr concurrently + map to friendly errors.
+        let mut buf = String::new();
+        if let Some(mut se) = child.stderr.take() {
+            let _ = se.read_to_string(&mut buf).await;
+        }
+        let reason = buf.trim();
+        err_event(if reason.is_empty() { "download failed" } else { reason })
+    };
+    let _ = socket.send(msg).await;
+    let _ = socket.send(Message::Close(None)).await;
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -476,6 +688,7 @@ async fn main() {
         .route("/api/version", get(version))
         .route("/api/info", post(info))
         .route("/api/search", get(search))
+        .route("/api/ws/download", get(ws_download))
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
