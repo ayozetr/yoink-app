@@ -651,14 +651,39 @@ impl App {
                 .corner_radius(10)
                 .inner_margin(egui::Margin::same(6))
                 .show(ui, |ui| {
-                    ui.spacing_mut().button_padding = egui::vec2(10.0, 8.0);
                     for r in self.search_results.iter().take(8) {
-                        let resp = ui.add_sized(
-                            egui::vec2(ui.available_width(), 36.0),
-                            egui::Button::new(RichText::new(&r.title).color(p.fg))
-                                .fill(egui::Color32::TRANSPARENT)
-                                .corner_radius(6),
+                        let mut sub = r.uploader.clone().unwrap_or_default();
+                        if let Some(d) = r.duration_string.as_deref().filter(|d| !d.is_empty()) {
+                            if !sub.is_empty() {
+                                sub.push_str("  ·  ");
+                            }
+                            sub.push_str(d);
+                        }
+                        let full = ui.available_width();
+                        let resp =
+                            ui.allocate_response(egui::vec2(full, 44.0), egui::Sense::click());
+                        if resp.hovered() {
+                            ui.painter().rect_filled(resp.rect, 6.0, p.surface_hi);
+                        }
+                        let mut inner = ui.new_child(
+                            egui::UiBuilder::new()
+                                .max_rect(resp.rect.shrink2(egui::vec2(8.0, 6.0)))
+                                .layout(egui::Layout::left_to_right(egui::Align::Center)),
                         );
+                        if let Some(t) = r.thumbnail_url.as_deref().filter(|s| !s.is_empty()) {
+                            inner.add(
+                                egui::Image::from_uri(t.to_string())
+                                    .fit_to_exact_size(egui::vec2(54.0, 31.0))
+                                    .corner_radius(4),
+                            );
+                            inner.add_space(10.0);
+                        }
+                        inner.vertical(|ui| {
+                            ui.label(RichText::new(&r.title).color(p.fg));
+                            if !sub.is_empty() {
+                                ui.label(RichText::new(&sub).small().color(p.fg_dim));
+                            }
+                        });
                         if resp.clicked() {
                             picked = Some(r.url.clone());
                         }
