@@ -138,6 +138,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("action.refresh", En) => "Refresh",
         ("action.copy", Es) => "Copiar",
         ("action.copy", En) => "Copy",
+        ("action.export", Es) => "Exportar",
+        ("action.export", En) => "Export",
         ("action.start", Es) => "Empezar",
         ("action.start", En) => "Start",
         ("action.save", Es) => "Guardar",

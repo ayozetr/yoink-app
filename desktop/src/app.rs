@@ -1756,39 +1756,40 @@ impl App {
                     .color(p.fg),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui
-                    .add(
+                let txt_btn = |ui: &mut egui::Ui, icon: &str, label: &str| {
+                    ui.add(
                         egui::Button::image_and_text(
-                            crate::icons::img("history", 14.0, p.fg_dim),
-                            RichText::new(tl(lang, "action.refresh"))
-                                .small()
-                                .color(p.fg_dim),
+                            crate::icons::img(icon, 14.0, p.fg_dim),
+                            RichText::new(label).small().color(p.fg_dim),
                         )
                         .frame(false),
                     )
                     .clicked()
+                };
+                // Right-to-left: added rightmost-first, so this reads
+                // "Refresh · Copy · Export" left-to-right, like the web.
+                if txt_btn(ui, "download", tl(lang, "action.export")) && !self.logs_path.is_empty()
                 {
-                    self.backend.send(Cmd::LoadLogs);
+                    self.backend.send(Cmd::Open(self.logs_path.clone()));
                 }
                 ui.add_space(12.0);
-                if ui
-                    .add(
-                        egui::Button::image_and_text(
-                            crate::icons::img("clipboard", 14.0, p.fg_dim),
-                            RichText::new(tl(lang, "action.copy"))
-                                .small()
-                                .color(p.fg_dim),
-                        )
-                        .frame(false),
-                    )
-                    .clicked()
-                {
+                if txt_btn(ui, "paste", tl(lang, "action.copy")) {
                     ui.ctx().copy_text(self.logs_text.clone());
+                }
+                ui.add_space(12.0);
+                if txt_btn(ui, "history", tl(lang, "action.refresh")) {
+                    self.backend.send(Cmd::LoadLogs);
                 }
             });
         });
         ui.add_space(4.0);
-        ui.label(RichText::new(&self.logs_path).small().color(p.fg_dim));
+        let lines = self.logs_text.lines().count();
+        let sub = if self.logs_path.is_empty() {
+            String::new()
+        } else {
+            format!("{}  ·  {lines}", self.logs_path)
+        };
+        ui.label(RichText::new(sub).small().color(p.fg_dim));
         ui.add_space(10.0);
         egui::Frame::new()
             .fill(p.surface)
