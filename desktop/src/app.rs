@@ -64,6 +64,9 @@ struct QueueItem {
     id: u64,
     label: String,
     kind: String,
+    quality: String,
+    container: String,
+    audio: String,
     source: QSource,
     status: QStatus,
     progress: f32,
@@ -89,13 +92,21 @@ pub struct App {
     settings_note: Option<String>,
     history: Vec<HistoryEntry>,
     history_loaded: bool,
+    logs_text: String,
+    logs_path: String,
+    logs_loaded: bool,
     active: Option<ActiveDl>,
     queue: Vec<QueueItem>,
     queue_url: String,
     next_qid: u64,
+    queue_started: bool,
+    q_kind: String,
+    q_quality: String,
+    q_container: String,
+    q_audio: String,
     advanced_open: bool,
     deeplink_rx: std::sync::mpsc::Receiver<String>,
-    shot: Option<(String, u32)>, // (output path, frame counter) for YOINK_SHOT capture
+    shot: Option<(String, std::time::Instant)>, // (output path, started) for YOINK_SHOT
 }
 
 impl App {
@@ -129,16 +140,24 @@ impl App {
             settings_note: None,
             history: Vec::new(),
             history_loaded: false,
+            logs_text: String::new(),
+            logs_path: String::new(),
+            logs_loaded: false,
             active: None,
             queue: Vec::new(),
             queue_url: String::new(),
             next_qid: 0,
+            queue_started: false,
+            q_kind: "video".into(),
+            q_quality: "best".into(),
+            q_container: "mp4".into(),
+            q_audio: "mp3".into(),
             advanced_open: false,
             deeplink_rx,
             shot: std::env::var("YOINK_SHOT")
                 .ok()
                 .filter(|s| !s.is_empty())
-                .map(|p| (p, 0)),
+                .map(|p| (p, std::time::Instant::now())),
         };
         // A link the app was launched with (yoink://…) analyzes straight away.
         if let Some(url) = pending {
@@ -173,6 +192,10 @@ impl App {
                 }
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
                 Evt::History(h) => self.history = h,
+                Evt::Logs { path, content } => {
+                    self.logs_path = path;
+                    self.logs_text = content;
+                }
                 Evt::Analyzing => self.status = Status::Analyzing,
                 Evt::Info(v) => {
                     self.preview = Preview::Video(v);
@@ -239,14 +262,11 @@ impl App {
         }
     }
 
-    /// Start the next queued item when nothing is downloading.
+    /// Start the next queued item when the queue is running and nothing else is.
     fn pump_queue(&mut self) {
-        if self.active.is_some() {
+        if self.active.is_some() || !self.queue_started {
             return;
         }
-        let Some(s) = self.settings.clone() else {
-            return;
-        };
         let Some(it) = self
             .queue
             .iter_mut()
@@ -263,10 +283,10 @@ impl App {
                 let kind = it.kind.clone();
                 self.backend.send(Cmd::Download(DownloadReq {
                     url: url.clone(),
-                    quality: (kind == "video").then(|| s.default_quality.clone()),
+                    quality: (kind == "video").then(|| it.quality.clone()),
                     kind,
-                    container: s.default_container.clone(),
-                    audio_format: s.default_audio_format.clone(),
+                    container: it.container.clone(),
+                    audio_format: it.audio.clone(),
                 }));
             }
             QSource::Music(track) => {
@@ -280,15 +300,13 @@ impl App {
         if url.is_empty() {
             return;
         }
-        let kind = self
-            .settings
-            .as_ref()
-            .map(|s| s.default_kind.clone())
-            .unwrap_or_else(|| "video".into());
         self.queue.push(QueueItem {
             id: self.next_qid,
             label: url.clone(),
-            kind,
+            kind: self.q_kind.clone(),
+            quality: self.q_quality.clone(),
+            container: self.q_container.clone(),
+            audio: self.q_audio.clone(),
             source: QSource::Url(url),
             status: QStatus::Pending,
             progress: 0.0,
@@ -304,12 +322,16 @@ impl App {
                 id: self.next_qid,
                 label: format!("{} — {}", t.artists, t.title),
                 kind: "music".into(),
+                quality: "best".into(),
+                container: "mp4".into(),
+                audio: "mp3".into(),
                 source: QSource::Music(Box::new(t.clone())),
                 status: QStatus::Pending,
                 progress: 0.0,
             });
             self.next_qid += 1;
         }
+        self.queue_started = true; // music import starts immediately
     }
 
     fn analyze(&mut self) {
@@ -364,6 +386,10 @@ impl eframe::App for App {
         if self.tab == Tab::Historial && !self.history_loaded {
             self.history_loaded = true;
             self.backend.send(Cmd::LoadHistory);
+        }
+        if self.tab == Tab::Logs && !self.logs_loaded {
+            self.logs_loaded = true;
+            self.backend.send(Cmd::LoadLogs);
         }
         let p = theme::palette(self.dark);
         let lang = self.lang;
@@ -456,14 +482,7 @@ impl eframe::App for App {
                                 Tab::Historial => self.ui_historial(ui, p),
                                 Tab::Ajustes => self.ui_ajustes(ui, p),
                                 Tab::Cola => self.ui_cola(ui, p),
-                                Tab::Logs => {
-                                    ui.add_space(12.0);
-                                    ui.label(
-                                        RichText::new(tl(lang, "tab.logs")).heading().color(p.fg),
-                                    );
-                                    ui.add_space(8.0);
-                                    ui.label(RichText::new(tl(lang, "logs.hint")).color(p.fg_dim));
-                                }
+                                Tab::Logs => self.ui_logs(ui, p),
                             }
                         });
                     });
@@ -478,13 +497,17 @@ impl App {
     /// YOINK_SHOT mode: after a few frames (so fonts/SVGs/thumbnails have loaded),
     /// capture the framebuffer to a PNG and exit — a way to see the UI headlessly.
     fn maybe_screenshot(&mut self, ctx: &egui::Context) {
-        let Some((path, frame)) = self.shot.as_mut() else {
+        let Some((path, started)) = self.shot.as_ref() else {
             return;
         };
-        *frame += 1;
         ctx.request_repaint();
-        if *frame == 40 {
+        let delay = std::env::var("YOINK_SHOT_MS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(700);
+        if started.elapsed().as_millis() as u64 >= delay {
             let path = path.clone();
+            self.shot = None; // fire once
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
                 egui::ScreenshotCallback::new(move |img: std::sync::Arc<egui::ColorImage>| {
                     let [w, h] = img.size;
@@ -767,6 +790,10 @@ impl App {
                 )
                 .clicked()
             {
+                self.q_kind = self.kind.clone();
+                self.q_quality = self.quality.clone();
+                self.q_container = self.container.clone();
+                self.q_audio = self.audio_format.clone();
                 self.queue_url = self.url.clone();
                 self.queue_add();
             }
@@ -939,20 +966,100 @@ impl App {
 
     fn ui_cola(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         let lang = self.lang;
+        ui.add_space(16.0);
+        ui.label(
+            RichText::new(tl(lang, "tab.cola"))
+                .size(26.0)
+                .family(crate::fonts::display())
+                .color(p.fg),
+        );
         ui.add_space(12.0);
-        ui.label(RichText::new(tl(lang, "tab.cola")).heading().color(p.fg));
-        ui.add_space(8.0);
 
-        // Add box — uses the default format from Ajustes; downloads run one by one.
-        card(ui, p, |ui| {
-            ui.horizontal(|ui| {
-                let field = egui::TextEdit::singleline(&mut self.queue_url)
-                    .hint_text(tl(lang, "cola.add_hint"))
-                    .desired_width(ui.available_width() - 90.0);
-                let resp = ui.add(field);
-                let enter = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                if ui.button(tl(lang, "action.add")).clicked() || enter {
-                    self.queue_add();
+        // Add box: a pill field + an Add button.
+        ui.horizontal(|ui| {
+            let total = ui.available_width();
+            egui::Frame::new()
+                .fill(p.surface_hi)
+                .corner_radius(10)
+                .inner_margin(egui::Margin::symmetric(14, 9))
+                .show(ui, |ui| {
+                    ui.set_width(total - 100.0);
+                    let resp = ui.add(
+                        egui::TextEdit::singleline(&mut self.queue_url)
+                            .hint_text(tl(lang, "cola.add_hint"))
+                            .frame(egui::Frame::NONE)
+                            .desired_width(f32::INFINITY),
+                    );
+                    if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        self.queue_add();
+                    }
+                });
+            ui.add_space(8.0);
+            if ui
+                .add(
+                    egui::Button::image_and_text(
+                        crate::icons::img("add", 15.0, p.fg_dim),
+                        RichText::new(tl(lang, "action.add")).color(p.fg_dim),
+                    )
+                    .fill(p.surface_hi)
+                    .corner_radius(10)
+                    .min_size(egui::vec2(84.0, 38.0)),
+                )
+                .clicked()
+            {
+                self.queue_add();
+            }
+        });
+
+        // FORMAT row: the pickers used for new URL items + a Start button.
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(tl(lang, "cola.format"))
+                    .small()
+                    .color(p.fg_dim),
+            );
+            ui.add_space(6.0);
+            combo_bare(ui, "q.kind", &mut self.q_kind, &["video", "audio"]);
+            if self.q_kind == "video" {
+                combo_bare(
+                    ui,
+                    "q.q",
+                    &mut self.q_quality,
+                    &["best", "2160", "1440", "1080", "720", "480"],
+                );
+                combo_bare(
+                    ui,
+                    "q.c",
+                    &mut self.q_container,
+                    &["mp4", "mov", "mkv", "webm"],
+                );
+            } else {
+                combo_bare(
+                    ui,
+                    "q.a",
+                    &mut self.q_audio,
+                    &["mp3", "m4a", "opus", "flac", "wav"],
+                );
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let running = self.queue_started && self.active.is_some();
+                let label = if running {
+                    tl(lang, "cola.running")
+                } else {
+                    tl(lang, "action.start")
+                };
+                if ui
+                    .add_enabled(
+                        !self.queue.is_empty(),
+                        egui::Button::new(RichText::new(format!("  {label}  ")).color(p.accent_fg))
+                            .fill(p.accent)
+                            .corner_radius(9)
+                            .min_size(egui::vec2(0.0, 34.0)),
+                    )
+                    .clicked()
+                {
+                    self.queue_started = true;
                 }
             });
         });
@@ -1029,6 +1136,74 @@ impl App {
         if let Some(id) = remove {
             self.queue.retain(|i| i.id != id);
         }
+    }
+
+    fn ui_logs(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        let lang = self.lang;
+        ui.add_space(16.0);
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(tl(lang, "tab.logs"))
+                    .size(26.0)
+                    .family(crate::fonts::display())
+                    .color(p.fg),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .add(
+                        egui::Button::image_and_text(
+                            crate::icons::img("history", 14.0, p.fg_dim),
+                            RichText::new(tl(lang, "action.refresh"))
+                                .small()
+                                .color(p.fg_dim),
+                        )
+                        .frame(false),
+                    )
+                    .clicked()
+                {
+                    self.backend.send(Cmd::LoadLogs);
+                }
+                ui.add_space(12.0);
+                if ui
+                    .add(
+                        egui::Button::image_and_text(
+                            crate::icons::img("clipboard", 14.0, p.fg_dim),
+                            RichText::new(tl(lang, "action.copy"))
+                                .small()
+                                .color(p.fg_dim),
+                        )
+                        .frame(false),
+                    )
+                    .clicked()
+                {
+                    ui.ctx().copy_text(self.logs_text.clone());
+                }
+            });
+        });
+        ui.add_space(4.0);
+        ui.label(RichText::new(&self.logs_path).small().color(p.fg_dim));
+        ui.add_space(10.0);
+        egui::Frame::new()
+            .fill(p.surface)
+            .corner_radius(10)
+            .inner_margin(egui::Margin::same(12))
+            .show(ui, |ui| {
+                egui::ScrollArea::vertical()
+                    .max_height(560.0)
+                    .auto_shrink([false, false])
+                    .stick_to_bottom(true)
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::Label::new(
+                                RichText::new(&self.logs_text)
+                                    .monospace()
+                                    .size(11.0)
+                                    .color(p.fg_dim),
+                            )
+                            .wrap(),
+                        );
+                    });
+            });
     }
 
     fn ui_ajustes(&mut self, ui: &mut egui::Ui, p: theme::Palette) {

@@ -34,6 +34,7 @@ pub enum Cmd {
     ImportTrack(Box<MusicTrack>),
     SaveSettings(Box<Settings>),
     LoadHistory,
+    LoadLogs,
     Open(String),
 }
 
@@ -42,6 +43,10 @@ pub enum Evt {
     Settings(Box<Settings>),
     SettingsSaved,
     History(Vec<HistoryEntry>),
+    Logs {
+        path: String,
+        content: String,
+    },
     Analyzing,
     Info(VideoLite),
     Music(Box<MusicInfo>),
@@ -252,6 +257,9 @@ impl Backend {
                         Cmd::LoadHistory => {
                             tokio::spawn(async move { load_history(evt_tx, ctx).await });
                         }
+                        Cmd::LoadLogs => {
+                            tokio::spawn(async move { load_logs(evt_tx, ctx).await });
+                        }
                         Cmd::Open(path) => {
                             tokio::spawn(async move { open_path(path).await });
                         }
@@ -313,6 +321,33 @@ async fn load_history(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
     if let Ok(r) = res {
         if let Ok(h) = r.json::<Vec<HistoryEntry>>().await {
             emit(&tx, &ctx, Evt::History(h));
+        }
+    }
+}
+
+async fn load_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let res = reqwest::Client::new()
+        .get(format!("{}/api/logs", http_base()))
+        .send()
+        .await;
+    if let Ok(r) = res {
+        if let Ok(v) = r.json::<Value>().await {
+            emit(
+                &tx,
+                &ctx,
+                Evt::Logs {
+                    path: v
+                        .get("path")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    content: v
+                        .get("content")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                },
+            );
         }
     }
 }
