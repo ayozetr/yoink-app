@@ -27,6 +27,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tower_http::cors::CorsLayer;
 
+mod autotag;
 mod matching;
 mod music;
 
@@ -1163,6 +1164,65 @@ async fn music_resolve(
     }
 }
 
+// ---- autotag -----------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct ApplyRequest {
+    path: String,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    artist: Option<String>,
+    #[serde(default)]
+    album: Option<String>,
+    #[serde(default)]
+    year: Option<String>,
+    #[serde(default)]
+    genre: Option<String>,
+    #[serde(default)]
+    track_number: Option<u32>,
+    #[serde(default)]
+    isrc: Option<String>,
+    #[serde(default)]
+    cover_url: Option<String>,
+}
+
+/// Write the chosen tags + cover into a downloaded audio file (constrained to the
+/// download directory). Lyrics, .nfo and music-folder relocation are later slices.
+async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (StatusCode, String)> {
+    let settings = load_settings();
+    let dl = std::path::PathBuf::from(&settings.download_dir);
+    let dl = dl.canonicalize().unwrap_or(dl);
+    let p = std::path::PathBuf::from(&req.path);
+    let pc = p.canonicalize().unwrap_or(p);
+    if pc != dl && !pc.starts_with(&dl) {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "path is outside the download directory".into(),
+        ));
+    }
+    let cover = match req.cover_url.as_deref() {
+        Some(u) if !u.is_empty() => autotag::fetch_cover(u).await,
+        _ => None,
+    };
+    let fields = autotag::ApplyFields {
+        path: req.path,
+        title: req.title,
+        artist: req.artist,
+        album: req.album,
+        year: req.year,
+        genre: req.genre,
+        track_number: req.track_number,
+        isrc: req.isrc,
+        cover,
+    };
+    let embedded = tokio::task::spawn_blocking(move || autotag::write_tags(&fields))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e))?;
+    Ok(Json(serde_json::json!({ "ok": true, "embedded_cover": embedded })))
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -1200,6 +1260,7 @@ async fn main() {
         .route("/api/open", post(open_path))
         .route("/api/music/match", post(music_match))
         .route("/api/music/resolve", post(music_resolve))
+        .route("/api/autotag/apply", post(autotag_apply))
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
