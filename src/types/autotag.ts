@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ayoze Torres
 
 /**
- * Audio auto-tagging types — mirror of `backend/app/models/autotag.py`.
+ * Audio auto-tagging types — mirror of the backend's autotag structs (`autotag.rs`).
  *
  * Metadata + cover art come from the Apple Music (iTunes) catalogue. Flow:
  * identify/search → (user picks a version + edits) → apply. Nothing is written

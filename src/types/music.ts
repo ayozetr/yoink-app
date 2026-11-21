@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Ayoze Torres
 
-/** Music import types — mirror `backend/app/models/music.py`. */
+/** Music import types — mirror the backend's music structs (`music.rs`). */
 
 export type MusicSource = "spotify" | "deezer" | "apple" | "tidal" | "amazon";
 export type MusicKind = "track" | "album" | "playlist";

@@ -4,7 +4,7 @@
 /**
  * Shared domain types for the Yoink downloader.
  *
- * These mirror the JSON contract that the FastAPI backend (yt-dlp wrapper)
+ * These mirror the JSON contract that the Rust backend (yt-dlp wrapper)
  * will eventually return, so the UI is already shaped around the real data.
  */
 
@@ -61,7 +61,7 @@ export interface HistoryEntry {
 /**
  * A single downloadable format reported by yt-dlp.
  *
- * Mirrors `MediaFormat` in `backend/app/models/media.py`. The JSON travels
+ * Mirrors the backend's `MediaFormat` struct. The JSON travels
  * over the wire in snake_case, so these field names match it 1:1.
  */
 export interface MediaFormat {
@@ -79,7 +79,7 @@ export interface MediaFormat {
 /**
  * Metadata extracted from a URL via yt-dlp (download=False).
  *
- * Mirrors `VideoInfo` in `backend/app/models/media.py`.
+ * Mirrors the backend's `VideoInfo` struct.
  */
 export interface VideoInfo {
   id: string;

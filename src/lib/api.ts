@@ -2,10 +2,10 @@
 // Copyright (C) 2026 Ayoze Torres
 
 /**
- * Typed client for the local Yoink FastAPI backend.
+ * Typed client for the local Yoink backend (the native Rust yoink-core).
  *
  * The base URL can be overridden with `VITE_API_BASE_URL` (e.g. when the
- * backend runs on a non-default port); it defaults to the local uvicorn server.
+ * backend runs on a non-default port); it defaults to the local yoink-core server.
  */
 
 import i18n from "../i18n";
@@ -59,7 +59,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Extract a `detail` message from a FastAPI error response, if present. */
+/** Extract a `detail` message from a backend error response, if present. */
 async function readErrorDetail(response: Response): Promise<string> {
   try {
     const data: unknown = await response.json();
