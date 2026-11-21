@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+#
+# Dev wrapper for the Yoink CLI: forward to the built yoink-core in CLI mode.
+# Build it once with `cargo build --release` in backend-rs/ (or scripts/setup.py).
+set -eu
+root="$(cd "$(dirname "$0")/.." && pwd)"
+vendor="$root/backend/vendor/ffmpeg"
+[ -d "$vendor" ] && export YOINK_FFMPEG="${YOINK_FFMPEG:-$vendor}"
+for exe in "$root/backend-rs/target/release/yoink-core" "$root/backend-rs/target/debug/yoink-core"; do
+  if [ -x "$exe" ]; then
+    exec "$exe" "$@"
+  fi
+done
+echo "yoink: yoink-core not built — run 'cargo build --release' in backend-rs/ (or python scripts/setup.py)" >&2
+exit 1

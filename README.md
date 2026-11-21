@@ -74,8 +74,10 @@ python scripts/setup.py    # one-time: cargo build (backend) + npm install (fron
 python scripts/dev.py      # run the backend (:8756) and frontend (:5173) together
 ```
 
-Then open <http://localhost:5173>. For development you need `yt-dlp` on your PATH
-and ffmpeg (the packaged app bundles both). See [`CLAUDE.md`](CLAUDE.md) for
+Then open <http://localhost:5173>. A command-line interface is also available:
+`scripts/yoink <url>` downloads from the terminal with the same engine — see
+[`docs/cli.md`](docs/cli.md). For development you need `yt-dlp` on your PATH and
+ffmpeg (the packaged app bundles both). See [`CLAUDE.md`](CLAUDE.md) for
 per-layer commands.
 
 ### Desktop build (Tauri)

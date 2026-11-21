@@ -577,7 +577,9 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).
-- ✅ **Thin CLI** *(shipped v3.2.0 in Python; not yet reinstated in the Rust backend)* — `yoink <url>...` drove the same engine in-process
+- ✅ **Thin CLI** — `yoink <url>...` drives the same engine in-process (built into
+  `yoink-core`: no args serves the API, args run the CLI; ships as `yoink-cli` in
+  the .deb/.rpm). See [`cli.md`](cli.md)
   (no server): reuses saved settings, writes to the same history DB. Handles single URLs,
   **batch input** (several URLs, `-a`/`--batch-file`, or stdin `-` — only the links are
   taken from arbitrary text), **playlists** (`--items 1,3-5` / `--filter` /

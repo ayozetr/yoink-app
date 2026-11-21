@@ -7,6 +7,7 @@ This folder holds the project's design docs and explanations.
 | [architecture.md](architecture.md) | System design: the two layers, the communication contract, data flow |
 | [frontend.md](frontend.md) | Frontend structure, components, conventions |
 | [backend.md](backend.md) | The native Rust backend (`yoink-core`): structure, modules, conventions |
+| [cli.md](cli.md) | The `yoink <url>` command line (built into `yoink-core`): usage, flags, config |
 | [ROADMAP.md](ROADMAP.md) | The single source of truth: status, what's shipped (by area), what's next, and the vetted backlog |
 | [music-import.md](music-import.md) | Design notes for the multi-service music import (Spotify/Deezer/Apple/Tidal/Amazon) — the spotDL approach, the keyless trade-off, and how it reuses Yoink's pipeline |
 | [releasing.md](releasing.md) | Cutting a versioned release (Linux + Windows), building ffmpeg, and packaged-app troubleshooting |

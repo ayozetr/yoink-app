@@ -29,6 +29,7 @@ use tower_http::cors::CorsLayer;
 
 mod audio_normalize;
 mod autotag;
+mod cli;
 mod library;
 mod matching;
 mod music;
@@ -136,7 +137,7 @@ struct SearchParams {
 /// What the UI sends over the download WebSocket. Unknown fields (the advanced
 /// options not handled by this slice — subs, chapters, trim, VR, HLS…) are
 /// ignored for now; see DownloadRequest in backend/app/models/media.py.
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct DownloadRequest {
     url: String,
     #[serde(default = "d_video")]
@@ -541,53 +542,50 @@ async fn version() -> Json<VersionInfo> {
     })
 }
 
-async fn info(Json(req): Json<InfoRequest>) -> Result<Json<InfoResponse>, (StatusCode, String)> {
-    let settings = load_settings();
-    // --flat-playlist keeps a single video fully detailed (formats survive) while
-    // a playlist URL returns a fast, flat listing. Transient anti-bot/network
-    // failures are retried; a genuine unsupported/private URL is not.
-    let stdout = run_ytdlp_json(
-        &["-J", "--flat-playlist", "--no-warnings", &req.url],
-        &settings,
-    )
-    .await
-    .map_err(|(transient, err)| {
-        if transient {
-            // 503 so the UI shows "temporary — try again", not "unsupported".
-            (
-                StatusCode::SERVICE_UNAVAILABLE,
-                format!("temporarily unavailable (anti-bot/network): {err}"),
-            )
-        } else {
-            (
-                StatusCode::UNPROCESSABLE_ENTITY,
-                format!("yt-dlp could not extract this URL: {err}"),
-            )
-        }
-    })?;
-
-    let j: Value = serde_json::from_slice(&stdout).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("bad yt-dlp JSON: {e}"),
-        )
-    })?;
-
+/// Extract metadata for a URL (shared by the `/api/info` handler and the CLI).
+/// `--flat-playlist` keeps a single video fully detailed while a playlist URL
+/// returns a fast, flat listing. Err is `(transient, message)`.
+async fn fetch_info_response(
+    url: &str,
+    settings: &AppSettings,
+) -> Result<InfoResponse, (bool, String)> {
+    let stdout = run_ytdlp_json(&["-J", "--flat-playlist", "--no-warnings", url], settings).await?;
+    let j: Value =
+        serde_json::from_slice(&stdout).map_err(|e| (false, format!("bad yt-dlp JSON: {e}")))?;
     if j.get("_type").and_then(Value::as_str) == Some("playlist") {
-        // TODO(slice-history): flag each entry's `already_downloaded` against the
-        // download history (playlist sync), as routers/info.py does.
-        return Ok(Json(InfoResponse {
+        Ok(InfoResponse {
             kind: "playlist",
             video: None,
             playlist: Some(map_playlist(&j)),
-        }));
+        })
+    } else {
+        Ok(InfoResponse {
+            kind: "video",
+            video: Some(map_video(&j)),
+            playlist: None,
+        })
     }
+}
 
-    Ok(Json(InfoResponse {
-        kind: "video",
-        video: Some(map_video(&j)),
-        playlist: None,
-    }))
+async fn info(Json(req): Json<InfoRequest>) -> Result<Json<InfoResponse>, (StatusCode, String)> {
+    let settings = load_settings();
+    fetch_info_response(&req.url, &settings)
+        .await
+        .map(Json)
+        .map_err(|(transient, err)| {
+            if transient {
+                // 503 so the UI shows "temporary — try again", not "unsupported".
+                (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    format!("temporarily unavailable (anti-bot/network): {err}"),
+                )
+            } else {
+                (
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    format!("yt-dlp could not extract this URL: {err}"),
+                )
+            }
+        })
 }
 
 async fn search(
@@ -767,7 +765,17 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
 }
 
 /// Parse one `YPROG|…` line into a serialized ProgressEvent, or None to skip.
-fn progress_event(rest: &str) -> Option<Message> {
+/// One parsed `YPROG|…` progress tick.
+#[derive(Clone)]
+pub struct ProgressInfo {
+    pub percent: f64,
+    pub speed: Option<String>,
+    pub eta: Option<String>,
+    pub downloaded: Option<i64>,
+    pub total: Option<i64>,
+}
+
+fn parse_progress(rest: &str) -> Option<ProgressInfo> {
     let mut it = rest.split('|');
     let percent = it
         .next()?
@@ -784,19 +792,42 @@ fn progress_event(rest: &str) -> Option<Message> {
     let eta = opt(it.next());
     let downloaded = num(it.next());
     let total = num(it.next());
-    Some(Message::Text(
-        serde_json::json!({
-            "type": "progress",
-            "status": "downloading",
-            "percent": percent,
-            "downloaded_bytes": downloaded,
-            "total_bytes": total,
-            "speed": speed,
-            "eta": eta,
-            "filename": Value::Null,
-        })
-        .to_string(),
-    ))
+    Some(ProgressInfo {
+        percent,
+        speed,
+        eta,
+        downloaded,
+        total,
+    })
+}
+
+impl ProgressInfo {
+    fn to_ws_message(&self) -> Message {
+        Message::Text(
+            serde_json::json!({
+                "type": "progress",
+                "status": "downloading",
+                "percent": self.percent,
+                "downloaded_bytes": self.downloaded,
+                "total_bytes": self.total,
+                "speed": self.speed,
+                "eta": self.eta,
+                "filename": Value::Null,
+            })
+            .to_string(),
+        )
+    }
+}
+
+/// Lifecycle events emitted by `execute_download` to its event channel.
+pub enum DlEvent {
+    Progress(ProgressInfo),
+    Completed {
+        filename: String,
+        filepath: String,
+        total_bytes: Option<i64>,
+    },
+    Error(String),
 }
 
 async fn ws_download(ws: WebSocketUpgrade) -> Response {
@@ -815,14 +846,54 @@ async fn run_download(mut socket: WebSocket) {
         },
         _ => return,
     };
-
     let settings = load_settings();
+    // Run the shared download core off-task and forward its events to the socket;
+    // a send failure (client gone) flips `cancel`, which stops yt-dlp.
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<DlEvent>();
+    let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (c2, tx2) = (cancel.clone(), tx);
+    let handle = tokio::spawn(async move { execute_download(&req, &settings, &tx2, &c2).await });
+    while let Some(ev) = rx.recv().await {
+        let msg = match ev {
+            DlEvent::Progress(p) => p.to_ws_message(),
+            DlEvent::Completed {
+                filename,
+                filepath,
+                total_bytes,
+            } => Message::Text(
+                serde_json::json!({
+                    "type": "completed", "filename": filename,
+                    "filepath": filepath, "total_bytes": total_bytes,
+                })
+                .to_string(),
+            ),
+            DlEvent::Error(m) => err_event(&m),
+        };
+        if socket.send(msg).await.is_err() {
+            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+            break;
+        }
+    }
+    let _ = handle.await;
+    let _ = socket.send(Message::Close(None)).await;
+}
+
+/// Run a download end to end: spawn yt-dlp, stream progress + the terminal
+/// completed/error over `tx`, post-process (HLS trim, .nfo, loudnorm, VR) and
+/// record history. `cancel` stops the download when the caller goes away. Shared
+/// by the WebSocket handler and the CLI.
+async fn execute_download(
+    req: &DownloadRequest,
+    settings: &AppSettings,
+    tx: &tokio::sync::mpsc::UnboundedSender<DlEvent>,
+    cancel: &std::sync::atomic::AtomicBool,
+) {
     let dir = std::env::var("YOINK_DOWNLOAD_DIR")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::path::PathBuf::from(&settings.download_dir));
     let _ = std::fs::create_dir_all(&dir);
     let template = format!("{}/{}.%(ext)s", dir.display(), settings.filename_template);
-    let args = download_args(&req, &settings, &template);
+    let args = download_args(req, settings, &template);
 
     let mut child = match tokio::process::Command::new(ytdlp_bin())
         .args(&args)
@@ -832,9 +903,7 @@ async fn run_download(mut socket: WebSocket) {
     {
         Ok(c) => c,
         Err(e) => {
-            let _ = socket
-                .send(err_event(&format!("could not run yt-dlp: {e}")))
-                .await;
+            let _ = tx.send(DlEvent::Error(format!("could not run yt-dlp: {e}")));
             return;
         }
     };
@@ -844,9 +913,11 @@ async fn run_download(mut socket: WebSocket) {
     let mut final_path: Option<String> = None;
     while let Ok(Some(line)) = lines.next_line().await {
         if let Some(rest) = line.strip_prefix("YPROG|") {
-            if let Some(ev) = progress_event(rest) {
-                if socket.send(ev).await.is_err() {
-                    let _ = child.kill().await; // client went away — stop downloading
+            if let Some(info) = parse_progress(rest) {
+                if tx.send(DlEvent::Progress(info)).is_err()
+                    || cancel.load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    let _ = child.kill().await; // caller went away — stop downloading
                     return;
                 }
             }
@@ -950,7 +1021,7 @@ async fn run_download(mut socket: WebSocket) {
         req.quality.clone().unwrap_or_else(|| "best".into())
     };
 
-    let msg = if ok {
+    if ok {
         match &final_path {
             Some(path) => {
                 let total_bytes = std::fs::metadata(path).ok().map(|m| m.len() as i64);
@@ -977,21 +1048,20 @@ async fn run_download(mut socket: WebSocket) {
                     None,
                 );
                 log_line(&format!("completed: {filename}"));
-                Message::Text(
-                    serde_json::json!({
-                        "type": "completed",
-                        "filename": filename,
-                        "filepath": path,
-                        "total_bytes": total_bytes,
-                    })
-                    .to_string(),
-                )
+                let _ = tx.send(DlEvent::Completed {
+                    filename,
+                    filepath: path.clone(),
+                    total_bytes,
+                });
             }
-            None => err_event("download finished but no output file was reported"),
+            None => {
+                let _ = tx.send(DlEvent::Error(
+                    "download finished but no output file was reported".into(),
+                ));
+            }
         }
     } else {
         // stderr is small (--no-warnings); read it for the failure reason.
-        // TODO(slice-later): drain stderr concurrently + map to friendly errors.
         let mut buf = String::new();
         if let Some(mut se) = child.stderr.take() {
             let _ = se.read_to_string(&mut buf).await;
@@ -1014,10 +1084,8 @@ async fn run_download(mut socket: WebSocket) {
             Some(&reason),
         );
         log_line(&format!("error: {} ({reason})", req.url));
-        err_event(&reason)
-    };
-    let _ = socket.send(msg).await;
-    let _ = socket.send(Message::Close(None)).await;
+        let _ = tx.send(DlEvent::Error(reason));
+    }
 }
 
 // ---- settings + history ------------------------------------------------------
@@ -1047,7 +1115,7 @@ fn humanize_bytes(n: i64) -> String {
 
 /// User settings (mirrors AppSettings in backend/app/models/media.py). Stored as
 /// `<data_dir>/settings.json`; missing keys fall back to the defaults below.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 struct AppSettings {
     download_dir: String,
@@ -1533,6 +1601,38 @@ async fn soundcloud_lossless_match(
 /// Best source URL for an imported track: a lossless SoundCloud source (opt-in),
 /// then the exact YouTube Music recording by ISRC, then a ranked YouTube text
 /// search (tight top-5, widening to top-10). Mirrors find_youtube_match.
+/// Best source URL for an imported track: a lossless SoundCloud source (opt-in),
+/// then the exact YouTube Music recording by ISRC, then a ranked YouTube text
+/// search (tight top-5, widening to top-10). Shared by the handler and the CLI.
+async fn find_youtube_match(
+    title: &str,
+    artists: &str,
+    duration_ms: Option<i64>,
+    isrc: Option<&str>,
+    settings: &AppSettings,
+) -> Option<String> {
+    if settings.prefer_soundcloud_lossless {
+        if let Some(url) = soundcloud_lossless_match(title, artists, duration_ms, settings).await {
+            return Some(url);
+        }
+    }
+    if let Some(i) = isrc {
+        if let Some(url) = ytmusic_isrc_match(i, duration_ms, settings).await {
+            return Some(url);
+        }
+    }
+    for count in [5, 10] {
+        let candidates =
+            ytdlp_entries(&format!("ytsearch{count}:{title} {artists}"), settings).await;
+        if let Some((cand, _)) = matching::best_match(title, artists, duration_ms, &candidates) {
+            if let Some(url) = cand_url(cand) {
+                return Some(url);
+            }
+        }
+    }
+    None
+}
+
 async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (StatusCode, String)> {
     let settings = load_settings();
     // Resolve the ISRC once (the track's own, else via Deezer) — for the match and
@@ -1541,44 +1641,16 @@ async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (Stat
         Some(i) if !i.is_empty() => Some(i.to_string()),
         _ => music::deezer_isrc(&track.title, &track.artists, track.duration_ms).await,
     };
-
-    if settings.prefer_soundcloud_lossless {
-        if let Some(url) =
-            soundcloud_lossless_match(&track.title, &track.artists, track.duration_ms, &settings)
-                .await
-        {
-            return Ok(Json(
-                serde_json::json!({ "youtube_url": url, "isrc": isrc }),
-            ));
-        }
-    }
-    if let Some(ref i) = isrc {
-        if let Some(url) = ytmusic_isrc_match(i, track.duration_ms, &settings).await {
-            return Ok(Json(
-                serde_json::json!({ "youtube_url": url, "isrc": isrc }),
-            ));
-        }
-    }
-    // Ranked text search: a tight top-5 first, widening to top-10 only if nothing
-    // clears the thresholds (a passing match is never displaced).
-    for count in [5, 10] {
-        let candidates = ytdlp_entries(
-            &format!("ytsearch{count}:{} {}", track.title, track.artists),
-            &settings,
-        )
-        .await;
-        if let Some((cand, _)) =
-            matching::best_match(&track.title, &track.artists, track.duration_ms, &candidates)
-        {
-            if let Some(url) = cand_url(cand) {
-                return Ok(Json(
-                    serde_json::json!({ "youtube_url": url, "isrc": isrc }),
-                ));
-            }
-        }
-    }
+    let url = find_youtube_match(
+        &track.title,
+        &track.artists,
+        track.duration_ms,
+        isrc.as_deref(),
+        &settings,
+    )
+    .await;
     Ok(Json(
-        serde_json::json!({ "youtube_url": Value::Null, "isrc": isrc }),
+        serde_json::json!({ "youtube_url": url, "isrc": isrc }),
     ))
 }
 
@@ -1594,39 +1666,26 @@ struct ResolveRequest {
 
 /// Resolve a music-service URL into a tracklist (keyless). Deezer is ported;
 /// Spotify/Apple/Tidal/Amazon are later slices.
+/// Resolve a music-service URL into a tracklist (shared by the handler + CLI).
+async fn resolve_music(url: &str) -> Result<music::MusicImportInfo, String> {
+    match music::detect_source(url) {
+        Some("deezer") => music::resolve_deezer(url).await,
+        Some("spotify") => music::resolve_spotify(url).await,
+        Some("apple") => music::resolve_apple(url).await,
+        Some("tidal") => music::resolve_tidal(url).await,
+        Some("amazon") => music::resolve_amazon(url).await,
+        Some(other) => Err(format!("{other} import is not supported")),
+        None => Err("Not a recognised music-service URL.".into()),
+    }
+}
+
 async fn music_resolve(
     Json(req): Json<ResolveRequest>,
 ) -> Result<Json<music::MusicImportInfo>, (StatusCode, String)> {
-    match music::detect_source(&req.url) {
-        Some("deezer") => music::resolve_deezer(&req.url)
-            .await
-            .map(Json)
-            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
-        Some("spotify") => music::resolve_spotify(&req.url)
-            .await
-            .map(Json)
-            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
-        Some("apple") => music::resolve_apple(&req.url)
-            .await
-            .map(Json)
-            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
-        Some("tidal") => music::resolve_tidal(&req.url)
-            .await
-            .map(Json)
-            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
-        Some("amazon") => music::resolve_amazon(&req.url)
-            .await
-            .map(Json)
-            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
-        Some(other) => Err((
-            StatusCode::NOT_IMPLEMENTED,
-            format!("{other} import is not ported to the Rust core yet"),
-        )),
-        None => Err((
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Not a recognised music-service URL.".into(),
-        )),
-    }
+    resolve_music(&req.url)
+        .await
+        .map(Json)
+        .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e))
 }
 
 // ---- release notes ("what's new" popup) --------------------------------------
@@ -1929,6 +1988,13 @@ async fn autotag_lyrics(Json(req): Json<LyricsRequest>) -> Json<Value> {
 
 #[tokio::main]
 async fn main() {
+    // Launched with arguments → run the CLI; with none → serve the API (how the
+    // Tauri shell spawns it).
+    let argv: Vec<String> = std::env::args().collect();
+    if argv.len() > 1 {
+        std::process::exit(cli::run(argv).await);
+    }
+
     let port: u16 = std::env::var("YOINK_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
