@@ -887,6 +887,54 @@ async fn get_json_query(base: &str, params: &[(&str, &str)]) -> Result<Value, St
         .map_err(|e| e.to_string())
 }
 
+// Deezer's keyless API rate-limits bursts (~50 req / 5 s) with a "Quota limit
+// exceeded" error (code 4). Pace every call through a shared gate (~8/s, safely
+// under the limit) plus one backoff retry, so a big enrichment burst never trips
+// it and silently drops covers. Mirrors _deezer_search's throttle.
+const DEEZER_MIN_INTERVAL: std::time::Duration = std::time::Duration::from_millis(120);
+
+/// Reserve the next Deezer slot; returns how long to wait before firing.
+fn deezer_gate() -> std::time::Duration {
+    static GATE: OnceLock<std::sync::Mutex<std::time::Instant>> = OnceLock::new();
+    let gate = GATE.get_or_init(|| std::sync::Mutex::new(std::time::Instant::now()));
+    let mut next = gate.lock().unwrap();
+    let now = std::time::Instant::now();
+    let wait = next.saturating_duration_since(now);
+    *next = now.max(*next) + DEEZER_MIN_INTERVAL;
+    wait
+}
+
+/// Run a Deezer request through the paced gate, retrying once on a quota error.
+async fn deezer_retry<F, Fut>(mut make: F) -> Option<Value>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<Value, String>>,
+{
+    for attempt in 0..2u32 {
+        let wait = deezer_gate();
+        if !wait.is_zero() {
+            tokio::time::sleep(wait).await;
+        }
+        let v = make().await.ok();
+        if let Some(ref j) = v {
+            if j.get("error").and_then(|e| e.get("code")).and_then(Value::as_i64) == Some(4) {
+                tokio::time::sleep(std::time::Duration::from_millis(1500 * (attempt as u64 + 1))).await;
+                continue; // quota exceeded — back off, retry once
+            }
+        }
+        return v;
+    }
+    None
+}
+
+async fn deezer_query(base: &str, params: &[(&str, &str)]) -> Option<Value> {
+    deezer_retry(|| get_json_query(base, params)).await
+}
+
+async fn deezer_get(url: &str) -> Option<Value> {
+    deezer_retry(|| get_json(url)).await
+}
+
 /// One keyless Deezer lookup for a track -> (cover_url, duration_ms). Best-effort:
 /// (None, None) on any miss. Mirrors _deezer_track_meta in music_import.py.
 pub async fn track_meta(title: &str, artists: &str) -> (Option<String>, Option<i64>) {
@@ -901,7 +949,7 @@ pub async fn track_meta(title: &str, artists: &str) -> (Option<String>, Option<i
         if q.is_empty() {
             continue;
         }
-        let Ok(data) = get_json_query("https://api.deezer.com/search", &[("limit", "1"), ("q", &q)]).await
+        let Some(data) = deezer_query("https://api.deezer.com/search", &[("limit", "1"), ("q", &q)]).await
         else {
             continue;
         };
@@ -985,7 +1033,7 @@ async fn deezer_enrich(name: &str, artist: &str, tracks: &mut [MusicTrack]) -> O
     ];
     let mut aid: Option<i64> = None;
     for q in queries {
-        if let Ok(found) = get_json_query("https://api.deezer.com/search/album", &[("limit", "1"), ("q", &q)]).await {
+        if let Some(found) = deezer_query("https://api.deezer.com/search/album", &[("limit", "1"), ("q", &q)]).await {
             if let Some(first) = found.get("data").and_then(Value::as_array).and_then(|a| a.first()) {
                 aid = first.get("id").and_then(Value::as_i64);
                 break;
@@ -993,7 +1041,7 @@ async fn deezer_enrich(name: &str, artist: &str, tracks: &mut [MusicTrack]) -> O
         }
     }
     let aid = aid?;
-    let album = get_json(&format!("https://api.deezer.com/album/{aid}")).await.ok()?;
+    let album = deezer_get(&format!("https://api.deezer.com/album/{aid}")).await?;
     let cover = s(&album, "cover_xl").or_else(|| s(&album, "cover_big"));
     let mut durations: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     if let Some(arr) = album.get("tracks").and_then(|t| t.get("data")).and_then(Value::as_array) {
@@ -1165,17 +1213,25 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
         let artist0 = tracks[0].artists.clone();
         deezer_enrich(&set_name, &artist0, &mut tracks).await;
     } else {
-        // playlist: enrich each track's missing cover/duration on its own.
-        for track in tracks.iter_mut() {
+        // Playlist: enrich each track's missing cover/duration on its own, run
+        // concurrently (each lookup still funnels through the paced Deezer gate,
+        // so the burst stays under the quota while overlapping network latency).
+        let mut set = tokio::task::JoinSet::new();
+        for (i, track) in tracks.iter().enumerate() {
             if track.cover_url.is_some() && track.duration_ms.is_some() {
                 continue;
             }
-            let (cover, dur) = track_meta(&track.title, &track.artists).await;
-            if track.cover_url.is_none() {
-                track.cover_url = cover;
-            }
-            if track.duration_ms.is_none() {
-                track.duration_ms = dur;
+            let (title, artists) = (track.title.clone(), track.artists.clone());
+            set.spawn(async move { (i, track_meta(&title, &artists).await) });
+        }
+        while let Some(res) = set.join_next().await {
+            if let Ok((i, (cover, dur))) = res {
+                if tracks[i].cover_url.is_none() {
+                    tracks[i].cover_url = cover;
+                }
+                if tracks[i].duration_ms.is_none() {
+                    tracks[i].duration_ms = dur;
+                }
             }
         }
     }
@@ -1232,7 +1288,7 @@ pub async fn deezer_isrc(title: &str, artists: &str, duration_ms: Option<i64>) -
         if q.is_empty() || !seen.insert(q.clone()) {
             continue;
         }
-        let Ok(found) = get_json_query("https://api.deezer.com/search/track", &[("limit", "1"), ("q", &q)]).await else { continue };
+        let Some(found) = deezer_query("https://api.deezer.com/search/track", &[("limit", "1"), ("q", &q)]).await else { continue };
         let Some(hit) = found.get("data").and_then(Value::as_array).and_then(|a| a.first()) else { continue };
         let dur = hit.get("duration").and_then(Value::as_i64);
         if let (Some(d), Some(target)) = (dur, duration_ms) {
@@ -1241,7 +1297,7 @@ pub async fn deezer_isrc(title: &str, artists: &str, duration_ms: Option<i64>) -
             }
         }
         let Some(tid) = hit.get("id").and_then(Value::as_i64) else { continue };
-        let Ok(full) = get_json(&format!("https://api.deezer.com/track/{tid}")).await else { continue };
+        let Some(full) = deezer_get(&format!("https://api.deezer.com/track/{tid}")).await else { continue };
         if let Some(isrc) = full.get("isrc").and_then(Value::as_str).filter(|s| !s.is_empty()) {
             return Some(isrc.to_string());
         }
