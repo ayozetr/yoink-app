@@ -256,6 +256,18 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("music.tracks", En) => "tracks",
         ("music.import", Es) => "Importar todo",
         ("music.import", En) => "Import all",
+        ("music.label", Es) => "IMPORTAR",
+        ("music.label", En) => "IMPORT",
+        ("music.songs", Es) => "canciones",
+        ("music.songs", En) => "songs",
+        ("music.download", Es) => "Descargar como audio",
+        ("music.download", En) => "Download as audio",
+        ("music.hint", Es) => {
+            "Este audio no se puede bajar directamente — cada tema se busca en YouTube, se descarga y se etiqueta con los metadatos de la fuente."
+        }
+        ("music.hint", En) => {
+            "This audio can't be downloaded directly — each track is matched on YouTube, downloaded, and tagged with the source metadata."
+        }
 
         _ => key,
     }

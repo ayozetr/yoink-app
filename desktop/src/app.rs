@@ -510,6 +510,21 @@ const SUPPORTED_SITES: &[(&str, &str, &str)] = &[
     ("bandcamp", "Bandcamp", "https://bandcamp.com"),
 ];
 
+/// Capitalise the first letter ("spotify" -> "Spotify").
+fn cap_first(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        None => String::new(),
+    }
+}
+
+/// Format a millisecond duration as "m:ss".
+fn fmt_ms(ms: i64) -> String {
+    let total = ms / 1000;
+    format!("{}:{:02}", total / 60, total % 60)
+}
+
 /// Parse a "m:ss" / "h:mm:ss" / plain-seconds timecode into seconds.
 fn parse_timecode(s: &str) -> Option<f64> {
     let s = s.trim();
@@ -1179,51 +1194,117 @@ impl App {
             }
             Preview::Music(info) => {
                 let info = info.clone();
+                let single = info.tracks.len() == 1;
                 ui.add_space(14.0);
                 let mut import = false;
-                card(ui, p, |ui| {
-                    ui.horizontal(|ui| {
-                        if let Some(c) = info.cover_url.as_deref().filter(|s| !s.is_empty()) {
-                            ui.add(
-                                egui::Image::from_uri(c.to_string())
-                                    .fit_to_exact_size(egui::vec2(72.0, 72.0))
-                                    .corner_radius(6),
-                            );
-                            ui.add_space(10.0);
-                        }
-                        ui.vertical(|ui| {
-                            ui.label(RichText::new(&info.name).size(17.0).strong().color(p.fg));
-                            let mut meta = vec![info.source.clone()];
-                            if let Some(sub) = &info.subtitle {
-                                meta.push(sub.clone());
-                            }
-                            meta.push(format!(
-                                "{} {}",
-                                info.tracks.len(),
-                                tl(lang, "music.tracks")
-                            ));
-                            ui.label(RichText::new(meta.join("  ·  ")).color(p.fg_dim));
-                        });
-                    });
-                    ui.add_space(10.0);
-                    for t in info.tracks.iter().take(8) {
-                        ui.label(
-                            RichText::new(format!("• {} — {}", t.artists, t.title))
-                                .small()
-                                .color(p.fg_dim),
-                        );
-                    }
-                    if info.tracks.len() > 8 {
-                        ui.label(RichText::new("…").small().color(p.fg_dim));
-                    }
-                    ui.add_space(12.0);
-                    let label = format!("  {}  ", tl(lang, "music.import"));
-                    let btn =
-                        egui::Button::new(RichText::new(label).color(p.accent_fg)).fill(p.accent);
-                    if ui.add(btn).clicked() {
-                        import = true;
-                    }
+                // "IMPORT" eyebrow, like the web.
+                ui.horizontal(|ui| {
+                    crate::icons::show(ui, "music", 12.0, p.accent);
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new(tl(lang, "music.label"))
+                            .small()
+                            .color(p.accent),
+                    );
                 });
+                ui.add_space(8.0);
+                ui.horizontal_top(|ui| {
+                    // A larger, square cover (track cover for a single, else the set's).
+                    let cover = if single {
+                        info.tracks[0].cover_url.as_deref()
+                    } else {
+                        info.cover_url.as_deref()
+                    }
+                    .filter(|s| !s.is_empty())
+                    .or(info.cover_url.as_deref());
+                    if let Some(c) = cover.filter(|s| !s.is_empty()) {
+                        ui.add(
+                            egui::Image::from_uri(c.to_string())
+                                .fit_to_exact_size(egui::vec2(132.0, 132.0))
+                                .corner_radius(8),
+                        );
+                        ui.add_space(14.0);
+                    }
+                    ui.vertical(|ui| {
+                        let title = if single {
+                            &info.tracks[0].title
+                        } else {
+                            &info.name
+                        };
+                        ui.label(
+                            RichText::new(title)
+                                .size(21.0)
+                                .family(crate::fonts::display())
+                                .color(p.fg),
+                        );
+                        if single {
+                            ui.add_space(2.0);
+                            ui.label(
+                                RichText::new(&info.tracks[0].artists)
+                                    .size(14.0)
+                                    .color(p.fg),
+                            );
+                        }
+                        ui.add_space(4.0);
+                        let mut meta = vec![cap_first(&info.source)];
+                        if single {
+                            let t = &info.tracks[0];
+                            if let Some(y) = t.year.as_deref().filter(|y| !y.is_empty()) {
+                                meta.push(y.to_string());
+                            }
+                            if let Some(ms) = t.duration_ms {
+                                meta.push(fmt_ms(ms));
+                            }
+                        } else {
+                            if let Some(sub) = info.subtitle.as_deref().filter(|s| !s.is_empty()) {
+                                meta.push(sub.to_string());
+                            }
+                            meta.push(format!("{} {}", info.tracks.len(), tl(lang, "music.songs")));
+                        }
+                        ui.label(RichText::new(meta.join("  ·  ")).small().color(p.fg_dim));
+                        if !single {
+                            ui.add_space(8.0);
+                            for t in info.tracks.iter().take(6) {
+                                ui.label(
+                                    RichText::new(format!("•  {} — {}", t.artists, t.title))
+                                        .small()
+                                        .color(p.fg_dim),
+                                );
+                            }
+                            if info.tracks.len() > 6 {
+                                ui.label(RichText::new("…").small().color(p.fg_dim));
+                            }
+                        }
+                    });
+                });
+                // Info note (why the audio is matched, not pulled from the source).
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    crate::icons::show(ui, "help", 13.0, p.fg_dim);
+                    ui.add_space(5.0);
+                    ui.label(
+                        RichText::new(tl(lang, "music.hint"))
+                            .small()
+                            .color(p.fg_dim),
+                    );
+                });
+                ui.add_space(12.0);
+                // Wide import button.
+                let label = if single {
+                    tl(lang, "music.download").to_string()
+                } else {
+                    format!("{} ({})", tl(lang, "music.import"), info.tracks.len())
+                };
+                let btn = egui::Button::image_and_text(
+                    crate::icons::img("download", 15.0, p.accent_fg),
+                    RichText::new(label).color(p.accent_fg),
+                )
+                .fill(p.accent)
+                .corner_radius(10)
+                .min_size(egui::vec2(ui.available_width(), 44.0));
+                if ui.add(btn).clicked() {
+                    import = true;
+                }
                 if import {
                     self.enqueue_music(&info);
                     self.tab = Tab::Cola;
