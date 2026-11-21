@@ -48,14 +48,20 @@ fn is_sidecar(p: &Path) -> bool {
 fn movable_siblings(path: &Path, stem: &str) -> Vec<PathBuf> {
     let prefix = format!("{stem}.");
     let mut out = Vec::new();
-    let Some(parent) = path.parent() else { return out };
-    let Ok(entries) = std::fs::read_dir(parent) else { return out };
+    let Some(parent) = path.parent() else {
+        return out;
+    };
+    let Ok(entries) = std::fs::read_dir(parent) else {
+        return out;
+    };
     for entry in entries.flatten() {
         let sib = entry.path();
         if !sib.is_file() {
             continue;
         }
-        let Some(name) = sib.file_name().and_then(|n| n.to_str()) else { continue };
+        let Some(name) = sib.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
         if !name.starts_with(&prefix) {
             continue;
         }
@@ -89,7 +95,9 @@ pub fn rename_to_tagged(path: &Path, new_title: &str) -> PathBuf {
     if target.exists() {
         return path.to_path_buf(); // don't clobber a different file
     }
-    let Some(parent) = path.parent() else { return path.to_path_buf() };
+    let Some(parent) = path.parent() else {
+        return path.to_path_buf();
+    };
     for sib in movable_siblings(path, cur_stem) {
         let dest = parent.join(format!("{new_stem}{}", tail(&sib, cur_stem)));
         if dest.exists() {
@@ -105,6 +113,7 @@ pub fn rename_to_tagged(path: &Path, new_title: &str) -> PathBuf {
 /// Move a tagged track (+ sidecars) into `<download dir>/<Artist>/<Album>/<stem>.ext`
 /// and, when `nfo_sidecars`, write folder-level album/artist .nfo. Returns the new
 /// path, or the original when it can't move.
+#[allow(clippy::too_many_arguments)]
 pub fn organize_music_library(
     path: &Path,
     artist: &str,
@@ -120,7 +129,11 @@ pub fn organize_music_library(
     if safe_artist.is_empty() || safe_stem.is_empty() {
         return path.to_path_buf();
     }
-    let safe_album = if album.is_empty() { String::new() } else { sanitize_filename(album) };
+    let safe_album = if album.is_empty() {
+        String::new()
+    } else {
+        sanitize_filename(album)
+    };
     // Confinement: a crafted "artist"/"album" must not escape the download dir.
     if safe_artist == ".." || safe_album == ".." {
         return path.to_path_buf();
@@ -151,7 +164,14 @@ pub fn organize_music_library(
         }
     }
     if nfo_sidecars {
-        write_folder_nfo(&folder, &safe_album, album, artist, year, cover_url.unwrap_or(""));
+        write_folder_nfo(
+            &folder,
+            &safe_album,
+            album,
+            artist,
+            year,
+            cover_url.unwrap_or(""),
+        );
     }
     target
 }
@@ -166,7 +186,11 @@ fn write_folder_nfo(
     thumb: &str,
 ) {
     // With no album the track sits directly in the artist folder.
-    let artist_folder = if album.is_empty() { album_folder } else { album_folder.parent().unwrap_or(album_folder) };
+    let artist_folder = if album.is_empty() {
+        album_folder
+    } else {
+        album_folder.parent().unwrap_or(album_folder)
+    };
     if !safe_album.is_empty() {
         let _ = std::fs::write(
             album_folder.join("album.nfo"),

@@ -15,9 +15,24 @@ use serde_json::Value;
 use unicode_normalization::UnicodeNormalization;
 
 const FORBIDDEN_WORDS: &[&str] = &[
-    "remix", "remastered", "live", "acoustic", "8d", "concert", "acapella",
-    "slowed", "instrumental", "cover", "karaoke", "bassboost", "bass boost",
-    "reverb", "sped up", "nightcore", "mashup", "tribute",
+    "remix",
+    "remastered",
+    "live",
+    "acoustic",
+    "8d",
+    "concert",
+    "acapella",
+    "slowed",
+    "instrumental",
+    "cover",
+    "karaoke",
+    "bassboost",
+    "bass boost",
+    "reverb",
+    "sped up",
+    "nightcore",
+    "mashup",
+    "tribute",
 ];
 
 const MIN_NAME: f64 = 60.0;
@@ -188,7 +203,9 @@ pub fn score(
         .unwrap_or("");
     let nm = name_match(track_title, cand_title);
     let am = artist_match(track_artists, cand_title, cand_channel);
-    let track_secs = track_duration_ms.filter(|&m| m > 0).map(|m| m as f64 / 1000.0);
+    let track_secs = track_duration_ms
+        .filter(|&m| m > 0)
+        .map(|m| m as f64 / 1000.0);
     let tm = time_match(track_secs, cand.get("duration").and_then(Value::as_f64));
 
     let min_time = if nm >= 90.0 && am >= 90.0 {
@@ -221,9 +238,7 @@ pub fn best_match<'a>(
         .filter_map(|c| score(track_title, track_artists, track_duration_ms, c).map(|s| (s, c)))
         .collect();
     scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-    scored
-        .first()
-        .map(|(s, c)| (*c, (s * 10.0).round() / 10.0))
+    scored.first().map(|(s, c)| (*c, (s * 10.0).round() / 10.0))
 }
 
 #[cfg(test)]
@@ -255,7 +270,10 @@ mod tests {
 
         let all = [a, b, c, d];
         let (best, s) = best_match(title, artists, dur, &all).unwrap();
-        assert_eq!(best.get("title").unwrap(), "ROSALÍA - DESPECHÁ (Official Video)");
+        assert_eq!(
+            best.get("title").unwrap(),
+            "ROSALÍA - DESPECHÁ (Official Video)"
+        );
         assert!((s - 100.0).abs() < 0.05);
     }
 }

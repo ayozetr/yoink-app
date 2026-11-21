@@ -67,7 +67,10 @@ pub fn detect_source(url: &str) -> Option<&'static str> {
     let u = url.to_lowercase();
     if u.contains("spotify.com") || u.starts_with("spotify:") {
         Some("spotify")
-    } else if u.contains("deezer.com") || u.contains("deezer.page.link") || u.contains("dzr.page.link") {
+    } else if u.contains("deezer.com")
+        || u.contains("deezer.page.link")
+        || u.contains("dzr.page.link")
+    {
         Some("deezer")
     } else if u.contains("music.apple.com") {
         Some("apple")
@@ -141,7 +144,10 @@ fn deezer_track(
     year: Option<&str>,
     cover: Option<&str>,
 ) -> Option<MusicTrack> {
-    let title = item.get("title").and_then(Value::as_str).filter(|t| !t.is_empty())?;
+    let title = item
+        .get("title")
+        .and_then(Value::as_str)
+        .filter(|t| !t.is_empty())?;
     let alb = item.get("album");
     let dur = item.get("duration").and_then(Value::as_i64);
     Some(MusicTrack {
@@ -154,14 +160,17 @@ fn deezer_track(
             .to_string(),
         isrc: s(item, "isrc"),
         duration_ms: dur.map(|d| d * 1000),
-        is_explicit: item.get("explicit_lyrics").and_then(Value::as_bool).unwrap_or(false),
+        is_explicit: item
+            .get("explicit_lyrics")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         album: album_name
             .map(str::to_string)
             .or_else(|| alb.and_then(|a| s(a, "title"))),
         year: year.map(str::to_string),
-        cover_url: cover.map(str::to_string).or_else(|| {
-            alb.and_then(|a| s(a, "cover_xl").or_else(|| s(a, "cover_big")))
-        }),
+        cover_url: cover
+            .map(str::to_string)
+            .or_else(|| alb.and_then(|a| s(a, "cover_xl").or_else(|| s(a, "cover_big")))),
         source_url: s(item, "link").unwrap_or_default(),
     })
 }
@@ -189,13 +198,18 @@ pub async fn resolve_deezer(url: &str) -> Result<MusicImportInfo, String> {
 
     if kind == "track" {
         let alb = data.get("album");
-        let cover = cover.clone().or_else(|| {
-            alb.and_then(|a| s(a, "cover_xl").or_else(|| s(a, "cover_big")))
-        });
+        let cover = cover
+            .clone()
+            .or_else(|| alb.and_then(|a| s(a, "cover_xl").or_else(|| s(a, "cover_big"))));
         let album_name = alb.and_then(|a| a.get("title")).and_then(Value::as_str);
         let year = s(&data, "release_date").map(|d| d.chars().take(4).collect::<String>());
-        let track = deezer_track(&data, album_name, year.as_deref().filter(|y| !y.is_empty()), cover.as_deref())
-            .ok_or_else(|| "Deezer returned no track.".to_string())?;
+        let track = deezer_track(
+            &data,
+            album_name,
+            year.as_deref().filter(|y| !y.is_empty()),
+            cover.as_deref(),
+        )
+        .ok_or_else(|| "Deezer returned no track.".to_string())?;
         return Ok(MusicImportInfo {
             source: "deezer".into(),
             kind: "track".into(),
@@ -245,7 +259,12 @@ pub async fn resolve_deezer(url: &str) -> Result<MusicImportInfo, String> {
     let tracks: Vec<MusicTrack> = items
         .iter()
         .filter_map(|it| {
-            deezer_track(it, album_name.as_deref(), album_year.as_deref(), track_cover.as_deref())
+            deezer_track(
+                it,
+                album_name.as_deref(),
+                album_year.as_deref(),
+                track_cover.as_deref(),
+            )
         })
         .collect();
     let truncated = next.is_some();
@@ -311,7 +330,10 @@ fn sp_cover(entity: &Value) -> Option<String> {
 fn sp_year(entity: &Value) -> Option<String> {
     let rd = entity.get("releaseDate")?;
     let text = if rd.is_object() {
-        s(rd, "isoString").or_else(|| rd.get("year").map(|y| y.to_string().trim_matches('"').to_string()))
+        s(rd, "isoString").or_else(|| {
+            rd.get("year")
+                .map(|y| y.to_string().trim_matches('"').to_string())
+        })
     } else if let Some(st) = rd.as_str() {
         Some(st.to_string())
     } else if rd.is_number() {
@@ -319,7 +341,8 @@ fn sp_year(entity: &Value) -> Option<String> {
     } else {
         None
     };
-    text.filter(|t| t.len() >= 4).map(|t| t.chars().take(4).collect())
+    text.filter(|t| t.len() >= 4)
+        .map(|t| t.chars().take(4).collect())
 }
 
 fn join_artists(arr: Option<&Vec<Value>>) -> String {
@@ -334,19 +357,28 @@ fn join_artists(arr: Option<&Vec<Value>>) -> String {
 }
 
 async fn sp_api_tracks(kind: &str, sid: &str, token: &str) -> (Vec<Value>, bool) {
-    let base = if kind == "playlist" { "playlists" } else { "albums" };
+    let base = if kind == "playlist" {
+        "playlists"
+    } else {
+        "albums"
+    };
     let mut items: Vec<Value> = Vec::new();
     let mut offset = 0;
     while offset < 2000 {
-        let url = format!("https://api.spotify.com/v1/{base}/{sid}/tracks?limit=50&offset={offset}");
+        let url =
+            format!("https://api.spotify.com/v1/{base}/{sid}/tracks?limit=50&offset={offset}");
         let page = match get_json_auth(&url, token).await {
             Ok(p) => p,
             Err(_) => return (items, false),
         };
-        let page_items = page.get("items").and_then(Value::as_array).cloned().unwrap_or_default();
+        let page_items = page
+            .get("items")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let n = page_items.len();
         items.extend(page_items);
-        if page.get("next").map_or(true, Value::is_null) || n == 0 {
+        if page.get("next").is_none_or(Value::is_null) || n == 0 {
             break;
         }
         offset += n;
@@ -355,11 +387,20 @@ async fn sp_api_tracks(kind: &str, sid: &str, token: &str) -> (Vec<Value>, bool)
 }
 
 fn sp_track_from_api(item: &Value, kind: &str, album_entity: &Value) -> Option<MusicTrack> {
-    let track = if kind == "playlist" { item.get("track")? } else { item };
-    let name = track.get("name").and_then(Value::as_str).filter(|n| !n.is_empty())?;
+    let track = if kind == "playlist" {
+        item.get("track")?
+    } else {
+        item
+    };
+    let name = track
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|n| !n.is_empty())?;
     let album = track.get("album");
     let (album_name, year, cover) = if kind == "playlist" {
-        let images = album.and_then(|a| a.get("images")).and_then(Value::as_array);
+        let images = album
+            .and_then(|a| a.get("images"))
+            .and_then(Value::as_array);
         (
             album.and_then(|a| s(a, "name")),
             album
@@ -369,7 +410,11 @@ fn sp_track_from_api(item: &Value, kind: &str, album_entity: &Value) -> Option<M
             images.and_then(|im| im.first()).and_then(|i| s(i, "url")),
         )
     } else {
-        (s(album_entity, "name"), sp_year(album_entity), sp_cover(album_entity))
+        (
+            s(album_entity, "name"),
+            sp_year(album_entity),
+            sp_cover(album_entity),
+        )
     };
     let tid = track.get("id").and_then(Value::as_str).unwrap_or("");
     Some(MusicTrack {
@@ -377,7 +422,10 @@ fn sp_track_from_api(item: &Value, kind: &str, album_entity: &Value) -> Option<M
         artists: join_artists(track.get("artists").and_then(Value::as_array)),
         isrc: track.get("external_ids").and_then(|e| s(e, "isrc")),
         duration_ms: track.get("duration_ms").and_then(Value::as_i64),
-        is_explicit: track.get("explicit").and_then(Value::as_bool).unwrap_or(false),
+        is_explicit: track
+            .get("explicit")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         album: album_name,
         year,
         cover_url: cover,
@@ -390,14 +438,22 @@ fn sp_track_from_api(item: &Value, kind: &str, album_entity: &Value) -> Option<M
 }
 
 /// Fallback: the <=100-track list embedded in the page (no ISRC, no API token).
-fn spotify_embed_tracklist(entity: &Value, kind: &str, cover: &Option<String>) -> (Vec<MusicTrack>, bool) {
+fn spotify_embed_tracklist(
+    entity: &Value,
+    kind: &str,
+    cover: &Option<String>,
+) -> (Vec<MusicTrack>, bool) {
     let is_album = kind == "album";
     let album_name = if is_album { s(entity, "name") } else { None };
     let album_year = if is_album { sp_year(entity) } else { None };
     let mut tracks = Vec::new();
     if let Some(list) = entity.get("trackList").and_then(Value::as_array) {
         for item in list {
-            let Some(title) = item.get("title").and_then(Value::as_str).filter(|t| !t.is_empty()) else {
+            let Some(title) = item
+                .get("title")
+                .and_then(Value::as_str)
+                .filter(|t| !t.is_empty())
+            else {
                 continue;
             };
             let uri = item.get("uri").and_then(Value::as_str).unwrap_or("");
@@ -409,10 +465,17 @@ fn spotify_embed_tracklist(entity: &Value, kind: &str, cover: &Option<String>) -
             };
             tracks.push(MusicTrack {
                 title: title.to_string(),
-                artists: item.get("subtitle").and_then(Value::as_str).unwrap_or("").to_string(),
+                artists: item
+                    .get("subtitle")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
                 isrc: None,
                 duration_ms: item.get("duration").and_then(Value::as_i64),
-                is_explicit: item.get("isExplicit").and_then(Value::as_bool).unwrap_or(false),
+                is_explicit: item
+                    .get("isExplicit")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
                 album: album_name.clone(),
                 year: album_year.clone(),
                 cover_url: if is_album { cover.clone() } else { None },
@@ -444,7 +507,9 @@ pub async fn resolve_spotify(url: &str) -> Result<MusicImportInfo, String> {
         .ok_or_else(|| "Could not parse the Spotify metadata.".to_string())?;
     let token = find_key(&data, "accessToken", 0);
     let cover = sp_cover(entity);
-    let name = s(entity, "name").or_else(|| s(entity, "title")).unwrap_or_default();
+    let name = s(entity, "name")
+        .or_else(|| s(entity, "title"))
+        .unwrap_or_default();
 
     if kind == "track" {
         let track = MusicTrack {
@@ -452,7 +517,10 @@ pub async fn resolve_spotify(url: &str) -> Result<MusicImportInfo, String> {
             artists: join_artists(entity.get("artists").and_then(Value::as_array)),
             isrc: None,
             duration_ms: entity.get("duration").and_then(Value::as_i64),
-            is_explicit: entity.get("isExplicit").and_then(Value::as_bool).unwrap_or(false),
+            is_explicit: entity
+                .get("isExplicit")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
             album: None,
             year: sp_year(entity),
             cover_url: cover.clone(),
@@ -524,7 +592,9 @@ fn curly_re() -> &'static Regex {
 
 fn serialized_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r#"(?s)<script[^>]*id="serialized-server-data"[^>]*>(.*?)</script>"#).unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r#"(?s)<script[^>]*id="serialized-server-data"[^>]*>(.*?)</script>"#).unwrap()
+    })
 }
 
 fn meta_content(html: &str, property: &str) -> Option<String> {
@@ -560,20 +630,28 @@ fn single(source: &str, kind: &str, track: MusicTrack) -> MusicImportInfo {
 }
 
 fn apple_track(item: &Value, album_name: Option<&str>) -> Option<MusicTrack> {
-    let title = item.get("trackName").and_then(Value::as_str).filter(|t| !t.is_empty())?;
+    let title = item
+        .get("trackName")
+        .and_then(Value::as_str)
+        .filter(|t| !t.is_empty())?;
     let art = item
         .get("artworkUrl100")
         .and_then(Value::as_str)
         .map(|a| a.replace("100x100bb", "600x600bb"))
         .filter(|a| !a.is_empty());
-    let date = item.get("releaseDate").and_then(Value::as_str).unwrap_or("");
+    let date = item
+        .get("releaseDate")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     Some(MusicTrack {
         title: title.to_string(),
         artists: s(item, "artistName").unwrap_or_default(),
         isrc: None,
         duration_ms: item.get("trackTimeMillis").and_then(Value::as_i64),
         is_explicit: item.get("trackExplicitness").and_then(Value::as_str) == Some("explicit"),
-        album: album_name.map(str::to_string).or_else(|| s(item, "collectionName")),
+        album: album_name
+            .map(str::to_string)
+            .or_else(|| s(item, "collectionName")),
         year: (date.len() >= 4).then(|| date[..4].to_string()),
         cover_url: art,
         source_url: s(item, "trackViewUrl").unwrap_or_default(),
@@ -581,7 +659,10 @@ fn apple_track(item: &Value, album_name: Option<&str>) -> Option<MusicTrack> {
 }
 
 fn apple_art_url(artwork: &Value, size: i32) -> Option<String> {
-    let dict = artwork.get("dictionary").filter(|d| d.is_object()).unwrap_or(artwork);
+    let dict = artwork
+        .get("dictionary")
+        .filter(|d| d.is_object())
+        .unwrap_or(artwork);
     let url = dict.get("url").and_then(Value::as_str)?;
     let url = url
         .replace("{w}", &size.to_string())
@@ -594,7 +675,9 @@ fn apple_art_url(artwork: &Value, size: i32) -> Option<String> {
 fn walk_apple(node: &Value, out: &mut Vec<Value>) {
     match node {
         Value::Object(m) => {
-            let dur_int = node.get("duration").map_or(false, |d| d.is_i64() || d.is_u64());
+            let dur_int = node
+                .get("duration")
+                .is_some_and(|d| d.is_i64() || d.is_u64());
             if m.contains_key("artistName") && m.contains_key("title") && dur_int {
                 out.push(node.clone());
             }
@@ -630,7 +713,10 @@ async fn resolve_apple_playlist(url: &str) -> Result<MusicImportInfo, String> {
             artists: s(song, "artistName").unwrap_or_default().trim().to_string(),
             isrc: None,
             duration_ms: song.get("duration").and_then(Value::as_i64),
-            is_explicit: song.get("showExplicitBadge").and_then(Value::as_bool).unwrap_or(false),
+            is_explicit: song
+                .get("showExplicitBadge")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
             album: None,
             year: None,
             cover_url: song.get("artwork").and_then(|a| apple_art_url(a, 600)),
@@ -644,7 +730,8 @@ async fn resolve_apple_playlist(url: &str) -> Result<MusicImportInfo, String> {
     let name = Regex::new(r"(?i)\s+(?:en|on)\s+Apple Music$")
         .map(|re| re.replace(&raw_name, "").trim().to_string())
         .unwrap_or(raw_name);
-    let cover = meta_content(&html, "og:image").or_else(|| tracks.first().and_then(|t| t.cover_url.clone()));
+    let cover = meta_content(&html, "og:image")
+        .or_else(|| tracks.first().and_then(|t| t.cover_url.clone()));
     Ok(MusicImportInfo {
         source: "apple".into(),
         kind: "playlist".into(),
@@ -660,7 +747,10 @@ pub async fn resolve_apple(url: &str) -> Result<MusicImportInfo, String> {
     let caps = apple_re()
         .captures(url)
         .ok_or_else(|| "Not a recognised Apple Music URL.".to_string())?;
-    let country = caps.get(1).map(|m| m.as_str().to_lowercase()).unwrap_or_else(|| "us".into());
+    let country = caps
+        .get(1)
+        .map(|m| m.as_str().to_lowercase())
+        .unwrap_or_else(|| "us".into());
     let kind = caps[2].to_lowercase();
     let apple_id = caps[3].to_string();
 
@@ -682,7 +772,11 @@ pub async fn resolve_apple(url: &str) -> Result<MusicImportInfo, String> {
             &tm[1]
         ))
         .await?;
-        let results = data.get("results").and_then(Value::as_array).cloned().unwrap_or_default();
+        let results = data
+            .get("results")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         let track = find_track(&results)
             .and_then(|i| apple_track(&i, None))
             .ok_or_else(|| "Apple Music returned no track.".to_string())?;
@@ -693,7 +787,11 @@ pub async fn resolve_apple(url: &str) -> Result<MusicImportInfo, String> {
         "https://itunes.apple.com/lookup?id={apple_id}&country={country}&entity=song"
     ))
     .await?;
-    let results = data.get("results").and_then(Value::as_array).cloned().unwrap_or_default();
+    let results = data
+        .get("results")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let collection = results
         .iter()
         .find(|r| r.get("wrapperType").and_then(Value::as_str) == Some("collection"))
@@ -743,7 +841,10 @@ fn tidal_item_re() -> &'static Regex {
 }
 
 fn tidal_slot_re(slot: &str) -> Regex {
-    Regex::new(&format!(r#"(?s)<(?:span|time) slot="{slot}"[^>]*>(.*?)</(?:span|time)>"#)).unwrap()
+    Regex::new(&format!(
+        r#"(?s)<(?:span|time) slot="{slot}"[^>]*>(.*?)</(?:span|time)>"#
+    ))
+    .unwrap()
 }
 
 fn strip_tags(s: &str) -> String {
@@ -767,7 +868,10 @@ fn tidal_join_artists(fragment: &str) -> String {
 
 fn mmss_to_ms(t: &str) -> Option<i64> {
     let parts: Vec<&str> = t.trim().split(':').collect();
-    let nums: Vec<i64> = parts.iter().filter_map(|p| p.trim().parse::<i64>().ok()).collect();
+    let nums: Vec<i64> = parts
+        .iter()
+        .filter_map(|p| p.trim().parse::<i64>().ok())
+        .collect();
     if nums.len() != parts.len() || nums.is_empty() {
         return None;
     }
@@ -780,8 +884,13 @@ pub async fn resolve_tidal(url: &str) -> Result<MusicImportInfo, String> {
         .ok_or_else(|| "Not a recognised Tidal URL.".to_string())?;
     let kind = caps[1].to_lowercase();
     let tid = caps[2].to_string();
-    let html = get_text(&format!("https://embed.tidal.com/{kind}s/{tid}?countryCode=US")).await?;
-    let page = get_text(&format!("https://tidal.com/{kind}/{tid}")).await.unwrap_or_default();
+    let html = get_text(&format!(
+        "https://embed.tidal.com/{kind}s/{tid}?countryCode=US"
+    ))
+    .await?;
+    let page = get_text(&format!("https://tidal.com/{kind}/{tid}"))
+        .await
+        .unwrap_or_default();
 
     let (mut og_artist, mut og_name) = (None, None);
     if let Some(text) = meta_content(&page, "og:title") {
@@ -801,7 +910,9 @@ pub async fn resolve_tidal(url: &str) -> Result<MusicImportInfo, String> {
 
     let mut tracks: Vec<MusicTrack> = Vec::new();
     for block in tidal_item_re().find_iter(&html).map(|m| m.as_str()) {
-        let Some(tm) = title_re.captures(block) else { continue };
+        let Some(tm) = title_re.captures(block) else {
+            continue;
+        };
         let title = unescape_html(&strip_tags(&tm[1])).trim().to_string();
         if title.is_empty() {
             continue;
@@ -816,14 +927,24 @@ pub async fn resolve_tidal(url: &str) -> Result<MusicImportInfo, String> {
         let pid = pid_re.captures(block).map(|m| m[1].to_string());
         tracks.push(MusicTrack {
             title,
-            artists: if artist.is_empty() { og_artist.clone().unwrap_or_default() } else { artist },
+            artists: if artist.is_empty() {
+                og_artist.clone().unwrap_or_default()
+            } else {
+                artist
+            },
             isrc: None,
             duration_ms: dur_ms,
             is_explicit: block.contains(r#"slot="explicit-badge"><i class="badge explicit""#),
-            album: if kind == "album" { og_name.clone() } else { None },
+            album: if kind == "album" {
+                og_name.clone()
+            } else {
+                None
+            },
             year: None,
             cover_url: if kind == "album" { cover.clone() } else { None },
-            source_url: pid.map(|p| format!("https://tidal.com/track/{p}")).unwrap_or_default(),
+            source_url: pid
+                .map(|p| format!("https://tidal.com/track/{p}"))
+                .unwrap_or_default(),
         });
     }
 
@@ -917,8 +1038,15 @@ where
         }
         let v = make().await.ok();
         if let Some(ref j) = v {
-            if j.get("error").and_then(|e| e.get("code")).and_then(Value::as_i64) == Some(4) {
-                tokio::time::sleep(std::time::Duration::from_millis(1500 * (attempt as u64 + 1))).await;
+            if j.get("error")
+                .and_then(|e| e.get("code"))
+                .and_then(Value::as_i64)
+                == Some(4)
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(
+                    1500 * (attempt as u64 + 1),
+                ))
+                .await;
                 continue; // quota exceeded — back off, retry once
             }
         }
@@ -949,16 +1077,27 @@ pub async fn track_meta(title: &str, artists: &str) -> (Option<String>, Option<i
         if q.is_empty() {
             continue;
         }
-        let Some(data) = deezer_query("https://api.deezer.com/search", &[("limit", "1"), ("q", &q)]).await
+        let Some(data) = deezer_query(
+            "https://api.deezer.com/search",
+            &[("limit", "1"), ("q", &q)],
+        )
+        .await
         else {
             continue;
         };
-        if let Some(first) = data.get("data").and_then(Value::as_array).and_then(|a| a.first()) {
+        if let Some(first) = data
+            .get("data")
+            .and_then(Value::as_array)
+            .and_then(|a| a.first())
+        {
             let cover = first
                 .get("album")
                 .and_then(|a| s(a, "cover_xl").or_else(|| s(a, "cover_big")))
                 .or_else(|| s(first, "cover_xl"));
-            let duration = first.get("duration").and_then(Value::as_i64).map(|d| d * 1000);
+            let duration = first
+                .get("duration")
+                .and_then(Value::as_i64)
+                .map(|d| d * 1000);
             if cover.is_some() || duration.is_some() {
                 return (cover, duration);
             }
@@ -969,8 +1108,7 @@ pub async fn track_meta(title: &str, artists: &str) -> (Option<String>, Option<i
 
 // --- Amazon Music (public embed scrape) ------------------------------------
 
-const AMZ_BROWSER_UA: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+const AMZ_BROWSER_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
      (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 fn amazon_re() -> &'static Regex {
@@ -1000,7 +1138,9 @@ async fn get_text_browser(url: &str) -> Result<String, String> {
 /// Strip Amazon's size token (e.g. `._SY240_`) to get the original image.
 fn amz_full_size(url: &str) -> String {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"\._[^./]+_\.").unwrap()).replace(url, ".").into_owned()
+    RE.get_or_init(|| Regex::new(r"\._[^./]+_\.").unwrap())
+        .replace(url, ".")
+        .into_owned()
 }
 
 /// Loosely normalise a track title for cross-service matching (mirrors _norm_title).
@@ -1033,8 +1173,17 @@ async fn deezer_enrich(name: &str, artist: &str, tracks: &mut [MusicTrack]) -> O
     ];
     let mut aid: Option<i64> = None;
     for q in queries {
-        if let Some(found) = deezer_query("https://api.deezer.com/search/album", &[("limit", "1"), ("q", &q)]).await {
-            if let Some(first) = found.get("data").and_then(Value::as_array).and_then(|a| a.first()) {
+        if let Some(found) = deezer_query(
+            "https://api.deezer.com/search/album",
+            &[("limit", "1"), ("q", &q)],
+        )
+        .await
+        {
+            if let Some(first) = found
+                .get("data")
+                .and_then(Value::as_array)
+                .and_then(|a| a.first())
+            {
                 aid = first.get("id").and_then(Value::as_i64);
                 break;
             }
@@ -1044,7 +1193,11 @@ async fn deezer_enrich(name: &str, artist: &str, tracks: &mut [MusicTrack]) -> O
     let album = deezer_get(&format!("https://api.deezer.com/album/{aid}")).await?;
     let cover = s(&album, "cover_xl").or_else(|| s(&album, "cover_big"));
     let mut durations: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
-    if let Some(arr) = album.get("tracks").and_then(|t| t.get("data")).and_then(Value::as_array) {
+    if let Some(arr) = album
+        .get("tracks")
+        .and_then(|t| t.get("data"))
+        .and_then(Value::as_array)
+    {
         for entry in arr {
             let key = amz_norm_title(entry.get("title").and_then(Value::as_str).unwrap_or(""));
             if !key.is_empty() && !durations.contains_key(&key) {
@@ -1090,15 +1243,20 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
     let raw = get_text_browser(&format!("https://music.amazon.{tld}/embed/{asin}")).await?;
     // Collapse inter-tag whitespace so titles/artists sit flush after their tags.
     static WS: OnceLock<Regex> = OnceLock::new();
-    let html = WS.get_or_init(|| Regex::new(r">\s+<").unwrap()).replace_all(&raw, "><").into_owned();
+    let html = WS
+        .get_or_init(|| Regex::new(r">\s+<").unwrap())
+        .replace_all(&raw, "><")
+        .into_owned();
 
     static TITLE_TAG: OnceLock<Regex> = OnceLock::new();
     static HEADER_IMG: OnceLock<Regex> = OnceLock::new();
     static ORIGINAL: OnceLock<Regex> = OnceLock::new();
     static EXPL_SUFFIX: OnceLock<Regex> = OnceLock::new();
     let title_tag = TITLE_TAG.get_or_init(|| Regex::new(r"(?s)<title>(.*?)</title>").unwrap());
-    let header_img = HEADER_IMG.get_or_init(|| Regex::new(r#"headerImg[^>]*><img[^>]*\bsrc="([^"]+)""#).unwrap());
-    let original = ORIGINAL.get_or_init(|| Regex::new(r"(?i)amazon\s+(?:music\s+)?original").unwrap());
+    let header_img = HEADER_IMG
+        .get_or_init(|| Regex::new(r#"headerImg[^>]*><img[^>]*\bsrc="([^"]+)""#).unwrap());
+    let original =
+        ORIGINAL.get_or_init(|| Regex::new(r"(?i)amazon\s+(?:music\s+)?original").unwrap());
     let expl_suffix = EXPL_SUFFIX.get_or_init(|| Regex::new(r"\s*\[Explicit\]\s*$").unwrap());
 
     let header_cover = header_img
@@ -1109,11 +1267,18 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
         static TRACK_PREFIX: OnceLock<Regex> = OnceLock::new();
         static TRACK_ARTIST: OnceLock<Regex> = OnceLock::new();
         let prefix = TRACK_PREFIX.get_or_init(|| {
-            Regex::new(r"(?s)^Amazon Music\s*[-\x{2013}]\s*(?:Pista|Canci\u{00f3}n|Cancion|Song|Track)\s*").unwrap()
+            Regex::new(
+                r"(?s)^Amazon Music\s*[-\x{2013}]\s*(?:Pista|Canci\u{00f3}n|Cancion|Song|Track)\s*",
+            )
+            .unwrap()
         });
-        let track_artist = TRACK_ARTIST
-            .get_or_init(|| Regex::new(r#"(?s)class="trackArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap());
-        let raw_title = title_tag.captures(&html).map(|c| unescape_html(&c[1])).unwrap_or_default();
+        let track_artist = TRACK_ARTIST.get_or_init(|| {
+            Regex::new(r#"(?s)class="trackArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap()
+        });
+        let raw_title = title_tag
+            .captures(&html)
+            .map(|c| unescape_html(&c[1]))
+            .unwrap_or_default();
         let name = prefix.replace(&raw_title, "").to_string();
         let name = expl_suffix.replace(name.trim(), "").trim().to_string();
         if name.is_empty() {
@@ -1132,7 +1297,11 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
             is_explicit: raw_title.contains("[Explicit]"),
             album: None,
             year: None,
-            cover_url: if is_original { header_cover.clone() } else { None },
+            cover_url: if is_original {
+                header_cover.clone()
+            } else {
+                None
+            },
             source_url: format!("https://music.amazon.{tld}/tracks/{asin}"),
         }];
         deezer_enrich(&name, &artist, &mut tracks).await;
@@ -1159,13 +1328,20 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
     static ASIN_RE: OnceLock<Regex> = OnceLock::new();
     static TRACK_IMG: OnceLock<Regex> = OnceLock::new();
     let set_prefix = SET_PREFIX.get_or_init(|| {
-        Regex::new(r"(?s)^Amazon Music\s*[-\x{2013}]\s*(?:\u{00c1}lbum|Album|Playlist|Lista)\s*").unwrap()
+        Regex::new(r"(?s)^Amazon Music\s*[-\x{2013}]\s*(?:\u{00c1}lbum|Album|Playlist|Lista)\s*")
+            .unwrap()
     });
     let item = ITEM.get_or_init(|| Regex::new(r#"(?s)<li class="trackItem.*?</li>"#).unwrap());
-    let list_title = LIST_TITLE.get_or_init(|| Regex::new(r#"(?s)class="trackListTitle[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap());
-    let list_artist = LIST_ARTIST.get_or_init(|| Regex::new(r#"(?s)class="trackListArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap());
+    let list_title = LIST_TITLE.get_or_init(|| {
+        Regex::new(r#"(?s)class="trackListTitle[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap()
+    });
+    let list_artist = LIST_ARTIST.get_or_init(|| {
+        Regex::new(r#"(?s)class="trackListArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap()
+    });
     let asin_re = ASIN_RE.get_or_init(|| Regex::new(r#"data-asin="([A-Z0-9]+)""#).unwrap());
-    let track_img = TRACK_IMG.get_or_init(|| Regex::new(r#"imageBackground[^>]*background-image:\s*url\(['"]?([^'")]+)"#).unwrap());
+    let track_img = TRACK_IMG.get_or_init(|| {
+        Regex::new(r#"imageBackground[^>]*background-image:\s*url\(['"]?([^'")]+)"#).unwrap()
+    });
 
     let set_name = title_tag
         .captures(&html)
@@ -1179,10 +1355,18 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
     let mut tracks: Vec<MusicTrack> = Vec::new();
     let mut amazon_covers: Vec<Option<String>> = Vec::new();
     for block in item.find_iter(&html).map(|m| m.as_str()) {
-        let Some(tm) = list_title.captures(block) else { continue };
+        let Some(tm) = list_title.captures(block) else {
+            continue;
+        };
         let raw_t = tm[1].to_string();
-        let title = expl_suffix.replace(unescape_html(tm[1].trim()).trim(), "").trim().to_string();
-        let artist = list_artist.captures(block).map(|c| unescape_html(c[1].trim())).unwrap_or_default();
+        let title = expl_suffix
+            .replace(unescape_html(tm[1].trim()).trim(), "")
+            .trim()
+            .to_string();
+        let artist = list_artist
+            .captures(block)
+            .map(|c| unescape_html(c[1].trim()))
+            .unwrap_or_default();
         let asin_m = asin_re.captures(block).map(|c| c[1].to_string());
         let amazon_cover = track_img
             .captures(block)
@@ -1196,7 +1380,11 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
             isrc: None,
             duration_ms: None,
             is_explicit: raw_t.contains("[Explicit]"),
-            album: if kind == "album" { Some(set_name.clone()) } else { None },
+            album: if kind == "album" {
+                Some(set_name.clone())
+            } else {
+                None
+            },
             year: None,
             cover_url: if is_original { amazon_cover } else { None },
             source_url: asin_m
@@ -1237,7 +1425,7 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
     }
 
     // Backfill covers Deezer couldn't find (Amazon-exclusive) from Amazon.
-    for (track, amazon_cover) in tracks.iter_mut().zip(amazon_covers.into_iter()) {
+    for (track, amazon_cover) in tracks.iter_mut().zip(amazon_covers) {
         if track.cover_url.is_none() {
             if let Some(c) = amazon_cover {
                 track.cover_url = Some(c);
@@ -1246,11 +1434,19 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
     }
 
     let cover = header_cover.or_else(|| tracks.iter().find_map(|t| t.cover_url.clone()));
-    let subtitle = if kind == "album" { Some(tracks[0].artists.clone()) } else { None };
+    let subtitle = if kind == "album" {
+        Some(tracks[0].artists.clone())
+    } else {
+        None
+    };
     Ok(MusicImportInfo {
         source: "amazon".into(),
         kind: kind.into(),
-        name: if set_name.is_empty() { "Amazon Music".into() } else { set_name },
+        name: if set_name.is_empty() {
+            "Amazon Music".into()
+        } else {
+            set_name
+        },
         subtitle,
         cover_url: cover,
         tracks,
@@ -1264,8 +1460,13 @@ const DURATION_TOLERANCE_MS: i64 = 3000;
 
 fn primary_artist(artists: &str) -> String {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"(?i)\s*(?:,|&|/|\bfeat\.?\b|\bft\.?\b|\bcon\b)\s*").unwrap());
-    re.split(artists).next().unwrap_or(artists).trim().to_string()
+    let re = RE
+        .get_or_init(|| Regex::new(r"(?i)\s*(?:,|&|/|\bfeat\.?\b|\bft\.?\b|\bcon\b)\s*").unwrap());
+    re.split(artists)
+        .next()
+        .unwrap_or(artists)
+        .trim()
+        .to_string()
 }
 
 /// Resolve a recording's ISRC via a keyless Deezer lookup (for sources that don't
@@ -1288,17 +1489,38 @@ pub async fn deezer_isrc(title: &str, artists: &str, duration_ms: Option<i64>) -
         if q.is_empty() || !seen.insert(q.clone()) {
             continue;
         }
-        let Some(found) = deezer_query("https://api.deezer.com/search/track", &[("limit", "1"), ("q", &q)]).await else { continue };
-        let Some(hit) = found.get("data").and_then(Value::as_array).and_then(|a| a.first()) else { continue };
+        let Some(found) = deezer_query(
+            "https://api.deezer.com/search/track",
+            &[("limit", "1"), ("q", &q)],
+        )
+        .await
+        else {
+            continue;
+        };
+        let Some(hit) = found
+            .get("data")
+            .and_then(Value::as_array)
+            .and_then(|a| a.first())
+        else {
+            continue;
+        };
         let dur = hit.get("duration").and_then(Value::as_i64);
         if let (Some(d), Some(target)) = (dur, duration_ms) {
             if (d * 1000 - target).abs() > DURATION_TOLERANCE_MS {
                 continue;
             }
         }
-        let Some(tid) = hit.get("id").and_then(Value::as_i64) else { continue };
-        let Some(full) = deezer_get(&format!("https://api.deezer.com/track/{tid}")).await else { continue };
-        if let Some(isrc) = full.get("isrc").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+        let Some(tid) = hit.get("id").and_then(Value::as_i64) else {
+            continue;
+        };
+        let Some(full) = deezer_get(&format!("https://api.deezer.com/track/{tid}")).await else {
+            continue;
+        };
+        if let Some(isrc) = full
+            .get("isrc")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+        {
             return Some(isrc.to_string());
         }
     }

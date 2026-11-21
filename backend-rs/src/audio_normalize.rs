@@ -95,8 +95,7 @@ fn ffprobe(args: &[&str]) -> Option<String> {
 
 /// First pass: measure loudness; returns loudnorm's measured JSON values.
 fn measure(path: &str, target_i: f64) -> Option<Value> {
-    let filt =
-        format!("loudnorm=I={target_i}:TP={TARGET_TP}:LRA={TARGET_LRA}:print_format=json");
+    let filt = format!("loudnorm=I={target_i}:TP={TARGET_TP}:LRA={TARGET_LRA}:print_format=json");
     let out = run_ffmpeg(&[
         "-i".into(),
         path.to_string(),
@@ -110,7 +109,13 @@ fn measure(path: &str, target_i: f64) -> Option<Value> {
     // holds the measured values, not merely the first `{...}` in ffmpeg's log.
     let stderr = String::from_utf8_lossy(&out.stderr);
     let re = Regex::new(r"\{[^{}]+\}").ok()?;
-    for block in re.find_iter(&stderr).map(|m| m.as_str()).collect::<Vec<_>>().into_iter().rev() {
+    for block in re
+        .find_iter(&stderr)
+        .map(|m| m.as_str())
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+    {
         if block.contains("\"input_i\"") {
             return serde_json::from_str(block).ok();
         }
@@ -122,8 +127,15 @@ fn measure(path: &str, target_i: f64) -> Option<Value> {
 /// leaving loudnorm's internal 192 kHz. Falls back to 44100.
 fn sample_rate(path: &str) -> String {
     let rate = ffprobe(&[
-        "-v", "quiet", "-select_streams", "a:0", "-show_entries", "stream=sample_rate",
-        "-of", "csv=p=0", path,
+        "-v",
+        "quiet",
+        "-select_streams",
+        "a:0",
+        "-show_entries",
+        "stream=sample_rate",
+        "-of",
+        "csv=p=0",
+        path,
     ])
     .unwrap_or_default();
     if !rate.is_empty() && rate.chars().all(|c| c.is_ascii_digit()) {
@@ -136,8 +148,15 @@ fn sample_rate(path: &str) -> String {
 /// True if the file carries an attached-picture (embedded cover) stream.
 fn has_cover(path: &str) -> bool {
     ffprobe(&[
-        "-v", "quiet", "-select_streams", "v", "-show_entries", "stream=codec_type",
-        "-of", "csv=p=0", path,
+        "-v",
+        "quiet",
+        "-select_streams",
+        "v",
+        "-show_entries",
+        "stream=codec_type",
+        "-of",
+        "csv=p=0",
+        path,
     ])
     .map(|s| s.contains("video"))
     .unwrap_or(false)
@@ -153,9 +172,17 @@ pub fn normalize(path: &str, audio_format: &str, bitrate: &str, target_i: f64) -
         "wav" => &["-c:a", "pcm_s16le"],
         _ => return false,
     };
-    let Some(measured) = measure(path, target_i) else { return false };
+    let Some(measured) = measure(path, target_i) else {
+        return false;
+    };
     let get = |k: &str| measured.get(k).and_then(Value::as_str);
-    let keys = ["input_i", "input_tp", "input_lra", "input_thresh", "target_offset"];
+    let keys = [
+        "input_i",
+        "input_tp",
+        "input_lra",
+        "input_thresh",
+        "target_offset",
+    ];
     if keys.iter().any(|k| get(k).is_none()) {
         return false;
     }
@@ -183,7 +210,16 @@ pub fn normalize(path: &str, audio_format: &str, bitrate: &str, target_i: f64) -
     // Preserve an embedded cover through the re-encode (only when one exists —
     // mapping a missing video stream, or muxing one into WAV, would fail).
     if audio_format != "wav" && has_cover(path) {
-        for a in ["-map", "0:a", "-map", "0:v", "-c:v", "copy", "-disposition:v:0", "attached_pic"] {
+        for a in [
+            "-map",
+            "0:a",
+            "-map",
+            "0:v",
+            "-c:v",
+            "copy",
+            "-disposition:v:0",
+            "attached_pic",
+        ] {
             args.push(a.into());
         }
     }
@@ -210,7 +246,9 @@ pub fn normalize(path: &str, audio_format: &str, bitrate: &str, target_i: f64) -
 
     let out = run_ffmpeg(&args);
     let wrote = matches!(&out, Some(o) if o.status.success())
-        && std::fs::metadata(&tmp).map(|m| m.len() > 0).unwrap_or(false);
+        && std::fs::metadata(&tmp)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false);
     if !wrote {
         let _ = std::fs::remove_file(&tmp);
         return false;
@@ -246,7 +284,9 @@ pub fn ffmpeg_trim(path: &str, start: f64, end: Option<f64>) -> bool {
     args.push(tmp.to_string_lossy().into_owned());
     let out = run_ffmpeg(&args);
     let wrote = matches!(&out, Some(o) if o.status.success())
-        && std::fs::metadata(&tmp).map(|m| m.len() > 0).unwrap_or(false);
+        && std::fs::metadata(&tmp)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false);
     if !wrote {
         let _ = std::fs::remove_file(&tmp);
         return false;

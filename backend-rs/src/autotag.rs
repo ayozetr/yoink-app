@@ -118,21 +118,36 @@ pub struct TagCandidate {
 }
 
 fn http() -> reqwest::Client {
-    reqwest::Client::builder().user_agent("Yoink").build().unwrap_or_default()
+    reqwest::Client::builder()
+        .user_agent("Yoink")
+        .build()
+        .unwrap_or_default()
 }
 
 async fn get_json(url: &str, params: &[(&str, &str)]) -> Option<Value> {
-    http().get(url).query(params).send().await.ok()?.json::<Value>().await.ok()
+    http()
+        .get(url)
+        .query(params)
+        .send()
+        .await
+        .ok()?
+        .json::<Value>()
+        .await
+        .ok()
 }
 
 fn sget(v: &Value, k: &str) -> Option<String> {
-    v.get(k).and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_string)
+    v.get(k)
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 fn clean_album(name: Option<String>) -> Option<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
     let re = RE.get_or_init(|| Regex::new(r"(?i)\s*-\s*(?:single|ep)$").unwrap());
-    name.map(|n| re.replace(&n, "").trim().to_string()).filter(|n| !n.is_empty())
+    name.map(|n| re.replace(&n, "").trim().to_string())
+        .filter(|n| !n.is_empty())
 }
 
 fn user_country() -> Option<String> {
@@ -168,15 +183,25 @@ async fn itunes_search(artist: &str, title: &str) -> Vec<TagCandidate> {
         if let Some(c) = &country {
             params.push(("country", c));
         }
-        let Some(data) = get_json("https://itunes.apple.com/search", &params).await else { continue };
-        for item in data.get("results").and_then(Value::as_array).into_iter().flatten() {
+        let Some(data) = get_json("https://itunes.apple.com/search", &params).await else {
+            continue;
+        };
+        for item in data
+            .get("results")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
             let artist = sget(item, "artistName").unwrap_or_default();
             let title = sget(item, "trackName").unwrap_or_default();
             let key = (artist.to_lowercase(), title.to_lowercase());
             if !seen.insert(key) {
                 continue;
             }
-            let date = item.get("releaseDate").and_then(Value::as_str).unwrap_or("");
+            let date = item
+                .get("releaseDate")
+                .and_then(Value::as_str)
+                .unwrap_or("");
             out.push(TagCandidate {
                 title,
                 artist,
@@ -184,7 +209,8 @@ async fn itunes_search(artist: &str, title: &str) -> Vec<TagCandidate> {
                 year: (date.len() >= 4).then(|| date[..4].to_string()),
                 genre: sget(item, "primaryGenreName"),
                 track_number: item.get("trackNumber").and_then(Value::as_i64),
-                cover_url: sget(item, "artworkUrl100").map(|a| a.replace("100x100bb", "1000x1000bb")),
+                cover_url: sget(item, "artworkUrl100")
+                    .map(|a| a.replace("100x100bb", "1000x1000bb")),
             });
         }
     }
@@ -197,7 +223,11 @@ async fn deezer_search(artist: &str, title: &str) -> Vec<TagCandidate> {
     if term.is_empty() {
         return vec![];
     }
-    let Some(data) = get_json("https://api.deezer.com/search", &[("q", term), ("limit", "8")]).await
+    let Some(data) = get_json(
+        "https://api.deezer.com/search",
+        &[("q", term), ("limit", "8")],
+    )
+    .await
     else {
         return vec![];
     };
@@ -209,7 +239,10 @@ async fn deezer_search(artist: &str, title: &str) -> Vec<TagCandidate> {
             let album = item.get("album");
             TagCandidate {
                 title: sget(item, "title").unwrap_or_default(),
-                artist: item.get("artist").and_then(|a| sget(a, "name")).unwrap_or_default(),
+                artist: item
+                    .get("artist")
+                    .and_then(|a| sget(a, "name"))
+                    .unwrap_or_default(),
                 album: album.and_then(|a| sget(a, "title")),
                 year: None,
                 genre: None,
@@ -236,7 +269,8 @@ fn norm_for_match(text: &str) -> String {
 
 fn relevant(cands: Vec<TagCandidate>, title: &str) -> Vec<TagCandidate> {
     let query = norm_for_match(title);
-    let qtok: std::collections::HashSet<&str> = query.split_whitespace().filter(|t| t.len() >= 2).collect();
+    let qtok: std::collections::HashSet<&str> =
+        query.split_whitespace().filter(|t| t.len() >= 2).collect();
     if qtok.is_empty() {
         return cands;
     }
@@ -244,14 +278,27 @@ fn relevant(cands: Vec<TagCandidate>, title: &str) -> Vec<TagCandidate> {
         .into_iter()
         .filter(|c| {
             let norm = norm_for_match(&c.title);
-            let ctok: std::collections::HashSet<&str> = norm.split_whitespace().filter(|t| t.len() >= 2).collect();
-            ctok.is_empty() || qtok.intersection(&ctok).next().is_some() || norm.contains(&query) || query.contains(&norm)
+            let ctok: std::collections::HashSet<&str> =
+                norm.split_whitespace().filter(|t| t.len() >= 2).collect();
+            ctok.is_empty()
+                || qtok.intersection(&ctok).next().is_some()
+                || norm.contains(&query)
+                || query.contains(&norm)
         })
         .collect()
 }
 
 const VERSION_EXTRAS: &[&str] = &[
-    "remix", "version", "live", "edit", "acoustic", "instrumental", "sped up", "slowed", "cover", "karaoke",
+    "remix",
+    "version",
+    "live",
+    "edit",
+    "acoustic",
+    "instrumental",
+    "sped up",
+    "slowed",
+    "cover",
+    "karaoke",
 ];
 
 fn rank(mut results: Vec<TagCandidate>, artist: &str, title: &str) -> Vec<TagCandidate> {
@@ -276,16 +323,22 @@ fn rank(mut results: Vec<TagCandidate>, artist: &str, title: &str) -> Vec<TagCan
         }
         s
     };
-    results.sort_by(|a, b| score(b).cmp(&score(a)));
+    results.sort_by_key(|c| std::cmp::Reverse(score(c)));
     results
 }
 
 async fn auto_search(artist: &str, title: &str) -> Vec<TagCandidate> {
     let mut combined = Vec::new();
     let mut seen = std::collections::HashSet::new();
-    for results in [itunes_search(artist, title).await, deezer_search(artist, title).await] {
+    for results in [
+        itunes_search(artist, title).await,
+        deezer_search(artist, title).await,
+    ] {
         for cand in results {
-            let key = (cand.artist.trim().to_lowercase(), cand.title.trim().to_lowercase());
+            let key = (
+                cand.artist.trim().to_lowercase(),
+                cand.title.trim().to_lowercase(),
+            );
             if seen.insert(key) {
                 combined.push(cand);
             }
@@ -348,8 +401,16 @@ pub struct LyricsResult {
 }
 
 fn to_lyrics(rec: &Value) -> Option<(Option<String>, bool, bool)> {
-    let instrumental = rec.get("instrumental").and_then(Value::as_bool).unwrap_or(false);
-    let nz = |k: &str| rec.get(k).and_then(Value::as_str).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let instrumental = rec
+        .get("instrumental")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let nz = |k: &str| {
+        rec.get(k)
+            .and_then(Value::as_str)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
     let plain = nz("plainLyrics");
     let synced = nz("syncedLyrics");
     if !instrumental && plain.is_none() && synced.is_none() {
@@ -367,8 +428,18 @@ pub fn probe_duration(path: &str) -> Option<f64> {
 
 /// Look up lyrics on LRCLIB (keyless). Mirrors lyrics.fetch_lyrics (the exact
 /// /get with duration, then /search by track+artist).
-pub async fn fetch_lyrics(title: &str, artist: &str, album: Option<&str>, duration: Option<f64>) -> LyricsResult {
-    let empty = LyricsResult { found: false, instrumental: false, has_synced: false, plain: None };
+pub async fn fetch_lyrics(
+    title: &str,
+    artist: &str,
+    album: Option<&str>,
+    duration: Option<f64>,
+) -> LyricsResult {
+    let empty = LyricsResult {
+        found: false,
+        instrumental: false,
+        has_synced: false,
+        plain: None,
+    };
     let (title, artist) = (title.trim(), artist.trim());
     if title.is_empty() {
         return empty;
@@ -384,7 +455,11 @@ pub async fn fetch_lyrics(title: &str, artist: &str, album: Option<&str>, durati
 
     if let Some(d) = duration {
         let dur = (d as i64).to_string();
-        let mut params = vec![("track_name", title), ("artist_name", artist), ("duration", dur.as_str())];
+        let mut params = vec![
+            ("track_name", title),
+            ("artist_name", artist),
+            ("duration", dur.as_str()),
+        ];
         if let Some(al) = album.filter(|a| !a.is_empty()) {
             params.push(("album_name", al));
         }
@@ -395,7 +470,12 @@ pub async fn fetch_lyrics(title: &str, artist: &str, album: Option<&str>, durati
         }
     }
 
-    if let Some(hits) = get_json("https://lrclib.net/api/search", &[("track_name", title), ("artist_name", artist)]).await {
+    if let Some(hits) = get_json(
+        "https://lrclib.net/api/search",
+        &[("track_name", title), ("artist_name", artist)],
+    )
+    .await
+    {
         for hit in hits.as_array().into_iter().flatten() {
             if let Some(r) = build(hit) {
                 return r;
@@ -408,7 +488,15 @@ pub async fn fetch_lyrics(title: &str, artist: &str, album: Option<&str>, durati
 // --- MusicBrainz (fallback when Apple + Deezer both come up empty) ----------
 
 fn mb_escape(v: &str) -> String {
-    v.chars().flat_map(|c| if c == '"' || c == '\\' { vec!['\\', c] } else { vec![c] }).collect()
+    v.chars()
+        .flat_map(|c| {
+            if c == '"' || c == '\\' {
+                vec!['\\', c]
+            } else {
+                vec![c]
+            }
+        })
+        .collect()
 }
 
 async fn musicbrainz_search(artist: &str, title: &str) -> Vec<TagCandidate> {
@@ -436,22 +524,35 @@ async fn musicbrainz_search(artist: &str, title: &str) -> Vec<TagCandidate> {
     };
     let Some(data) = data else { return vec![] };
     let mut out = Vec::new();
-    for rec in data.get("recordings").and_then(Value::as_array).into_iter().flatten() {
+    for rec in data
+        .get("recordings")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         let name = rec
             .get("artist-credit")
             .and_then(Value::as_array)
             .map(|cs| {
                 cs.iter()
                     .map(|c| {
-                        c.get("name").and_then(Value::as_str).unwrap_or("").to_string()
+                        c.get("name")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .to_string()
                             + c.get("joinphrase").and_then(Value::as_str).unwrap_or("")
                     })
                     .collect::<String>()
             })
             .unwrap_or_default();
-        let release = rec.get("releases").and_then(Value::as_array).and_then(|r| r.first());
+        let release = rec
+            .get("releases")
+            .and_then(Value::as_array)
+            .and_then(|r| r.first());
         let mbid = release.and_then(|r| sget(r, "id"));
-        let date = release.and_then(|r| r.get("date").and_then(Value::as_str)).unwrap_or("");
+        let date = release
+            .and_then(|r| r.get("date").and_then(Value::as_str))
+            .unwrap_or("");
         out.push(TagCandidate {
             title: sget(rec, "title").unwrap_or_default(),
             artist: name,

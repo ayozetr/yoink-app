@@ -202,11 +202,22 @@ fn ytdlp_bin() -> String {
 /// 5xx/429, or an anti-bot 403) worth retrying — as opposed to a permanent
 /// unsupported/private/deleted URL. Mirrors _TRANSIENT_MARKERS.
 const TRANSIENT_MARKERS: &[&str] = &[
-    "http error 500", "http error 502", "http error 503", "http error 504",
-    "http error 429", "http error 403", "timed out", "timeout", "connection reset",
-    "connection refused", "connection aborted", "remote end closed",
-    "temporary failure", "sign in to confirm you're not a bot",
-    "failed to extract any player response", "getaddrinfo failed",
+    "http error 500",
+    "http error 502",
+    "http error 503",
+    "http error 504",
+    "http error 429",
+    "http error 403",
+    "timed out",
+    "timeout",
+    "connection reset",
+    "connection refused",
+    "connection aborted",
+    "remote end closed",
+    "temporary failure",
+    "sign in to confirm you're not a bot",
+    "failed to extract any player response",
+    "getaddrinfo failed",
 ];
 
 fn is_transient(stderr: &str) -> bool {
@@ -218,7 +229,11 @@ fn is_transient(stderr: &str) -> bool {
 /// (the fallback), keeping a cookies file if one is configured.
 fn cookie_args(settings: &AppSettings, use_browser: bool) -> Vec<String> {
     if use_browser {
-        if let Some(b) = settings.cookies_from_browser.as_deref().filter(|s| !s.is_empty()) {
+        if let Some(b) = settings
+            .cookies_from_browser
+            .as_deref()
+            .filter(|s| !s.is_empty())
+        {
             return vec!["--cookies-from-browser".into(), b.into()];
         }
     }
@@ -249,7 +264,10 @@ async fn ytdlp_once(base: &[&str], cookies: &[String]) -> Result<Vec<u8>, (bool,
 async fn run_ytdlp_json(base: &[&str], settings: &AppSettings) -> Result<Vec<u8>, (bool, String)> {
     let primary = cookie_args(settings, true);
     let fallback = cookie_args(settings, false);
-    let has_browser = settings.cookies_from_browser.as_deref().is_some_and(|s| !s.is_empty());
+    let has_browser = settings
+        .cookies_from_browser
+        .as_deref()
+        .is_some_and(|s| !s.is_empty());
     let mut last = (false, "yt-dlp failed".to_string());
     for attempt in 0..3 {
         match ytdlp_once(base, &primary).await {
@@ -348,7 +366,9 @@ fn map_entry(e: &Value) -> PlaylistEntry {
     PlaylistEntry {
         id: s(e, "id").unwrap_or_default(),
         title: s(e, "title").unwrap_or_else(|| "(untitled)".into()),
-        url: s(e, "url").or_else(|| s(e, "webpage_url")).unwrap_or_default(),
+        url: s(e, "url")
+            .or_else(|| s(e, "webpage_url"))
+            .unwrap_or_default(),
         duration_string,
         thumbnail_url: thumb_of(e),
         uploader: s(e, "uploader").or_else(|| s(e, "channel")),
@@ -379,7 +399,10 @@ fn map_playlist(j: &Value) -> PlaylistInfo {
         .and_then(Value::as_array)
         .map(|a| a.iter().filter(|e| e.is_object()).collect())
         .unwrap_or_default();
-    let reported_total = j.get("playlist_count").and_then(Value::as_u64).map(|c| c as usize);
+    let reported_total = j
+        .get("playlist_count")
+        .and_then(Value::as_u64)
+        .map(|c| c as usize);
 
     // Dynamic mixes repeat the same id; dedupe (first wins, but swap in a later
     // copy if the kept one has no usable URL) so one pick is one download.
@@ -401,10 +424,9 @@ fn map_playlist(j: &Value) -> PlaylistInfo {
     }
 
     let unique_len = unique.len();
-    let entries: Vec<PlaylistEntry> =
-        unique.into_iter().take(ENTRY_CAP).map(map_entry).collect();
+    let entries: Vec<PlaylistEntry> = unique.into_iter().take(ENTRY_CAP).map(map_entry).collect();
     let capped = unique_len > ENTRY_CAP;
-    let fetched_all = reported_total.map_or(true, |t| raw.len() >= t);
+    let fetched_all = reported_total.is_none_or(|t| raw.len() >= t);
     let truncated = capped || !fetched_all;
     let entry_count = if fetched_all && !capped {
         entries.len()
@@ -432,14 +454,14 @@ fn map_video(j: &Value) -> VideoInfo {
         .unwrap_or_default();
 
     let has_audio = formats.iter().any(|f| f.has_audio);
-    let best_audio_abr = raw_formats
-        .map(|fs| {
-            fs.iter()
-                .filter(|f| codec(f, "acodec").is_some())
-                .filter_map(|f| f.get("abr").and_then(Value::as_f64))
-                .fold(None::<f64>, |acc, abr| Some(acc.map_or(abr, |a| a.max(abr))))
-        })
-        .flatten();
+    let best_audio_abr = raw_formats.and_then(|fs| {
+        fs.iter()
+            .filter(|f| codec(f, "acodec").is_some())
+            .filter_map(|f| f.get("abr").and_then(Value::as_f64))
+            .fold(None::<f64>, |acc, abr| {
+                Some(acc.map_or(abr, |a| a.max(abr)))
+            })
+    });
     let source_lossless = raw_formats
         .map(|fs| {
             fs.iter().any(|f| {
@@ -452,7 +474,9 @@ fn map_video(j: &Value) -> VideoInfo {
     let is_hls = raw_formats
         .map(|fs| {
             fs.iter().any(|f| {
-                s(f, "protocol").map(|p| p.contains("m3u8")).unwrap_or(false)
+                s(f, "protocol")
+                    .map(|p| p.contains("m3u8"))
+                    .unwrap_or(false)
             })
         })
         .unwrap_or(false);
@@ -522,19 +546,32 @@ async fn info(Json(req): Json<InfoRequest>) -> Result<Json<InfoResponse>, (Statu
     // --flat-playlist keeps a single video fully detailed (formats survive) while
     // a playlist URL returns a fast, flat listing. Transient anti-bot/network
     // failures are retried; a genuine unsupported/private URL is not.
-    let stdout = run_ytdlp_json(&["-J", "--flat-playlist", "--no-warnings", &req.url], &settings)
-        .await
-        .map_err(|(transient, err)| {
-            if transient {
-                // 503 so the UI shows "temporary — try again", not "unsupported".
-                (StatusCode::SERVICE_UNAVAILABLE, format!("temporarily unavailable (anti-bot/network): {err}"))
-            } else {
-                (StatusCode::UNPROCESSABLE_ENTITY, format!("yt-dlp could not extract this URL: {err}"))
-            }
-        })?;
+    let stdout = run_ytdlp_json(
+        &["-J", "--flat-playlist", "--no-warnings", &req.url],
+        &settings,
+    )
+    .await
+    .map_err(|(transient, err)| {
+        if transient {
+            // 503 so the UI shows "temporary — try again", not "unsupported".
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                format!("temporarily unavailable (anti-bot/network): {err}"),
+            )
+        } else {
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!("yt-dlp could not extract this URL: {err}"),
+            )
+        }
+    })?;
 
-    let j: Value = serde_json::from_slice(&stdout)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("bad yt-dlp JSON: {e}")))?;
+    let j: Value = serde_json::from_slice(&stdout).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("bad yt-dlp JSON: {e}"),
+        )
+    })?;
 
     if j.get("_type").and_then(Value::as_str) == Some("playlist") {
         // TODO(slice-history): flag each entry's `already_downloaded` against the
@@ -562,11 +599,18 @@ async fn search(
     };
     let query = format!("{prefix}20:{}", p.q);
     let settings = load_settings();
-    let stdout = run_ytdlp_json(&["-J", "--flat-playlist", "--no-warnings", &query], &settings)
-        .await
-        .map_err(|(_t, err)| (StatusCode::BAD_GATEWAY, format!("search failed: {err}")))?;
-    let j: Value = serde_json::from_slice(&stdout)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("bad yt-dlp JSON: {e}")))?;
+    let stdout = run_ytdlp_json(
+        &["-J", "--flat-playlist", "--no-warnings", &query],
+        &settings,
+    )
+    .await
+    .map_err(|(_t, err)| (StatusCode::BAD_GATEWAY, format!("search failed: {err}")))?;
+    let j: Value = serde_json::from_slice(&stdout).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("bad yt-dlp JSON: {e}"),
+        )
+    })?;
     Ok(Json(SearchResponse {
         results: map_entries(&j),
     }))
@@ -663,7 +707,10 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
     // Clip a range (non-HLS; HLS needs a full fetch + ffmpeg clip, a later slice).
     if (req.trim_start.is_some() || req.trim_end.is_some()) && !req.is_hls {
         let start = req.trim_start.unwrap_or(0.0);
-        let end = req.trim_end.map(|e| e.to_string()).unwrap_or_else(|| "inf".into());
+        let end = req
+            .trim_end
+            .map(|e| e.to_string())
+            .unwrap_or_else(|| "inf".into());
         a.push("--download-sections".into());
         a.push(format!("*{start}-{end}"));
     }
@@ -672,8 +719,15 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         a.push("-x".into());
         a.push("--audio-format".into());
         a.push(req.audio_format.clone());
-        let bitrate = req.audio_bitrate.as_deref().unwrap_or(&settings.audio_bitrate);
-        let quality = if bitrate != "best" { format!("{bitrate}K") } else { "0".into() };
+        let bitrate = req
+            .audio_bitrate
+            .as_deref()
+            .unwrap_or(&settings.audio_bitrate);
+        let quality = if bitrate != "best" {
+            format!("{bitrate}K")
+        } else {
+            "0".into()
+        };
         a.push("--audio-quality".into());
         a.push(quality);
     } else {
@@ -715,7 +769,12 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
 /// Parse one `YPROG|…` line into a serialized ProgressEvent, or None to skip.
 fn progress_event(rest: &str) -> Option<Message> {
     let mut it = rest.split('|');
-    let percent = it.next()?.trim().trim_end_matches('%').parse::<f64>().ok()?;
+    let percent = it
+        .next()?
+        .trim()
+        .trim_end_matches('%')
+        .parse::<f64>()
+        .ok()?;
     let opt = |s: Option<&str>| {
         let s = s.unwrap_or("").trim();
         (!s.is_empty() && s != "NA").then(|| s.to_string())
@@ -822,7 +881,11 @@ async fn run_download(mut socket: WebSocket) {
             // Download-time .nfo (audio gets rewritten later from the tagged data).
             if settings.nfo_sidecars {
                 if let Some(ref i) = info {
-                    let k = if req.kind == "audio" { "audio" } else { "video" };
+                    let k = if req.kind == "audio" {
+                        "audio"
+                    } else {
+                        "video"
+                    };
                     nfo::write(std::path::Path::new(&path), &nfo::from_info(i, k));
                 }
             }
@@ -839,11 +902,18 @@ async fn run_download(mut socket: WebSocket) {
                 .await
                 .unwrap_or(false);
                 if done {
-                    log_line(&format!("normalized to {} LUFS: {path}", settings.normalize_lufs));
+                    log_line(&format!(
+                        "normalized to {} LUFS: {path}",
+                        settings.normalize_lufs
+                    ));
                 }
             } else if req.kind != "audio" {
                 let layout_opt = if req.is_vr {
-                    Some(req.vr_layout.clone().unwrap_or_else(|| vr::DEFAULT_LAYOUT.into()))
+                    Some(
+                        req.vr_layout
+                            .clone()
+                            .unwrap_or_else(|| vr::DEFAULT_LAYOUT.into()),
+                    )
                 } else if req.auto_vr {
                     info.as_ref().and_then(|i| {
                         let (is_vr, layout) = vr::detect_vr(i, true);
@@ -860,7 +930,10 @@ async fn run_download(mut socket: WebSocket) {
                     .await
                     {
                         final_path = Some(np.to_string_lossy().into_owned());
-                        log_line(&format!("VR-tagged: {}", final_path.as_deref().unwrap_or("")));
+                        log_line(&format!(
+                            "VR-tagged: {}",
+                            final_path.as_deref().unwrap_or("")
+                        ));
                     }
                 }
             }
@@ -882,8 +955,16 @@ async fn run_download(mut socket: WebSocket) {
             Some(path) => {
                 let total_bytes = std::fs::metadata(path).ok().map(|m| m.len() as i64);
                 let p = std::path::Path::new(path);
-                let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-                let title = p.file_stem().and_then(|n| n.to_str()).unwrap_or(&filename).to_string();
+                let filename = p
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                let title = p
+                    .file_stem()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&filename)
+                    .to_string();
                 record_download(
                     &title,
                     &req.url,
@@ -916,7 +997,11 @@ async fn run_download(mut socket: WebSocket) {
             let _ = se.read_to_string(&mut buf).await;
         }
         let reason = buf.trim();
-        let reason = if reason.is_empty() { "download failed".to_string() } else { reason.to_string() };
+        let reason = if reason.is_empty() {
+            "download failed".to_string()
+        } else {
+            reason.to_string()
+        };
         record_download(
             &req.url,
             &req.url,
@@ -1059,7 +1144,9 @@ async fn get_settings() -> Json<AppSettings> {
     Json(load_settings())
 }
 
-async fn put_settings(Json(s): Json<AppSettings>) -> Result<Json<AppSettings>, (StatusCode, String)> {
+async fn put_settings(
+    Json(s): Json<AppSettings>,
+) -> Result<Json<AppSettings>, (StatusCode, String)> {
     save_settings(&s).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(s))
 }
@@ -1136,7 +1223,10 @@ async fn get_history() -> Json<Vec<HistoryEntry>> {
             created_at: r.get(10)?,
         })
     });
-    Json(rows.map(|it| it.filter_map(Result::ok).collect()).unwrap_or_default())
+    Json(
+        rows.map(|it| it.filter_map(Result::ok).collect())
+            .unwrap_or_default(),
+    )
 }
 
 async fn get_history_stats() -> Json<HistoryStats> {
@@ -1179,7 +1269,9 @@ fn record_download(
             "INSERT INTO downloads \
              (title,url,kind,status,filename,filepath,filesize,quality,error_message,created_at) \
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-            rusqlite::params![title, url, kind, status, filename, filepath, filesize, quality, error, created],
+            rusqlite::params![
+                title, url, kind, status, filename, filepath, filesize, quality, error, created
+            ],
         );
     }
 }
@@ -1222,7 +1314,11 @@ fn log_line(msg: &str) {
     }
     let line = format!("{} {msg}\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"));
     use std::io::Write;
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
         let _ = f.write_all(line.as_bytes());
     }
 }
@@ -1233,7 +1329,11 @@ async fn get_logs() -> Json<Value> {
     let all: Vec<&str> = content.lines().collect();
     const CAP: usize = 1000;
     let truncated = all.len() > CAP;
-    let tail = if truncated { &all[all.len() - CAP..] } else { &all[..] };
+    let tail = if truncated {
+        &all[all.len() - CAP..]
+    } else {
+        &all[..]
+    };
     Json(serde_json::json!({
         "path": path.display().to_string(),
         "content": tail.join("\n"),
@@ -1295,7 +1395,10 @@ async fn open_path(Json(req): Json<OpenRequest>) -> Result<Json<Value>, (StatusC
     let to_open = if req.open_file {
         target
     } else if target.is_file() {
-        target.parent().map(std::path::Path::to_path_buf).unwrap_or(target)
+        target
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or(target)
     } else {
         target
     };
@@ -1329,15 +1432,29 @@ async fn ytdlp_entries(query: &str, settings: &AppSettings) -> Vec<Value> {
 }
 
 fn cand_url(cand: &Value) -> Option<String> {
-    cand.get("url").or_else(|| cand.get("webpage_url")).and_then(Value::as_str).map(str::to_string)
+    cand.get("url")
+        .or_else(|| cand.get("webpage_url"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
 }
 
 /// Exact YouTube Music recording by ISRC (take result #1, duration-gated). ISRCs
 /// are plain [A-Z0-9], so no URL-encoding is needed. Mirrors _ytmusic_isrc_match.
-async fn ytmusic_isrc_match(isrc: &str, duration_ms: Option<i64>, settings: &AppSettings) -> Option<String> {
+async fn ytmusic_isrc_match(
+    isrc: &str,
+    duration_ms: Option<i64>,
+    settings: &AppSettings,
+) -> Option<String> {
     let search = format!("https://music.youtube.com/search?q={isrc}#songs");
     let out = run_ytdlp_json(
-        &["-J", "--flat-playlist", "--playlist-items", "1", "--no-warnings", &search],
+        &[
+            "-J",
+            "--flat-playlist",
+            "--playlist-items",
+            "1",
+            "--no-warnings",
+            &search,
+        ],
         settings,
     )
     .await
@@ -1352,7 +1469,12 @@ async fn ytmusic_isrc_match(isrc: &str, duration_ms: Option<i64>, settings: &App
         .to_string();
     if let Some(target) = duration_ms {
         let watch = format!("https://music.youtube.com/watch?v={vid}");
-        if let Ok(out2) = run_ytdlp_json(&["-J", "--no-warnings", "--skip-download", &watch], settings).await {
+        if let Ok(out2) = run_ytdlp_json(
+            &["-J", "--no-warnings", "--skip-download", &watch],
+            settings,
+        )
+        .await
+        {
             if let Ok(full) = serde_json::from_slice::<Value>(&out2) {
                 if let Some(d) = full.get("duration").and_then(Value::as_f64) {
                     if ((d as i64) * 1000 - target).abs() > 3000 {
@@ -1367,16 +1489,32 @@ async fn ytmusic_isrc_match(isrc: &str, duration_ms: Option<i64>, settings: &App
 
 /// True if any audio format is lossless (FLAC/ALAC/WAV/AIFF).
 fn formats_lossless(formats: Option<&Value>) -> bool {
-    let Some(arr) = formats.and_then(Value::as_array) else { return false };
+    let Some(arr) = formats.and_then(Value::as_array) else {
+        return false;
+    };
     arr.iter().any(|f| {
-        let acodec = f.get("acodec").and_then(Value::as_str).unwrap_or("").to_lowercase();
-        let ext = f.get("ext").and_then(Value::as_str).unwrap_or("").to_lowercase();
-        matches!(acodec.as_str(), "flac" | "alac") || matches!(ext.as_str(), "wav" | "flac" | "aiff")
+        let acodec = f
+            .get("acodec")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_lowercase();
+        let ext = f
+            .get("ext")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_lowercase();
+        matches!(acodec.as_str(), "flac" | "alac")
+            || matches!(ext.as_str(), "wav" | "flac" | "aiff")
     })
 }
 
 /// A lossless SoundCloud source for the track, if one exists and matches.
-async fn soundcloud_lossless_match(title: &str, artists: &str, duration_ms: Option<i64>, settings: &AppSettings) -> Option<String> {
+async fn soundcloud_lossless_match(
+    title: &str,
+    artists: &str,
+    duration_ms: Option<i64>,
+    settings: &AppSettings,
+) -> Option<String> {
     let query = format!("{artists} {title}");
     let query = query.trim();
     if query.is_empty() {
@@ -1385,7 +1523,9 @@ async fn soundcloud_lossless_match(title: &str, artists: &str, duration_ms: Opti
     let candidates = ytdlp_entries(&format!("scsearch5:{query}"), settings).await;
     let (best, _) = matching::best_match(title, artists, duration_ms, &candidates)?;
     let url = cand_url(best)?;
-    let out = run_ytdlp_json(&["-J", "--no-warnings", "--skip-download", &url], settings).await.ok()?;
+    let out = run_ytdlp_json(&["-J", "--no-warnings", "--skip-download", &url], settings)
+        .await
+        .ok()?;
     let full: Value = serde_json::from_slice(&out).ok()?;
     formats_lossless(full.get("formats")).then_some(url)
 }
@@ -1403,26 +1543,43 @@ async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (Stat
     };
 
     if settings.prefer_soundcloud_lossless {
-        if let Some(url) = soundcloud_lossless_match(&track.title, &track.artists, track.duration_ms, &settings).await {
-            return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
+        if let Some(url) =
+            soundcloud_lossless_match(&track.title, &track.artists, track.duration_ms, &settings)
+                .await
+        {
+            return Ok(Json(
+                serde_json::json!({ "youtube_url": url, "isrc": isrc }),
+            ));
         }
     }
     if let Some(ref i) = isrc {
         if let Some(url) = ytmusic_isrc_match(i, track.duration_ms, &settings).await {
-            return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
+            return Ok(Json(
+                serde_json::json!({ "youtube_url": url, "isrc": isrc }),
+            ));
         }
     }
     // Ranked text search: a tight top-5 first, widening to top-10 only if nothing
     // clears the thresholds (a passing match is never displaced).
     for count in [5, 10] {
-        let candidates = ytdlp_entries(&format!("ytsearch{count}:{} {}", track.title, track.artists), &settings).await;
-        if let Some((cand, _)) = matching::best_match(&track.title, &track.artists, track.duration_ms, &candidates) {
+        let candidates = ytdlp_entries(
+            &format!("ytsearch{count}:{} {}", track.title, track.artists),
+            &settings,
+        )
+        .await;
+        if let Some((cand, _)) =
+            matching::best_match(&track.title, &track.artists, track.duration_ms, &candidates)
+        {
             if let Some(url) = cand_url(cand) {
-                return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
+                return Ok(Json(
+                    serde_json::json!({ "youtube_url": url, "isrc": isrc }),
+                ));
             }
         }
     }
-    Ok(Json(serde_json::json!({ "youtube_url": Value::Null, "isrc": isrc })))
+    Ok(Json(
+        serde_json::json!({ "youtube_url": Value::Null, "isrc": isrc }),
+    ))
 }
 
 async fn music_cover(Json(track): Json<MusicTrack>) -> Json<Value> {
@@ -1506,10 +1663,15 @@ struct RnParams {
 async fn release_notes(axum::extract::Query(p): axum::extract::Query<RnParams>) -> Json<Value> {
     let current = parse_ver(APP_VERSION);
     let since = p.since.as_deref().and_then(parse_ver);
-    let client = reqwest::Client::builder().user_agent("Yoink").build().unwrap_or_default();
+    let client = reqwest::Client::builder()
+        .user_agent("Yoink")
+        .build()
+        .unwrap_or_default();
     let releases: Vec<Value> = async {
         let resp = client
-            .get(format!("https://api.github.com/repos/{REPO}/releases?per_page=30"))
+            .get(format!(
+                "https://api.github.com/repos/{REPO}/releases?per_page=30"
+            ))
             .send()
             .await
             .ok()?;
@@ -1520,7 +1682,10 @@ async fn release_notes(axum::extract::Query(p): axum::extract::Query<RnParams>) 
 
     let mut entries = Vec::new();
     for rel in &releases {
-        let is_pre = rel.get("prerelease").and_then(Value::as_bool).unwrap_or(false)
+        let is_pre = rel
+            .get("prerelease")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
             || rel.get("draft").and_then(Value::as_bool).unwrap_or(false);
         if is_pre {
             continue;
@@ -1626,7 +1791,11 @@ async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (St
     // Reflect "Artist - Title" in history, and rename/relocate the file per the
     // active filename template + the music-folders setting (mirrors the router).
     let have_both = !artist_s.is_empty() && !title_s.is_empty();
-    let new_title = if have_both { format!("{artist_s} - {title_s}") } else { title_s.clone() };
+    let new_title = if have_both {
+        format!("{artist_s} - {title_s}")
+    } else {
+        title_s.clone()
+    };
     let renamed: Option<String> = if have_both {
         if settings.filename_template == AUTOTAG_FILENAME_TEMPLATE {
             Some(format!("{artist_s} - {title_s}"))
@@ -1644,18 +1813,34 @@ async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (St
             .unwrap_or_else(|_| std::path::PathBuf::from(&settings.download_dir));
         if settings.music_folders && have_both {
             let stem = renamed.clone().unwrap_or_else(|| new_title.clone());
-            let (old, a, al, y, cu, ns) =
-                (path_s.clone(), artist_s.clone(), album_s.clone(), year_s.clone(), cover_url_s.clone(), stem.clone());
+            let (old, a, al, y, cu, ns) = (
+                path_s.clone(),
+                artist_s.clone(),
+                album_s.clone(),
+                year_s.clone(),
+                cover_url_s.clone(),
+                stem.clone(),
+            );
             let nfo_on = settings.nfo_sidecars;
             let new_path = tokio::task::spawn_blocking(move || {
                 library::organize_music_library(
-                    std::path::Path::new(&old), &a, &al, &y, &ns,
-                    (!cu.is_empty()).then_some(cu.as_str()), &download_root, nfo_on,
+                    std::path::Path::new(&old),
+                    &a,
+                    &al,
+                    &y,
+                    &ns,
+                    (!cu.is_empty()).then_some(cu.as_str()),
+                    &download_root,
+                    nfo_on,
                 )
             })
             .await
             .unwrap_or_else(|_| std::path::PathBuf::from(&path_s));
-            let filename = new_path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+            let filename = new_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
             update_history_after_tag(&path_s, &new_path.to_string_lossy(), &filename, &stem);
         } else if let Some(r) = renamed.clone() {
             let (old, rr) = (path_s.clone(), r.clone());
@@ -1664,13 +1849,19 @@ async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (St
             })
             .await
             .unwrap_or_else(|_| std::path::PathBuf::from(&path_s));
-            let filename = new_path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+            let filename = new_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
             update_history_after_tag(&path_s, &new_path.to_string_lossy(), &filename, &r);
         } else {
             update_history_title(&path_s, &new_title);
         }
     }
-    Ok(Json(serde_json::json!({ "ok": true, "embedded_cover": embedded })))
+    Ok(Json(
+        serde_json::json!({ "ok": true, "embedded_cover": embedded }),
+    ))
 }
 
 #[derive(Deserialize)]

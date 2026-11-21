@@ -31,28 +31,96 @@ struct LayoutSpec {
 
 fn layout_spec(layout: &str) -> LayoutSpec {
     match layout {
-        "180_tb" => LayoutSpec { suffix: "_180x180_3dv", stereo: STEREO_TB, equirect: true, deg: 180 },
-        "180_mono" => LayoutSpec { suffix: "_180x180", stereo: STEREO_MONO, equirect: true, deg: 180 },
-        "360_sbs" => LayoutSpec { suffix: "_360_3dh", stereo: STEREO_LR, equirect: true, deg: 360 },
-        "360_tb" => LayoutSpec { suffix: "_360_3dv", stereo: STEREO_TB, equirect: true, deg: 360 },
-        "360_mono" => LayoutSpec { suffix: "_360", stereo: STEREO_MONO, equirect: true, deg: 360 },
-        "fisheye190" => LayoutSpec { suffix: "_FISHEYE190", stereo: STEREO_LR, equirect: false, deg: 190 },
-        "fisheye200" => LayoutSpec { suffix: "_FISHEYE200", stereo: STEREO_LR, equirect: false, deg: 200 },
-        "mkx200" => LayoutSpec { suffix: "_MKX200", stereo: STEREO_LR, equirect: false, deg: 200 },
-        "mkx220" => LayoutSpec { suffix: "_MKX220", stereo: STEREO_LR, equirect: false, deg: 220 },
-        "rf52" => LayoutSpec { suffix: "_RF52", stereo: STEREO_LR, equirect: false, deg: 190 },
+        "180_tb" => LayoutSpec {
+            suffix: "_180x180_3dv",
+            stereo: STEREO_TB,
+            equirect: true,
+            deg: 180,
+        },
+        "180_mono" => LayoutSpec {
+            suffix: "_180x180",
+            stereo: STEREO_MONO,
+            equirect: true,
+            deg: 180,
+        },
+        "360_sbs" => LayoutSpec {
+            suffix: "_360_3dh",
+            stereo: STEREO_LR,
+            equirect: true,
+            deg: 360,
+        },
+        "360_tb" => LayoutSpec {
+            suffix: "_360_3dv",
+            stereo: STEREO_TB,
+            equirect: true,
+            deg: 360,
+        },
+        "360_mono" => LayoutSpec {
+            suffix: "_360",
+            stereo: STEREO_MONO,
+            equirect: true,
+            deg: 360,
+        },
+        "fisheye190" => LayoutSpec {
+            suffix: "_FISHEYE190",
+            stereo: STEREO_LR,
+            equirect: false,
+            deg: 190,
+        },
+        "fisheye200" => LayoutSpec {
+            suffix: "_FISHEYE200",
+            stereo: STEREO_LR,
+            equirect: false,
+            deg: 200,
+        },
+        "mkx200" => LayoutSpec {
+            suffix: "_MKX200",
+            stereo: STEREO_LR,
+            equirect: false,
+            deg: 200,
+        },
+        "mkx220" => LayoutSpec {
+            suffix: "_MKX220",
+            stereo: STEREO_LR,
+            equirect: false,
+            deg: 220,
+        },
+        "rf52" => LayoutSpec {
+            suffix: "_RF52",
+            stereo: STEREO_LR,
+            equirect: false,
+            deg: 190,
+        },
         // "180_sbs" (default)
-        _ => LayoutSpec { suffix: "_180x180_3dh", stereo: STEREO_LR, equirect: true, deg: 180 },
+        _ => LayoutSpec {
+            suffix: "_180x180_3dh",
+            stereo: STEREO_LR,
+            equirect: true,
+            deg: 180,
+        },
     }
 }
 
 const KNOWN_LAYOUTS: &[&str] = &[
-    "180_sbs", "180_tb", "180_mono", "360_sbs", "360_tb", "360_mono",
-    "fisheye190", "fisheye200", "mkx200", "mkx220", "rf52",
+    "180_sbs",
+    "180_tb",
+    "180_mono",
+    "360_sbs",
+    "360_tb",
+    "360_mono",
+    "fisheye190",
+    "fisheye200",
+    "mkx200",
+    "mkx220",
+    "rf52",
 ];
 
 pub fn normalize_layout(layout: &str) -> String {
-    if KNOWN_LAYOUTS.contains(&layout) { layout.to_string() } else { DEFAULT_LAYOUT.to_string() }
+    if KNOWN_LAYOUTS.contains(&layout) {
+        layout.to_string()
+    } else {
+        DEFAULT_LAYOUT.to_string()
+    }
 }
 
 pub fn filename_suffix(layout: &str) -> &'static str {
@@ -116,15 +184,24 @@ fn is_vr_text(blob: &str, strict: bool) -> bool {
     static DEGREE: OnceLock<Regex> = OnceLock::new();
     static CUE: OnceLock<Regex> = OnceLock::new();
     let strong = if strict {
-        re(&STRONG_STRICT, r"(?i)\b(vr180|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b|virtual reality")
+        re(
+            &STRONG_STRICT,
+            r"(?i)\b(vr180|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b|virtual reality",
+        )
     } else {
-        re(&STRONG, r"(?i)\b(vr180|vr|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b|virtual reality")
+        re(
+            &STRONG,
+            r"(?i)\b(vr180|vr|mkx\d*|mkz\d*|rf52|fisheye\d*|domeplus)\b|virtual reality",
+        )
     };
     if strong.is_match(blob) {
         return true;
     }
     let degree = re(&DEGREE, r"(?i)\b(180|360)\b");
-    let cue = re(&CUE, r"(?i)\b(vr|sbs|tb)\b|side[ -]by[ -]side|top[ -]bottom|over[ -]under|monoscopic");
+    let cue = re(
+        &CUE,
+        r"(?i)\b(vr|sbs|tb)\b|side[ -]by[ -]side|top[ -]bottom|over[ -]under|monoscopic",
+    );
     degree.is_match(blob) && cue.is_match(blob)
 }
 
@@ -133,10 +210,18 @@ fn fisheye_layout(blob: &str) -> &'static str {
     static MKX200: OnceLock<Regex> = OnceLock::new();
     static RF52: OnceLock<Regex> = OnceLock::new();
     static FE200: OnceLock<Regex> = OnceLock::new();
-    if re(&MKX220, r"(?i)mkx\s*220").is_match(blob) { return "mkx220"; }
-    if re(&MKX200, r"(?i)mkx\s*200").is_match(blob) { return "mkx200"; }
-    if re(&RF52, r"(?i)\brf\s?52\b|rf5\.2|canon\s+dual").is_match(blob) { return "rf52"; }
-    if re(&FE200, r"(?i)fisheye\s*200|\b200°").is_match(blob) { return "fisheye200"; }
+    if re(&MKX220, r"(?i)mkx\s*220").is_match(blob) {
+        return "mkx220";
+    }
+    if re(&MKX200, r"(?i)mkx\s*200").is_match(blob) {
+        return "mkx200";
+    }
+    if re(&RF52, r"(?i)\brf\s?52\b|rf5\.2|canon\s+dual").is_match(blob) {
+        return "rf52";
+    }
+    if re(&FE200, r"(?i)fisheye\s*200|\b200°").is_match(blob) {
+        return "fisheye200";
+    }
     "fisheye190"
 }
 
@@ -204,9 +289,14 @@ fn infer_layout(blob: &str, aspect: Option<f64>) -> String {
     if re(&FE, r"(?i)fisheye|\bmkx\d*\b|\bmkz\d*\b|\brf52\b|domeplus").is_match(blob) {
         return fisheye_layout(blob).to_string();
     }
-    let deg360 = re(&D360, r"(?i)\b360\b").is_match(blob) && !re(&D180, r"(?i)\b(180|vr180)\b").is_match(blob);
+    let deg360 = re(&D360, r"(?i)\b360\b").is_match(blob)
+        && !re(&D180, r"(?i)\b(180|vr180)\b").is_match(blob);
     if re(&MONO, r"(?i)\bmono\b|monoscopic").is_match(blob) {
-        return if deg360 { "360_mono".into() } else { "180_mono".into() };
+        return if deg360 {
+            "360_mono".into()
+        } else {
+            "180_mono".into()
+        };
     }
     if let Some(a) = aspect {
         if a >= 3.0 {
@@ -219,9 +309,17 @@ fn infer_layout(blob: &str, aspect: Option<f64>) -> String {
         }
     }
     if deg360 {
-        return if tb { "360_tb".into() } else { "360_sbs".into() };
+        return if tb {
+            "360_tb".into()
+        } else {
+            "360_sbs".into()
+        };
     }
-    if tb { "180_tb".into() } else { "180_sbs".into() }
+    if tb {
+        "180_tb".into()
+    } else {
+        "180_sbs".into()
+    }
 }
 
 /// Heuristically decide whether a media item is VR and guess its layout.
@@ -321,13 +419,20 @@ fn iter_children(buf: &[u8], start: usize, end: usize, skip: usize) -> Option<Ve
 }
 
 fn find(buf: &[u8], start: usize, end: usize, want: &str, skip: usize) -> Option<Boxt> {
-    iter_children(buf, start, end, skip)?.into_iter().find(|c| c.0 == want)
+    iter_children(buf, start, end, skip)?
+        .into_iter()
+        .find(|c| c.0 == want)
 }
 
 /// (insert_offset, ancestors[se,stsd,stbl,minf,mdia,trak,moov], chunk_offset_boxes).
+#[allow(clippy::type_complexity)]
 fn locate_video_sample_entry(
     buf: &[u8],
-) -> Option<(usize, Vec<(usize, usize, usize)>, Vec<(usize, usize, usize)>)> {
+) -> Option<(
+    usize,
+    Vec<(usize, usize, usize)>,
+    Vec<(usize, usize, usize)>,
+)> {
     let (_, moov_off, moov_size, moov_hdr) = find(buf, 0, buf.len(), "moov", 0)?;
     let moov_end = moov_off + moov_size;
     // Fragmented MP4 (mvex): bail — growing moov would shift fragments.
@@ -343,11 +448,23 @@ fn locate_video_sample_entry(
             continue;
         }
         let trak_end = trak_off + trak_size;
-        let Some((_, mdia_off, mdia_size, mdia_hdr)) = find(buf, trak_off, trak_end, "mdia", trak_hdr) else { continue };
+        let Some((_, mdia_off, mdia_size, mdia_hdr)) =
+            find(buf, trak_off, trak_end, "mdia", trak_hdr)
+        else {
+            continue;
+        };
         let mdia_end = mdia_off + mdia_size;
-        let Some((_, minf_off, minf_size, minf_hdr)) = find(buf, mdia_off, mdia_end, "minf", mdia_hdr) else { continue };
+        let Some((_, minf_off, minf_size, minf_hdr)) =
+            find(buf, mdia_off, mdia_end, "minf", mdia_hdr)
+        else {
+            continue;
+        };
         let minf_end = minf_off + minf_size;
-        let Some((_, stbl_off, stbl_size, stbl_hdr)) = find(buf, minf_off, minf_end, "stbl", minf_hdr) else { continue };
+        let Some((_, stbl_off, stbl_size, stbl_hdr)) =
+            find(buf, minf_off, minf_end, "stbl", minf_hdr)
+        else {
+            continue;
+        };
         let stbl_end = stbl_off + stbl_size;
 
         for name in ["stco", "co64"] {
@@ -356,7 +473,9 @@ fn locate_video_sample_entry(
             }
         }
 
-        let Some((_, h_off, _, h_hdr)) = find(buf, mdia_off, mdia_end, "hdlr", mdia_hdr) else { continue };
+        let Some((_, h_off, _, h_hdr)) = find(buf, mdia_off, mdia_end, "hdlr", mdia_hdr) else {
+            continue;
+        };
         let handler = &buf[h_off + h_hdr + 8..h_off + h_hdr + 12];
         if handler != b"vide" || insert.is_some() {
             continue;
@@ -404,7 +523,12 @@ fn patch_size(buf: &mut [u8], off: usize, size: usize, hsize: usize, delta: usiz
     Some(())
 }
 
-fn patch_chunk_offsets(buf: &mut [u8], boxt: (usize, usize, usize), threshold: u64, delta: u64) -> Option<()> {
+fn patch_chunk_offsets(
+    buf: &mut [u8],
+    boxt: (usize, usize, usize),
+    threshold: u64,
+    delta: u64,
+) -> Option<()> {
     let (off, size, hsize) = boxt;
     let is_co64 = &buf[off + 4..off + 8] == b"co64";
     let entry_size = if is_co64 { 8 } else { 4 };
@@ -415,7 +539,11 @@ fn patch_chunk_offsets(buf: &mut [u8], boxt: (usize, usize, usize), threshold: u
         if pos + entry_size > end {
             break;
         }
-        let mut value = if is_co64 { be_u64(&buf[pos..pos + 8]) } else { be_u32(&buf[pos..pos + 4]) };
+        let mut value = if is_co64 {
+            be_u64(&buf[pos..pos + 8])
+        } else {
+            be_u32(&buf[pos..pos + 4])
+        };
         if value >= threshold {
             value += delta;
             if entry_size == 4 && value > U32_MAX {
@@ -485,7 +613,12 @@ fn read_up_to(f: &mut std::fs::File, buf: &mut [u8]) -> Option<usize> {
     Some(filled)
 }
 
-fn copy_range(src: &mut std::fs::File, dst: &mut std::fs::File, start: u64, end: u64) -> Option<()> {
+fn copy_range(
+    src: &mut std::fs::File,
+    dst: &mut std::fs::File,
+    start: u64,
+    end: u64,
+) -> Option<()> {
     src.seek(SeekFrom::Start(start)).ok()?;
     let mut remaining = end - start;
     let mut buf = vec![0u8; COPY_CHUNK];
@@ -508,11 +641,19 @@ fn rewrite_moov<F>(path: &Path, tmp_suffix: &str, build: F) -> bool
 where
     F: FnOnce(&[u8], u64) -> Option<(Vec<u8>, usize)>,
 {
-    let Ok(meta) = std::fs::metadata(path) else { return false };
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
     let filesize = meta.len();
-    let Ok(mut f) = std::fs::File::open(path) else { return false };
-    let Some((moov_off, moov)) = read_moov(&mut f, filesize) else { return false };
-    let Some((new_moov, delta)) = build(&moov, moov_off) else { return false };
+    let Ok(mut f) = std::fs::File::open(path) else {
+        return false;
+    };
+    let Some((moov_off, moov)) = read_moov(&mut f, filesize) else {
+        return false;
+    };
+    let Some((new_moov, delta)) = build(&moov, moov_off) else {
+        return false;
+    };
 
     let tmp = path.with_file_name(format!(
         "{}{tmp_suffix}",
@@ -571,7 +712,9 @@ pub fn inject_spherical_metadata(path: &Path, layout: &str) -> bool {
 
 /// Inject the legacy Spherical Video V1 `uuid` box (360°-equirect only).
 pub fn inject_spherical_v1(path: &Path, layout: &str) -> bool {
-    let Some(payload) = spherical_v1_xml(layout) else { return false };
+    let Some(payload) = spherical_v1_xml(layout) else {
+        return false;
+    };
     rewrite_moov(path, ".v1tmp", |moov, moov_off| {
         if find_bytes(moov, &SPHERICAL_V1_UUID) {
             return None; // already carries V1
@@ -600,8 +743,9 @@ pub fn inject_spherical_v1(path: &Path, layout: &str) -> bool {
 
 // ── Spherical Video V1 (legacy uuid/XML) + MKV + apply ──────────────────────
 
-const SPHERICAL_V1_UUID: [u8; 16] =
-    [0xff, 0xcc, 0x82, 0x63, 0xf8, 0x55, 0x4a, 0x93, 0x88, 0x14, 0x58, 0x7a, 0x02, 0x52, 0x1f, 0xdd];
+const SPHERICAL_V1_UUID: [u8; 16] = [
+    0xff, 0xcc, 0x82, 0x63, 0xf8, 0x55, 0x4a, 0x93, 0x88, 0x14, 0x58, 0x7a, 0x02, 0x52, 0x1f, 0xdd,
+];
 
 fn spherical_v1_xml(layout: &str) -> Option<Vec<u8>> {
     let spec = layout_spec(&normalize_layout(layout));
@@ -642,18 +786,32 @@ pub fn set_mkv_stereo_mode(path: &Path, layout: &str) -> bool {
         path.file_name().and_then(|n| n.to_str()).unwrap_or("out")
     ));
     let ffmpeg = match std::env::var("YOINK_FFMPEG") {
-        Ok(dir) if !dir.is_empty() => Path::new(&dir).join("ffmpeg").to_string_lossy().into_owned(),
+        Ok(dir) if !dir.is_empty() => Path::new(&dir)
+            .join("ffmpeg")
+            .to_string_lossy()
+            .into_owned(),
         _ => "ffmpeg".to_string(),
     };
     let out = std::process::Command::new(ffmpeg)
         .args([
-            "-y", "-loglevel", "error", "-i", &path.to_string_lossy(),
-            "-map", "0", "-c", "copy", "-metadata:s:v:0", &format!("stereo_mode={mode}"),
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            &path.to_string_lossy(),
+            "-map",
+            "0",
+            "-c",
+            "copy",
+            "-metadata:s:v:0",
+            &format!("stereo_mode={mode}"),
             &tmp.to_string_lossy(),
         ])
         .output();
     let ok = matches!(&out, Ok(o) if o.status.success())
-        && std::fs::metadata(&tmp).map(|m| m.len() > 0).unwrap_or(false);
+        && std::fs::metadata(&tmp)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false);
     if !ok {
         let _ = std::fs::remove_file(&tmp);
         return false;
@@ -687,7 +845,11 @@ pub fn apply_vr(path: &Path, layout: &str) -> PathBuf {
         }
     }
 
-    let ext_lower = final_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let ext_lower = final_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
     match ext_lower.as_str() {
         "mp4" | "m4v" | "mov" => {
             inject_spherical_metadata(&final_path, &layout);

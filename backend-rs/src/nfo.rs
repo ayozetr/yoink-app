@@ -11,7 +11,9 @@ use serde_json::Value;
 
 /// Escape XML text content (`&`, `<`, `>` — matching Python's saxutils.escape).
 fn esc(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn tag(name: &str, value: &str) -> String {
@@ -40,12 +42,22 @@ pub struct NfoFields<'a> {
 }
 
 pub fn build(f: &NfoFields) -> String {
-    let root = if f.kind == "audio" { "musicvideo" } else { "movie" };
-    let mut body = format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<{root}>\n"
-    );
+    let root = if f.kind == "audio" {
+        "musicvideo"
+    } else {
+        "movie"
+    };
+    let mut body =
+        format!("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<{root}>\n");
     body.push_str(&tag("title", f.title));
-    body.push_str(&tag(if f.kind == "audio" { "artist" } else { "studio" }, f.artist));
+    body.push_str(&tag(
+        if f.kind == "audio" {
+            "artist"
+        } else {
+            "studio"
+        },
+        f.artist,
+    ));
     if f.kind == "audio" {
         body.push_str(&tag("album", f.album));
     }
@@ -57,16 +69,18 @@ pub fn build(f: &NfoFields) -> String {
     body.push_str(&tag("thumb", f.thumb));
     body.push_str(&tag("source", f.source));
     if !f.source_id.is_empty() {
-        body.push_str(&format!("  <uniqueid type=\"yoink\">{}</uniqueid>\n", esc(f.source_id)));
+        body.push_str(&format!(
+            "  <uniqueid type=\"yoink\">{}</uniqueid>\n",
+            esc(f.source_id)
+        ));
     }
     body.push_str(&format!("</{root}>\n"));
     body
 }
 
 fn xml(root: &str, fields: &[(&str, &str)]) -> String {
-    let mut body = format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<{root}>\n"
-    );
+    let mut body =
+        format!("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<{root}>\n");
     for (name, value) in fields {
         if !value.is_empty() {
             body.push_str(&format!("  <{name}>{}</{name}>\n", esc(value)));
@@ -78,7 +92,15 @@ fn xml(root: &str, fields: &[(&str, &str)]) -> String {
 
 /// A folder-level `album.nfo` (Jellyfin/Kodi music convention).
 pub fn build_album(album: &str, artist: &str, year: &str, thumb: &str) -> String {
-    xml("album", &[("title", album), ("artist", artist), ("year", year), ("thumb", thumb)])
+    xml(
+        "album",
+        &[
+            ("title", album),
+            ("artist", artist),
+            ("year", year),
+            ("thumb", thumb),
+        ],
+    )
 }
 
 /// A folder-level `artist.nfo` (Jellyfin/Kodi music convention).
@@ -88,11 +110,25 @@ pub fn build_artist(artist: &str, thumb: &str) -> String {
 
 /// Build an .nfo from yt-dlp's info JSON (download time). Mirrors from_info.
 pub fn from_info(info: &Value, kind: &str) -> String {
-    let g = |k: &str| info.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+    let g = |k: &str| {
+        info.get(k)
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    };
     let upload_date = g("upload_date"); // YYYYMMDD
-    let year = if upload_date.len() >= 4 { upload_date[..4].to_string() } else { String::new() };
+    let year = if upload_date.len() >= 4 {
+        upload_date[..4].to_string()
+    } else {
+        String::new()
+    };
     let premiered = if upload_date.len() == 8 {
-        format!("{}-{}-{}", &upload_date[..4], &upload_date[4..6], &upload_date[6..8])
+        format!(
+            "{}-{}-{}",
+            &upload_date[..4],
+            &upload_date[4..6],
+            &upload_date[6..8]
+        )
     } else {
         String::new()
     };
