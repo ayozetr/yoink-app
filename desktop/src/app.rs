@@ -1432,10 +1432,13 @@ impl App {
                 if ui
                     .add_enabled(
                         !self.queue.is_empty(),
-                        egui::Button::new(RichText::new(format!("  {label}  ")).color(p.accent_fg))
-                            .fill(p.accent)
-                            .corner_radius(9)
-                            .min_size(egui::vec2(0.0, 34.0)),
+                        egui::Button::image_and_text(
+                            crate::icons::img("play", 14.0, p.accent),
+                            RichText::new(label).color(p.accent),
+                        )
+                        .fill(p.accent.gamma_multiply(0.18))
+                        .corner_radius(9)
+                        .min_size(egui::vec2(0.0, 34.0)),
                     )
                     .clicked()
                 {
@@ -1445,8 +1448,10 @@ impl App {
         });
 
         if self.queue.is_empty() {
-            ui.add_space(24.0);
-            ui.label(RichText::new(tl(lang, "cola.empty")).color(p.fg_dim));
+            ui.add_space(40.0);
+            ui.vertical_centered(|ui| {
+                ui.label(RichText::new(tl(lang, "cola.empty")).color(p.fg_dim));
+            });
             return;
         }
 

@@ -26,6 +26,7 @@ fn bytes(name: &str) -> (&'static str, &'static [u8]) {
         "download" => ("download", svg!("download")),
         "cloud" => ("cloud", svg!("download-cloud")),
         "youtube" => ("youtube", svg!("youtube")),
+        "play" => ("play", svg!("play")),
         "add" => ("list-plus", svg!("list-plus")),
         "options" => ("sliders", svg!("sliders-horizontal")),
         "music" => ("music", svg!("music")),
