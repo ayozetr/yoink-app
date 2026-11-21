@@ -1,0 +1,153 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
+//! Minimal i18n for the native UI. `tl(lang, key)` returns a UI string; the table
+//! is a flat match so adding a language is just another arm (and more locales can
+//! be slotted in the same way the web UI ships 14). The language is auto-detected
+//! from the environment and overridable in Ajustes.
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Lang {
+    Es,
+    En,
+}
+
+impl Lang {
+    pub const ALL: [Lang; 2] = [Lang::Es, Lang::En];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Lang::Es => "Español",
+            Lang::En => "English",
+        }
+    }
+}
+
+/// Detect the language from `LANG`/`LC_ALL`/`LC_MESSAGES` (defaults to English).
+pub fn detect() -> Lang {
+    for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(v) = std::env::var(var) {
+            if v.to_lowercase().starts_with("es") {
+                return Lang::Es;
+            }
+            if !v.is_empty() {
+                return Lang::En;
+            }
+        }
+    }
+    Lang::En
+}
+
+/// Translate a key. Unknown keys fall back to the key itself (visible but safe).
+pub fn tl(lang: Lang, key: &str) -> &str {
+    use Lang::{En, Es};
+    match (key, lang) {
+        ("tab.inicio", Es) => "Inicio",
+        ("tab.inicio", En) => "Home",
+        ("tab.cola", Es) => "Cola",
+        ("tab.cola", En) => "Queue",
+        ("tab.historial", Es) => "Historial",
+        ("tab.historial", En) => "History",
+        ("tab.ajustes", Es) => "Ajustes",
+        ("tab.ajustes", En) => "Settings",
+        ("theme.toggle", Es) => "Cambiar tema",
+        ("theme.toggle", En) => "Toggle theme",
+
+        ("inicio.heading", Es) => "Pega un enlace para empezar",
+        ("inicio.heading", En) => "Paste a link to begin",
+        ("inicio.analyze", Es) => "Analizar",
+        ("inicio.analyze", En) => "Analyze",
+        ("inicio.analyzing", Es) => "Analizando…",
+        ("inicio.analyzing", En) => "Analyzing…",
+        ("inicio.formats", Es) => "formatos",
+        ("inicio.formats", En) => "formats",
+        ("inicio.playlist", Es) => "Lista",
+        ("inicio.playlist", En) => "Playlist",
+        ("inicio.playlist_items", Es) => "elementos",
+        ("inicio.playlist_items", En) => "items",
+        ("inicio.playlist_soon", Es) => "La descarga de listas llega en una fase posterior.",
+        ("inicio.playlist_soon", En) => "Playlist downloading comes in a later phase.",
+        ("inicio.downloaded", Es) => "Descargado",
+        ("inicio.downloaded", En) => "Downloaded",
+
+        ("kind.video", Es) => "Vídeo",
+        ("kind.video", En) => "Video",
+        ("kind.audio", Es) => "Audio",
+        ("kind.audio", En) => "Audio",
+        ("field.quality", Es) => "Calidad",
+        ("field.quality", En) => "Quality",
+        ("field.container", Es) => "Contenedor",
+        ("field.container", En) => "Container",
+        ("field.format", Es) => "Formato",
+        ("field.format", En) => "Format",
+        ("field.audio", Es) => "Audio",
+        ("field.audio", En) => "Audio",
+        ("field.kind", Es) => "Tipo",
+        ("field.kind", En) => "Kind",
+        ("action.download", Es) => "Descargar",
+        ("action.download", En) => "Download",
+        ("action.open", Es) => "Abrir",
+        ("action.open", En) => "Open",
+        ("action.refresh", Es) => "Refrescar",
+        ("action.refresh", En) => "Refresh",
+        ("action.save", Es) => "Guardar",
+        ("action.save", En) => "Save",
+        ("action.add", Es) => "Añadir",
+        ("action.add", En) => "Add",
+        ("state.saved", Es) => "Guardado",
+        ("state.saved", En) => "Saved",
+        ("state.loading", Es) => "Cargando…",
+        ("state.loading", En) => "Loading…",
+
+        ("cola.add_hint", Es) => "Pega un enlace y añádelo a la cola",
+        ("cola.add_hint", En) => "Paste a link to add it to the queue",
+        ("cola.empty", Es) => "La cola está vacía.",
+        ("cola.empty", En) => "The queue is empty.",
+        ("cola.queued", Es) => "en cola",
+        ("cola.queued", En) => "queued",
+        ("cola.completed_n", Es) => "completadas",
+        ("cola.completed_n", En) => "completed",
+        ("cola.clear_done", Es) => "Limpiar completadas",
+        ("cola.clear_done", En) => "Clear completed",
+        ("cola.pending", Es) => "en espera",
+        ("cola.pending", En) => "waiting",
+        ("cola.done", Es) => "completada",
+        ("cola.done", En) => "completed",
+        ("cola.remove", Es) => "Quitar",
+        ("cola.remove", En) => "Remove",
+
+        ("hist.empty", Es) => "Todavía no hay descargas.",
+        ("hist.empty", En) => "No downloads yet.",
+
+        ("set.downloads", Es) => "Descargas",
+        ("set.downloads", En) => "Downloads",
+        ("set.dir", Es) => "Carpeta de descargas",
+        ("set.dir", En) => "Download folder",
+        ("set.potoken", Es) => "YouTube PO token",
+        ("set.potoken", En) => "YouTube PO token",
+        ("set.potoken_desc", Es) => {
+            "auto mintea un token en un WebView oculto para saltar el muro antibot."
+        }
+        ("set.potoken_desc", En) => {
+            "auto mints a token in a hidden WebView to clear the anti-bot wall."
+        }
+        ("set.mode", Es) => "Modo",
+        ("set.mode", En) => "Mode",
+        ("set.options", Es) => "Opciones",
+        ("set.options", En) => "Options",
+        ("set.normalize", Es) => "Normalizar audio a -14 LUFS",
+        ("set.normalize", En) => "Normalize audio to -14 LUFS",
+        ("set.sponsorblock", Es) => "SponsorBlock",
+        ("set.sponsorblock", En) => "SponsorBlock",
+        ("set.lyrics", Es) => "Buscar letras",
+        ("set.lyrics", En) => "Fetch lyrics",
+        ("set.updates", Es) => "Buscar actualizaciones al iniciar",
+        ("set.updates", En) => "Check for updates on launch",
+        ("set.notify", Es) => "Notificar al terminar",
+        ("set.notify", En) => "Notify when done",
+        ("set.language", Es) => "Idioma",
+        ("set.language", En) => "Language",
+
+        _ => key,
+    }
+}

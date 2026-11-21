@@ -29,9 +29,11 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   format, with per-item status and progress, remove, and "clear completed".
 - **Phase 5 (done):** thumbnails in the preview card, loaded from the video's
   `thumbnail_url` via `egui_extras` image loaders (remote JPEG/PNG/WebP over http).
-- **Later:** the music-import and auto-tag screens; i18n (reusing a Rust i18n
-  layer); then the Tauri shell concerns (updater, tray, deep link, notifications)
-  as native crates.
+- **Phase 6 (done):** i18n (`i18n.rs`): every UI string goes through `tl(lang,
+  key)`, with Spanish and English, auto-detected from `LANG`/`LC_*` and switchable
+  live in Ajustes. The table is a flat match, so more locales are just more arms.
+- **Later:** the music-import and auto-tag screens; then the Tauri shell concerns
+  (updater, tray, deep link, notifications) as native crates.
 
 ## Run
 

@@ -8,6 +8,7 @@
 use egui::RichText;
 
 use crate::api::{Backend, Cmd, DownloadReq, Evt, HistoryEntry, Settings, VideoLite};
+use crate::i18n::{tl, Lang};
 use crate::theme;
 
 #[derive(PartialEq, Clone, Copy)]
@@ -59,6 +60,7 @@ pub struct App {
     backend: Backend,
     minter: crate::minter::Minter,
     dark: bool,
+    lang: Lang,
     tab: Tab,
     url: String,
     kind: String,
@@ -90,6 +92,7 @@ impl App {
             backend: Backend::spawn(cc.egui_ctx.clone()),
             minter: crate::minter::Minter::new(crate::api::port()),
             dark,
+            lang: crate::i18n::detect(),
             tab: Tab::Inicio,
             url: String::new(),
             kind: "video".into(),
@@ -267,6 +270,7 @@ impl eframe::App for App {
             self.backend.send(Cmd::LoadHistory);
         }
         let p = theme::palette(self.dark);
+        let lang = self.lang;
 
         egui::Panel::top("topbar")
             .frame(
@@ -278,17 +282,21 @@ impl eframe::App for App {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("Yoink").size(22.0).strong().color(p.fg));
                     ui.add_space(16.0);
-                    for (tab, name) in [
-                        (Tab::Inicio, "Inicio"),
-                        (Tab::Cola, "Cola"),
-                        (Tab::Historial, "Historial"),
-                        (Tab::Ajustes, "Ajustes"),
+                    for (tab, key) in [
+                        (Tab::Inicio, "tab.inicio"),
+                        (Tab::Cola, "tab.cola"),
+                        (Tab::Historial, "tab.historial"),
+                        (Tab::Ajustes, "tab.ajustes"),
                     ] {
-                        ui.selectable_value(&mut self.tab, tab, name);
+                        ui.selectable_value(&mut self.tab, tab, tl(lang, key));
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let icon = if self.dark { "☀" } else { "☾" };
-                        if ui.button(icon).on_hover_text("Cambiar tema").clicked() {
+                        if ui
+                            .button(icon)
+                            .on_hover_text(tl(lang, "theme.toggle"))
+                            .clicked()
+                        {
                             self.dark = !self.dark;
                             theme::apply(&ctx, self.dark);
                         }
@@ -320,9 +328,10 @@ impl eframe::App for App {
 
 impl App {
     fn ui_inicio(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        let lang = self.lang;
         ui.add_space(12.0);
         ui.label(
-            RichText::new("Pega un enlace para empezar")
+            RichText::new(tl(lang, "inicio.heading"))
                 .heading()
                 .color(p.fg),
         );
@@ -338,7 +347,7 @@ impl App {
                 let submit = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                 let analyzing = matches!(self.status, Status::Analyzing);
                 if ui
-                    .add_enabled(!analyzing, egui::Button::new("Analizar"))
+                    .add_enabled(!analyzing, egui::Button::new(tl(lang, "inicio.analyze")))
                     .clicked()
                     || submit
                 {
@@ -353,7 +362,7 @@ impl App {
                 ui.add_space(10.0);
                 ui.horizontal(|ui| {
                     ui.spinner();
-                    ui.label(RichText::new("Analizando…").color(p.fg_dim));
+                    ui.label(RichText::new(tl(lang, "inicio.analyzing")).color(p.fg_dim));
                 });
             }
             Status::Error(e) => {
@@ -387,7 +396,11 @@ impl App {
                     if let Some(d) = &v.duration_string {
                         meta.push(d.clone());
                     }
-                    meta.push(format!("{} formatos", v.formats.len()));
+                    meta.push(format!(
+                        "{} {}",
+                        v.formats.len(),
+                        tl(lang, "inicio.formats")
+                    ));
                     if v.is_vr {
                         meta.push("VR".into());
                     }
@@ -402,10 +415,17 @@ impl App {
                 ui.add_space(14.0);
                 card(ui, p, |ui| {
                     ui.label(RichText::new(&title).size(17.0).strong().color(p.fg));
-                    ui.label(RichText::new(format!("Lista · {count} elementos")).color(p.fg_dim));
+                    ui.label(
+                        RichText::new(format!(
+                            "{} · {count} {}",
+                            tl(lang, "inicio.playlist"),
+                            tl(lang, "inicio.playlist_items")
+                        ))
+                        .color(p.fg_dim),
+                    );
                     ui.add_space(6.0);
                     ui.label(
-                        RichText::new("La descarga de listas llega en una fase posterior.")
+                        RichText::new(tl(lang, "inicio.playlist_soon"))
                             .small()
                             .color(p.fg_dim),
                     );
@@ -416,10 +436,11 @@ impl App {
     }
 
     fn ui_download_controls(&mut self, ui: &mut egui::Ui, p: theme::Palette, has_audio: bool) {
+        let lang = self.lang;
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.kind, "video".to_string(), "Vídeo");
+            ui.selectable_value(&mut self.kind, "video".to_string(), tl(lang, "kind.video"));
             ui.add_enabled_ui(has_audio, |ui| {
-                ui.selectable_value(&mut self.kind, "audio".to_string(), "Audio");
+                ui.selectable_value(&mut self.kind, "audio".to_string(), tl(lang, "kind.audio"));
             });
         });
         ui.add_space(8.0);
@@ -427,20 +448,23 @@ impl App {
             if self.kind == "video" {
                 combo(
                     ui,
-                    "Calidad",
+                    "q",
+                    tl(lang, "field.quality"),
                     &mut self.quality,
                     &["best", "2160", "1440", "1080", "720", "480"],
                 );
                 combo(
                     ui,
-                    "Contenedor",
+                    "c",
+                    tl(lang, "field.container"),
                     &mut self.container,
                     &["mp4", "mov", "mkv", "webm"],
                 );
             } else {
                 combo(
                     ui,
-                    "Formato",
+                    "f",
+                    tl(lang, "field.format"),
                     &mut self.audio_format,
                     &["mp3", "m4a", "opus", "flac", "wav"],
                 );
@@ -448,8 +472,8 @@ impl App {
         });
         ui.add_space(12.0);
         let busy = self.active.is_some();
-        let btn =
-            egui::Button::new(RichText::new("  Descargar  ").color(p.accent_fg)).fill(p.accent);
+        let label = format!("  {}  ", tl(lang, "action.download"));
+        let btn = egui::Button::new(RichText::new(label).color(p.accent_fg)).fill(p.accent);
         if ui.add_enabled(!busy, btn).clicked() {
             self.start_download();
         }
@@ -474,18 +498,24 @@ impl App {
             }
             Status::Done(path) => {
                 ui.add_space(12.0);
-                ui.label(RichText::new(format!("✓ Descargado: {path}")).color(p.ok));
+                let label = tl(self.lang, "inicio.downloaded");
+                ui.label(RichText::new(format!("✓ {label}: {path}")).color(p.ok));
             }
             _ => {}
         }
     }
 
     fn ui_historial(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        let lang = self.lang;
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Historial").heading().color(p.fg));
+            ui.label(
+                RichText::new(tl(lang, "tab.historial"))
+                    .heading()
+                    .color(p.fg),
+            );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Refrescar").clicked() {
+                if ui.button(tl(lang, "action.refresh")).clicked() {
                     self.backend.send(Cmd::LoadHistory);
                 }
             });
@@ -494,7 +524,7 @@ impl App {
 
         if self.history.is_empty() {
             ui.add_space(24.0);
-            ui.label(RichText::new("Todavía no hay descargas.").color(p.fg_dim));
+            ui.label(RichText::new(tl(lang, "hist.empty")).color(p.fg_dim));
             return;
         }
 
@@ -523,7 +553,9 @@ impl App {
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if let Some(path) = e.filepath.clone() {
-                            if e.status == "completed" && ui.button("Abrir").clicked() {
+                            if e.status == "completed"
+                                && ui.button(tl(lang, "action.open")).clicked()
+                            {
                                 self.backend.send(Cmd::Open(path));
                             }
                         }
@@ -534,19 +566,20 @@ impl App {
     }
 
     fn ui_cola(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        let lang = self.lang;
         ui.add_space(12.0);
-        ui.label(RichText::new("Cola").heading().color(p.fg));
+        ui.label(RichText::new(tl(lang, "tab.cola")).heading().color(p.fg));
         ui.add_space(8.0);
 
         // Add box — uses the default format from Ajustes; downloads run one by one.
         card(ui, p, |ui| {
             ui.horizontal(|ui| {
                 let field = egui::TextEdit::singleline(&mut self.queue_url)
-                    .hint_text("Pega un enlace y añádelo a la cola")
+                    .hint_text(tl(lang, "cola.add_hint"))
                     .desired_width(ui.available_width() - 90.0);
                 let resp = ui.add(field);
                 let enter = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                if ui.button("Añadir").clicked() || enter {
+                if ui.button(tl(lang, "action.add")).clicked() || enter {
                     self.queue_add();
                 }
             });
@@ -554,7 +587,7 @@ impl App {
 
         if self.queue.is_empty() {
             ui.add_space(24.0);
-            ui.label(RichText::new("La cola está vacía.").color(p.fg_dim));
+            ui.label(RichText::new(tl(lang, "cola.empty")).color(p.fg_dim));
             return;
         }
 
@@ -566,12 +599,17 @@ impl App {
                 .filter(|i| matches!(i.status, QStatus::Done))
                 .count();
             ui.label(
-                RichText::new(format!("{} en cola · {done} completadas", self.queue.len()))
-                    .small()
-                    .color(p.fg_dim),
+                RichText::new(format!(
+                    "{} {} · {done} {}",
+                    self.queue.len(),
+                    tl(lang, "cola.queued"),
+                    tl(lang, "cola.completed_n")
+                ))
+                .small()
+                .color(p.fg_dim),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Limpiar completadas").clicked() {
+                if ui.button(tl(lang, "cola.clear_done")).clicked() {
                     self.queue.retain(|i| !matches!(i.status, QStatus::Done));
                 }
             });
@@ -587,11 +625,11 @@ impl App {
                         let label: String = it.url.chars().take(60).collect();
                         ui.label(RichText::new(label).color(p.fg));
                         let (txt, col) = match &it.status {
-                            QStatus::Pending => ("en espera".to_string(), p.fg_dim),
+                            QStatus::Pending => (tl(lang, "cola.pending").to_string(), p.fg_dim),
                             QStatus::Downloading => {
                                 (format!("{:.0}%", it.progress * 100.0), p.accent)
                             }
-                            QStatus::Done => ("completada".to_string(), p.ok),
+                            QStatus::Done => (tl(lang, "cola.done").to_string(), p.ok),
                             QStatus::Error(e) => (format!("error: {e}"), p.err),
                         };
                         ui.label(
@@ -605,7 +643,10 @@ impl App {
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if !matches!(it.status, QStatus::Downloading)
-                            && ui.button("✕").on_hover_text("Quitar").clicked()
+                            && ui
+                                .button("✕")
+                                .on_hover_text(tl(lang, "cola.remove"))
+                                .clicked()
                         {
                             remove = Some(it.id);
                         }
@@ -619,46 +660,72 @@ impl App {
     }
 
     fn ui_ajustes(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        let lang = self.lang;
         ui.add_space(12.0);
-        ui.label(RichText::new("Ajustes").heading().color(p.fg));
+        ui.label(RichText::new(tl(lang, "tab.ajustes")).heading().color(p.fg));
         ui.add_space(8.0);
+
+        // Language selector (app-local, takes effect immediately).
+        let mut new_lang = self.lang;
+        card(ui, p, |ui| {
+            ui.label(RichText::new(tl(lang, "set.language")).strong().color(p.fg));
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                for l in Lang::ALL {
+                    ui.selectable_value(&mut new_lang, l, l.label());
+                }
+            });
+        });
+        if new_lang != self.lang {
+            self.lang = new_lang;
+        }
+        ui.add_space(12.0);
 
         let Some(mut s) = self.settings.clone() else {
             ui.add_space(24.0);
             ui.horizontal(|ui| {
                 ui.spinner();
-                ui.label(RichText::new("Cargando…").color(p.fg_dim));
+                ui.label(RichText::new(tl(lang, "state.loading")).color(p.fg_dim));
             });
             return;
         };
 
         card(ui, p, |ui| {
-            ui.label(RichText::new("Descargas").strong().color(p.fg));
-            ui.add_space(6.0);
             ui.label(
-                RichText::new("Carpeta de descargas")
-                    .small()
-                    .color(p.fg_dim),
+                RichText::new(tl(lang, "set.downloads"))
+                    .strong()
+                    .color(p.fg),
             );
+            ui.add_space(6.0);
+            ui.label(RichText::new(tl(lang, "set.dir")).small().color(p.fg_dim));
             ui.add(egui::TextEdit::singleline(&mut s.download_dir).desired_width(f32::INFINITY));
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                combo(ui, "Tipo", &mut s.default_kind, &["video", "audio"]);
                 combo(
                     ui,
-                    "Calidad",
+                    "set.kind",
+                    tl(lang, "field.kind"),
+                    &mut s.default_kind,
+                    &["video", "audio"],
+                );
+                combo(
+                    ui,
+                    "set.q",
+                    tl(lang, "field.quality"),
                     &mut s.default_quality,
                     &["best", "2160", "1440", "1080", "720", "480"],
                 );
                 combo(
                     ui,
-                    "Contenedor",
+                    "set.c",
+                    tl(lang, "field.container"),
                     &mut s.default_container,
                     &["mp4", "mov", "mkv", "webm"],
                 );
                 combo(
                     ui,
-                    "Audio",
+                    "set.a",
+                    tl(lang, "field.audio"),
                     &mut s.default_audio_format,
                     &["mp3", "m4a", "opus", "flac", "wav"],
                 );
@@ -667,40 +734,44 @@ impl App {
 
         ui.add_space(12.0);
         card(ui, p, |ui| {
-            ui.label(RichText::new("YouTube PO token").strong().color(p.fg));
+            ui.label(RichText::new(tl(lang, "set.potoken")).strong().color(p.fg));
             ui.add_space(6.0);
             ui.label(
-                RichText::new(
-                    "auto mintea un token en un WebView oculto para saltar el muro antibot.",
-                )
-                .small()
-                .color(p.fg_dim),
+                RichText::new(tl(lang, "set.potoken_desc"))
+                    .small()
+                    .color(p.fg_dim),
             );
             ui.add_space(6.0);
-            combo(ui, "Modo", &mut s.po_token_mode, &["off", "manual", "auto"]);
+            combo(
+                ui,
+                "set.mode",
+                tl(lang, "set.mode"),
+                &mut s.po_token_mode,
+                &["off", "manual", "auto"],
+            );
         });
 
         ui.add_space(12.0);
         card(ui, p, |ui| {
-            ui.label(RichText::new("Opciones").strong().color(p.fg));
+            ui.label(RichText::new(tl(lang, "set.options")).strong().color(p.fg));
             ui.add_space(6.0);
-            ui.checkbox(&mut s.normalize_audio, "Normalizar audio a -14 LUFS");
-            ui.checkbox(&mut s.sponsorblock_enabled, "SponsorBlock");
-            ui.checkbox(&mut s.fetch_lyrics, "Buscar letras");
-            ui.checkbox(&mut s.check_updates, "Buscar actualizaciones al iniciar");
-            ui.checkbox(&mut s.notify_on_complete, "Notificar al terminar");
+            ui.checkbox(&mut s.normalize_audio, tl(lang, "set.normalize"));
+            ui.checkbox(&mut s.sponsorblock_enabled, tl(lang, "set.sponsorblock"));
+            ui.checkbox(&mut s.fetch_lyrics, tl(lang, "set.lyrics"));
+            ui.checkbox(&mut s.check_updates, tl(lang, "set.updates"));
+            ui.checkbox(&mut s.notify_on_complete, tl(lang, "set.notify"));
         });
 
         ui.add_space(14.0);
         ui.horizontal(|ui| {
-            let btn =
-                egui::Button::new(RichText::new("  Guardar  ").color(p.accent_fg)).fill(p.accent);
+            let label = format!("  {}  ", tl(lang, "action.save"));
+            let btn = egui::Button::new(RichText::new(label).color(p.accent_fg)).fill(p.accent);
             if ui.add(btn).clicked() {
                 self.settings_note = None;
                 self.backend.send(Cmd::SaveSettings(Box::new(s.clone())));
             }
-            if let Some(note) = &self.settings_note {
-                ui.label(RichText::new(format!("✓ {note}")).color(p.ok));
+            if self.settings_note.is_some() {
+                ui.label(RichText::new(format!("✓ {}", tl(lang, "state.saved"))).color(p.ok));
             }
         });
 
@@ -737,11 +808,12 @@ fn card(ui: &mut egui::Ui, p: theme::Palette, add: impl FnOnce(&mut egui::Ui)) {
         });
 }
 
-/// A labelled dropdown bound to a string from a fixed option list.
-fn combo(ui: &mut egui::Ui, label: &str, value: &mut String, options: &[&str]) {
+/// A labelled dropdown bound to a string from a fixed option list. `id` is a
+/// stable salt so the widget keeps its identity when the label is translated.
+fn combo(ui: &mut egui::Ui, id: &str, label: &str, value: &mut String, options: &[&str]) {
     ui.vertical(|ui| {
         ui.label(RichText::new(label).small());
-        egui::ComboBox::from_id_salt(label)
+        egui::ComboBox::from_id_salt(id)
             .selected_text(value.clone())
             .show_ui(ui, |ui| {
                 for opt in options {
