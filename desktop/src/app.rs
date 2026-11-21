@@ -712,7 +712,12 @@ impl eframe::App for App {
             .frame(
                 egui::Frame::new()
                     .fill(p.surface)
-                    .inner_margin(egui::Margin::symmetric(16, 10)),
+                    .inner_margin(egui::Margin {
+                        left: 20,
+                        right: 16,
+                        top: 12,
+                        bottom: 12,
+                    }),
             )
             .show(ui, |ui| {
                 ui.vertical(|ui| {
@@ -880,13 +885,12 @@ impl eframe::App for App {
                     .inner_margin(egui::Margin::same(20)),
             )
             .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    // A centered column with LEFT-aligned content (like the web UI).
-                    let wide = self.tab == Tab::Ajustes;
-                    let w = (if wide { 720.0_f32 } else { 640.0 }).min(ui.available_width() - 48.0);
-                    let pad = ((ui.available_width() - w) / 2.0).max(0.0);
-                    ui.horizontal_top(|ui| {
-                        ui.add_space(pad);
+                egui::ScrollArea::vertical()
+                    .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+                    .show(ui, |ui| {
+                        // Left-aligned content with a generous max width, so it lines
+                        // up with the brand and tabs in the header (like the web UI).
+                        let w = (ui.available_width() - 4.0).min(1120.0);
                         ui.vertical(|ui| {
                             ui.set_width(w);
                             match self.tab {
@@ -898,7 +902,6 @@ impl eframe::App for App {
                             }
                         });
                     });
-                });
             });
 
         // Supported-sites dialog — an egui Modal (it dims only the background and
@@ -1121,13 +1124,14 @@ impl App {
                 .show(ui, |ui| {
                     ui.set_width(total - 128.0);
                     ui.horizontal(|ui| {
-                        let red = if self.source == "soundcloud" {
-                            egui::Color32::from_rgb(255, 136, 0)
+                        // The selected source's real brand logo, in its colour.
+                        let (slug, col) = if self.source == "soundcloud" {
+                            ("soundcloud", egui::Color32::from_rgb(255, 102, 0))
                         } else {
-                            egui::Color32::from_rgb(237, 70, 70)
+                            ("youtube", egui::Color32::from_rgb(255, 0, 0))
                         };
-                        crate::icons::show(ui, "youtube", 15.0, red);
-                        ui.add_space(3.0);
+                        ui.add(crate::icons::site_img(slug, 16.0, col));
+                        ui.add_space(5.0);
                         egui::ComboBox::from_id_salt("source")
                             .selected_text(if self.source == "soundcloud" {
                                 "SoundCloud"

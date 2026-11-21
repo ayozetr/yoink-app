@@ -33,7 +33,47 @@ fn icon() -> egui::IconData {
     }
 }
 
+/// On Wayland the window icon isn't taken from `with_icon`; the compositor maps
+/// the window's `app_id` to a `.desktop` entry and uses its `Icon`. When running
+/// an un-installed binary there's no such entry, so the title bar/dock shows a
+/// generic icon. Drop a user-level desktop entry + icon (idempotent) so the real
+/// Yoink icon shows up. A system install (install.sh) still provides its own.
+#[cfg(target_os = "linux")]
+fn ensure_desktop_entry() {
+    let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+        return;
+    };
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| home.join(".local/share"));
+    let icon_dir = data.join("icons/hicolor/512x512/apps");
+    let app_dir = data.join("applications");
+    let _ = std::fs::create_dir_all(&icon_dir);
+    let _ = std::fs::create_dir_all(&app_dir);
+
+    let icon_path = icon_dir.join("yoink.png");
+    if !icon_path.exists() {
+        let _ = std::fs::write(&icon_path, include_bytes!("../assets/icon.png"));
+    }
+    let exec = std::env::current_exe()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| "yoink-desktop".into());
+    let entry = format!(
+        "[Desktop Entry]\nType=Application\nName=Yoink\nComment=Download high-fidelity video and audio\nExec={exec} %u\nIcon=yoink\nTerminal=false\nCategories=AudioVideo;Network;\nStartupWMClass=yoink\nMimeType=x-scheme-handler/yoink;\n"
+    );
+    let dpath = app_dir.join("yoink.desktop");
+    let up_to_date = std::fs::read_to_string(&dpath)
+        .map(|c| c.contains(&format!("Exec={exec} ")))
+        .unwrap_or(false);
+    if !up_to_date {
+        let _ = std::fs::write(&dpath, entry);
+    }
+}
+
 fn main() -> eframe::Result {
+    #[cfg(target_os = "linux")]
+    ensure_desktop_entry();
+
     // Deep link + single instance: if a yoink:// link was passed and another
     // instance is already running, hand it over and exit; otherwise we become the
     // owner and receive future links on `dl_rx`.
@@ -53,7 +93,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Yoink")
-            .with_app_id("app.yoink.desktop")
+            .with_app_id("yoink")
             .with_inner_size([1180.0, 840.0])
             .with_min_inner_size([560.0, 520.0])
             .with_icon(icon()),
