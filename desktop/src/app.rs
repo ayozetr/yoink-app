@@ -885,32 +885,12 @@ impl eframe::App for App {
                 });
             });
 
-        // Supported-sites dialog — a custom modal: a dimmed backdrop + a centred,
-        // title-bar-less panel (globe + Gloock title, bordered tiles), like the web.
+        // Supported-sites dialog — an egui Modal (it dims only the background and
+        // closes on backdrop click / Escape), with a custom title-bar-less panel.
         if self.supported_open {
-            let screen = ctx
-                .input(|i| i.raw.screen_rect)
-                .unwrap_or(egui::Rect::from_min_size(
-                    egui::Pos2::ZERO,
-                    egui::vec2(2400.0, 1600.0),
-                ));
-            // Dimmed backdrop (shown first so the panel layers on top); click to close.
-            let dim = egui::Area::new(egui::Id::unique("sites_dim"))
-                .fixed_pos(screen.min)
-                .show(&ctx, |ui| {
-                    ui.painter()
-                        .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(170));
-                    ui.allocate_response(screen.size(), egui::Sense::click())
-                });
-            if dim.inner.clicked() {
-                self.supported_open = false;
-            }
-            egui::Window::new("sites")
-                .title_bar(false)
-                .collapsible(false)
-                .resizable(false)
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            let resp = egui::Modal::new(egui::Id::unique("sites_modal"))
                 .frame(modal_frame(p))
+                .backdrop_color(egui::Color32::from_black_alpha(170))
                 .show(&ctx, |ui| {
                     ui.set_width(560.0);
                     // Header: globe + title (left), close (right).
@@ -992,33 +972,17 @@ impl eframe::App for App {
                         );
                     });
                 });
+            if resp.should_close() {
+                self.supported_open = false;
+            }
         }
 
         // "What's new" popup after an update — same custom modal look as the
         // supported-sites dialog (dimmed backdrop + title-bar-less panel).
         if self.whatsnew_open {
-            let screen = ctx
-                .input(|i| i.raw.screen_rect)
-                .unwrap_or(egui::Rect::from_min_size(
-                    egui::Pos2::ZERO,
-                    egui::vec2(2400.0, 1600.0),
-                ));
-            let dim = egui::Area::new(egui::Id::unique("whatsnew_dim"))
-                .fixed_pos(screen.min)
-                .show(&ctx, |ui| {
-                    ui.painter()
-                        .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(170));
-                    ui.allocate_response(screen.size(), egui::Sense::click())
-                });
-            if dim.inner.clicked() {
-                self.whatsnew_open = false;
-            }
-            egui::Window::new("whatsnew")
-                .title_bar(false)
-                .collapsible(false)
-                .resizable(false)
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            let resp = egui::Modal::new(egui::Id::unique("whatsnew_modal"))
                 .frame(modal_frame(p))
+                .backdrop_color(egui::Color32::from_black_alpha(170))
                 .show(&ctx, |ui| {
                     ui.set_width(520.0);
                     ui.horizontal(|ui| {
@@ -1085,6 +1049,9 @@ impl eframe::App for App {
                         self.whatsnew_open = false;
                     }
                 });
+            if resp.should_close() {
+                self.whatsnew_open = false;
+            }
         }
 
         self.maybe_screenshot(&ctx);
