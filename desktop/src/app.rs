@@ -259,6 +259,13 @@ impl App {
             app.tab = Tab::Ajustes;
             app.settings_scroll_to = Some(sec);
         }
+        if std::env::var("YOINK_SHOT_WHATSNEW").is_ok() {
+            app.whatsnew = vec![(
+                "v4.5.0".into(),
+                "## Novedades de la cola\n- Cada elemento guarda su propio formato\n- Barras de progreso por descarga\n\nTambién se pulió el modal de webs soportadas y los ajustes.".into(),
+            )];
+            app.whatsnew_open = true;
+        }
         app
     }
 
@@ -274,8 +281,9 @@ impl App {
                 Evt::WhatsNew(entries) => {
                     if !entries.is_empty() {
                         self.whatsnew = entries;
-                        // Don't pop it over a screenshot capture.
-                        self.whatsnew_open = self.shot.is_none();
+                        // Don't pop it over a screenshot capture (unless forced).
+                        self.whatsnew_open =
+                            self.shot.is_none() || std::env::var("YOINK_SHOT_WHATSNEW").is_ok();
                     }
                 }
                 Evt::History(h) => self.history = h,
@@ -472,6 +480,36 @@ impl App {
             trim_end: parse_timecode(&self.trim_end),
         }));
     }
+}
+
+/// The shared frame for a custom modal panel (surface fill, rounded, bordered,
+/// with a soft drop shadow).
+fn modal_frame(p: theme::Palette) -> egui::Frame {
+    egui::Frame::new()
+        .fill(p.surface)
+        .corner_radius(16)
+        .stroke(egui::Stroke::new(1.0, p.line))
+        .shadow(egui::epaint::Shadow {
+            offset: [0, 12],
+            blur: 48,
+            spread: 0,
+            color: egui::Color32::from_black_alpha(140),
+        })
+        .inner_margin(egui::Margin::same(22))
+}
+
+/// A modal close button (an X that lights up on hover). Returns its response.
+fn close_button(ui: &mut egui::Ui, p: theme::Palette) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(30.0, 30.0), egui::Sense::click());
+    let hov = resp.hovered();
+    if hov {
+        ui.painter().rect_filled(rect, 8.0, p.surface_hi);
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    let col = if hov { p.fg } else { p.fg_dim };
+    let irect = egui::Rect::from_center_size(rect.center(), egui::vec2(16.0, 16.0));
+    crate::icons::img("x", 16.0, col).paint_at(ui, irect);
+    resp
 }
 
 /// Open a URL in the user's default browser (fire-and-forget).
@@ -810,19 +848,7 @@ impl eframe::App for App {
                 .collapsible(false)
                 .resizable(false)
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .frame(
-                    egui::Frame::new()
-                        .fill(p.surface)
-                        .corner_radius(16)
-                        .stroke(egui::Stroke::new(1.0, p.line))
-                        .shadow(egui::epaint::Shadow {
-                            offset: [0, 12],
-                            blur: 48,
-                            spread: 0,
-                            color: egui::Color32::from_black_alpha(140),
-                        })
-                        .inner_margin(egui::Margin::same(22)),
-                )
+                .frame(modal_frame(p))
                 .show(&ctx, |ui| {
                     ui.set_width(560.0);
                     // Header: globe + title (left), close (right).
@@ -836,19 +862,7 @@ impl eframe::App for App {
                                 .color(p.fg),
                         );
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            // Close button that lights up on hover.
-                            let (rect, resp) = ui
-                                .allocate_exact_size(egui::vec2(30.0, 30.0), egui::Sense::click());
-                            let hov = resp.hovered();
-                            if hov {
-                                ui.painter().rect_filled(rect, 8.0, p.surface_hi);
-                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                            }
-                            let col = if hov { p.fg } else { p.fg_dim };
-                            let irect =
-                                egui::Rect::from_center_size(rect.center(), egui::vec2(16.0, 16.0));
-                            crate::icons::img("x", 16.0, col).paint_at(ui, irect);
-                            if resp.clicked() {
+                            if close_button(ui, p).clicked() {
                                 self.supported_open = false;
                             }
                         });
@@ -873,7 +887,7 @@ impl eframe::App for App {
                                 let col = &mut c[i];
                                 let w = col.available_width();
                                 let (rect, resp) = col
-                                    .allocate_exact_size(egui::vec2(w, 66.0), egui::Sense::click());
+                                    .allocate_exact_size(egui::vec2(w, 76.0), egui::Sense::click());
                                 let hov = resp.hovered();
                                 let fill = if hov {
                                     lighten(p.surface_hi, 16)
@@ -893,9 +907,9 @@ impl eframe::App for App {
                                         .max_rect(rect)
                                         .layout(egui::Layout::top_down(egui::Align::Center)),
                                 );
-                                cui.add_space(12.0);
+                                cui.add_space(16.0);
                                 crate::icons::show_site(&mut cui, slug, 22.0, p.fg);
-                                cui.add_space(7.0);
+                                cui.add_space(9.0);
                                 cui.label(RichText::new(*name).small().color(p.fg));
                                 if hov {
                                     col.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
@@ -918,22 +932,60 @@ impl eframe::App for App {
                 });
         }
 
-        // "What's new" popup after an update.
+        // "What's new" popup after an update — same custom modal look as the
+        // supported-sites dialog (dimmed backdrop + title-bar-less panel).
         if self.whatsnew_open {
-            let mut open = true;
-            egui::Window::new(tl(lang, "whatsnew.title"))
+            let screen = ctx
+                .input(|i| i.raw.screen_rect)
+                .unwrap_or(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(2400.0, 1600.0),
+                ));
+            let dim = egui::Area::new(egui::Id::unique("whatsnew_dim"))
+                .fixed_pos(screen.min)
+                .show(&ctx, |ui| {
+                    ui.painter()
+                        .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(170));
+                    ui.allocate_response(screen.size(), egui::Sense::click())
+                });
+            if dim.inner.clicked() {
+                self.whatsnew_open = false;
+            }
+            egui::Window::new("whatsnew")
+                .title_bar(false)
                 .collapsible(false)
                 .resizable(false)
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .frame(modal_frame(p))
                 .show(&ctx, |ui| {
-                    ui.set_max_width(520.0);
+                    ui.set_width(520.0);
+                    ui.horizontal(|ui| {
+                        crate::icons::show(ui, "sparkles", 18.0, p.accent);
+                        ui.add_space(8.0);
+                        ui.label(
+                            RichText::new(tl(lang, "whatsnew.title"))
+                                .size(19.0)
+                                .family(crate::fonts::display())
+                                .color(p.fg),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if close_button(ui, p).clicked() {
+                                self.whatsnew_open = false;
+                            }
+                        });
+                    });
+                    ui.add_space(12.0);
                     egui::ScrollArea::vertical()
-                        .max_height(380.0)
+                        .max_height(360.0)
+                        .auto_shrink([false, true])
+                        .scroll_bar_visibility(
+                            egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded,
+                        )
                         .show(ui, |ui| {
                             for (ver, notes) in &self.whatsnew {
                                 ui.label(
                                     RichText::new(ver)
-                                        .size(18.0)
+                                        .size(17.0)
                                         .family(crate::fonts::display())
                                         .color(p.fg),
                                 );
@@ -959,20 +1011,18 @@ impl eframe::App for App {
                                 ui.add_space(14.0);
                             }
                         });
-                    ui.add_space(6.0);
+                    ui.add_space(14.0);
                     let btn = egui::Button::new(
                         RichText::new(format!("  {}  ", tl(lang, "whatsnew.close")))
                             .color(p.accent_fg),
                     )
                     .fill(p.accent)
-                    .corner_radius(8);
+                    .corner_radius(9)
+                    .min_size(egui::vec2(0.0, 36.0));
                     if ui.add(btn).clicked() {
-                        open = false;
+                        self.whatsnew_open = false;
                     }
                 });
-            if !open {
-                self.whatsnew_open = false;
-            }
         }
 
         self.maybe_screenshot(&ctx);

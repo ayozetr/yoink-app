@@ -40,6 +40,7 @@ fn bytes(name: &str) -> (&'static str, &'static [u8]) {
         "x" => ("x", svg!("x")),
         "help" => ("help", svg!("circle-help")),
         "globe" => ("globe", svg!("globe")),
+        "sparkles" => ("sparkles", svg!("sparkles")),
         _ => ("help", svg!("circle-help")),
     }
 }
