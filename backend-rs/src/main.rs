@@ -1352,6 +1352,28 @@ async fn autotag_search(Json(req): Json<AutotagSearchRequest>) -> Json<Value> {
     Json(serde_json::json!({ "results": results }))
 }
 
+#[derive(Deserialize)]
+struct LyricsRequest {
+    title: String,
+    #[serde(default)]
+    artist: String,
+    #[serde(default)]
+    album: Option<String>,
+    #[serde(default)]
+    path: Option<String>,
+}
+
+async fn autotag_lyrics(Json(req): Json<LyricsRequest>) -> Json<Value> {
+    let duration = req.path.as_deref().and_then(autotag::probe_duration);
+    let r = autotag::fetch_lyrics(&req.title, &req.artist, req.album.as_deref(), duration).await;
+    Json(serde_json::json!({
+        "found": r.found,
+        "instrumental": r.instrumental,
+        "has_synced": r.has_synced,
+        "plain": r.plain,
+    }))
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -1394,6 +1416,7 @@ async fn main() {
         .route("/api/autotag/apply", post(autotag_apply))
         .route("/api/autotag/identify", post(autotag_identify))
         .route("/api/autotag/search", post(autotag_search))
+        .route("/api/autotag/lyrics", post(autotag_lyrics))
         .layer(cors);
 
     // Shut down when the parent (the Tauri shell) closes our stdin — mirrors the

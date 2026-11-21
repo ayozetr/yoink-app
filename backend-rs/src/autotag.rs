@@ -331,3 +331,70 @@ pub fn guess_from_filename(name: &str) -> (String, String) {
     }
     (String::new(), base)
 }
+
+// --- lyrics (LRCLIB) -------------------------------------------------------
+
+pub struct LyricsResult {
+    pub found: bool,
+    pub instrumental: bool,
+    pub has_synced: bool,
+    pub plain: Option<String>,
+}
+
+fn to_lyrics(rec: &Value) -> Option<(Option<String>, bool, bool)> {
+    let instrumental = rec.get("instrumental").and_then(Value::as_bool).unwrap_or(false);
+    let nz = |k: &str| rec.get(k).and_then(Value::as_str).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let plain = nz("plainLyrics");
+    let synced = nz("syncedLyrics");
+    if !instrumental && plain.is_none() && synced.is_none() {
+        return None;
+    }
+    Some((plain, synced.is_some(), instrumental))
+}
+
+/// Audio duration (seconds) from the file, for LRCLIB's exact signature match.
+pub fn probe_duration(path: &str) -> Option<f64> {
+    use lofty::file::AudioFile;
+    let tagged = lofty::read_from_path(path).ok()?;
+    Some(tagged.properties().duration().as_secs_f64())
+}
+
+/// Look up lyrics on LRCLIB (keyless). Mirrors lyrics.fetch_lyrics (the exact
+/// /get with duration, then /search by track+artist).
+pub async fn fetch_lyrics(title: &str, artist: &str, album: Option<&str>, duration: Option<f64>) -> LyricsResult {
+    let empty = LyricsResult { found: false, instrumental: false, has_synced: false, plain: None };
+    let (title, artist) = (title.trim(), artist.trim());
+    if title.is_empty() {
+        return empty;
+    }
+    let build = |rec: &Value| {
+        to_lyrics(rec).map(|(plain, has_synced, instrumental)| LyricsResult {
+            found: true,
+            instrumental,
+            has_synced,
+            plain,
+        })
+    };
+
+    if let Some(d) = duration {
+        let dur = (d as i64).to_string();
+        let mut params = vec![("track_name", title), ("artist_name", artist), ("duration", dur.as_str())];
+        if let Some(al) = album.filter(|a| !a.is_empty()) {
+            params.push(("album_name", al));
+        }
+        if let Some(got) = get_json("https://lrclib.net/api/get", &params).await {
+            if let Some(r) = build(&got) {
+                return r;
+            }
+        }
+    }
+
+    if let Some(hits) = get_json("https://lrclib.net/api/search", &[("track_name", title), ("artist_name", artist)]).await {
+        for hit in hits.as_array().into_iter().flatten() {
+            if let Some(r) = build(hit) {
+                return r;
+            }
+        }
+    }
+    empty
+}
