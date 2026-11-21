@@ -162,6 +162,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("hist.transferred", En) => "transferred",
         ("hist.search", Es) => "Buscar en el historial…",
         ("hist.search", En) => "Search history…",
+        ("hist.thisweek", Es) => "ESTA SEMANA",
+        ("hist.thisweek", En) => "THIS WEEK",
         ("time.now", Es) => "ahora",
         ("time.now", En) => "just now",
 

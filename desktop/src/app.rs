@@ -1281,60 +1281,66 @@ impl App {
         ui.add_space(8.0);
 
         let q = self.hist_query.to_lowercase();
+        // "This week" section label.
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new(tl(lang, "hist.thisweek"))
+                .small()
+                .color(p.fg_dim),
+        );
+
         for e in self
             .history
             .clone()
             .into_iter()
             .filter(|e| q.is_empty() || e.title.to_lowercase().contains(&q))
         {
-            card(ui, p, |ui| {
-                ui.horizontal(|ui| {
-                    fmt_badge(ui, p, &badge_label(&e));
-                    ui.add_space(12.0);
-                    ui.vertical(|ui| {
-                        ui.set_width(ui.available_width() - 70.0);
-                        ui.label(RichText::new(&e.title).strong().color(p.fg));
-                        ui.add_space(3.0);
-                        ui.horizontal(|ui| {
-                            if e.status == "completed" {
-                                crate::icons::show(ui, "check", 13.0, p.ok);
-                                ui.add_space(2.0);
-                            } else if e.status == "error" {
-                                crate::icons::show(ui, "x", 13.0, p.err);
-                                ui.add_space(2.0);
-                            }
-                            let mut meta = Vec::new();
-                            if let Some(q) = e.quality.as_deref().filter(|q| !q.is_empty()) {
-                                meta.push(q.to_string());
-                            }
-                            if let Some(sz) = e.filesize {
-                                meta.push(human_bytes(sz));
-                            }
-                            meta.push(relative(&e.created_at, lang));
-                            ui.label(RichText::new(meta.join("  ·  ")).small().color(p.fg_dim));
+            // The whole row is a hover-highlighted click target that opens the file.
+            let resp = egui::Frame::new()
+                .inner_margin(egui::Margin::symmetric(6, 8))
+                .corner_radius(8)
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        fmt_badge(ui, p, &badge_label(&e));
+                        ui.add_space(12.0);
+                        ui.vertical(|ui| {
+                            ui.set_width(ui.available_width() - 90.0);
+                            ui.label(RichText::new(&e.title).strong().color(p.fg));
+                            ui.add_space(3.0);
+                            ui.horizontal(|ui| {
+                                if e.status == "completed" {
+                                    crate::icons::show(ui, "check", 13.0, p.ok);
+                                    ui.add_space(2.0);
+                                } else if e.status == "error" {
+                                    crate::icons::show(ui, "x", 13.0, p.err);
+                                    ui.add_space(2.0);
+                                }
+                                let mut meta = Vec::new();
+                                if let Some(q) = e.quality.as_deref().filter(|q| !q.is_empty()) {
+                                    meta.push(q.to_string());
+                                }
+                                if let Some(sz) = e.filesize {
+                                    meta.push(human_bytes(sz));
+                                }
+                                ui.label(RichText::new(meta.join("  ·  ")).small().color(p.fg_dim));
+                            });
+                        });
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(
+                                RichText::new(relative(&e.created_at, lang))
+                                    .small()
+                                    .color(p.fg_dim),
+                            );
                         });
                     });
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if let Some(path) = e.filepath.clone() {
-                            if e.status == "completed"
-                                && ui
-                                    .add(
-                                        egui::Button::image_and_text(
-                                            crate::icons::img("folder", 14.0, p.fg_dim),
-                                            RichText::new(tl(lang, "action.open"))
-                                                .small()
-                                                .color(p.fg_dim),
-                                        )
-                                        .frame(false),
-                                    )
-                                    .clicked()
-                            {
-                                self.backend.send(Cmd::Open(path));
-                            }
-                        }
-                    });
-                });
-            });
+                })
+                .response
+                .interact(egui::Sense::click());
+            if resp.clicked() {
+                if let Some(path) = e.filepath.clone().filter(|_| e.status == "completed") {
+                    self.backend.send(Cmd::Open(path));
+                }
+            }
         }
     }
 
