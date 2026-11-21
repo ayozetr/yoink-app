@@ -37,7 +37,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "binaries/yoink-backend": "backend"
+      "binaries/core": "core"
     },
     "linux": {
       "deb": {

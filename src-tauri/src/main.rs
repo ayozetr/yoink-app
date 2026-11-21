@@ -162,24 +162,23 @@ fn pick_backend_port() -> u16 {
 
 /// Locate the bundled backend executable inside the app's resource directory.
 ///
-/// The backend ships as a PyInstaller **one-folder** distribution bundled as a
-/// Tauri resource, so the exe lives next to its `_internal/` libraries. Try the
-/// few layouts Tauri may place resources under, so a layout quirk on one platform
-/// doesn't stop it being found. Returns `None` in dev (no bundled resource) — the
-/// backend then runs separately on the default port.
+/// The backend is `yoink-core` — a single Rust binary that shells out to the
+/// `yt-dlp` and `ffmpeg` binaries bundled beside it (replacing the old PyInstaller
+/// one-folder distribution). Try the few layouts Tauri may place resources under.
+/// Returns `None` in dev (no bundled resource) — the backend then runs separately
+/// on the default port.
 fn backend_exe(app: &tauri::App) -> Option<PathBuf> {
     let resource_dir = app.path().resource_dir().ok()?;
     let name = if cfg!(windows) {
-        "yoink-backend.exe"
+        "yoink-core.exe"
     } else {
-        "yoink-backend"
+        "yoink-core"
     };
     for sub in [
-        "backend",
-        "backend/yoink-backend",
-        "binaries/yoink-backend",
-        "resources/backend",
-        "resources/binaries/yoink-backend",
+        "core",
+        "binaries/core",
+        "resources/core",
+        "resources/binaries/core",
     ] {
         let candidate = resource_dir.join(sub).join(name);
         if candidate.exists() {
@@ -214,7 +213,17 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
         }
     }
 
+    // yt-dlp and ffmpeg/ffprobe ship beside yoink-core; point it at them so it
+    // doesn't depend on a system install.
+    let core_dir = exe.parent().map(PathBuf::from);
     let mut command = Command::new(&exe);
+    if let Some(dir) = &core_dir {
+        let ytdlp = dir.join(if cfg!(windows) { "yt-dlp.exe" } else { "yt-dlp" });
+        if ytdlp.exists() {
+            command.env("YOINK_YTDLP", &ytdlp);
+        }
+        command.env("YOINK_FFMPEG", dir);
+    }
     command
         .env("YOINK_PORT", port.to_string())
         // Give it a stdin pipe kept open for the process's lifetime (the Child

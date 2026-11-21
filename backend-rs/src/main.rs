@@ -545,6 +545,14 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         "--print".into(),
         "after_move:YDONE|%(filepath)s".into(),
     ];
+    // Bundled ffmpeg location (set by the Tauri shell), so merges/extraction work
+    // without a system ffmpeg.
+    if let Ok(dir) = std::env::var("YOINK_FFMPEG") {
+        if !dir.is_empty() {
+            a.push("--ffmpeg-location".into());
+            a.push(dir);
+        }
+    }
     let nonempty = |o: &Option<String>| o.as_deref().filter(|s| !s.is_empty()).map(str::to_string);
 
     // Network options (from settings).
@@ -1270,6 +1278,19 @@ async fn main() {
         .route("/api/music/resolve", post(music_resolve))
         .route("/api/autotag/apply", post(autotag_apply))
         .layer(cors);
+
+    // Shut down when the parent (the Tauri shell) closes our stdin — mirrors the
+    // Python backend's watchdog, so the app dropping the pipe stops us on exit.
+    tokio::spawn(async {
+        let mut stdin = tokio::io::stdin();
+        let mut buf = [0u8; 256];
+        loop {
+            match stdin.read(&mut buf).await {
+                Ok(0) | Err(_) => std::process::exit(0),
+                Ok(_) => {}
+            }
+        }
+    });
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     println!("yoink-core {APP_VERSION} listening on http://{addr}");
