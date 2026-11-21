@@ -873,7 +873,7 @@ impl eframe::App for App {
                                 let col = &mut c[i];
                                 let w = col.available_width();
                                 let (rect, resp) = col
-                                    .allocate_exact_size(egui::vec2(w, 56.0), egui::Sense::click());
+                                    .allocate_exact_size(egui::vec2(w, 66.0), egui::Sense::click());
                                 let hov = resp.hovered();
                                 let fill = if hov {
                                     lighten(p.surface_hi, 16)
@@ -893,9 +893,9 @@ impl eframe::App for App {
                                         .max_rect(rect)
                                         .layout(egui::Layout::top_down(egui::Align::Center)),
                                 );
-                                cui.add_space(8.0);
+                                cui.add_space(12.0);
                                 crate::icons::show_site(&mut cui, slug, 22.0, p.fg);
-                                cui.add_space(5.0);
+                                cui.add_space(7.0);
                                 cui.label(RichText::new(*name).small().color(p.fg));
                                 if hov {
                                     col.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
