@@ -13,20 +13,20 @@ pulls in further open-source libraries under the same permissive licenses.
 
 - **@fontsource-variable/inter** v5.3.0 — OFL-1.1
 - **@fontsource/gloock** v5.3.0 — OFL-1.1
-- **@tauri-apps/plugin-dialog** v2.7.1 — MIT OR Apache-2.0
-- **@tauri-apps/plugin-notification** v2.3.3 — MIT OR Apache-2.0
-- **@tauri-apps/plugin-opener** v2.5.4 — MIT OR Apache-2.0
-- **@tauri-apps/plugin-os** v2.3.2 — MIT OR Apache-2.0
-- **@tauri-apps/plugin-process** v2.3.1 — MIT OR Apache-2.0
-- **@tauri-apps/plugin-updater** v2.10.1 — MIT OR Apache-2.0
+- **@tauri-apps/plugin-dialog** v2.8.4 — MIT OR Apache-2.0
+- **@tauri-apps/plugin-notification** v2.8.1 — MIT OR Apache-2.0
+- **@tauri-apps/plugin-opener** v2.7.3 — MIT OR Apache-2.0
+- **@tauri-apps/plugin-os** v2.4.0 — MIT OR Apache-2.0
+- **@tauri-apps/plugin-process** v2.4.0 — MIT OR Apache-2.0
+- **@tauri-apps/plugin-updater** v2.14.1 — MIT OR Apache-2.0
 - **bgutils-js** v4.0.3 — MIT
-- **i18next** v26.3.0 — MIT
-- **i18next-browser-languagedetector** v8.2.1 — MIT
-- **lucide-react** v1.17.0 — ISC
-- **react** v19.2.6 — MIT
-- **react-dom** v19.2.6 — MIT
+- **i18next** v27.2.2 — MIT
+- **i18next-browser-languagedetector** v8.3.1 — MIT
+- **lucide-react** v1.74.0 — ISC
+- **react** v19.3.1 — MIT
+- **react-dom** v19.3.1 — MIT
 - **react-i18next** v17.0.8 — MIT
-- **simple-icons** v16.29.0 — CC0-1.0
+- **simple-icons** v16.38.0 — CC0-1.0
 
 ## Desktop shell — Rust / cargo (15)
 
@@ -48,8 +48,8 @@ pulls in further open-source libraries under the same permissive licenses.
 
 ## Backend — Python / pip (5)
 
-- **fastapi** v0.136.3 — MIT
-- **pydantic** v2.13.4 — MIT
-- **pydantic-settings** v2.14.1 — MIT
-- **uvicorn** v0.48.0 — BSD-3-Clause
+- **fastapi** v0.165.0 — MIT
+- **pydantic** v2.14.4 — MIT
+- **pydantic-settings** v2.16.3 — MIT
+- **uvicorn** v0.54.0 — BSD-3-Clause
 - **yt-dlp** v2026.10.26 — Unlicense
