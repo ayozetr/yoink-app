@@ -8,6 +8,7 @@
 
 mod api;
 mod app;
+mod backend_proc;
 mod deeplink;
 mod fonts;
 mod i18n;
@@ -39,6 +40,9 @@ fn main() -> eframe::Result {
     if deeplink::single_instance(pending.clone(), dl_tx) {
         return Ok(());
     }
+
+    // Start (and own) the backend if one isn't already running; dropped on exit.
+    let _backend = backend_proc::Backend::ensure();
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
