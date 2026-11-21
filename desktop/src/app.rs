@@ -719,6 +719,8 @@ impl eframe::App for App {
         // Settings "on this page" nav (sticky right column).
         if self.tab == Tab::Ajustes {
             egui::Panel::right("settings-nav")
+                .resizable(false)
+                .exact_size(210.0)
                 .frame(
                     egui::Frame::new()
                         .fill(p.canvas)
@@ -783,24 +785,74 @@ impl eframe::App for App {
                 });
             });
 
-        // Supported-sites dialog (the "Supported sites" link under the URL bar).
+        // Supported-sites dialog — a custom modal: a dimmed backdrop + a centred,
+        // title-bar-less panel (globe + Gloock title, bordered tiles), like the web.
         if self.supported_open {
-            let mut open = true;
-            egui::Window::new(tl(lang, "sites.title"))
+            let screen = ctx
+                .input(|i| i.raw.screen_rect)
+                .unwrap_or(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(2400.0, 1600.0),
+                ));
+            // Dimmed backdrop (shown first so the panel layers on top); click to close.
+            let dim = egui::Area::new(egui::Id::unique("sites_dim"))
+                .fixed_pos(screen.min)
+                .show(&ctx, |ui| {
+                    ui.painter()
+                        .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(170));
+                    ui.allocate_response(screen.size(), egui::Sense::click())
+                });
+            if dim.inner.clicked() {
+                self.supported_open = false;
+            }
+            egui::Window::new("sites")
+                .title_bar(false)
                 .collapsible(false)
                 .resizable(false)
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .open(&mut open)
+                .frame(
+                    egui::Frame::new()
+                        .fill(p.surface)
+                        .corner_radius(16)
+                        .stroke(egui::Stroke::new(1.0, p.line))
+                        .shadow(egui::epaint::Shadow {
+                            offset: [0, 12],
+                            blur: 48,
+                            spread: 0,
+                            color: egui::Color32::from_black_alpha(140),
+                        })
+                        .inner_margin(egui::Margin::same(24)),
+                )
                 .show(&ctx, |ui| {
-                    ui.set_width(560.0);
-                    ui.label(
-                        RichText::new(tl(lang, "sites.intro"))
-                            .small()
-                            .color(p.fg_dim),
-                    );
-                    ui.add_space(12.0);
+                    ui.set_width(600.0);
+                    // Header: globe + title (left), close (right).
+                    ui.horizontal(|ui| {
+                        crate::icons::show(ui, "globe", 18.0, p.accent);
+                        ui.add_space(8.0);
+                        ui.label(
+                            RichText::new(tl(lang, "sites.title"))
+                                .size(21.0)
+                                .family(crate::fonts::display())
+                                .color(p.fg),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .add(
+                                    egui::Button::image(crate::icons::img("x", 16.0, p.fg_dim))
+                                        .frame(false),
+                                )
+                                .clicked()
+                            {
+                                self.supported_open = false;
+                            }
+                        });
+                    });
+                    ui.add_space(6.0);
+                    ui.label(RichText::new(tl(lang, "sites.intro")).color(p.fg_dim));
+                    ui.add_space(16.0);
                     egui::ScrollArea::vertical()
-                        .max_height(440.0)
+                        .max_height(460.0)
+                        .auto_shrink([false, false])
                         .show(ui, |ui| {
                             // A 4-column grid of clickable logo + name tiles.
                             let cols = 4;
@@ -809,16 +861,16 @@ impl eframe::App for App {
                                     for (i, (slug, name, url)) in row.iter().enumerate() {
                                         let resp = egui::Frame::new()
                                             .fill(p.surface_hi)
-                                            .corner_radius(10)
-                                            .inner_margin(egui::Margin::symmetric(8, 12))
+                                            .corner_radius(12)
+                                            .stroke(egui::Stroke::new(1.0, p.line))
+                                            .inner_margin(egui::Margin::symmetric(8, 16))
                                             .show(&mut c[i], |ui| {
                                                 ui.vertical_centered(|ui| {
                                                     ui.set_width(ui.available_width());
-                                                    crate::icons::show_site(ui, slug, 24.0, p.fg);
-                                                    ui.add_space(7.0);
-                                                    ui.label(
-                                                        RichText::new(*name).small().color(p.fg),
-                                                    );
+                                                    ui.set_min_height(44.0);
+                                                    crate::icons::show_site(ui, slug, 26.0, p.fg);
+                                                    ui.add_space(9.0);
+                                                    ui.label(RichText::new(*name).color(p.fg));
                                                 });
                                             })
                                             .response
@@ -828,7 +880,7 @@ impl eframe::App for App {
                                         }
                                     }
                                 });
-                                ui.add_space(8.0);
+                                ui.add_space(12.0);
                             }
                         });
                     ui.add_space(6.0);
@@ -840,9 +892,6 @@ impl eframe::App for App {
                         );
                     });
                 });
-            if !open {
-                self.supported_open = false;
-            }
         }
 
         // "What's new" popup after an update.
