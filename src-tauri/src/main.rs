@@ -226,6 +226,8 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
     }
     command
         .env("YOINK_PORT", port.to_string())
+        // Ask yoink-core to watch the stdin pipe below and exit when it closes.
+        .env("YOINK_STDIN_WATCHDOG", "1")
         // Give it a stdin pipe kept open for the process's lifetime (the Child
         // owns the write end). The backend's watchdog reads stdin and exits on
         // EOF, so if the app dies without running the exit handler, the closed

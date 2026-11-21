@@ -1142,6 +1142,11 @@ async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (Stat
     Ok(Json(serde_json::json!({ "youtube_url": youtube_url, "isrc": track.isrc })))
 }
 
+async fn music_cover(Json(track): Json<MusicTrack>) -> Json<Value> {
+    let (cover_url, duration_ms) = music::track_meta(&track.title, &track.artists).await;
+    Json(serde_json::json!({ "cover_url": cover_url, "duration_ms": duration_ms }))
+}
+
 #[derive(Deserialize)]
 struct ResolveRequest {
     url: String,
@@ -1178,6 +1183,75 @@ async fn music_resolve(
             "Not a recognised music-service URL.".into(),
         )),
     }
+}
+
+// ---- release notes ("what's new" popup) --------------------------------------
+
+const REPO: &str = "ayozetr/yoink-app";
+
+fn parse_ver(v: &str) -> Option<(u32, u32, u32)> {
+    let mut it = v.trim_start_matches('v').split('.');
+    Some((
+        it.next()?.parse().ok()?,
+        it.next()?.parse().ok()?,
+        it.next()?.parse().ok()?,
+    ))
+}
+
+/// The notes before the hidden `<!-- /whatsnew -->` marker (or the Downloads
+/// table), matching routers/settings.py + updates._trim_notes.
+fn trim_notes(body: &str) -> String {
+    if let Some(idx) = body.find("<!-- /whatsnew -->") {
+        return body[..idx].trim().to_string();
+    }
+    if let Some(idx) = body.find("\n## Downloads") {
+        return body[..idx].trim().to_string();
+    }
+    body.trim().to_string()
+}
+
+#[derive(Deserialize)]
+struct RnParams {
+    #[serde(default)]
+    since: Option<String>,
+}
+
+async fn release_notes(axum::extract::Query(p): axum::extract::Query<RnParams>) -> Json<Value> {
+    let current = parse_ver(APP_VERSION);
+    let since = p.since.as_deref().and_then(parse_ver);
+    let client = reqwest::Client::builder().user_agent("Yoink").build().unwrap_or_default();
+    let releases: Vec<Value> = async {
+        let resp = client
+            .get(format!("https://api.github.com/repos/{REPO}/releases?per_page=30"))
+            .send()
+            .await
+            .ok()?;
+        resp.json::<Value>().await.ok()?.as_array().cloned()
+    }
+    .await
+    .unwrap_or_default();
+
+    let mut entries = Vec::new();
+    for rel in &releases {
+        let is_pre = rel.get("prerelease").and_then(Value::as_bool).unwrap_or(false)
+            || rel.get("draft").and_then(Value::as_bool).unwrap_or(false);
+        if is_pre {
+            continue;
+        }
+        let tag = rel.get("tag_name").and_then(Value::as_str).unwrap_or("");
+        let Some(ver) = parse_ver(tag) else { continue };
+        let include = match (since, current) {
+            (Some(sv), Some(cv)) => ver > sv && ver <= cv,
+            (None, Some(cv)) => ver == cv,
+            _ => false,
+        };
+        if !include {
+            continue;
+        }
+        let body = rel.get("body").and_then(Value::as_str).unwrap_or("");
+        entries.push(serde_json::json!({ "version": tag, "notes": trim_notes(body) }));
+    }
+    Json(serde_json::json!({ "entries": entries }))
 }
 
 // ---- autotag -----------------------------------------------------------------
@@ -1273,24 +1347,30 @@ async fn main() {
         .route("/api/history", get(get_history))
         .route("/api/history/stats", get(get_history_stats))
         .route("/api/ytdlp-version", get(ytdlp_version))
+        .route("/api/release-notes", get(release_notes))
         .route("/api/open", post(open_path))
         .route("/api/music/match", post(music_match))
         .route("/api/music/resolve", post(music_resolve))
+        .route("/api/music/cover", post(music_cover))
         .route("/api/autotag/apply", post(autotag_apply))
         .layer(cors);
 
     // Shut down when the parent (the Tauri shell) closes our stdin — mirrors the
-    // Python backend's watchdog, so the app dropping the pipe stops us on exit.
-    tokio::spawn(async {
-        let mut stdin = tokio::io::stdin();
-        let mut buf = [0u8; 256];
-        loop {
-            match stdin.read(&mut buf).await {
-                Ok(0) | Err(_) => std::process::exit(0),
-                Ok(_) => {}
+    // Python backend's watchdog. Only when the shell asks (it hands us an open
+    // pipe); a dev/standalone run inherits an already-EOF stdin and must NOT
+    // exit, so the watchdog is gated on the env var the shell sets.
+    if std::env::var_os("YOINK_STDIN_WATCHDOG").is_some() {
+        tokio::spawn(async {
+            let mut stdin = tokio::io::stdin();
+            let mut buf = [0u8; 256];
+            loop {
+                match stdin.read(&mut buf).await {
+                    Ok(0) | Err(_) => std::process::exit(0),
+                    Ok(_) => {}
+                }
             }
-        }
-    });
+        });
+    }
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     println!("yoink-core {APP_VERSION} listening on http://{addr}");

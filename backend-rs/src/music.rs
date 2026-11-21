@@ -866,3 +866,49 @@ pub async fn resolve_tidal(url: &str) -> Result<MusicImportInfo, String> {
         truncated: false,
     })
 }
+
+// --- lazy per-track metadata (cover + duration via Deezer) -----------------
+
+async fn get_json_query(base: &str, params: &[(&str, &str)]) -> Result<Value, String> {
+    client()
+        .get(base)
+        .query(params)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json::<Value>()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// One keyless Deezer lookup for a track -> (cover_url, duration_ms). Best-effort:
+/// (None, None) on any miss. Mirrors _deezer_track_meta in music_import.py.
+pub async fn track_meta(title: &str, artists: &str) -> (Option<String>, Option<i64>) {
+    if title.is_empty() {
+        return (None, None);
+    }
+    let queries = [
+        format!("artist:\"{artists}\" track:\"{title}\""),
+        format!("{artists} {title}").trim().to_string(),
+    ];
+    for q in queries {
+        if q.is_empty() {
+            continue;
+        }
+        let Ok(data) = get_json_query("https://api.deezer.com/search", &[("limit", "1"), ("q", &q)]).await
+        else {
+            continue;
+        };
+        if let Some(first) = data.get("data").and_then(Value::as_array).and_then(|a| a.first()) {
+            let cover = first
+                .get("album")
+                .and_then(|a| s(a, "cover_xl").or_else(|| s(a, "cover_big")))
+                .or_else(|| s(first, "cover_xl"));
+            let duration = first.get("duration").and_then(Value::as_i64).map(|d| d * 1000);
+            if cover.is_some() || duration.is_some() {
+                return (cover, duration);
+            }
+        }
+    }
+    (None, None)
+}
