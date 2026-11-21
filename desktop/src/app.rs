@@ -110,6 +110,8 @@ pub struct App {
     q_container: String,
     q_audio: String,
     advanced_open: bool,
+    update_available: Option<String>,
+    update_dismissed: bool,
     deeplink_rx: std::sync::mpsc::Receiver<String>,
     shot: Option<(String, std::time::Instant)>, // (output path, started) for YOINK_SHOT
 }
@@ -163,6 +165,8 @@ impl App {
             q_container: "mp4".into(),
             q_audio: "mp3".into(),
             advanced_open: false,
+            update_available: None,
+            update_dismissed: false,
             deeplink_rx,
             shot: std::env::var("YOINK_SHOT")
                 .ok()
@@ -173,6 +177,9 @@ impl App {
         if let Some(url) = pending {
             app.url = url;
             app.analyze();
+        }
+        if std::env::var("YOINK_FAKE_UPDATE").is_ok() {
+            app.update_available = Some("4.5.0".into());
         }
         // Screenshot helpers (YOINK_SHOT): pick a tab / pre-analyze a URL to capture.
         if let Ok(t) = std::env::var("YOINK_SHOT_TAB") {
@@ -209,6 +216,7 @@ impl App {
                     self.settings = Some(*s);
                 }
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
+                Evt::UpdateAvailable { version } => self.update_available = Some(version),
                 Evt::History(h) => self.history = h,
                 Evt::Logs { path, content } => {
                     self.logs_path = path;
@@ -503,6 +511,60 @@ impl eframe::App for App {
                     });
                 });
             });
+
+        // Update banner.
+        let show_update = self.update_available.is_some()
+            && !self.update_dismissed
+            && self
+                .settings
+                .as_ref()
+                .map(|s| s.check_updates)
+                .unwrap_or(true);
+        if show_update {
+            let version = self.update_available.clone().unwrap_or_default();
+            egui::Panel::top("update")
+                .frame(
+                    egui::Frame::new()
+                        .fill(p.accent.gamma_multiply(0.18))
+                        .inner_margin(egui::Margin::symmetric(16, 8)),
+                )
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        crate::icons::show(ui, "download", 15.0, p.accent);
+                        ui.add_space(6.0);
+                        ui.label(
+                            RichText::new(format!("{} {version}", tl(lang, "update.available")))
+                                .color(p.fg),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .add(
+                                    egui::Button::image(crate::icons::img("x", 14.0, p.fg_dim))
+                                        .frame(false),
+                                )
+                                .clicked()
+                            {
+                                self.update_dismissed = true;
+                            }
+                            ui.add_space(8.0);
+                            if ui
+                                .add(
+                                    egui::Button::new(
+                                        RichText::new(tl(lang, "update.view")).color(p.accent_fg),
+                                    )
+                                    .fill(p.accent)
+                                    .corner_radius(8),
+                                )
+                                .clicked()
+                            {
+                                let _ = std::process::Command::new("xdg-open")
+                                    .arg("https://github.com/ayozetr/yoink-app/releases/latest")
+                                    .spawn();
+                            }
+                        });
+                    });
+                });
+        }
 
         egui::CentralPanel::default()
             .frame(

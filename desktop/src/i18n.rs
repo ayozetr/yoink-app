@@ -56,6 +56,10 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("logs.hint", En) => "The app log will show here in a later phase.",
         ("theme.toggle", Es) => "Cambiar tema",
         ("theme.toggle", En) => "Toggle theme",
+        ("update.available", Es) => "Nueva versión disponible:",
+        ("update.available", En) => "A new version is available:",
+        ("update.view", Es) => "Ver",
+        ("update.view", En) => "View",
 
         ("inicio.heading", Es) => "Pega un enlace para empezar",
         ("inicio.heading", En) => "Paste a link to begin",

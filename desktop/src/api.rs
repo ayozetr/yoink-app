@@ -43,6 +43,9 @@ pub enum Cmd {
 pub enum Evt {
     Settings(Box<Settings>),
     SettingsSaved,
+    UpdateAvailable {
+        version: String,
+    },
     History(Vec<HistoryEntry>),
     Logs {
         path: String,
@@ -251,6 +254,10 @@ impl Backend {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     tokio::spawn(async move { fetch_settings(evt_tx, ctx).await });
                 }
+                {
+                    let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
+                    tokio::spawn(async move { check_update(evt_tx, ctx).await });
+                }
                 while let Some(cmd) = cmd_rx.recv().await {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     match cmd {
@@ -341,6 +348,53 @@ async fn load_history(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
             emit(&tx, &ctx, Evt::History(h));
         }
     }
+}
+
+/// Check GitHub for a newer release (the app only; yt-dlp stays owner-managed).
+async fn check_update(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let res = reqwest::Client::new()
+        .get("https://api.github.com/repos/ayozetr/yoink-app/releases/latest")
+        .header("User-Agent", "yoink-desktop")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await;
+    let Ok(r) = res else { return };
+    let Ok(v) = r.json::<Value>().await else {
+        return;
+    };
+    let Some(tag) = v.get("tag_name").and_then(Value::as_str) else {
+        return;
+    };
+    let latest = tag.trim_start_matches('v');
+    if is_newer(latest, env!("CARGO_PKG_VERSION")) {
+        emit(
+            &tx,
+            &ctx,
+            Evt::UpdateAvailable {
+                version: latest.to_string(),
+            },
+        );
+    }
+}
+
+/// True if semver `a` is greater than `b` (numeric, dot-separated).
+fn is_newer(a: &str, b: &str) -> bool {
+    let parse = |s: &str| -> Vec<u32> {
+        s.split('.')
+            .map(|x| x.trim().parse().unwrap_or(0))
+            .collect()
+    };
+    let (a, b) = (parse(a), parse(b));
+    for i in 0..a.len().max(b.len()) {
+        let (x, y) = (
+            a.get(i).copied().unwrap_or(0),
+            b.get(i).copied().unwrap_or(0),
+        );
+        if x != y {
+            return x > y;
+        }
+    }
+    false
 }
 
 async fn load_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
