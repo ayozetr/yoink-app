@@ -191,6 +191,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("set.notify", En) => "Notify when done",
         ("set.language", Es) => "Idioma",
         ("set.language", En) => "Language",
+        ("set.tray", Es) => "Minimizar a la bandeja al cerrar",
+        ("set.tray", En) => "Minimize to tray on close",
         ("set.quality", Es) => "Calidad",
         ("set.quality", En) => "Quality",
         ("set.bitrate", Es) => "Bitrate de audio",

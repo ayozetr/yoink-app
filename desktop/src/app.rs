@@ -113,6 +113,7 @@ pub struct App {
     update_available: Option<String>,
     update_dismissed: bool,
     deeplink_rx: std::sync::mpsc::Receiver<String>,
+    tray_rx: std::sync::mpsc::Receiver<crate::tray::TrayMsg>,
     shot: Option<(String, std::time::Instant)>, // (output path, started) for YOINK_SHOT
 }
 
@@ -121,6 +122,7 @@ impl App {
         cc: &eframe::CreationContext<'_>,
         pending: Option<String>,
         deeplink_rx: std::sync::mpsc::Receiver<String>,
+        tray_rx: std::sync::mpsc::Receiver<crate::tray::TrayMsg>,
     ) -> App {
         let dark = true;
         crate::fonts::install(&cc.egui_ctx);
@@ -168,6 +170,7 @@ impl App {
             update_available: None,
             update_dismissed: false,
             deeplink_rx,
+            tray_rx,
             shot: std::env::var("YOINK_SHOT")
                 .ok()
                 .filter(|s| !s.is_empty())
@@ -409,6 +412,29 @@ impl eframe::App for App {
         // Poll a little even when idle, so deep links handed over by another launch
         // are picked up promptly (and progress bars stay smooth).
         ctx.request_repaint_after(std::time::Duration::from_millis(400));
+
+        // Tray menu clicks.
+        while let Ok(msg) = self.tray_rx.try_recv() {
+            match msg {
+                crate::tray::TrayMsg::Show => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                }
+                crate::tray::TrayMsg::Quit => std::process::exit(0),
+            }
+        }
+        // Close-to-tray when the setting is on: hide instead of quitting.
+        if ctx.input(|i| i.viewport().close_requested())
+            && self
+                .settings
+                .as_ref()
+                .map(|s| s.minimize_to_tray)
+                .unwrap_or(false)
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
+
         self.drain_events();
         // A yoink:// link handed over by another launch: analyze it and raise.
         while let Ok(url) = self.deeplink_rx.try_recv() {
@@ -1469,6 +1495,9 @@ impl App {
         });
         setting_row(ui, p, tl(lang, "set.notify"), |ui| {
             toggle(ui, &mut s.notify_on_complete, p);
+        });
+        setting_row(ui, p, tl(lang, "set.tray"), |ui| {
+            toggle(ui, &mut s.minimize_to_tray, p);
         });
 
         // Downloads.

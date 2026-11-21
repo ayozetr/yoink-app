@@ -15,6 +15,7 @@ mod i18n;
 mod icons;
 mod minter;
 mod theme;
+mod tray;
 
 /// The window/taskbar icon, decoded from the bundled PNG.
 fn icon() -> egui::IconData {
@@ -45,6 +46,10 @@ fn main() -> eframe::Result {
     // Start (and own) the backend if one isn't already running; dropped on exit.
     let _backend = backend_proc::Backend::ensure();
 
+    // System tray (its clicks come back over this channel).
+    let (tray_tx, tray_rx) = std::sync::mpsc::channel::<tray::TrayMsg>();
+    tray::spawn(tray_tx);
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Yoink")
@@ -57,6 +62,6 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Yoink",
         options,
-        Box::new(move |cc| Ok(Box::new(app::App::new(cc, pending, dl_rx)))),
+        Box::new(move |cc| Ok(Box::new(app::App::new(cc, pending, dl_rx, tray_rx)))),
     )
 }
