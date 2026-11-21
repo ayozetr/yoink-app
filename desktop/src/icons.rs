@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
+//! Lucide line icons (the same set the web UI uses), bundled as SVG with a white
+//! stroke and tinted at paint time through egui's SVG loader. `img(name, size,
+//! color)` returns an [`egui::Image`] ready to add inline or inside a button.
+
+use egui::{Color32, Image, Vec2};
+
+macro_rules! svg {
+    ($file:literal) => {
+        include_bytes!(concat!("../assets/icons/", $file, ".svg")) as &[u8]
+    };
+}
+
+/// Map a friendly name to its bundled lucide SVG bytes.
+fn bytes(name: &str) -> (&'static str, &'static [u8]) {
+    match name {
+        "home" => ("house", svg!("house")),
+        "queue" => ("list-music", svg!("list-music")),
+        "history" => ("history", svg!("history")),
+        "settings" => ("settings", svg!("settings")),
+        "logs" => ("scroll-text", svg!("scroll-text")),
+        "search" => ("search", svg!("search")),
+        "paste" => ("clipboard", svg!("clipboard")),
+        "download" => ("download", svg!("download")),
+        "add" => ("list-plus", svg!("list-plus")),
+        "options" => ("sliders", svg!("sliders-horizontal")),
+        "music" => ("music", svg!("music")),
+        "check" => ("check", svg!("circle-check-big")),
+        "folder" => ("folder", svg!("folder-open")),
+        "chevron" => ("chevron", svg!("chevron-down")),
+        "moon" => ("moon", svg!("moon")),
+        "sun" => ("sun", svg!("sun")),
+        "trash" => ("trash", svg!("trash-2")),
+        "plus" => ("plus", svg!("plus")),
+        "x" => ("x", svg!("x")),
+        "help" => ("help", svg!("circle-help")),
+        "globe" => ("globe", svg!("globe")),
+        _ => ("help", svg!("circle-help")),
+    }
+}
+
+/// An icon tinted to `color`, sized `size`×`size`.
+pub fn img(name: &str, size: f32, color: Color32) -> Image<'static> {
+    let (key, data) = bytes(name);
+    Image::from_bytes(format!("bytes://icon/{key}.svg"), data)
+        .fit_to_exact_size(Vec2::splat(size))
+        .tint(color)
+}
+
+/// Add an icon inline (as a widget), vertically centered with surrounding text.
+pub fn show(ui: &mut egui::Ui, name: &str, size: f32, color: Color32) {
+    ui.add(img(name, size, color));
+}

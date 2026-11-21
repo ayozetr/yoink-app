@@ -20,6 +20,7 @@ enum Tab {
     Cola,
     Historial,
     Ajustes,
+    Logs,
 }
 
 enum Preview {
@@ -92,6 +93,7 @@ pub struct App {
     queue: Vec<QueueItem>,
     queue_url: String,
     next_qid: u64,
+    advanced_open: bool,
     deeplink_rx: std::sync::mpsc::Receiver<String>,
 }
 
@@ -130,6 +132,7 @@ impl App {
             queue: Vec::new(),
             queue_url: String::new(),
             next_qid: 0,
+            advanced_open: false,
             deeplink_rx,
         };
         // A link the app was launched with (yoink://…) analyzes straight away.
@@ -351,31 +354,62 @@ impl eframe::App for App {
                     .inner_margin(egui::Margin::symmetric(16, 10)),
             )
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new("Yoink")
-                            .size(24.0)
-                            .family(crate::fonts::display())
-                            .color(p.fg),
-                    );
-                    ui.add_space(16.0);
-                    for (tab, key) in [
-                        (Tab::Inicio, "tab.inicio"),
-                        (Tab::Cola, "tab.cola"),
-                        (Tab::Historial, "tab.historial"),
-                        (Tab::Ajustes, "tab.ajustes"),
-                    ] {
-                        ui.selectable_value(&mut self.tab, tab, tl(lang, key));
-                    }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let icon = if self.dark { "☀" } else { "☾" };
-                        if ui
-                            .button(icon)
-                            .on_hover_text(tl(lang, "theme.toggle"))
-                            .clicked()
-                        {
-                            self.dark = !self.dark;
-                            theme::apply(&ctx, self.dark);
+                ui.vertical(|ui| {
+                    // Brand: a violet logo tile + the Gloock wordmark, theme toggle right.
+                    ui.horizontal(|ui| {
+                        egui::Frame::new()
+                            .fill(p.accent)
+                            .corner_radius(7)
+                            .inner_margin(egui::Margin::same(5))
+                            .show(ui, |ui| crate::icons::show(ui, "music", 16.0, p.accent_fg));
+                        ui.add_space(8.0);
+                        ui.label(
+                            RichText::new("Yoink")
+                                .size(23.0)
+                                .family(crate::fonts::display())
+                                .color(p.fg),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let tint = p.fg_dim;
+                            let ic = if self.dark { "sun" } else { "moon" };
+                            if ui
+                                .add(
+                                    egui::Button::image(crate::icons::img(ic, 18.0, tint))
+                                        .frame(false),
+                                )
+                                .on_hover_text(tl(lang, "theme.toggle"))
+                                .clicked()
+                            {
+                                self.dark = !self.dark;
+                                theme::apply(&ctx, self.dark);
+                            }
+                        });
+                    });
+                    ui.add_space(8.0);
+                    // Pill tabs with icons.
+                    ui.horizontal(|ui| {
+                        for (tab, key, ic) in [
+                            (Tab::Inicio, "tab.inicio", "home"),
+                            (Tab::Cola, "tab.cola", "queue"),
+                            (Tab::Historial, "tab.historial", "history"),
+                            (Tab::Ajustes, "tab.ajustes", "settings"),
+                            (Tab::Logs, "tab.logs", "logs"),
+                        ] {
+                            let active = self.tab == tab;
+                            let (fg, fill) = if active {
+                                (p.accent_fg, p.accent)
+                            } else {
+                                (p.fg_dim, egui::Color32::TRANSPARENT)
+                            };
+                            let btn = egui::Button::image_and_text(
+                                crate::icons::img(ic, 16.0, fg),
+                                RichText::new(tl(lang, key)).color(fg),
+                            )
+                            .fill(fill)
+                            .corner_radius(8);
+                            if ui.add(btn).clicked() {
+                                self.tab = tab;
+                            }
                         }
                     });
                 });
@@ -396,6 +430,12 @@ impl eframe::App for App {
                             Tab::Historial => self.ui_historial(ui, p),
                             Tab::Ajustes => self.ui_ajustes(ui, p),
                             Tab::Cola => self.ui_cola(ui, p),
+                            Tab::Logs => {
+                                ui.add_space(12.0);
+                                ui.label(RichText::new(tl(lang, "tab.logs")).heading().color(p.fg));
+                                ui.add_space(8.0);
+                                ui.label(RichText::new(tl(lang, "logs.hint")).color(p.fg_dim));
+                            }
                         }
                     });
                 });
@@ -406,31 +446,39 @@ impl eframe::App for App {
 impl App {
     fn ui_inicio(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         let lang = self.lang;
-        ui.add_space(12.0);
-        ui.label(
-            RichText::new(tl(lang, "inicio.heading"))
-                .heading()
-                .color(p.fg),
-        );
-        ui.add_space(12.0);
+        ui.add_space(16.0);
 
-        // URL input + analyze.
-        card(ui, p, |ui| {
-            ui.horizontal(|ui| {
-                let field = egui::TextEdit::singleline(&mut self.url)
-                    .hint_text("https://…")
-                    .desired_width(ui.available_width() - 110.0);
-                let resp = ui.add(field);
-                let submit = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                let analyzing = matches!(self.status, Status::Analyzing);
-                if ui
-                    .add_enabled(!analyzing, egui::Button::new(tl(lang, "inicio.analyze")))
-                    .clicked()
-                    || submit
-                {
-                    self.analyze();
-                }
-            });
+        // URL bar: a rounded pill field + a soft-violet Analyze button to the right.
+        let analyzing = matches!(self.status, Status::Analyzing);
+        ui.horizontal(|ui| {
+            let total = ui.available_width();
+            egui::Frame::new()
+                .fill(p.surface_hi)
+                .corner_radius(10)
+                .inner_margin(egui::Margin::symmetric(14, 9))
+                .show(ui, |ui| {
+                    ui.set_width(total - 128.0);
+                    let resp = ui.add(
+                        egui::TextEdit::singleline(&mut self.url)
+                            .hint_text(tl(lang, "inicio.url_hint"))
+                            .frame(egui::Frame::NONE)
+                            .desired_width(f32::INFINITY),
+                    );
+                    if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        self.analyze();
+                    }
+                });
+            ui.add_space(8.0);
+            let btn = egui::Button::image_and_text(
+                crate::icons::img("search", 15.0, p.accent),
+                RichText::new(tl(lang, "inicio.analyze")).color(p.accent),
+            )
+            .fill(p.accent.gamma_multiply(0.18))
+            .corner_radius(10)
+            .min_size(egui::vec2(104.0, 38.0));
+            if ui.add_enabled(!analyzing, btn).clicked() {
+                self.analyze();
+            }
         });
 
         // Status line.
@@ -449,42 +497,71 @@ impl App {
             _ => {}
         }
 
+        // Empty state: a centered icon + prompt when nothing is loaded.
+        if matches!(self.preview, Preview::None)
+            && !matches!(self.status, Status::Analyzing | Status::Error(_))
+        {
+            ui.add_space(72.0);
+            ui.vertical_centered(|ui| {
+                crate::icons::show(ui, "download", 44.0, p.fg_dim);
+                ui.add_space(10.0);
+                ui.label(
+                    RichText::new(tl(lang, "inicio.empty_title"))
+                        .strong()
+                        .color(p.fg),
+                );
+                ui.add_space(2.0);
+                ui.label(
+                    RichText::new(tl(lang, "inicio.empty_sub"))
+                        .small()
+                        .color(p.fg_dim),
+                );
+            });
+        }
+
         // Preview + download controls.
         match &self.preview {
             Preview::Video(v) => {
                 let v = v.clone();
-                ui.add_space(14.0);
-                card(ui, p, |ui| {
+                ui.add_space(20.0);
+                ui.label(
+                    RichText::new(tl(lang, "inicio.preview"))
+                        .small()
+                        .color(p.fg_dim),
+                );
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
                     if let Some(thumb) = v.thumbnail_url.as_deref().filter(|s| !s.is_empty()) {
                         ui.add(
                             egui::Image::from_uri(thumb.to_string())
-                                .max_width(ui.available_width())
-                                .max_height(200.0)
-                                .corner_radius(8),
+                                .fit_to_exact_size(egui::vec2(116.0, 65.0))
+                                .corner_radius(6),
                         );
-                        ui.add_space(10.0);
+                        ui.add_space(14.0);
                     }
-                    ui.label(RichText::new(&v.title).size(17.0).strong().color(p.fg));
-                    ui.add_space(4.0);
-                    let mut meta = Vec::new();
-                    if let Some(u) = &v.uploader {
-                        meta.push(u.clone());
-                    }
-                    if let Some(d) = &v.duration_string {
-                        meta.push(d.clone());
-                    }
-                    meta.push(format!(
-                        "{} {}",
-                        v.formats.len(),
-                        tl(lang, "inicio.formats")
-                    ));
-                    if v.is_vr {
-                        meta.push("VR".into());
-                    }
-                    ui.label(RichText::new(meta.join("  ·  ")).color(p.fg_dim));
-                    ui.add_space(12.0);
-                    self.ui_download_controls(ui, p, v.has_audio);
+                    ui.vertical(|ui| {
+                        ui.label(
+                            RichText::new(&v.title)
+                                .size(19.0)
+                                .family(crate::fonts::display())
+                                .color(p.fg),
+                        );
+                        ui.add_space(4.0);
+                        let mut meta = Vec::new();
+                        if let Some(u) = &v.uploader {
+                            meta.push(u.clone());
+                        }
+                        if let Some(d) = &v.duration_string {
+                            meta.push(d.clone());
+                        }
+                        if v.is_vr {
+                            meta.push("VR".into());
+                        }
+                        ui.label(RichText::new(meta.join("  ·  ")).small().color(p.fg_dim));
+                    });
                 });
+                ui.add_space(16.0);
+                self.ui_download_controls(ui, p, v.has_audio);
                 self.ui_progress(ui, p);
             }
             Preview::Playlist { title, count } => {
@@ -568,44 +645,120 @@ impl App {
     fn ui_download_controls(&mut self, ui: &mut egui::Ui, p: theme::Palette, has_audio: bool) {
         let lang = self.lang;
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.kind, "video".to_string(), tl(lang, "kind.video"));
-            ui.add_enabled_ui(has_audio, |ui| {
-                ui.selectable_value(&mut self.kind, "audio".to_string(), tl(lang, "kind.audio"));
-            });
-        });
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            if self.kind == "video" {
-                combo(
-                    ui,
-                    "q",
-                    tl(lang, "field.quality"),
-                    &mut self.quality,
-                    &["best", "2160", "1440", "1080", "720", "480"],
-                );
-                combo(
-                    ui,
-                    "c",
-                    tl(lang, "field.container"),
-                    &mut self.container,
-                    &["mp4", "mov", "mkv", "webm"],
-                );
+            // Video / Audio segmented pills.
+            for (k, key, enabled) in [
+                ("video", "kind.video", true),
+                ("audio", "kind.audio", has_audio),
+            ] {
+                let active = self.kind == k;
+                let (fg, fill) = if active {
+                    (p.accent_fg, p.accent)
+                } else {
+                    (p.fg_dim, p.surface_hi)
+                };
+                ui.add_enabled_ui(enabled, |ui| {
+                    if ui
+                        .add(
+                            egui::Button::new(RichText::new(tl(lang, key)).color(fg))
+                                .fill(fill)
+                                .corner_radius(8)
+                                .min_size(egui::vec2(72.0, 34.0)),
+                        )
+                        .clicked()
+                    {
+                        self.kind = k.to_string();
+                    }
+                });
+            }
+            ui.add_space(10.0);
+            // Wide Download button, with the chosen format summarised.
+            let summary = if self.kind == "video" {
+                format!(
+                    "{} · {}",
+                    self.quality.to_uppercase(),
+                    self.container.to_uppercase()
+                )
             } else {
-                combo(
-                    ui,
-                    "f",
-                    tl(lang, "field.format"),
-                    &mut self.audio_format,
-                    &["mp3", "m4a", "opus", "flac", "wav"],
-                );
+                self.audio_format.to_uppercase()
+            };
+            let busy = self.active.is_some();
+            let label = format!("{}   ·  {summary}", tl(lang, "action.download"));
+            let btn = egui::Button::image_and_text(
+                crate::icons::img("download", 16.0, p.accent_fg),
+                RichText::new(label).color(p.accent_fg),
+            )
+            .fill(p.accent)
+            .corner_radius(10)
+            .min_size(egui::vec2(ui.available_width(), 38.0));
+            if ui.add_enabled(!busy, btn).clicked() {
+                self.start_download();
             }
         });
-        ui.add_space(12.0);
-        let busy = self.active.is_some();
-        let label = format!("  {}  ", tl(lang, "action.download"));
-        let btn = egui::Button::new(RichText::new(label).color(p.accent_fg)).fill(p.accent);
-        if ui.add_enabled(!busy, btn).clicked() {
-            self.start_download();
+
+        // Add to queue · Advanced options (subtle link row).
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            if ui
+                .add(
+                    egui::Button::image_and_text(
+                        crate::icons::img("add", 14.0, p.fg_dim),
+                        RichText::new(tl(lang, "inicio.add_queue"))
+                            .small()
+                            .color(p.fg_dim),
+                    )
+                    .frame(false),
+                )
+                .clicked()
+            {
+                self.queue_url = self.url.clone();
+                self.queue_add();
+            }
+            ui.add_space(14.0);
+            if ui
+                .add(
+                    egui::Button::image_and_text(
+                        crate::icons::img("options", 14.0, p.fg_dim),
+                        RichText::new(tl(lang, "inicio.advanced"))
+                            .small()
+                            .color(p.fg_dim),
+                    )
+                    .frame(false),
+                )
+                .clicked()
+            {
+                self.advanced_open = !self.advanced_open;
+            }
+        });
+
+        // Collapsible advanced options: the format pickers.
+        if self.advanced_open {
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if self.kind == "video" {
+                    combo(
+                        ui,
+                        "q",
+                        tl(lang, "field.quality"),
+                        &mut self.quality,
+                        &["best", "2160", "1440", "1080", "720", "480"],
+                    );
+                    combo(
+                        ui,
+                        "c",
+                        tl(lang, "field.container"),
+                        &mut self.container,
+                        &["mp4", "mov", "mkv", "webm"],
+                    );
+                } else {
+                    combo(
+                        ui,
+                        "f",
+                        tl(lang, "field.format"),
+                        &mut self.audio_format,
+                        &["mp3", "m4a", "opus", "flac", "wav"],
+                    );
+                }
+            });
         }
     }
 
@@ -943,12 +1096,11 @@ fn human_bytes(n: i64) -> String {
 }
 
 /// A raised surface card with padding and a hairline border.
-fn card(ui: &mut egui::Ui, p: theme::Palette, add: impl FnOnce(&mut egui::Ui)) {
+/// A flat, de-boxed content block (the v4 look): no border or fill, just a little
+/// vertical breathing room. Grouping comes from whitespace, not boxes.
+fn card(ui: &mut egui::Ui, _p: theme::Palette, add: impl FnOnce(&mut egui::Ui)) {
     egui::Frame::new()
-        .fill(p.surface)
-        .stroke(egui::Stroke::new(1.0, p.line))
-        .corner_radius(12)
-        .inner_margin(egui::Margin::same(16))
+        .inner_margin(egui::Margin::symmetric(0, 6))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             add(ui);

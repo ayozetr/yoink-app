@@ -12,6 +12,7 @@ mod backend_proc;
 mod deeplink;
 mod fonts;
 mod i18n;
+mod icons;
 mod minter;
 mod theme;
 

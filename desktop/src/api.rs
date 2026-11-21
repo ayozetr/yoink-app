@@ -188,8 +188,6 @@ pub struct VideoLite {
     pub has_audio: bool,
     #[serde(default)]
     pub is_vr: bool,
-    #[serde(default)]
-    pub formats: Vec<Value>,
 }
 
 #[derive(Deserialize)]
