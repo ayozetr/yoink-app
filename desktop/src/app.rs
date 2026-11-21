@@ -259,6 +259,37 @@ impl App {
             app.tab = Tab::Ajustes;
             app.settings_scroll_to = Some(sec);
         }
+        if std::env::var("YOINK_SHOT_QUEUE").is_ok() {
+            app.tab = Tab::Cola;
+            let mk = |id, label: &str, kind: &str, st, pr| QueueItem {
+                id,
+                label: label.into(),
+                kind: kind.into(),
+                quality: "best".into(),
+                container: "mp4".into(),
+                audio: "mp3".into(),
+                source: QSource::Url("https://www.youtube.com/watch?v=x".into()),
+                status: st,
+                progress: pr,
+            };
+            app.queue = vec![
+                mk(
+                    1,
+                    "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+                    "video",
+                    QStatus::Downloading,
+                    0.42,
+                ),
+                mk(2, "Never Gonna Give You Up", "audio", QStatus::Pending, 0.0),
+                mk(
+                    3,
+                    "Together Forever (Official Video)",
+                    "video",
+                    QStatus::Done,
+                    1.0,
+                ),
+            ];
+        }
         if std::env::var("YOINK_SHOT_WHATSNEW").is_ok() {
             app.whatsnew = vec![(
                 "v4.5.0".into(),
@@ -553,6 +584,31 @@ const SUPPORTED_SITES: &[(&str, &str, &str)] = &[
     ("bandcamp", "Bandcamp", "https://bandcamp.com"),
 ];
 
+/// A friendly source label for a queue item (the platform for a URL, else music).
+fn queue_source(it: &QueueItem, lang: Lang) -> String {
+    match &it.source {
+        QSource::Music(_) => tl(lang, "kind.audio").to_string(),
+        QSource::Url(u) => {
+            let host = u
+                .split("://")
+                .nth(1)
+                .unwrap_or(u)
+                .split('/')
+                .next()
+                .unwrap_or("")
+                .trim_start_matches("www.");
+            let key = host.split('.').next().unwrap_or(host);
+            match key {
+                "youtube" | "youtu" => "YouTube".to_string(),
+                "soundcloud" => "SoundCloud".to_string(),
+                "music" => "YouTube Music".to_string(),
+                "" => cap_first(&it.kind),
+                other => cap_first(other),
+            }
+        }
+    }
+}
+
 /// Capitalise the first letter ("spotify" -> "Spotify").
 fn cap_first(s: &str) -> String {
     let mut c = s.chars();
@@ -686,9 +742,15 @@ impl eframe::App for App {
                             } else {
                                 (p.fg_dim, egui::Color32::TRANSPARENT)
                             };
+                            // The Queue tab shows a live item count, like the web.
+                            let text = if tab == Tab::Cola && !self.queue.is_empty() {
+                                format!("{} · {}", tl(lang, key), self.queue.len())
+                            } else {
+                                tl(lang, key).to_string()
+                            };
                             let btn = egui::Button::image_and_text(
                                 crate::icons::img(ic, 14.0, fg),
-                                RichText::new(tl(lang, key)).size(13.0).color(fg),
+                                RichText::new(text).size(13.0).color(fg),
                             )
                             .fill(fill)
                             .corner_radius(7);
@@ -1886,68 +1948,130 @@ impl App {
             return;
         }
 
-        ui.add_space(10.0);
+        // Overall progress summary + a full-width bar, like the web.
+        let total = self.queue.len();
+        let done = self
+            .queue
+            .iter()
+            .filter(|i| matches!(i.status, QStatus::Done))
+            .count();
+        let cur = self
+            .queue
+            .iter()
+            .find(|i| matches!(i.status, QStatus::Downloading))
+            .map(|i| i.progress)
+            .unwrap_or(0.0);
+        let overall = if total == 0 {
+            0.0
+        } else {
+            ((done as f32 + cur) / total as f32).clamp(0.0, 1.0)
+        };
+        ui.add_space(12.0);
         ui.horizontal(|ui| {
-            let done = self
-                .queue
-                .iter()
-                .filter(|i| matches!(i.status, QStatus::Done))
-                .count();
             ui.label(
                 RichText::new(format!(
-                    "{} {} · {done} {}",
-                    self.queue.len(),
-                    tl(lang, "cola.queued"),
-                    tl(lang, "cola.completed_n")
+                    "{done} {} {total} {}",
+                    tl(lang, "cola.of"),
+                    tl(lang, "cola.downloaded")
                 ))
                 .small()
                 .color(p.fg_dim),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button(tl(lang, "cola.clear_done")).clicked() {
-                    self.queue.retain(|i| !matches!(i.status, QStatus::Done));
+                ui.label(
+                    RichText::new(format!("{:.0}%", overall * 100.0))
+                        .small()
+                        .color(p.fg_dim),
+                );
+                if done > 0 {
+                    ui.add_space(14.0);
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                RichText::new(tl(lang, "cola.clear_done"))
+                                    .small()
+                                    .color(p.fg_dim),
+                            )
+                            .frame(false),
+                        )
+                        .clicked()
+                    {
+                        self.queue.retain(|i| !matches!(i.status, QStatus::Done));
+                    }
                 }
             });
         });
         ui.add_space(6.0);
+        ui.add(
+            egui::ProgressBar::new(overall)
+                .desired_height(4.0)
+                .corner_radius(2.0)
+                .fill(p.accent),
+        );
+        ui.add_space(8.0);
 
         let mut remove: Option<u64> = None;
         for it in &self.queue {
-            card(ui, p, |ui| {
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.set_width(ui.available_width() - 80.0);
-                        let label: String = it.label.chars().take(60).collect();
-                        ui.label(RichText::new(label).color(p.fg));
-                        let (txt, col) = match &it.status {
-                            QStatus::Pending => (tl(lang, "cola.pending").to_string(), p.fg_dim),
-                            QStatus::Downloading => {
-                                (format!("{:.0}%", it.progress * 100.0), p.accent)
-                            }
-                            QStatus::Done => (tl(lang, "cola.done").to_string(), p.ok),
-                            QStatus::Error(e) => (format!("error: {e}"), p.err),
+            let resp = egui::Frame::new()
+                .inner_margin(egui::Margin::symmetric(6, 9))
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        // Status dot.
+                        let dot = match &it.status {
+                            QStatus::Pending => p.fg_dim,
+                            QStatus::Downloading => p.accent,
+                            QStatus::Done => p.ok,
+                            QStatus::Error(_) => p.err,
                         };
-                        ui.label(
-                            RichText::new(format!("{}  ·  {txt}", it.kind))
-                                .small()
-                                .color(col),
-                        );
-                        if matches!(it.status, QStatus::Downloading) {
-                            ui.add(egui::ProgressBar::new(it.progress).desired_height(6.0));
-                        }
+                        let (r, _) =
+                            ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                        ui.painter().circle_filled(r.center(), 4.0, dot);
+                        ui.add_space(6.0);
+                        ui.vertical(|ui| {
+                            ui.set_width(ui.available_width() - 44.0);
+                            let label: String = it.label.chars().take(72).collect();
+                            ui.label(RichText::new(label).color(p.fg));
+                            ui.add_space(2.0);
+                            let (extra, col) = match &it.status {
+                                QStatus::Pending => (String::new(), p.fg_dim),
+                                QStatus::Downloading => {
+                                    (format!("  ·  {:.0}%", it.progress * 100.0), p.accent)
+                                }
+                                QStatus::Done => (format!("  ·  {}", tl(lang, "cola.done")), p.ok),
+                                QStatus::Error(e) => (format!("  ·  {e}"), p.err),
+                            };
+                            ui.label(
+                                RichText::new(format!("{}{extra}", queue_source(it, lang)))
+                                    .small()
+                                    .color(col),
+                            );
+                        });
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if !matches!(it.status, QStatus::Downloading) {
+                                let (xr, xresp) = ui.allocate_exact_size(
+                                    egui::vec2(26.0, 26.0),
+                                    egui::Sense::click(),
+                                );
+                                let hov = xresp.hovered();
+                                if hov {
+                                    ui.painter().rect_filled(xr, 7.0, p.surface_hi);
+                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                                }
+                                let xc = if hov { p.fg } else { p.fg_dim };
+                                let ir = egui::Rect::from_center_size(
+                                    xr.center(),
+                                    egui::vec2(14.0, 14.0),
+                                );
+                                crate::icons::img("x", 14.0, xc).paint_at(ui, ir);
+                                if xresp.clicked() {
+                                    remove = Some(it.id);
+                                }
+                            }
+                        });
                     });
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if !matches!(it.status, QStatus::Downloading)
-                            && ui
-                                .button("✕")
-                                .on_hover_text(tl(lang, "cola.remove"))
-                                .clicked()
-                        {
-                            remove = Some(it.id);
-                        }
-                    });
-                });
-            });
+                })
+                .response;
+            let _ = resp;
         }
         if let Some(id) = remove {
             self.queue.retain(|i| i.id != id);
