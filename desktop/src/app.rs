@@ -95,6 +95,7 @@ pub struct App {
     next_qid: u64,
     advanced_open: bool,
     deeplink_rx: std::sync::mpsc::Receiver<String>,
+    shot: Option<(String, u32)>, // (output path, frame counter) for YOINK_SHOT capture
 }
 
 impl App {
@@ -134,11 +135,31 @@ impl App {
             next_qid: 0,
             advanced_open: false,
             deeplink_rx,
+            shot: std::env::var("YOINK_SHOT")
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(|p| (p, 0)),
         };
         // A link the app was launched with (yoink://…) analyzes straight away.
         if let Some(url) = pending {
             app.url = url;
             app.analyze();
+        }
+        // Screenshot helpers (YOINK_SHOT): pick a tab / pre-analyze a URL to capture.
+        if let Ok(t) = std::env::var("YOINK_SHOT_TAB") {
+            app.tab = match t.as_str() {
+                "cola" => Tab::Cola,
+                "historial" => Tab::Historial,
+                "ajustes" => Tab::Ajustes,
+                "logs" => Tab::Logs,
+                _ => Tab::Inicio,
+            };
+        }
+        if let Ok(u) = std::env::var("YOINK_SHOT_URL") {
+            if !u.is_empty() {
+                app.url = u;
+                app.analyze();
+            }
         }
         app
     }
@@ -423,27 +444,63 @@ impl eframe::App for App {
             )
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.set_max_width(680.0);
-                        match self.tab {
-                            Tab::Inicio => self.ui_inicio(ui, p),
-                            Tab::Historial => self.ui_historial(ui, p),
-                            Tab::Ajustes => self.ui_ajustes(ui, p),
-                            Tab::Cola => self.ui_cola(ui, p),
-                            Tab::Logs => {
-                                ui.add_space(12.0);
-                                ui.label(RichText::new(tl(lang, "tab.logs")).heading().color(p.fg));
-                                ui.add_space(8.0);
-                                ui.label(RichText::new(tl(lang, "logs.hint")).color(p.fg_dim));
+                    // A centered column with LEFT-aligned content (like the web UI).
+                    let w = 720.0_f32.min(ui.available_width() - 24.0);
+                    let pad = ((ui.available_width() - w) / 2.0).max(0.0);
+                    ui.horizontal_top(|ui| {
+                        ui.add_space(pad);
+                        ui.vertical(|ui| {
+                            ui.set_width(w);
+                            match self.tab {
+                                Tab::Inicio => self.ui_inicio(ui, p),
+                                Tab::Historial => self.ui_historial(ui, p),
+                                Tab::Ajustes => self.ui_ajustes(ui, p),
+                                Tab::Cola => self.ui_cola(ui, p),
+                                Tab::Logs => {
+                                    ui.add_space(12.0);
+                                    ui.label(
+                                        RichText::new(tl(lang, "tab.logs")).heading().color(p.fg),
+                                    );
+                                    ui.add_space(8.0);
+                                    ui.label(RichText::new(tl(lang, "logs.hint")).color(p.fg_dim));
+                                }
                             }
-                        }
+                        });
                     });
                 });
             });
+
+        self.maybe_screenshot(&ctx);
     }
 }
 
 impl App {
+    /// YOINK_SHOT mode: after a few frames (so fonts/SVGs/thumbnails have loaded),
+    /// capture the framebuffer to a PNG and exit — a way to see the UI headlessly.
+    fn maybe_screenshot(&mut self, ctx: &egui::Context) {
+        let Some((path, frame)) = self.shot.as_mut() else {
+            return;
+        };
+        *frame += 1;
+        ctx.request_repaint();
+        if *frame == 40 {
+            let path = path.clone();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
+                egui::ScreenshotCallback::new(move |img: std::sync::Arc<egui::ColorImage>| {
+                    let [w, h] = img.size;
+                    let mut buf = Vec::with_capacity(w * h * 4);
+                    for px in &img.pixels {
+                        buf.extend_from_slice(&[px.r(), px.g(), px.b(), px.a()]);
+                    }
+                    if let Some(rgba) = image::RgbaImage::from_raw(w as u32, h as u32, buf) {
+                        let _ = rgba.save(&path);
+                    }
+                    std::process::exit(0);
+                }),
+            ));
+        }
+    }
+
     fn ui_inicio(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         let lang = self.lang;
         ui.add_space(16.0);
@@ -790,20 +847,37 @@ impl App {
 
     fn ui_historial(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         let lang = self.lang;
-        ui.add_space(12.0);
+        ui.add_space(16.0);
+
+        // Stat header: big Gloock numbers + a Refrescar action.
+        let count = self.history.len();
+        let total: i64 = self.history.iter().filter_map(|e| e.filesize).sum();
         ui.horizontal(|ui| {
-            ui.label(
-                RichText::new(tl(lang, "tab.historial"))
-                    .heading()
-                    .color(p.fg),
-            );
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    big_stat(ui, p, &count.to_string(), tl(lang, "hist.downloads"));
+                    ui.add_space(36.0);
+                    big_stat(ui, p, &human_bytes(total), tl(lang, "hist.transferred"));
+                });
+            });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button(tl(lang, "action.refresh")).clicked() {
+                if ui
+                    .add(
+                        egui::Button::image_and_text(
+                            crate::icons::img("history", 14.0, p.fg_dim),
+                            RichText::new(tl(lang, "action.refresh"))
+                                .small()
+                                .color(p.fg_dim),
+                        )
+                        .frame(false),
+                    )
+                    .clicked()
+                {
                     self.backend.send(Cmd::LoadHistory);
                 }
             });
         });
-        ui.add_space(8.0);
+        ui.add_space(14.0);
 
         if self.history.is_empty() {
             ui.add_space(24.0);
@@ -814,30 +888,45 @@ impl App {
         for e in self.history.clone() {
             card(ui, p, |ui| {
                 ui.horizontal(|ui| {
-                    let color = match e.status.as_str() {
-                        "completed" => p.ok,
-                        "error" => p.err,
-                        _ => p.fg_dim,
-                    };
+                    fmt_badge(ui, p, &badge_label(&e));
+                    ui.add_space(12.0);
                     ui.vertical(|ui| {
-                        ui.set_width(ui.available_width() - 90.0);
+                        ui.set_width(ui.available_width() - 70.0);
                         ui.label(RichText::new(&e.title).strong().color(p.fg));
-                        let mut meta = vec![e.kind.clone()];
-                        if let Some(q) = &e.quality {
-                            if !q.is_empty() {
-                                meta.push(q.clone());
+                        ui.add_space(3.0);
+                        ui.horizontal(|ui| {
+                            if e.status == "completed" {
+                                crate::icons::show(ui, "check", 13.0, p.ok);
+                                ui.add_space(2.0);
+                            } else if e.status == "error" {
+                                crate::icons::show(ui, "x", 13.0, p.err);
+                                ui.add_space(2.0);
                             }
-                        }
-                        if let Some(sz) = e.filesize {
-                            meta.push(human_bytes(sz));
-                        }
-                        meta.push(e.created_at.chars().take(10).collect());
-                        ui.label(RichText::new(meta.join("  ·  ")).small().color(color));
+                            let mut meta = Vec::new();
+                            if let Some(q) = e.quality.as_deref().filter(|q| !q.is_empty()) {
+                                meta.push(q.to_string());
+                            }
+                            if let Some(sz) = e.filesize {
+                                meta.push(human_bytes(sz));
+                            }
+                            meta.push(e.created_at.chars().take(10).collect());
+                            ui.label(RichText::new(meta.join("  ·  ")).small().color(p.fg_dim));
+                        });
                     });
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if let Some(path) = e.filepath.clone() {
                             if e.status == "completed"
-                                && ui.button(tl(lang, "action.open")).clicked()
+                                && ui
+                                    .add(
+                                        egui::Button::image_and_text(
+                                            crate::icons::img("folder", 14.0, p.fg_dim),
+                                            RichText::new(tl(lang, "action.open"))
+                                                .small()
+                                                .color(p.fg_dim),
+                                        )
+                                        .frame(false),
+                                    )
+                                    .clicked()
                             {
                                 self.backend.send(Cmd::Open(path));
                             }
@@ -944,25 +1033,7 @@ impl App {
 
     fn ui_ajustes(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         let lang = self.lang;
-        ui.add_space(12.0);
-        ui.label(RichText::new(tl(lang, "tab.ajustes")).heading().color(p.fg));
-        ui.add_space(8.0);
-
-        // Language selector (app-local, takes effect immediately).
-        let mut new_lang = self.lang;
-        card(ui, p, |ui| {
-            ui.label(RichText::new(tl(lang, "set.language")).strong().color(p.fg));
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                for l in Lang::ALL {
-                    ui.selectable_value(&mut new_lang, l, l.label());
-                }
-            });
-        });
-        if new_lang != self.lang {
-            self.lang = new_lang;
-        }
-        ui.add_space(12.0);
+        ui.add_space(16.0);
 
         let Some(mut s) = self.settings.clone() else {
             ui.add_space(24.0);
@@ -972,83 +1043,114 @@ impl App {
             });
             return;
         };
+        let mut new_lang = self.lang;
 
-        card(ui, p, |ui| {
+        let heading = |ui: &mut egui::Ui, key: &str| {
+            ui.add_space(10.0);
             ui.label(
-                RichText::new(tl(lang, "set.downloads"))
-                    .strong()
+                RichText::new(tl(lang, key))
+                    .size(26.0)
+                    .family(crate::fonts::display())
                     .color(p.fg),
             );
-            ui.add_space(6.0);
-            ui.label(RichText::new(tl(lang, "set.dir")).small().color(p.fg_dim));
-            ui.add(egui::TextEdit::singleline(&mut s.download_dir).desired_width(f32::INFINITY));
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                combo(
-                    ui,
-                    "set.kind",
-                    tl(lang, "field.kind"),
-                    &mut s.default_kind,
-                    &["video", "audio"],
-                );
-                combo(
-                    ui,
-                    "set.q",
-                    tl(lang, "field.quality"),
-                    &mut s.default_quality,
-                    &["best", "2160", "1440", "1080", "720", "480"],
-                );
-                combo(
-                    ui,
-                    "set.c",
-                    tl(lang, "field.container"),
-                    &mut s.default_container,
-                    &["mp4", "mov", "mkv", "webm"],
-                );
-                combo(
-                    ui,
-                    "set.a",
-                    tl(lang, "field.audio"),
-                    &mut s.default_audio_format,
-                    &["mp3", "m4a", "opus", "flac", "wav"],
-                );
-            });
+            ui.add_space(2.0);
+        };
+
+        // General.
+        heading(ui, "set.general");
+        setting_row(ui, p, tl(lang, "set.language"), |ui| {
+            egui::ComboBox::from_id_salt("lang")
+                .selected_text(self.lang.label())
+                .show_ui(ui, |ui| {
+                    for l in Lang::ALL {
+                        ui.selectable_value(&mut new_lang, l, l.label());
+                    }
+                });
+        });
+        setting_row(ui, p, tl(lang, "set.updates"), |ui| {
+            toggle(ui, &mut s.check_updates, p);
+        });
+        setting_row(ui, p, tl(lang, "set.notify"), |ui| {
+            toggle(ui, &mut s.notify_on_complete, p);
         });
 
+        // Downloads.
+        ui.add_space(20.0);
+        heading(ui, "set.downloads");
         ui.add_space(12.0);
-        card(ui, p, |ui| {
-            ui.label(RichText::new(tl(lang, "set.potoken")).strong().color(p.fg));
-            ui.add_space(6.0);
-            ui.label(
-                RichText::new(tl(lang, "set.potoken_desc"))
-                    .small()
-                    .color(p.fg_dim),
+        ui.label(RichText::new(tl(lang, "set.dir")).small().color(p.fg_dim));
+        ui.add_space(3.0);
+        ui.add(
+            egui::TextEdit::singleline(&mut s.download_dir)
+                .desired_width(f32::INFINITY)
+                .margin(egui::Margin::symmetric(10, 7)),
+        );
+        setting_row(ui, p, tl(lang, "field.kind"), |ui| {
+            combo_bare(ui, "set.kind", &mut s.default_kind, &["video", "audio"]);
+        });
+        setting_row(ui, p, tl(lang, "field.quality"), |ui| {
+            combo_bare(
+                ui,
+                "set.q",
+                &mut s.default_quality,
+                &["best", "2160", "1440", "1080", "720", "480"],
             );
-            ui.add_space(6.0);
-            combo(
+        });
+        setting_row(ui, p, tl(lang, "field.container"), |ui| {
+            combo_bare(
+                ui,
+                "set.c",
+                &mut s.default_container,
+                &["mp4", "mov", "mkv", "webm"],
+            );
+        });
+        setting_row(ui, p, tl(lang, "field.audio"), |ui| {
+            combo_bare(
+                ui,
+                "set.a",
+                &mut s.default_audio_format,
+                &["mp3", "m4a", "opus", "flac", "wav"],
+            );
+        });
+
+        // PO token.
+        ui.add_space(20.0);
+        heading(ui, "set.potoken");
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new(tl(lang, "set.potoken_desc"))
+                .small()
+                .color(p.fg_dim),
+        );
+        setting_row(ui, p, tl(lang, "set.mode"), |ui| {
+            combo_bare(
                 ui,
                 "set.mode",
-                tl(lang, "set.mode"),
                 &mut s.po_token_mode,
                 &["off", "manual", "auto"],
             );
         });
 
-        ui.add_space(12.0);
-        card(ui, p, |ui| {
-            ui.label(RichText::new(tl(lang, "set.options")).strong().color(p.fg));
-            ui.add_space(6.0);
-            ui.checkbox(&mut s.normalize_audio, tl(lang, "set.normalize"));
-            ui.checkbox(&mut s.sponsorblock_enabled, tl(lang, "set.sponsorblock"));
-            ui.checkbox(&mut s.fetch_lyrics, tl(lang, "set.lyrics"));
-            ui.checkbox(&mut s.check_updates, tl(lang, "set.updates"));
-            ui.checkbox(&mut s.notify_on_complete, tl(lang, "set.notify"));
+        // Processing.
+        ui.add_space(20.0);
+        heading(ui, "set.options");
+        setting_row(ui, p, tl(lang, "set.normalize"), |ui| {
+            toggle(ui, &mut s.normalize_audio, p);
+        });
+        setting_row(ui, p, tl(lang, "set.sponsorblock"), |ui| {
+            toggle(ui, &mut s.sponsorblock_enabled, p);
+        });
+        setting_row(ui, p, tl(lang, "set.lyrics"), |ui| {
+            toggle(ui, &mut s.fetch_lyrics, p);
         });
 
-        ui.add_space(14.0);
+        ui.add_space(22.0);
         ui.horizontal(|ui| {
             let label = format!("  {}  ", tl(lang, "action.save"));
-            let btn = egui::Button::new(RichText::new(label).color(p.accent_fg)).fill(p.accent);
+            let btn = egui::Button::new(RichText::new(label).color(p.accent_fg))
+                .fill(p.accent)
+                .corner_radius(9)
+                .min_size(egui::vec2(0.0, 34.0));
             if ui.add(btn).clicked() {
                 self.settings_note = None;
                 self.backend.send(Cmd::SaveSettings(Box::new(s.clone())));
@@ -1057,8 +1159,12 @@ impl App {
                 ui.label(RichText::new(format!("✓ {}", tl(lang, "state.saved"))).color(p.ok));
             }
         });
+        ui.add_space(20.0);
 
-        // Keep edits in the in-memory copy so they persist across frames until saved.
+        if new_lang != self.lang {
+            self.lang = new_lang;
+        }
+        // Keep edits in memory until saved.
         self.settings = Some(s);
     }
 }
@@ -1095,6 +1201,78 @@ fn human_bytes(n: i64) -> String {
     }
 }
 
+/// A pill switch (the settings toggle), violet when on.
+fn toggle(ui: &mut egui::Ui, on: &mut bool, p: theme::Palette) -> egui::Response {
+    let (rect, mut resp) = ui.allocate_exact_size(egui::vec2(38.0, 22.0), egui::Sense::click());
+    if resp.clicked() {
+        *on = !*on;
+        resp.mark_changed();
+    }
+    let bg = if *on { p.accent } else { p.surface_hi };
+    ui.painter().rect_filled(rect, 11.0, bg);
+    let knob_x = if *on {
+        rect.right() - 11.0
+    } else {
+        rect.left() + 11.0
+    };
+    ui.painter().circle_filled(
+        egui::pos2(knob_x, rect.center().y),
+        8.0,
+        egui::Color32::WHITE,
+    );
+    resp
+}
+
+/// A settings row: label on the left, control on the right.
+fn setting_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, add: impl FnOnce(&mut egui::Ui)) {
+    ui.add_space(12.0);
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(label).color(p.fg));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), add);
+    });
+}
+
+/// A big Gloock number with a small uppercase caption, as in the history header.
+fn big_stat(ui: &mut egui::Ui, p: theme::Palette, value: &str, label: &str) {
+    ui.vertical(|ui| {
+        ui.label(
+            RichText::new(value)
+                .size(28.0)
+                .family(crate::fonts::display())
+                .color(p.fg),
+        );
+        ui.label(
+            RichText::new(label.to_uppercase())
+                .size(10.0)
+                .color(p.fg_dim),
+        );
+    });
+}
+
+/// The format label for a history row's badge (file extension, else the kind).
+fn badge_label(e: &HistoryEntry) -> String {
+    e.filepath
+        .as_deref()
+        .and_then(|p| std::path::Path::new(p).extension())
+        .and_then(|x| x.to_str())
+        .map(str::to_uppercase)
+        .unwrap_or_else(|| e.kind.to_uppercase())
+}
+
+/// A small violet rounded badge with the format label (e.g. MP3), as in history.
+fn fmt_badge(ui: &mut egui::Ui, p: theme::Palette, label: &str) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(42.0, 42.0), egui::Sense::hover());
+    ui.painter()
+        .rect_filled(rect, 9.0, p.accent.gamma_multiply(0.85));
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        egui::FontId::new(10.0, egui::FontFamily::Proportional),
+        p.accent_fg,
+    );
+}
+
 /// A raised surface card with padding and a hairline border.
 /// A flat, de-boxed content block (the v4 look): no border or fill, just a little
 /// vertical breathing room. Grouping comes from whitespace, not boxes.
@@ -1109,6 +1287,17 @@ fn card(ui: &mut egui::Ui, _p: theme::Palette, add: impl FnOnce(&mut egui::Ui)) 
 
 /// A labelled dropdown bound to a string from a fixed option list. `id` is a
 /// stable salt so the widget keeps its identity when the label is translated.
+/// Just the dropdown (no label), for the right slot of a settings row.
+fn combo_bare(ui: &mut egui::Ui, id: &str, value: &mut String, options: &[&str]) {
+    egui::ComboBox::from_id_salt(id)
+        .selected_text(value.clone())
+        .show_ui(ui, |ui| {
+            for opt in options {
+                ui.selectable_value(value, opt.to_string(), *opt);
+            }
+        });
+}
+
 fn combo(ui: &mut egui::Ui, id: &str, label: &str, value: &mut String, options: &[&str]) {
     ui.vertical(|ui| {
         ui.label(RichText::new(label).small());

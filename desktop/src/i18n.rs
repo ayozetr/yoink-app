@@ -138,7 +138,13 @@ pub fn tl(lang: Lang, key: &str) -> &str {
 
         ("hist.empty", Es) => "Todavía no hay descargas.",
         ("hist.empty", En) => "No downloads yet.",
+        ("hist.downloads", Es) => "descargas",
+        ("hist.downloads", En) => "downloads",
+        ("hist.transferred", Es) => "transferido",
+        ("hist.transferred", En) => "transferred",
 
+        ("set.general", Es) => "General",
+        ("set.general", En) => "General",
         ("set.downloads", Es) => "Descargas",
         ("set.downloads", En) => "Downloads",
         ("set.dir", Es) => "Carpeta de descargas",
