@@ -24,17 +24,72 @@ fn bin(name: &str) -> String {
     }
 }
 
+// A corrupt or absurdly long input can hang loudnorm/ffmpeg; cap each run so one
+// bad file never wedges a download worker (generous — a legit two-pass re-encode
+// of a long track finishes well under this). Mirrors _FFMPEG/_FFPROBE_TIMEOUT.
+const FFMPEG_TIMEOUT_SECS: u64 = 1800;
+const FFPROBE_TIMEOUT_SECS: u64 = 60;
+
+/// Run a command with a wall-clock timeout, draining stdout/stderr in threads so
+/// a verbose process can't deadlock on a full pipe. Returns None on a spawn error
+/// or a timeout (the child is killed), so callers treat it as a failure.
+fn run_timed(mut cmd: Command, secs: u64) -> Option<std::process::Output> {
+    use std::io::Read;
+    let mut child = cmd
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .ok()?;
+    let mut out_pipe = child.stdout.take();
+    let mut err_pipe = child.stderr.take();
+    let h_out = std::thread::spawn(move || {
+        let mut b = Vec::new();
+        if let Some(ref mut s) = out_pipe {
+            let _ = s.read_to_end(&mut b);
+        }
+        b
+    });
+    let h_err = std::thread::spawn(move || {
+        let mut b = Vec::new();
+        if let Some(ref mut s) = err_pipe {
+            let _ = s.read_to_end(&mut b);
+        }
+        b
+    });
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(secs);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return Some(std::process::Output {
+                    status,
+                    stdout: h_out.join().unwrap_or_default(),
+                    stderr: h_err.join().unwrap_or_default(),
+                });
+            }
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return None;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(_) => return None,
+        }
+    }
+}
+
 fn run_ffmpeg(args: &[String]) -> Option<std::process::Output> {
-    Command::new(bin("ffmpeg"))
-        .arg("-hide_banner")
-        .arg("-nostdin")
-        .args(args)
-        .output()
-        .ok()
+    let mut cmd = Command::new(bin("ffmpeg"));
+    cmd.arg("-hide_banner").arg("-nostdin").args(args);
+    run_timed(cmd, FFMPEG_TIMEOUT_SECS)
 }
 
 fn ffprobe(args: &[&str]) -> Option<String> {
-    let out = Command::new(bin("ffprobe")).args(args).output().ok()?;
+    let mut cmd = Command::new(bin("ffprobe"));
+    cmd.args(args);
+    let out = run_timed(cmd, FFPROBE_TIMEOUT_SECS)?;
     Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
