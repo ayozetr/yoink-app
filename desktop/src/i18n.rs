@@ -75,6 +75,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("inicio.advanced", En) => "Advanced options",
         ("inicio.available", Es) => "disponible",
         ("inicio.available", En) => "available",
+        ("inicio.supported", Es) => "Sitios compatibles",
+        ("inicio.supported", En) => "Supported sites",
         ("inicio.analyze", Es) => "Analizar",
         ("inicio.analyze", En) => "Analyze",
         ("inicio.analyzing", Es) => "Analizando…",

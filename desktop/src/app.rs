@@ -560,6 +560,16 @@ impl App {
                 self.analyze();
             }
         });
+        // "Supported sites" hint, right-aligned under the bar.
+        ui.add_space(3.0);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add_space(112.0);
+            ui.label(
+                RichText::new(tl(lang, "inicio.supported"))
+                    .small()
+                    .color(p.fg_dim),
+            );
+        });
 
         // Status line.
         match &self.status {
