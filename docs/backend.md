@@ -38,6 +38,8 @@ binaries next to `yoink-core` (see [`releasing.md`](releasing.md)).
 | `library.rs` | Media-server music-folder relocation (`<Artist>/<Album>/…`) and rename-to-tagged. |
 | `vr.rs` | VR detection, Spherical Video V2/V1 box injection into MP4, and the MKV StereoMode remux. |
 | `audio_normalize.rs` | Two-pass ffmpeg `loudnorm` (-14 LUFS) and the HLS-trim fallback, both with ffmpeg timeouts. |
+| `po_token.rs` | YouTube PO-token sourcing (off / manual / auto), the in-process WebView mint broker (`tokio::sync` `oneshot` + `Notify`), the session token cache, and the `/api/po-token/*` routes incl. the SSRF-scoped bgutils proxy. See [po-token-webview.md](po-token-webview.md). |
+| `cli.rs` | The `yoink` command line (`yoink-core` run with arguments): single/batch/stdin, playlists, music imports, config, and shell completion. See [cli.md](cli.md). |
 
 ## Conventions
 

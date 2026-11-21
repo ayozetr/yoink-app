@@ -1961,6 +1961,7 @@ name = "yoink-core"
 version = "4.4.0"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "clap_complete",

@@ -128,7 +128,9 @@ to Rust.
         ├── nfo.rs            # Kodi/Jellyfin .nfo sidecars (movie / musicvideo + folder album/artist)
         ├── library.rs        # music-folder relocation (Artist/Album layout) + rename-to-tagged
         ├── vr.rs             # VR detection + Spherical Video V2/V1 box injection + MKV StereoMode
-        └── audio_normalize.rs # two-pass ffmpeg loudnorm (-14 LUFS) + HLS trim (with ffmpeg timeouts)
+        ├── audio_normalize.rs # two-pass ffmpeg loudnorm (-14 LUFS) + HLS trim (with ffmpeg timeouts)
+        ├── po_token.rs       # YouTube PO-token sourcing (off/manual/auto) + WebView mint broker + SSRF-scoped proxy
+        └── cli.rs            # the yoink CLI (yoink-core run with arguments): single/batch/playlist/music, config, completion
 ```
 
 ## Common commands

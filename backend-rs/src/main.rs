@@ -34,6 +34,7 @@ mod library;
 mod matching;
 mod music;
 mod nfo;
+mod po_token;
 mod vr;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -263,8 +264,16 @@ async fn ytdlp_once(base: &[&str], cookies: &[String]) -> Result<Vec<u8>, (bool,
 /// store dropped). Mirrors extract_info's retry + with_cookie_fallback. The Err
 /// carries (transient, message) so a caller can map it to 503 vs 422.
 async fn run_ytdlp_json(base: &[&str], settings: &AppSettings) -> Result<Vec<u8>, (bool, String)> {
-    let primary = cookie_args(settings, true);
-    let fallback = cookie_args(settings, false);
+    // Manual PO token(s) passthrough for metadata/search (never mints — the
+    // per-download auto mint lives in download_extractor_args).
+    let po: Vec<String> = match po_token::info_extractor_args(settings) {
+        Some(v) => vec!["--extractor-args".into(), v],
+        None => vec![],
+    };
+    let mut primary = cookie_args(settings, true);
+    primary.extend(po.iter().cloned());
+    let mut fallback = cookie_args(settings, false);
+    fallback.extend(po);
     let has_browser = settings
         .cookies_from_browser
         .as_deref()
@@ -893,7 +902,13 @@ async fn execute_download(
         .unwrap_or_else(|_| std::path::PathBuf::from(&settings.download_dir));
     let _ = std::fs::create_dir_all(&dir);
     let template = format!("{}/{}.%(ext)s", dir.display(), settings.filename_template);
-    let args = download_args(req, settings, &template);
+    let mut args = download_args(req, settings, &template);
+    // PO token: in auto mode, mint a session GVS token in the app's WebView (bound
+    // to visitor_data, handed to the web clients); otherwise the manual token(s).
+    if let Some(v) = po_token::download_extractor_args(&req.url, settings).await {
+        args.push("--extractor-args".into());
+        args.push(v);
+    }
 
     let mut child = match tokio::process::Command::new(ytdlp_bin())
         .args(&args)
@@ -1216,6 +1231,8 @@ async fn put_settings(
     Json(s): Json<AppSettings>,
 ) -> Result<Json<AppSettings>, (StatusCode, String)> {
     save_settings(&s).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    // The PO-token source may have changed — drop any cached session token.
+    po_token::clear_cache();
     Ok(Json(s))
 }
 
@@ -2035,6 +2052,9 @@ async fn main() {
         .route("/api/autotag/identify", post(autotag_identify))
         .route("/api/autotag/search", post(autotag_search))
         .route("/api/autotag/lyrics", post(autotag_lyrics))
+        .route("/api/po-token/pending", get(po_token::pending))
+        .route("/api/po-token/result", post(po_token::result))
+        .route("/api/po-token/proxy", post(po_token::proxy))
         .layer(cors);
 
     // Shut down when the parent (the Tauri shell) closes our stdin — mirrors the

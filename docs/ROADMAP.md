@@ -392,8 +392,8 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   nfo), a history image icon, and per-entry `kind: "image"` in a mixed highlight.
   The full card treatment lands with the v4.0.0 redesign.
 - ✅ **Zero-config PO token — mint in the WebView** (L) — *validated live
-  2026-09-15 in the Python app; the WebView minting is not yet reinstated in the
-  Rust backend (`po_token` is a manual setting there).* **Done then:** the `po_token_mode`
+  2026-09-15; backend ported to native Rust (`backend-rs/src/po_token.rs`), same
+  contract, frontend minter unchanged.* **Done:** the `po_token_mode`
   setting (`off` / `manual` / `auto`, default `manual`) end-to-end (14 locales); a
   backend broker + `/api/po-token/*` bridge (long-poll `pending`, `result`, and a
   Google-host-scoped `proxy` for bgutils' network); **session** minting wired into
