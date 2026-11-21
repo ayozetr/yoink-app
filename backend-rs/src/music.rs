@@ -499,3 +499,222 @@ pub async fn resolve_spotify(url: &str) -> Result<MusicImportInfo, String> {
         truncated,
     })
 }
+
+// --- Apple Music (iTunes Lookup API + playlist page scrape) ----------------
+
+fn apple_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"(?i)^(?:https?://)?(?:[\w-]+\.)*music\.apple\.com/(?:([a-z]{2})/)?(album|song|playlist)/[^/]+/(pl\.[\w-]+|\d+)",
+        )
+        .unwrap()
+    })
+}
+
+fn apple_track_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"[?&]i=(\d+)").unwrap())
+}
+
+fn curly_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\{[^}]*\}").unwrap())
+}
+
+fn serialized_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r#"(?s)<script[^>]*id="serialized-server-data"[^>]*>(.*?)</script>"#).unwrap())
+}
+
+fn meta_content(html: &str, property: &str) -> Option<String> {
+    let re = Regex::new(&format!(r#"<meta property="{property}" content="([^"]+)""#)).ok()?;
+    re.captures(html).map(|c| unescape_html(&c[1]))
+}
+
+fn unescape_html(s: &str) -> String {
+    s.replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+}
+
+fn single(source: &str, kind: &str, track: MusicTrack) -> MusicImportInfo {
+    MusicImportInfo {
+        source: source.into(),
+        kind: kind.into(),
+        name: track.title.clone(),
+        subtitle: Some(track.artists.clone()),
+        cover_url: track.cover_url.clone(),
+        tracks: vec![track],
+        truncated: false,
+    }
+}
+
+fn apple_track(item: &Value, album_name: Option<&str>) -> Option<MusicTrack> {
+    let title = item.get("trackName").and_then(Value::as_str).filter(|t| !t.is_empty())?;
+    let art = item
+        .get("artworkUrl100")
+        .and_then(Value::as_str)
+        .map(|a| a.replace("100x100bb", "600x600bb"))
+        .filter(|a| !a.is_empty());
+    let date = item.get("releaseDate").and_then(Value::as_str).unwrap_or("");
+    Some(MusicTrack {
+        title: title.to_string(),
+        artists: s(item, "artistName").unwrap_or_default(),
+        isrc: None,
+        duration_ms: item.get("trackTimeMillis").and_then(Value::as_i64),
+        is_explicit: item.get("trackExplicitness").and_then(Value::as_str) == Some("explicit"),
+        album: album_name.map(str::to_string).or_else(|| s(item, "collectionName")),
+        year: (date.len() >= 4).then(|| date[..4].to_string()),
+        cover_url: art,
+        source_url: s(item, "trackViewUrl").unwrap_or_default(),
+    })
+}
+
+fn apple_art_url(artwork: &Value, size: i32) -> Option<String> {
+    let dict = artwork.get("dictionary").filter(|d| d.is_object()).unwrap_or(artwork);
+    let url = dict.get("url").and_then(Value::as_str)?;
+    let url = url
+        .replace("{w}", &size.to_string())
+        .replace("{h}", &size.to_string())
+        .replace("{c}", "bb")
+        .replace("{f}", "jpg");
+    Some(curly_re().replace_all(&url, "").to_string())
+}
+
+fn walk_apple(node: &Value, out: &mut Vec<Value>) {
+    match node {
+        Value::Object(m) => {
+            let dur_int = node.get("duration").map_or(false, |d| d.is_i64() || d.is_u64());
+            if m.contains_key("artistName") && m.contains_key("title") && dur_int {
+                out.push(node.clone());
+            }
+            for v in m.values() {
+                walk_apple(v, out);
+            }
+        }
+        Value::Array(a) => {
+            for v in a {
+                walk_apple(v, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+async fn resolve_apple_playlist(url: &str) -> Result<MusicImportInfo, String> {
+    let html = get_text(url).await?;
+    let blob = serialized_re()
+        .captures(&html)
+        .ok_or_else(|| "Could not read the Apple Music playlist page.".to_string())?;
+    let data: Value = serde_json::from_str(&blob[1])
+        .map_err(|_| "Could not parse the Apple Music playlist data.".to_string())?;
+    let mut songs: Vec<Value> = Vec::new();
+    walk_apple(&data, &mut songs);
+    if songs.is_empty() {
+        return Err("The Apple Music playlist exposed no tracks.".into());
+    }
+    let tracks: Vec<MusicTrack> = songs
+        .iter()
+        .map(|song| MusicTrack {
+            title: s(song, "title").unwrap_or_default().trim().to_string(),
+            artists: s(song, "artistName").unwrap_or_default().trim().to_string(),
+            isrc: None,
+            duration_ms: song.get("duration").and_then(Value::as_i64),
+            is_explicit: song.get("showExplicitBadge").and_then(Value::as_bool).unwrap_or(false),
+            album: None,
+            year: None,
+            cover_url: song.get("artwork").and_then(|a| apple_art_url(a, 600)),
+            source_url: song
+                .get("contentDescriptor")
+                .and_then(|c| s(c, "url"))
+                .unwrap_or_default(),
+        })
+        .collect();
+    let raw_name = meta_content(&html, "og:title").unwrap_or_else(|| "Apple Music".into());
+    let name = Regex::new(r"(?i)\s+(?:en|on)\s+Apple Music$")
+        .map(|re| re.replace(&raw_name, "").trim().to_string())
+        .unwrap_or(raw_name);
+    let cover = meta_content(&html, "og:image").or_else(|| tracks.first().and_then(|t| t.cover_url.clone()));
+    Ok(MusicImportInfo {
+        source: "apple".into(),
+        kind: "playlist".into(),
+        name,
+        subtitle: None,
+        cover_url: cover,
+        tracks,
+        truncated: false,
+    })
+}
+
+pub async fn resolve_apple(url: &str) -> Result<MusicImportInfo, String> {
+    let caps = apple_re()
+        .captures(url)
+        .ok_or_else(|| "Not a recognised Apple Music URL.".to_string())?;
+    let country = caps.get(1).map(|m| m.as_str().to_lowercase()).unwrap_or_else(|| "us".into());
+    let kind = caps[2].to_lowercase();
+    let apple_id = caps[3].to_string();
+
+    if kind == "playlist" {
+        return resolve_apple_playlist(url).await;
+    }
+
+    let find_track = |results: &[Value]| {
+        results
+            .iter()
+            .find(|r| r.get("wrapperType").and_then(Value::as_str) == Some("track"))
+            .cloned()
+    };
+
+    // A single track inside an album URL (?i=trackId).
+    if let Some(tm) = apple_track_re().captures(url) {
+        let data = get_json(&format!(
+            "https://itunes.apple.com/lookup?id={}&country={country}",
+            &tm[1]
+        ))
+        .await?;
+        let results = data.get("results").and_then(Value::as_array).cloned().unwrap_or_default();
+        let track = find_track(&results)
+            .and_then(|i| apple_track(&i, None))
+            .ok_or_else(|| "Apple Music returned no track.".to_string())?;
+        return Ok(single("apple", "track", track));
+    }
+
+    let data = get_json(&format!(
+        "https://itunes.apple.com/lookup?id={apple_id}&country={country}&entity=song"
+    ))
+    .await?;
+    let results = data.get("results").and_then(Value::as_array).cloned().unwrap_or_default();
+    let collection = results
+        .iter()
+        .find(|r| r.get("wrapperType").and_then(Value::as_str) == Some("collection"))
+        .cloned();
+    let Some(coll) = collection else {
+        let track = find_track(&results)
+            .and_then(|sgi| apple_track(&sgi, None))
+            .ok_or_else(|| "Apple Music returned no track.".to_string())?;
+        return Ok(single("apple", "track", track));
+    };
+    let name = s(&coll, "collectionName").unwrap_or_default();
+    let subtitle = s(&coll, "artistName");
+    let cover = s(&coll, "artworkUrl100")
+        .map(|a| a.replace("100x100bb", "600x600bb"))
+        .filter(|a| !a.is_empty());
+    let tracks: Vec<MusicTrack> = results
+        .iter()
+        .filter(|r| r.get("wrapperType").and_then(Value::as_str) == Some("track"))
+        .filter_map(|sg| apple_track(sg, Some(&name)))
+        .collect();
+    Ok(MusicImportInfo {
+        source: "apple".into(),
+        kind: "album".into(),
+        name,
+        subtitle,
+        cover_url: cover,
+        tracks,
+        truncated: false,
+    })
+}
