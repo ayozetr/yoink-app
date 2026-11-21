@@ -624,15 +624,35 @@ async fn run_download(mut socket: WebSocket) {
 
     let status = child.wait().await;
     let ok = matches!(status, Ok(s) if s.success());
+
+    // History `quality` column: resolution for video, format/bitrate for audio.
+    let quality_label = if req.kind == "audio" {
+        match req.audio_bitrate.as_deref() {
+            Some(b) if b != "best" => format!("{} {b}kbps", req.audio_format),
+            _ => req.audio_format.clone(),
+        }
+    } else {
+        req.quality.clone().unwrap_or_else(|| "best".into())
+    };
+
     let msg = if ok {
-        match final_path {
+        match &final_path {
             Some(path) => {
-                let total_bytes = std::fs::metadata(&path).ok().map(|m| m.len() as i64);
-                let filename = std::path::Path::new(&path)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("")
-                    .to_string();
+                let total_bytes = std::fs::metadata(path).ok().map(|m| m.len() as i64);
+                let p = std::path::Path::new(path);
+                let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+                let title = p.file_stem().and_then(|n| n.to_str()).unwrap_or(&filename).to_string();
+                record_download(
+                    &title,
+                    &req.url,
+                    &req.kind,
+                    "completed",
+                    Some(&filename),
+                    Some(path),
+                    total_bytes,
+                    Some(&quality_label),
+                    None,
+                );
                 Message::Text(
                     serde_json::json!({
                         "type": "completed",
@@ -653,10 +673,271 @@ async fn run_download(mut socket: WebSocket) {
             let _ = se.read_to_string(&mut buf).await;
         }
         let reason = buf.trim();
-        err_event(if reason.is_empty() { "download failed" } else { reason })
+        let reason = if reason.is_empty() { "download failed".to_string() } else { reason.to_string() };
+        record_download(
+            &req.url,
+            &req.url,
+            &req.kind,
+            "error",
+            None,
+            None,
+            None,
+            Some(&quality_label),
+            Some(&reason),
+        );
+        err_event(&reason)
     };
     let _ = socket.send(msg).await;
     let _ = socket.send(Message::Close(None)).await;
+}
+
+// ---- settings + history ------------------------------------------------------
+
+fn data_dir() -> std::path::PathBuf {
+    if let Ok(d) = std::env::var("YOINK_DATA_DIR") {
+        return std::path::PathBuf::from(d);
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    std::path::Path::new(&home).join(".yoink")
+}
+
+fn humanize_bytes(n: i64) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut v = n as f64;
+    let mut u = 0;
+    while v >= 1024.0 && u < UNITS.len() - 1 {
+        v /= 1024.0;
+        u += 1;
+    }
+    if u == 0 {
+        format!("{n} B")
+    } else {
+        format!("{v:.1} {}", UNITS[u])
+    }
+}
+
+/// User settings (mirrors AppSettings in backend/app/models/media.py). Stored as
+/// `<data_dir>/settings.json`; missing keys fall back to the defaults below.
+#[derive(Serialize, Deserialize)]
+#[serde(default)]
+struct AppSettings {
+    download_dir: String,
+    default_kind: String,
+    default_quality: String,
+    default_container: String,
+    default_audio_format: String,
+    default_embed_subs: bool,
+    default_embed_chapters: bool,
+    nfo_sidecars: bool,
+    music_folders: bool,
+    prefer_soundcloud_lossless: bool,
+    fetch_lyrics: bool,
+    lyrics_lrc: bool,
+    cookies_from_browser: Option<String>,
+    cookies_file: Option<String>,
+    proxy: Option<String>,
+    po_token: Option<String>,
+    po_token_mode: String,
+    autotag_source: String,
+    sponsorblock_enabled: bool,
+    sponsorblock_action: String,
+    filename_template: String,
+    rate_limit: Option<String>,
+    use_aria2c: bool,
+    video_codec: String,
+    audio_bitrate: String,
+    normalize_audio: bool,
+    normalize_lufs: i32,
+    check_updates: bool,
+    notify_on_complete: bool,
+    minimize_to_tray: bool,
+    launch_at_startup: bool,
+    disable_global_hotkeys: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            download_dir: download_dir().display().to_string(),
+            default_kind: "video".into(),
+            default_quality: "best".into(),
+            default_container: "mp4".into(),
+            default_audio_format: "mp3".into(),
+            default_embed_subs: false,
+            default_embed_chapters: false,
+            nfo_sidecars: false,
+            music_folders: false,
+            prefer_soundcloud_lossless: false,
+            fetch_lyrics: false,
+            lyrics_lrc: false,
+            cookies_from_browser: None,
+            cookies_file: None,
+            proxy: None,
+            po_token: None,
+            po_token_mode: "manual".into(),
+            autotag_source: "auto".into(),
+            sponsorblock_enabled: false,
+            sponsorblock_action: "remove".into(),
+            filename_template: "%(title)s".into(),
+            rate_limit: None,
+            use_aria2c: false,
+            video_codec: "any".into(),
+            audio_bitrate: "best".into(),
+            normalize_audio: false,
+            normalize_lufs: -14,
+            check_updates: true,
+            notify_on_complete: true,
+            minimize_to_tray: false,
+            launch_at_startup: false,
+            disable_global_hotkeys: false,
+        }
+    }
+}
+
+fn settings_path() -> std::path::PathBuf {
+    data_dir().join("settings.json")
+}
+
+fn load_settings() -> AppSettings {
+    std::fs::read_to_string(settings_path())
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_settings(s: &AppSettings) -> Result<(), String> {
+    let _ = std::fs::create_dir_all(data_dir());
+    let json = serde_json::to_string_pretty(s).map_err(|e| e.to_string())?;
+    std::fs::write(settings_path(), json).map_err(|e| e.to_string())
+}
+
+async fn get_settings() -> Json<AppSettings> {
+    Json(load_settings())
+}
+
+async fn put_settings(Json(s): Json<AppSettings>) -> Result<Json<AppSettings>, (StatusCode, String)> {
+    save_settings(&s).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(s))
+}
+
+#[derive(Serialize)]
+struct HistoryEntry {
+    id: i64,
+    title: String,
+    url: String,
+    kind: String,
+    status: String,
+    filename: Option<String>,
+    filepath: Option<String>,
+    filesize: Option<i64>,
+    quality: Option<String>,
+    error_message: Option<String>,
+    created_at: String,
+    mtime: Option<f64>,
+}
+
+#[derive(Serialize)]
+struct HistoryStats {
+    total_downloads: i64,
+    total_bytes: i64,
+    transferred: String,
+}
+
+fn history_db() -> std::path::PathBuf {
+    data_dir().join("history.db")
+}
+
+const HISTORY_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS downloads (\
+    id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, url TEXT NOT NULL, \
+    kind TEXT NOT NULL, status TEXT NOT NULL, filename TEXT, filepath TEXT, \
+    filesize INTEGER, quality TEXT, error_message TEXT, created_at TEXT NOT NULL);";
+
+fn file_mtime(path: &Option<String>) -> Option<f64> {
+    let p = path.as_ref()?;
+    std::fs::metadata(p)
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_secs_f64())
+}
+
+async fn get_history() -> Json<Vec<HistoryEntry>> {
+    let conn = match rusqlite::Connection::open(history_db()) {
+        Ok(c) => c,
+        Err(_) => return Json(vec![]),
+    };
+    let mut stmt = match conn.prepare(
+        "SELECT id,title,url,kind,status,filename,filepath,filesize,quality,error_message,created_at \
+         FROM downloads ORDER BY id DESC LIMIT 50",
+    ) {
+        Ok(s) => s,
+        Err(_) => return Json(vec![]),
+    };
+    let rows = stmt.query_map([], |r| {
+        let filepath: Option<String> = r.get(6)?;
+        Ok(HistoryEntry {
+            id: r.get(0)?,
+            title: r.get(1)?,
+            url: r.get(2)?,
+            kind: r.get(3)?,
+            status: r.get(4)?,
+            filename: r.get(5)?,
+            mtime: file_mtime(&filepath),
+            filepath,
+            filesize: r.get(7)?,
+            quality: r.get(8)?,
+            error_message: r.get(9)?,
+            created_at: r.get(10)?,
+        })
+    });
+    Json(rows.map(|it| it.filter_map(Result::ok).collect()).unwrap_or_default())
+}
+
+async fn get_history_stats() -> Json<HistoryStats> {
+    let (count, total) = rusqlite::Connection::open(history_db())
+        .ok()
+        .and_then(|c| {
+            c.query_row(
+                "SELECT COUNT(*), COALESCE(SUM(filesize),0) FROM downloads WHERE status='completed'",
+                [],
+                |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
+            )
+            .ok()
+        })
+        .unwrap_or((0, 0));
+    Json(HistoryStats {
+        total_downloads: count,
+        total_bytes: total,
+        transferred: humanize_bytes(total),
+    })
+}
+
+/// Persist one finished download (completed or error) to the history DB.
+#[allow(clippy::too_many_arguments)]
+fn record_download(
+    title: &str,
+    url: &str,
+    kind: &str,
+    status: &str,
+    filename: Option<&str>,
+    filepath: Option<&str>,
+    filesize: Option<i64>,
+    quality: Option<&str>,
+    error: Option<&str>,
+) {
+    let _ = std::fs::create_dir_all(data_dir());
+    if let Ok(conn) = rusqlite::Connection::open(history_db()) {
+        let _ = conn.execute_batch(HISTORY_SCHEMA);
+        let created = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let _ = conn.execute(
+            "INSERT INTO downloads \
+             (title,url,kind,status,filename,filepath,filesize,quality,error_message,created_at) \
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+            rusqlite::params![title, url, kind, status, filename, filepath, filesize, quality, error, created],
+        );
+    }
 }
 
 // ---- server ------------------------------------------------------------------
@@ -681,7 +962,7 @@ async fn main() {
     .collect();
     let cors = CorsLayer::new()
         .allow_origin(origins)
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([Method::GET, Method::POST, Method::PUT])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let app = Router::new()
@@ -689,6 +970,9 @@ async fn main() {
         .route("/api/info", post(info))
         .route("/api/search", get(search))
         .route("/api/ws/download", get(ws_download))
+        .route("/api/settings", get(get_settings).put(put_settings))
+        .route("/api/history", get(get_history))
+        .route("/api/history/stats", get(get_history_stats))
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
