@@ -1230,6 +1230,10 @@ async fn music_resolve(
             .await
             .map(Json)
             .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
+        Some("amazon") => music::resolve_amazon(&req.url)
+            .await
+            .map(Json)
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
         Some(other) => Err((
             StatusCode::NOT_IMPLEMENTED,
             format!("{other} import is not ported to the Rust core yet"),

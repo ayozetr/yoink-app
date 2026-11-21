@@ -536,6 +536,12 @@ fn unescape_html(s: &str) -> String {
     s.replace("&amp;", "&")
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
+        .replace("&#x27;", "'")
+        .replace("&#x2F;", "/")
+        .replace("&#x3C;", "<")
+        .replace("&#x3E;", ">")
+        .replace("&#x26;", "&")
+        .replace("&#34;", "\"")
         .replace("&apos;", "'")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
@@ -911,4 +917,287 @@ pub async fn track_meta(title: &str, artists: &str) -> (Option<String>, Option<i
         }
     }
     (None, None)
+}
+
+// --- Amazon Music (public embed scrape) ------------------------------------
+
+const AMZ_BROWSER_UA: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+     (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+fn amazon_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"^(?:https?://)?music\.amazon\.[a-z]{2,3}(?:\.[a-z]{2})?/(albums|tracks|playlists|user-playlists)/([A-Z0-9.]+)",
+        )
+        .unwrap()
+    })
+}
+
+async fn get_text_browser(url: &str) -> Result<String, String> {
+    reqwest::Client::builder()
+        .user_agent(AMZ_BROWSER_UA)
+        .build()
+        .unwrap_or_default()
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .text()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Strip Amazon's size token (e.g. `._SY240_`) to get the original image.
+fn amz_full_size(url: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\._[^./]+_\.").unwrap()).replace(url, ".").into_owned()
+}
+
+/// Loosely normalise a track title for cross-service matching (mirrors _norm_title).
+fn amz_norm_title(title: &str) -> String {
+    static EXPL: OnceLock<Regex> = OnceLock::new();
+    static PAREN: OnceLock<Regex> = OnceLock::new();
+    static PUNCT: OnceLock<Regex> = OnceLock::new();
+    static WS: OnceLock<Regex> = OnceLock::new();
+    let expl = EXPL.get_or_init(|| Regex::new(r"(?i)\s*\[explicit\]\s*").unwrap());
+    let paren = PAREN.get_or_init(|| Regex::new(r"\s*\([^)]*\)\s*").unwrap());
+    let punct = PUNCT.get_or_init(|| Regex::new(r"[^\w\s]").unwrap());
+    let ws = WS.get_or_init(|| Regex::new(r"\s+").unwrap());
+    let t = title.to_lowercase();
+    let t = expl.replace_all(&t, " ");
+    let t = paren.replace_all(&t, " ");
+    let t = punct.replace_all(&t, "");
+    ws.replace_all(&t, " ").trim().to_string()
+}
+
+/// Amazon's embed carries neither cover art nor durations, so look the album up
+/// on Deezer's keyless API and fill them in (mirrors _deezer_enrich). Mutates
+/// `tracks`; returns the album cover. Best-effort no-op on any miss.
+async fn deezer_enrich(name: &str, artist: &str, tracks: &mut [MusicTrack]) -> Option<String> {
+    if name.is_empty() {
+        return None;
+    }
+    let queries = [
+        format!("artist:\"{artist}\" album:\"{name}\""),
+        format!("{artist} {name}").trim().to_string(),
+    ];
+    let mut aid: Option<i64> = None;
+    for q in queries {
+        if let Ok(found) = get_json_query("https://api.deezer.com/search/album", &[("limit", "1"), ("q", &q)]).await {
+            if let Some(first) = found.get("data").and_then(Value::as_array).and_then(|a| a.first()) {
+                aid = first.get("id").and_then(Value::as_i64);
+                break;
+            }
+        }
+    }
+    let aid = aid?;
+    let album = get_json(&format!("https://api.deezer.com/album/{aid}")).await.ok()?;
+    let cover = s(&album, "cover_xl").or_else(|| s(&album, "cover_big"));
+    let mut durations: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    if let Some(arr) = album.get("tracks").and_then(|t| t.get("data")).and_then(Value::as_array) {
+        for entry in arr {
+            let key = amz_norm_title(entry.get("title").and_then(Value::as_str).unwrap_or(""));
+            if !key.is_empty() && !durations.contains_key(&key) {
+                if let Some(d) = entry.get("duration").and_then(Value::as_i64) {
+                    durations.insert(key, d * 1000);
+                }
+            }
+        }
+    }
+    for track in tracks.iter_mut() {
+        if track.duration_ms.is_none() {
+            track.duration_ms = durations.get(&amz_norm_title(&track.title)).copied();
+        }
+        if let Some(c) = &cover {
+            if track.cover_url.is_none() {
+                track.cover_url = Some(c.clone());
+            }
+        }
+    }
+    cover
+}
+
+/// Resolve an Amazon Music album/track/playlist embed (keyless scrape + Deezer
+/// enrichment). Mirrors _resolve_amazon in music_import.py.
+pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
+    let caps = amazon_re()
+        .captures(url)
+        .ok_or_else(|| "Not a recognised Amazon Music URL.".to_string())?;
+    let kind_path = caps[1].to_lowercase();
+    let asin = caps[2].to_string();
+    let kind = if kind_path == "tracks" {
+        "track"
+    } else if kind_path.contains("playlist") {
+        "playlist"
+    } else {
+        "album"
+    };
+    let tld = Regex::new(r"music\.amazon\.([a-z]{2,3}(?:\.[a-z]{2})?)/")
+        .ok()
+        .and_then(|re| re.captures(url).map(|c| c[1].to_string()))
+        .unwrap_or_else(|| "com".to_string());
+
+    let raw = get_text_browser(&format!("https://music.amazon.{tld}/embed/{asin}")).await?;
+    // Collapse inter-tag whitespace so titles/artists sit flush after their tags.
+    static WS: OnceLock<Regex> = OnceLock::new();
+    let html = WS.get_or_init(|| Regex::new(r">\s+<").unwrap()).replace_all(&raw, "><").into_owned();
+
+    static TITLE_TAG: OnceLock<Regex> = OnceLock::new();
+    static HEADER_IMG: OnceLock<Regex> = OnceLock::new();
+    static ORIGINAL: OnceLock<Regex> = OnceLock::new();
+    static EXPL_SUFFIX: OnceLock<Regex> = OnceLock::new();
+    let title_tag = TITLE_TAG.get_or_init(|| Regex::new(r"(?s)<title>(.*?)</title>").unwrap());
+    let header_img = HEADER_IMG.get_or_init(|| Regex::new(r#"headerImg[^>]*><img[^>]*\bsrc="([^"]+)""#).unwrap());
+    let original = ORIGINAL.get_or_init(|| Regex::new(r"(?i)amazon\s+(?:music\s+)?original").unwrap());
+    let expl_suffix = EXPL_SUFFIX.get_or_init(|| Regex::new(r"\s*\[Explicit\]\s*$").unwrap());
+
+    let header_cover = header_img
+        .captures(&html)
+        .map(|c| amz_full_size(&unescape_html(&c[1])));
+
+    if kind == "track" {
+        static TRACK_PREFIX: OnceLock<Regex> = OnceLock::new();
+        static TRACK_ARTIST: OnceLock<Regex> = OnceLock::new();
+        let prefix = TRACK_PREFIX.get_or_init(|| {
+            Regex::new(r"(?s)^Amazon Music\s*[-\x{2013}]\s*(?:Pista|Canci\u{00f3}n|Cancion|Song|Track)\s*").unwrap()
+        });
+        let track_artist = TRACK_ARTIST
+            .get_or_init(|| Regex::new(r#"(?s)class="trackArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap());
+        let raw_title = title_tag.captures(&html).map(|c| unescape_html(&c[1])).unwrap_or_default();
+        let name = prefix.replace(&raw_title, "").to_string();
+        let name = expl_suffix.replace(name.trim(), "").trim().to_string();
+        if name.is_empty() {
+            return Err("Could not read the Amazon Music track.".to_string());
+        }
+        let artist = track_artist
+            .captures(&html)
+            .map(|c| unescape_html(c[1].trim()))
+            .unwrap_or_default();
+        let is_original = original.is_match(&name);
+        let mut tracks = vec![MusicTrack {
+            title: name.clone(),
+            artists: artist.clone(),
+            isrc: None,
+            duration_ms: None,
+            is_explicit: raw_title.contains("[Explicit]"),
+            album: None,
+            year: None,
+            cover_url: if is_original { header_cover.clone() } else { None },
+            source_url: format!("https://music.amazon.{tld}/tracks/{asin}"),
+        }];
+        deezer_enrich(&name, &artist, &mut tracks).await;
+        if tracks[0].cover_url.is_none() {
+            tracks[0].cover_url = header_cover.clone();
+        }
+        let cover = header_cover.or_else(|| tracks[0].cover_url.clone());
+        return Ok(MusicImportInfo {
+            source: "amazon".into(),
+            kind: "track".into(),
+            name,
+            subtitle: Some(artist),
+            cover_url: cover,
+            tracks,
+            truncated: false,
+        });
+    }
+
+    // album / playlist
+    static SET_PREFIX: OnceLock<Regex> = OnceLock::new();
+    static ITEM: OnceLock<Regex> = OnceLock::new();
+    static LIST_TITLE: OnceLock<Regex> = OnceLock::new();
+    static LIST_ARTIST: OnceLock<Regex> = OnceLock::new();
+    static ASIN_RE: OnceLock<Regex> = OnceLock::new();
+    static TRACK_IMG: OnceLock<Regex> = OnceLock::new();
+    let set_prefix = SET_PREFIX.get_or_init(|| {
+        Regex::new(r"(?s)^Amazon Music\s*[-\x{2013}]\s*(?:\u{00c1}lbum|Album|Playlist|Lista)\s*").unwrap()
+    });
+    let item = ITEM.get_or_init(|| Regex::new(r#"(?s)<li class="trackItem.*?</li>"#).unwrap());
+    let list_title = LIST_TITLE.get_or_init(|| Regex::new(r#"(?s)class="trackListTitle[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap());
+    let list_artist = LIST_ARTIST.get_or_init(|| Regex::new(r#"(?s)class="trackListArtist[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)"#).unwrap());
+    let asin_re = ASIN_RE.get_or_init(|| Regex::new(r#"data-asin="([A-Z0-9]+)""#).unwrap());
+    let track_img = TRACK_IMG.get_or_init(|| Regex::new(r#"imageBackground[^>]*background-image:\s*url\(['"]?([^'")]+)"#).unwrap());
+
+    let set_name = title_tag
+        .captures(&html)
+        .map(|c| {
+            let n = unescape_html(&c[1]);
+            let n = set_prefix.replace(&n, "").to_string();
+            expl_suffix.replace(n.trim(), "").trim().to_string()
+        })
+        .unwrap_or_default();
+
+    let mut tracks: Vec<MusicTrack> = Vec::new();
+    let mut amazon_covers: Vec<Option<String>> = Vec::new();
+    for block in item.find_iter(&html).map(|m| m.as_str()) {
+        let Some(tm) = list_title.captures(block) else { continue };
+        let raw_t = tm[1].to_string();
+        let title = expl_suffix.replace(unescape_html(tm[1].trim()).trim(), "").trim().to_string();
+        let artist = list_artist.captures(block).map(|c| unescape_html(c[1].trim())).unwrap_or_default();
+        let asin_m = asin_re.captures(block).map(|c| c[1].to_string());
+        let amazon_cover = track_img
+            .captures(block)
+            .map(|c| amz_full_size(&unescape_html(&c[1])))
+            .or_else(|| header_cover.clone());
+        amazon_covers.push(amazon_cover.clone());
+        let is_original = original.is_match(&title);
+        tracks.push(MusicTrack {
+            title,
+            artists: artist,
+            isrc: None,
+            duration_ms: None,
+            is_explicit: raw_t.contains("[Explicit]"),
+            album: if kind == "album" { Some(set_name.clone()) } else { None },
+            year: None,
+            cover_url: if is_original { amazon_cover } else { None },
+            source_url: asin_m
+                .map(|a| format!("https://music.amazon.{tld}/tracks/{a}"))
+                .unwrap_or_default(),
+        });
+    }
+
+    if tracks.is_empty() {
+        return Err("Could not read the Amazon Music tracklist.".to_string());
+    }
+
+    if kind == "album" {
+        let artist0 = tracks[0].artists.clone();
+        deezer_enrich(&set_name, &artist0, &mut tracks).await;
+    } else {
+        // playlist: enrich each track's missing cover/duration on its own.
+        for track in tracks.iter_mut() {
+            if track.cover_url.is_some() && track.duration_ms.is_some() {
+                continue;
+            }
+            let (cover, dur) = track_meta(&track.title, &track.artists).await;
+            if track.cover_url.is_none() {
+                track.cover_url = cover;
+            }
+            if track.duration_ms.is_none() {
+                track.duration_ms = dur;
+            }
+        }
+    }
+
+    // Backfill covers Deezer couldn't find (Amazon-exclusive) from Amazon.
+    for (track, amazon_cover) in tracks.iter_mut().zip(amazon_covers.into_iter()) {
+        if track.cover_url.is_none() {
+            if let Some(c) = amazon_cover {
+                track.cover_url = Some(c);
+            }
+        }
+    }
+
+    let cover = header_cover.or_else(|| tracks.iter().find_map(|t| t.cover_url.clone()));
+    let subtitle = if kind == "album" { Some(tracks[0].artists.clone()) } else { None };
+    Ok(MusicImportInfo {
+        source: "amazon".into(),
+        kind: kind.into(),
+        name: if set_name.is_empty() { "Amazon Music".into() } else { set_name },
+        subtitle,
+        cover_url: cover,
+        tracks,
+        truncated: false,
+    })
 }
