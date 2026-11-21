@@ -198,6 +198,83 @@ fn ytdlp_bin() -> String {
     std::env::var("YOINK_YTDLP").unwrap_or_else(|_| "yt-dlp".to_string())
 }
 
+/// yt-dlp stderr markers that mark a likely-temporary failure (network blip,
+/// 5xx/429, or an anti-bot 403) worth retrying — as opposed to a permanent
+/// unsupported/private/deleted URL. Mirrors _TRANSIENT_MARKERS.
+const TRANSIENT_MARKERS: &[&str] = &[
+    "http error 500", "http error 502", "http error 503", "http error 504",
+    "http error 429", "http error 403", "timed out", "timeout", "connection reset",
+    "connection refused", "connection aborted", "remote end closed",
+    "temporary failure", "sign in to confirm you're not a bot",
+    "failed to extract any player response", "getaddrinfo failed",
+];
+
+fn is_transient(stderr: &str) -> bool {
+    let low = stderr.to_lowercase();
+    TRANSIENT_MARKERS.iter().any(|m| low.contains(m))
+}
+
+/// Cookie args for a yt-dlp call. `use_browser=false` drops the browser store
+/// (the fallback), keeping a cookies file if one is configured.
+fn cookie_args(settings: &AppSettings, use_browser: bool) -> Vec<String> {
+    if use_browser {
+        if let Some(b) = settings.cookies_from_browser.as_deref().filter(|s| !s.is_empty()) {
+            return vec!["--cookies-from-browser".into(), b.into()];
+        }
+    }
+    if let Some(f) = settings.cookies_file.as_deref().filter(|s| !s.is_empty()) {
+        return vec!["--cookies".into(), f.into()];
+    }
+    vec![]
+}
+
+async fn ytdlp_once(base: &[&str], cookies: &[String]) -> Result<Vec<u8>, (bool, String)> {
+    let mut cmd = tokio::process::Command::new(ytdlp_bin());
+    cmd.args(base);
+    cmd.args(cookies);
+    match cmd.output().await {
+        Ok(o) if o.status.success() => Ok(o.stdout),
+        Ok(o) => {
+            let err = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            Err((is_transient(&err), err))
+        }
+        Err(e) => Err((true, format!("could not run yt-dlp: {e}"))),
+    }
+}
+
+/// Run a yt-dlp `-J` command with a transient-retry (up to 3 attempts, 0.6 s
+/// backoff) and a browser-cookie fallback (retry once with the fragile browser
+/// store dropped). Mirrors extract_info's retry + with_cookie_fallback. The Err
+/// carries (transient, message) so a caller can map it to 503 vs 422.
+async fn run_ytdlp_json(base: &[&str], settings: &AppSettings) -> Result<Vec<u8>, (bool, String)> {
+    let primary = cookie_args(settings, true);
+    let fallback = cookie_args(settings, false);
+    let has_browser = settings.cookies_from_browser.as_deref().is_some_and(|s| !s.is_empty());
+    let mut last = (false, "yt-dlp failed".to_string());
+    for attempt in 0..3 {
+        match ytdlp_once(base, &primary).await {
+            Ok(out) => return Ok(out),
+            Err(e) => {
+                last = e;
+                // The browser cookie store is the most fragile part of a request
+                // (locked DB, app-bound decryption, …) — retry once without it.
+                if has_browser {
+                    if let Ok(out) = ytdlp_once(base, &fallback).await {
+                        return Ok(out);
+                    }
+                }
+                if !last.0 {
+                    break; // a permanent failure — don't keep retrying
+                }
+                if attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+                }
+            }
+        }
+    }
+    Err(last)
+}
+
 fn s(v: &Value, key: &str) -> Option<String> {
     v.get(key).and_then(Value::as_str).map(str::to_string)
 }
@@ -441,30 +518,22 @@ async fn version() -> Json<VersionInfo> {
 }
 
 async fn info(Json(req): Json<InfoRequest>) -> Result<Json<InfoResponse>, (StatusCode, String)> {
-    let output = tokio::process::Command::new(ytdlp_bin())
-        // --flat-playlist keeps a single video fully detailed (formats survive)
-        // while a playlist URL returns a fast, flat listing of its entries.
-        .args(["-J", "--flat-playlist", "--no-warnings", &req.url])
-        .output()
+    let settings = load_settings();
+    // --flat-playlist keeps a single video fully detailed (formats survive) while
+    // a playlist URL returns a fast, flat listing. Transient anti-bot/network
+    // failures are retried; a genuine unsupported/private URL is not.
+    let stdout = run_ytdlp_json(&["-J", "--flat-playlist", "--no-warnings", &req.url], &settings)
         .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not run yt-dlp: {e}"),
-            )
+        .map_err(|(transient, err)| {
+            if transient {
+                // 503 so the UI shows "temporary — try again", not "unsupported".
+                (StatusCode::SERVICE_UNAVAILABLE, format!("temporarily unavailable (anti-bot/network): {err}"))
+            } else {
+                (StatusCode::UNPROCESSABLE_ENTITY, format!("yt-dlp could not extract this URL: {err}"))
+            }
         })?;
 
-    if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        // A genuinely unsupported/private URL vs. a transient failure is refined
-        // in a later slice (503 retryable vs 422); 422 for now.
-        return Err((
-            StatusCode::UNPROCESSABLE_ENTITY,
-            format!("yt-dlp could not extract this URL: {}", err.trim()),
-        ));
-    }
-
-    let j: Value = serde_json::from_slice(&output.stdout)
+    let j: Value = serde_json::from_slice(&stdout)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("bad yt-dlp JSON: {e}")))?;
 
     if j.get("_type").and_then(Value::as_str) == Some("playlist") {
@@ -492,24 +561,11 @@ async fn search(
         _ => "ytsearch",
     };
     let query = format!("{prefix}20:{}", p.q);
-    let output = tokio::process::Command::new(ytdlp_bin())
-        .args(["-J", "--flat-playlist", "--no-warnings", &query])
-        .output()
+    let settings = load_settings();
+    let stdout = run_ytdlp_json(&["-J", "--flat-playlist", "--no-warnings", &query], &settings)
         .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("could not run yt-dlp: {e}"),
-            )
-        })?;
-    if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        return Err((
-            StatusCode::BAD_GATEWAY,
-            format!("search failed: {}", err.trim()),
-        ));
-    }
-    let j: Value = serde_json::from_slice(&output.stdout)
+        .map_err(|(_t, err)| (StatusCode::BAD_GATEWAY, format!("search failed: {err}")))?;
+    let j: Value = serde_json::from_slice(&stdout)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("bad yt-dlp JSON: {e}")))?;
     Ok(Json(SearchResponse {
         results: map_entries(&j),
@@ -1261,19 +1317,15 @@ struct MusicTrack {
     isrc: Option<String>,
 }
 
-/// Run a yt-dlp flat search/extract and return its `entries` array.
-async fn ytdlp_entries(query: &str) -> Vec<Value> {
-    let out = tokio::process::Command::new(ytdlp_bin())
-        .args(["-J", "--flat-playlist", "--no-warnings", query])
-        .output()
-        .await;
-    match out {
-        Ok(o) if o.status.success() => serde_json::from_slice::<Value>(&o.stdout)
-            .ok()
-            .and_then(|j| j.get("entries").and_then(Value::as_array).cloned())
-            .unwrap_or_default(),
-        _ => vec![],
-    }
+/// Run a yt-dlp flat search/extract (with transient-retry + cookie fallback) and
+/// return its `entries` array.
+async fn ytdlp_entries(query: &str, settings: &AppSettings) -> Vec<Value> {
+    run_ytdlp_json(&["-J", "--flat-playlist", "--no-warnings", query], settings)
+        .await
+        .ok()
+        .and_then(|out| serde_json::from_slice::<Value>(&out).ok())
+        .and_then(|j| j.get("entries").and_then(Value::as_array).cloned())
+        .unwrap_or_default()
 }
 
 fn cand_url(cand: &Value) -> Option<String> {
@@ -1282,17 +1334,15 @@ fn cand_url(cand: &Value) -> Option<String> {
 
 /// Exact YouTube Music recording by ISRC (take result #1, duration-gated). ISRCs
 /// are plain [A-Z0-9], so no URL-encoding is needed. Mirrors _ytmusic_isrc_match.
-async fn ytmusic_isrc_match(isrc: &str, duration_ms: Option<i64>) -> Option<String> {
+async fn ytmusic_isrc_match(isrc: &str, duration_ms: Option<i64>, settings: &AppSettings) -> Option<String> {
     let search = format!("https://music.youtube.com/search?q={isrc}#songs");
-    let out = tokio::process::Command::new(ytdlp_bin())
-        .args(["-J", "--flat-playlist", "--playlist-items", "1", "--no-warnings", &search])
-        .output()
-        .await
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let j: Value = serde_json::from_slice(&out.stdout).ok()?;
+    let out = run_ytdlp_json(
+        &["-J", "--flat-playlist", "--playlist-items", "1", "--no-warnings", &search],
+        settings,
+    )
+    .await
+    .ok()?;
+    let j: Value = serde_json::from_slice(&out).ok()?;
     let vid = j
         .get("entries")
         .and_then(Value::as_array)
@@ -1302,13 +1352,8 @@ async fn ytmusic_isrc_match(isrc: &str, duration_ms: Option<i64>) -> Option<Stri
         .to_string();
     if let Some(target) = duration_ms {
         let watch = format!("https://music.youtube.com/watch?v={vid}");
-        let out2 = tokio::process::Command::new(ytdlp_bin())
-            .args(["-J", "--no-warnings", "--skip-download", &watch])
-            .output()
-            .await
-            .ok()?;
-        if out2.status.success() {
-            if let Ok(full) = serde_json::from_slice::<Value>(&out2.stdout) {
+        if let Ok(out2) = run_ytdlp_json(&["-J", "--no-warnings", "--skip-download", &watch], settings).await {
+            if let Ok(full) = serde_json::from_slice::<Value>(&out2) {
                 if let Some(d) = full.get("duration").and_then(Value::as_f64) {
                     if ((d as i64) * 1000 - target).abs() > 3000 {
                         return None;
@@ -1331,24 +1376,17 @@ fn formats_lossless(formats: Option<&Value>) -> bool {
 }
 
 /// A lossless SoundCloud source for the track, if one exists and matches.
-async fn soundcloud_lossless_match(title: &str, artists: &str, duration_ms: Option<i64>) -> Option<String> {
+async fn soundcloud_lossless_match(title: &str, artists: &str, duration_ms: Option<i64>, settings: &AppSettings) -> Option<String> {
     let query = format!("{artists} {title}");
     let query = query.trim();
     if query.is_empty() {
         return None;
     }
-    let candidates = ytdlp_entries(&format!("scsearch5:{query}")).await;
+    let candidates = ytdlp_entries(&format!("scsearch5:{query}"), settings).await;
     let (best, _) = matching::best_match(title, artists, duration_ms, &candidates)?;
     let url = cand_url(best)?;
-    let out = tokio::process::Command::new(ytdlp_bin())
-        .args(["-J", "--no-warnings", "--skip-download", &url])
-        .output()
-        .await
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let full: Value = serde_json::from_slice(&out.stdout).ok()?;
+    let out = run_ytdlp_json(&["-J", "--no-warnings", "--skip-download", &url], settings).await.ok()?;
+    let full: Value = serde_json::from_slice(&out).ok()?;
     formats_lossless(full.get("formats")).then_some(url)
 }
 
@@ -1365,19 +1403,19 @@ async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (Stat
     };
 
     if settings.prefer_soundcloud_lossless {
-        if let Some(url) = soundcloud_lossless_match(&track.title, &track.artists, track.duration_ms).await {
+        if let Some(url) = soundcloud_lossless_match(&track.title, &track.artists, track.duration_ms, &settings).await {
             return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
         }
     }
     if let Some(ref i) = isrc {
-        if let Some(url) = ytmusic_isrc_match(i, track.duration_ms).await {
+        if let Some(url) = ytmusic_isrc_match(i, track.duration_ms, &settings).await {
             return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
         }
     }
     // Ranked text search: a tight top-5 first, widening to top-10 only if nothing
     // clears the thresholds (a passing match is never displaced).
     for count in [5, 10] {
-        let candidates = ytdlp_entries(&format!("ytsearch{count}:{} {}", track.title, track.artists)).await;
+        let candidates = ytdlp_entries(&format!("ytsearch{count}:{} {}", track.title, track.artists), &settings).await;
         if let Some((cand, _)) = matching::best_match(&track.title, &track.artists, track.duration_ms, &candidates) {
             if let Some(url) = cand_url(cand) {
                 return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
