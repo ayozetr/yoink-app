@@ -54,9 +54,25 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   watchdog on, so it dies with the app even on a hard kill (verified), and is also
   killed on a clean exit. It points the backend at bundled `yt-dlp`/`ffmpeg`
   siblings when present.
+- **Phase 12 (done):** native packaging. `scripts/build_desktop.py` builds the
+  three binaries, bundles yt-dlp/ffmpeg, and lays out `dist/yoink-linux/` with a
+  `.desktop`, icon and `install.sh`/`uninstall.sh`. Installing drops the trio under
+  `/usr/lib/yoink` with a `/usr/bin/yoink-desktop` symlink — a drop-in replacement
+  for the Tauri bundle, no WebView runtime. Verified: the installed launcher finds
+  its siblings, starts the backend, and cleans up on exit.
 - **Later:** a standalone auto-tag screen for existing files; a system tray and an
-  in-app updater; then native packaging of the trio (desktop + minter + core) to
-  replace the Tauri bundler.
+  in-app updater; Windows packaging.
+
+## Build & install (Linux)
+
+```bash
+python scripts/build_desktop.py          # release build + dist/yoink-linux/
+cd dist/yoink-linux && sudo ./install.sh # → /usr/lib/yoink + /usr/bin/yoink-desktop
+```
+
+(First time, run `scripts/build_ffmpeg.sh` and `scripts/build_core.py` once so
+yt-dlp/ffmpeg are available to bundle. For development, `cargo run` in `backend-rs/`
+and `desktop/` instead.)
 
 ## Run
 
