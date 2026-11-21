@@ -82,7 +82,7 @@ src/
   accent/…`) exposed as utilities, **dark by default** with a light theme under
   `html[data-theme="light"]`. No `tailwind.config.js`; PostCSS uses
   `@tailwindcss/postcss`.
-- **Types:** keep `types/download.ts` aligned with the backend's Pydantic
+- **Types:** keep `types/download.ts` aligned with the backend's Rust structs (serde)
   models — it's the single source of truth for the API shape on the client.
 - **i18n:** user-facing strings come from `react-i18next` (`useTranslation`),
   with 14 language dictionaries in `i18n/locales` (English bundled, the rest
@@ -105,7 +105,7 @@ and `MusicImportCard` — share a single in-memory **download lock**
 (`lib/downloadLock.ts`): each acquires it before opening a socket and releases it
 on drain/cancel/unmount, and the others' start buttons are disabled while it's
 held, so two engines can't write the same `.part` at once (the backend has an
-`asyncio.Lock` backstop for the multi-client case).
+the backend treats each download connection independently).
 
 After an audio download, `DownloaderPanel` offers opt-in **audio auto-tagging**
 (Apple Music, Deezer or MusicBrainz, chosen in Settings): a single one-song download opens

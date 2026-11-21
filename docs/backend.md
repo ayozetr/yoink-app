@@ -1,202 +1,51 @@
 # Backend
 
-Python + FastAPI, wrapping yt-dlp. Strictly typed throughout.
+The backend is **`yoink-core`**, a native Rust service (lives in `backend-rs/`).
+It is an [axum](https://github.com/tokio-rs/axum) HTTP/WebSocket server that
+drives the bundled `yt-dlp` and `ffmpeg` binaries, manages the local filesystem,
+and streams download progress to the frontend. There is no Python runtime.
 
-## Structure
+The original Python/FastAPI backend (the one this replaced) is preserved on the
+`legacy` branch.
 
-```
-backend/
-├── app/
-│   ├── main.py                 # app factory: FastAPI(), CORS, router mounting, /health
-│   ├── core/
-│   │   ├── config.py           # typed Settings (CORS origins, download dir, ~/.yoink data dir, app_version)
-│   │   ├── logging_config.py   # rotating file log at ~/.yoink/logs/yoink.log + console
-│   │   ├── humanize.py         # shared byte/size formatting
-│   │   ├── ffmpeg.py           # locate the bundled/system ffmpeg + ffprobe (ffmpeg_location)
-│   │   ├── ytdlp_options.py    # shared URL normalize + cookies (browser → file fallback)
-│   │   └── safe_http.py        # SSRF-safe fetch (public-host pinning) for client-supplied URLs
-│   ├── models/
-│   │   ├── media.py            # Pydantic models (JSON contract): InfoResponse, VideoInfo,
-│   │   │                       #   PlaylistInfo, DownloadRequest, progress/terminal events, …
-│   │   ├── music.py            # music-import models: MusicTrack, MusicImportInfo, …
-│   │   └── autotag.py          # auto-tag models: TagCandidate, CandidateList, LyricsRequest/Result, …
-│   ├── routers/
-│   │   ├── info.py             # POST /api/info (video or playlist; playlist sync vs history), GET /api/search (YouTube/SoundCloud)
-│   │   ├── download.py         # WS /api/ws/download (live progress)
-│   │   ├── history.py          # GET/DELETE /api/history(/stats), POST /api/open
-│   │   ├── settings.py         # GET/PUT /api/settings, GET /api/version + /api/release-notes + /api/ytdlp-version
-│   │   ├── autotag.py          # POST /api/autotag/{identify,search,lyrics,apply}
-│   │   ├── music.py            # POST /api/music/{resolve,match} (keyless music import)
-│   │   └── media.py            # GET /api/thumbnail (host-guarded image proxy) + /api/cover (embedded art)
-│   └── services/
-│       ├── ytdlp_service.py    # typed yt-dlp metadata wrapper (extract_info, download=False)
-│       ├── download_service.py # yt-dlp download + typed progress stream (one job at a time via a process-wide asyncio lock; free-disk pre-flight)
-│       ├── audio_normalize.py  # two-pass ffmpeg loudnorm → -14 LUFS (EBU R128) for audio downloads; best-effort
-│       ├── threads_extractor.py     # custom Threads (Meta) yt-dlp extractor
-│       ├── embedded_vr_extractor.py # player-config extractor overriding stale bundled ones
-│       ├── music_import.py     # keyless resolvers (Spotify/Deezer/Apple/Tidal/Amazon) + YouTube match
-│       ├── matching.py         # spotDL-ported YouTube match ranking (pure, no network)
-│       ├── autotag_service.py  # Apple Music (iTunes) / Deezer / MusicBrainz lookup + mutagen tag/cover/lyrics writing
-│       ├── lyrics.py           # LRCLIB lyrics lookup (plain + synced .lrc), SSRF-safe
-│       ├── nfo.py              # Kodi/Jellyfin .nfo sidecars (movie / musicvideo)
-│       ├── vr.py               # VR detection + Spherical Video V2 (st3d/sv3d) tagging
-│       ├── history_store.py    # SQLite persistence (WAL; history + stats; error_message column)
-│       ├── settings_store.py   # persisted user settings overrides
-│       └── updates.py          # GitHub release update check + release-notes fetch
-└── requirements.txt
-```
-
-## The yt-dlp wrapper
-
-`services/ytdlp_service.py` is the only place that touches yt-dlp:
-
-- `extract_info(url)` runs `YoutubeDL.extract_info(url, download=False)`, then
-  `sanitize_info` to get a stable, JSON-serializable dict.
-- Helpers map raw yt-dlp fields into the typed `VideoInfo` / `MediaFormat`
-  models: `_map_format` (codecs → has_video/has_audio, filesize), `_best_thumbnail`,
-  `_format_duration` (seconds → `"1h 24m 18s"`).
-- It also derives download-capability hints for the UI: `source_lossless` and
-  `best_audio_abr` (from the audio formats), `subtitle_langs` (manual subtitle
-  codes) and `auto_caption_langs` (auto-generated captions not already in
-  `subtitle_langs`), and `has_chapters`.
-- A single video is fully resolved; a playlist is listed flat (entries capped at
-  200) as `PlaylistInfo`. For a playlist, `_probe_first_entry_audio` resolves
-  just the first entry to derive `source_lossless`/`best_audio_abr` (assuming a
-  homogeneous list); any failure falls back to `(False, None)`. The route
-  returns the unified `InfoResponse`.
-- Failures raise `MediaExtractionError`, which the route turns into HTTP 422.
-
-## The download engine
-
-`services/download_service.py` runs the actual download off-thread and streams
-typed events (`ProgressEvent` → terminal `CompletedEvent`/`ErrorEvent`) over
-`WS /api/ws/download`. `_build_options` translates a `DownloadRequest` into
-yt-dlp options:
-
-- **Video:** selects `bestvideo+bestaudio` (capped to `quality`) and merges into
-  the requested `container` via `merge_output_format`.
-- **Audio:** extracts with `FFmpegExtractAudio` to `audio_format`; `flac`/`wav`
-  are lossless (no `preferredquality`), and `m4a` prefers an AAC/m4a source so
-  ffmpeg can copy the stream instead of re-encoding.
-- **Subtitles:** `embed_subs` + `subtitle_lang` enable `writesubtitles` /
-  `writeautomaticsub` and `FFmpegEmbedSubtitle`.
-- **Chapters:** `embed_chapters` adds `FFmpegMetadata` (`add_chapters`,
-  `add_metadata`).
-- **SponsorBlock:** when `settings.sponsorblock_enabled`, prefixes the
-  `SponsorBlock` + `ModifyChapters` postprocessors (categories: sponsor / intro /
-  outro / selfpromo / …) onto audio and video; `sponsorblock_action` either
-  removes the segments or just marks them as chapters.
-- **Trim/clip:** when `trim_start`/`trim_end` are set, `download_ranges`
-  (+ `force_keyframes_at_cuts`) fetches only that time range (audio + video).
-- **Loudness normalization:** when `settings.normalize_audio` is on, an audio
-  download is levelled to -14 LUFS (EBU R128) with a two-pass ffmpeg `loudnorm`
-  (measure → re-encode, preserving the source sample rate) before auto-tagging
-  (`services/audio_normalize.py`); best-effort, so a failure leaves the file as-is.
-
-## Audio auto-tagging
-
-`services/autotag_service.py` tags already-downloaded audio against a
-user-selected catalogue — **Apple Music** (iTunes Search API), **Deezer**, or
-**MusicBrainz** (cover art via the Cover Art Archive), or `auto`, which cascades
-Apple → Deezer → MusicBrainz and takes the first non-empty match. All are free,
-key-less, plain HTTPS over stdlib `urllib` (no new dependencies; `mutagen` ships
-with yt-dlp):
-
-- `identify(path)` parses an "Artist - Title" from the filename
-  (`guess_from_filename`, stripping trailing tags like "(Official Video)") and
-  searches the catalogue.
-- `search(artist, title)` is the manual equivalent.
-- Both return a `CandidateList` of `TagCandidate`s (best first; covers bumped to
-  1000px). Nothing is written until `apply`.
-- `apply(request, path)` writes the chosen (and possibly user-edited) tags +
-  cover art with `mutagen`: native frames/atoms/pictures for mp3/m4a/flac,
-  text-only tags for opus/ogg/wav. When lyrics are enabled it embeds the LRCLIB
-  match (`services/lyrics.py`, + an optional synced `.lrc` sidecar) and rewrites
-  the `.nfo` (`services/nfo.py`) from the tagged metadata.
-
-The `/autotag` router endpoints are plain `def` (FastAPI runs the blocking
-network/file work in a thread) and confine the client-supplied path to the
-download directory (path guard). Failures raise `AutotagError` → HTTP 422.
-
-## API
-
-### `GET /health`
-
-Liveness probe → `{ "status": "ok", "app": "Yoink Backend" }`.
-
-### `POST /api/info`
-
-Request body (`InfoRequest`):
-
-```json
-{ "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }
-```
-
-A **transient** extraction failure (anti-bot 403, rate limit, network blip) is
-retried a few times with a short backoff, then mapped to **503** (retryable); a
-**permanent** failure (unsupported / private / deleted URL) returns **422** with
-the reason. The classifier keys on specific HTTP codes + network signals so a 404
-isn't mistaken for transient.
-
-Response (`VideoInfo`, abridged):
-
-```json
-{
-  "id": "dQw4w9WgXcQ",
-  "title": "Rick Astley - Never Gonna Give You Up",
-  "duration": 213.0,
-  "duration_string": "3:33",
-  "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-  "formats": [
-    { "format_id": "137", "ext": "mp4", "resolution": "1080p", "has_video": true, "has_audio": false }
-  ]
-}
-```
-
-- Invalid URL → `422` from Pydantic validation.
-- Extraction failure → `422` with `detail: "Could not extract media info: …"`.
-
-### `POST /api/autotag/identify` · `/search` · `/lyrics` · `/apply`
-
-Audio auto-tagging against the user-selected catalogue — Apple Music (iTunes
-Search API), Deezer, or MusicBrainz (cover art via the Cover Art Archive); all
-free and key-less. `settings.autotag_source` picks one, or `auto` cascades
-Apple → Deezer → MusicBrainz and returns the first non-empty match (a source that
-errors is skipped):
-
-- `identify` (`{ "path": … }`) and `search` (`{ "artist": …, "title": … }`)
-  both return a `CandidateList` of matches.
-- `lyrics` (`LyricsRequest`) previews the LRCLIB match (when the lyrics setting is
-  on) so the card can show a found/synced/instrumental indicator; nothing is
-  written yet.
-- `apply` (`ApplyRequest`: `path` + the chosen `title`/`artist`/`album`/`year`/
-  `track_number`/`cover_url`, + an `embed_lyrics` override) writes the tags into
-  the file and returns `ApplyResponse` (`ok`, `embedded_cover`).
-- `identify`/`apply` resolve `path` within the download dir → `400`/`403`/`404`
-  if it's invalid, outside, or missing. Lookup/write failures → `422`.
-
-## Configuration
-
-`YOINK_`-prefixed env vars (or a local `.env`):
-
-| Variable             | Default                 | Description                   |
-| -------------------- | ----------------------- | ----------------------------- |
-| `YOINK_CORS_ORIGINS` | Vite dev server origins | Allowed CORS origins          |
-| `YOINK_DOWNLOAD_DIR` | `~/Downloads/Yoink`     | Where media is written        |
-| `YOINK_API_PREFIX`   | `/api`                  | API route prefix              |
-
-## Run
+## Running it
 
 ```bash
-cd backend
-source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload      # http://127.0.0.1:8000  (Swagger UI at /docs)
+cd backend-rs
+cargo run                 # serve the API on :8756 (set YOINK_PORT to change)
+cargo build --release     # optimized binary at target/release/yoink-core
+cargo fmt && cargo clippy # format + lint (CI gates on both)
+cargo test                # unit tests (e.g. the spotDL matcher parity test)
 ```
 
-## More
+The backend shells out to external binaries:
 
-History/stats (`/api/history`), settings (`/api/settings`), the update check
-(`/api/version`) + release notes (`/api/release-notes`), keyless music import
-(`/api/music/{resolve,match}`), embedded cover art (`/api/cover`), and revealing
-files (`/api/open`) round out the API. See the [roadmap](ROADMAP.md) for what's
-done and what's next.
+- `yt-dlp` — found on `PATH`, or at `YOINK_YTDLP`.
+- `ffmpeg` / `ffprobe` — found at `YOINK_FFMPEG` (a directory), or on `PATH`.
+
+In the packaged desktop app the Tauri shell sets both env vars to the bundled
+binaries next to `yoink-core` (see [`releasing.md`](releasing.md)).
+
+## Module map (`backend-rs/src/`)
+
+| File | Responsibility |
+|------|----------------|
+| `main.rs` | App factory + every HTTP/WS route. Metadata (`/api/info`, `/api/search`), the download WebSocket (`/api/ws/download`, progress + history), settings, logs, history (rusqlite), `/api/open`, release notes, and the shared yt-dlp helpers (transient retry + browser-cookie fallback, 503-vs-422 classification). |
+| `matching.rs` | The spotDL-ported YouTube match scorer. A `#[cfg(test)]` test pins its scores to the Python implementation. |
+| `music.rs` | Keyless music-service import: Spotify, Deezer, Apple Music, Tidal and Amazon resolvers, plus Deezer enrichment behind a shared rate-limit gate, and ISRC resolution. |
+| `autotag.rs` | Catalogue lookups (Apple Music, Deezer, MusicBrainz), lyrics (LRCLIB), and tag/cover writing with `lofty`. |
+| `nfo.rs` | Kodi/Jellyfin `.nfo` sidecars (movie / musicvideo, plus folder-level album/artist). |
+| `library.rs` | Media-server music-folder relocation (`<Artist>/<Album>/…`) and rename-to-tagged. |
+| `vr.rs` | VR detection, Spherical Video V2/V1 box injection into MP4, and the MKV StereoMode remux. |
+| `audio_normalize.rs` | Two-pass ffmpeg `loudnorm` (-14 LUFS) and the HLS-trim fallback, both with ffmpeg timeouts. |
+
+## Conventions
+
+- Strictly typed; `cargo clippy -D warnings` and `cargo fmt --check` are clean
+  and enforced in CI.
+- OS-agnostic paths via `std::path` (Linux + Windows).
+- The Rust structs serialize (serde) to the JSON contract that the TypeScript
+  types in `src/types/` describe — keep both sides in sync. The endpoint
+  behaviours are documented in [`architecture.md`](architecture.md); the
+  high-level guide and the full repo layout are in
+  [`../CLAUDE.md`](../CLAUDE.md).

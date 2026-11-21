@@ -39,13 +39,6 @@
     "resources": {
       "binaries/core": "core"
     },
-    "linux": {
-      "deb": {
-        "files": {
-          "/usr/bin/yoink-cli": "yoink-cli"
-        }
-      }
-    },
     "windows": {
       "nsis": {
         "installerHooks": "./installer-hooks.nsh"

@@ -1,17 +1,17 @@
 # Architecture
 
-Yoink is a **local microservice**: a reactive web UI talking to a local Python
-engine that wraps yt-dlp.
+Yoink is a **local microservice**: a reactive web UI talking to a local native
+Rust engine (`yoink-core`) that drives yt-dlp and ffmpeg.
 
 ```
 ┌────────────────────────┐         REST: POST /api/info          ┌──────────────────────────┐
 │      Frontend          │ ───────────────────────────────────▶ │        Backend            │
-│  React + TS + Tailwind │                                       │     FastAPI (Python)      │
+│  React + TS + Tailwind │                                       │   yoink-core (Rust/axum)  │
 │      (Vite, :5173)     │ ◀─────────────────────────────────── │        (:8756)            │
 │                        │     clean JSON (title, formats…)      │                           │
 │  - URL input           │                                       │  - yt-dlp wrapper         │
 │  - Preview card        │       WS: live download progress      │  - ffmpeg merge           │
-│  - Progress bar        │ ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ │  - filesystem (pathlib)   │
+│  - Progress bar        │ ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ │  - filesystem (std::path) │
 │  - History tab         │       (percent, speed, ETA)           │                           │
 └────────────────────────┘                                       └──────────────────────────┘
                                                                   (dashed = WS download stream)
@@ -58,8 +58,8 @@ against the download history**: each entry already downloaded is flagged
 playlist/position/tracking params), so the playlist card pre-selects only the new
 ones and badges the rest as "Downloaded".
 
-The JSON shape is defined once in `backend/app/models/media.py` (Pydantic) and
-mirrored in `src/types/download.ts` (TypeScript).
+The JSON shape is defined once by the Rust structs in `backend-rs/src/` (serde)
+and mirrored in `src/types/download.ts` (TypeScript).
 
 ### 2. Download & progress — WebSockets (implemented)
 
@@ -71,10 +71,10 @@ When the user clicks **Download**:
    `audio_multistreams` options, an optional `trim_start`/`trim_end` range (an
    inverted range is rejected up front), and `is_vr`/`vr_layout` to tag the
    output as immersive (projection name suffix + Spherical Video V2 metadata, via
-   `services/vr.py`) — or `auto_vr` to detect + tag VR with no preview step (used
+   `vr.rs`) — or `auto_vr` to detect + tag VR with no preview step (used
    by the queue). An optional `estimated_size` scales the pre-flight free-disk
    check.
-2. Backend runs the yt-dlp job off-thread (`asyncio.to_thread`).
+2. Backend runs the yt-dlp job off the async executor (a tokio worker).
 3. yt-dlp `progress_hooks` emit percent / speed / ETA.
 4. Those events stream back over the same socket as typed events.
 5. The frontend animates the progress bar from real events until a terminal
@@ -84,14 +84,12 @@ When the user clicks **Download**:
 
 When the **normalize audio** setting is on (off by default), an audio download is
 loudness-normalized to **-14 LUFS** (EBU R128) with a two-pass ffmpeg `loudnorm`
-(`services/audio_normalize.py`) before it's finalized and offered for
+(`audio_normalize.rs`) before it's finalized and offered for
 auto-tagging — best-effort, so a failure leaves the original file untouched.
 
 Downloads run **one at a time** (concurrent downloads are a non-goal): the three
 frontend engines (main panel, queue, music import) share an in-memory lock
-(`src/lib/downloadLock.ts`) and the backend serializes jobs with a process-wide
-`asyncio.Lock`, so two jobs can't write the same `.part` in the shared download
-folder. In the desktop app the backend port is chosen at launch (8756, or an
+(`src/lib/downloadLock.ts`) and so two jobs can't write the same `.part` in the shared download folder. In the desktop app the backend port is chosen at launch (8756, or an
 OS-assigned free port when it's taken) and handed to the frontend via the
 `backend_port` command.
 
@@ -100,7 +98,7 @@ OS-assigned free port when it's taken) and handed to the frontend via the
 After an audio download (single or playlist), the UI offers to tag the file(s)
 from the user-selected catalogue — Apple Music (iTunes Search API), Deezer or
 MusicBrainz (with cover art from the Cover Art Archive),
-both free, key-less and over plain HTTPS via stdlib `urllib` (`autotag_source` in
+both free, key-less and over plain HTTPS via `reqwest` (`autotag_source` in
 Settings). The flow is **identify/search → user picks a version and edits →
 apply**; nothing is written to the file until **Apply**.
 
@@ -110,18 +108,17 @@ apply**; nothing is written to the file until **Apply**.
 2. `POST /api/autotag/search` — `{ "artist", "title" }`. Manual catalogue
    search, returning the same `CandidateList`.
 3. `POST /api/autotag/lyrics` — `{ "title", "artist", … }`. When the **lyrics**
-   setting is on, the card previews the LRCLIB match (`services/lyrics.py`:
+   setting is on, the card previews the LRCLIB match (in `autotag.rs`:
    exact `/get` → structured search → fuzzy `q` → primary-artist retry) so it can
    show a found/synced/instrumental indicator + a "view lyrics" popup.
 4. `POST /api/autotag/apply` — the (possibly user-edited) `TagCandidate` fields
    + `path` (+ a per-track `embed_lyrics` override). The backend writes tags and
-   cover art with `mutagen` (full tags for mp3/m4a/flac; text-only for
+   cover art with `lofty` (full tags for mp3/m4a/flac; text-only for
    opus/ogg/wav), embeds the lyrics (and an optional synced `.lrc` sidecar),
-   rewrites the `.nfo` from the tagged metadata (`services/nfo.py`), and returns
+   rewrites the `.nfo` from the tagged metadata (`nfo.rs`), and returns
    an `ApplyResponse`.
 
-All file paths are confined to the download directory (path guard). Models live
-in `backend/app/models/autotag.py`, mirrored in `src/types/autotag.ts`.
+All file paths are confined to the download directory (path guard). The Rust structs in `backend-rs/src/autotag.rs` mirror `src/types/autotag.ts`.
 
 ### 4. Update check & release notes — REST (implemented)
 
@@ -160,7 +157,7 @@ in the local app. It ships as a beta release asset, not on the stores yet.
 
 ## Cross-platform notes
 
-- Save paths use `pathlib` so they work natively on Linux and Windows.
+- Save paths use `std::path` so they work natively on Linux and Windows.
 - The default download directory is `~/Downloads/Yoink`, overridable via
   `YOINK_DOWNLOAD_DIR`.
-- ffmpeg must be on the `PATH` for high-quality merges.
+- ffmpeg is bundled (`YOINK_FFMPEG`); for a source run it falls back to `PATH`.

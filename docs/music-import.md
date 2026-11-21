@@ -2,7 +2,7 @@
 
 > **Status: implemented** (→ v2.0.0, unreleased on `main`). Generalized beyond
 > Spotify to **Spotify / Deezer / Apple Music / Tidal / Amazon Music** behind one
-> keyless pipeline. The code lives in `backend/app/services/music_import.py`
+> keyless pipeline. The code lives in `backend-rs/src/music.rs` + `matching.rs`
 > (resolvers) + `matching.py` (the YouTube ranking) + `routers/music.py`, with the
 > `MusicImportCard` on the frontend. This document is the original design rationale.
 
@@ -166,7 +166,7 @@ with nothing depending on spotDL itself.
 ## Status
 
 **Implemented** (Option A) and generalized to Spotify / Deezer / Apple Music /
-Tidal / Amazon Music — `services/music_import.py` (keyless resolvers, SSRF-guarded
+Tidal / Amazon Music — `music.rs` (keyless resolvers,
 fetches) + `matching.py` (the spotDL-ported ranking) + `routers/music.py`, with
 the `MusicImportCard` on the frontend and a music-group path in the download
 queue. This file remains the design reference for *why* it works this way.
