@@ -6,12 +6,9 @@ builds and signs every bundle on hosted Linux + Windows runners, so no local
 build host or Windows VM is needed. The manual local flow (§1 onward) still
 works and documents exactly what the workflow does. Each release ships three
 Linux bundles: `.AppImage`,
-`.deb` and `.rpm`, each with the FastAPI backend bundled as a PyInstaller
-**one-folder** distribution (a Tauri *resource*, launched by `main.rs`) so users
-need no Python. It's `--onedir`, not `--onefile`: the app starts faster (no
-per-launch extraction of the ~180 MB payload) at the cost of a bigger install
-(the AppImage grew from ~173 MB to ~255 MB — the auto-update download grows to
-match).
+`.deb` and `.rpm`, each with the native Rust backend (`yoink-core`) plus the
+bundled `yt-dlp` and a minimal `ffmpeg` as a Tauri *resource* launched by
+`main.rs`, so users need no Python, yt-dlp or ffmpeg.
 
 ## 0. Releasing via GitHub Actions (recommended)
 
@@ -30,8 +27,8 @@ Steps:
    git tag -a v<ver> -m "Yoink v<ver>"
    git push origin v<ver>
    ```
-3. The **Release** workflow runs (watch it with `gh run watch`): it builds the
-   backend sidecar, bundles deb+AppImage (stripping the bundled WebKit and
+3. The **Release** workflow runs (watch it with `gh run watch`): it builds
+   yoink-core, bundles deb+AppImage (stripping the bundled WebKit and
    re-signing the AppImage) and the rpm on Linux, the msi+NSIS installers on
    Windows, assembles `latest.json`, and creates a **draft** GitHub release with
    the installers + `latest.json` attached (not the `.sig` files).
@@ -53,36 +50,22 @@ The workflow uses only first-party `actions/*` actions plus the runner's
 preinstalled toolchain — no third-party action can read the secrets.
 
 > Prefer to keep the key off CI entirely? Flip the two `tauri build` steps to
-> build **unsigned** (set `createUpdaterArtifacts:false` via
-> `scripts/disable_updater.py`, drop the signing env + the AppImage re-sign step),
+> build **unsigned** (set `createUpdaterArtifacts:false` in `tauri.conf.json`,
+> drop the signing env + the AppImage re-sign step),
 > download the run artifacts, and sign locally with `tauri signer sign` as in §6.
 
 ---
 
 Prerequisites on the build host (for the **manual local** flow, §1 onward):
 
-- Rust toolchain, and on Linux `webkit2gtk` (4.1).
-- **Python 3.13** for the backend venv (not 3.14): `curl_cffi`'s impersonation —
-  which lets yt-dlp pass Cloudflare/anti-bot 403s — only has wheels for the
-  versions yt-dlp supports on 3.13, and 3.14's newer OpenSSL fingerprint is
-  itself blocked by some sites. `scripts/setup.py` picks 3.13 automatically (via
-  `uv python find 3.13`; isolated, the system Python is untouched). Install it
-  once with `uv python install 3.13` if needed.
-- On **Linux**, **`patchelf`** on PATH: setup clears the executable stack on a
-  copy of uv's 3.13 runtime so the packaged sidecar starts (see §2).
-- The backend venv with PyInstaller (`python scripts/setup.py` then
-  `backend/.venv/bin/pip install pyinstaller`).
-  - **After building the sidecar, confirm impersonation survived packaging:**
-    the bundle must contain `curl_cffi`'s native binding at
-    `src-tauri/binaries/yoink-backend/_internal/curl_cffi/_wrapper.*` (`.so` on
-    Linux, `.pyd` on Windows) — if it is missing, PyInstaller dropped
-    `curl_cffi`'s native libs; keep `--collect-all curl_cffi` in
-    `scripts/build_backend.py`. (The release workflow checks this automatically.)
-    For a live check, run a real download against a Cloudflare-protected URL.
-- Bundled **ffmpeg + ffprobe**: run `python scripts/fetch_ffmpeg.py` once per
-  platform (downloads LGPL builds to `backend/vendor/ffmpeg/`). The sidecar
-  embeds them, so the shipped app needs no system ffmpeg. See
-  [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the LGPL attribution.
+- **Rust toolchain** (the backend and the Tauri shell are both Rust), and on
+  Linux `webkit2gtk` (4.1).
+- **Python 3** (only to run the build scripts — `build_core.py` etc.; the app
+  ships no Python).
+- For the **minimal ffmpeg** build (`scripts/build_ffmpeg.sh`): `gcc`, `make`,
+  `cmake`, `curl`, `pkg-config`; optionally `nasm` for SIMD. For the Windows
+  cross build (`--windows`): the `mingw-w64` toolchain. See
+  [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the attribution.
 - For the `.rpm` (built by repackaging the `.deb` — see §3b): **`rpmbuild`** and
   **`fakeroot`** on PATH. Arch/CachyOS: `pacman -S rpm-tools fakeroot`; Fedora:
   `dnf install rpm-build fakeroot`; Debian/Ubuntu: `apt install rpm fakeroot`.
@@ -97,7 +80,7 @@ The version string lives in **five** places — all must match:
 | `src-tauri/tauri.conf.json` | `"version"` |
 | `src-tauri/Cargo.toml` | `[package] version` |
 | `src-tauri/Cargo.lock` | the `yoink` package entry |
-| `backend/app/core/config.py` | `app_version` |
+| `backend-rs/Cargo.toml` | `[package] version` (the backend's `/api/version`) |
 
 The frontend's in-app version badge reads `__APP_VERSION__`, which Vite injects
 from `package.json` at build time — no separate edit needed. Grep the previous
@@ -114,49 +97,43 @@ whatever is in the file when you run the build is what ships. Regenerate it so t
 listed versions match this release, with deps in sync with the lockfiles:
 
 ```bash
-python scripts/gen_licenses.py   # reads node_modules/, `cargo metadata`, backend/.venv
+python scripts/gen_licenses.py   # reads node_modules/ + `cargo metadata`
 ```
 
 It reports **installed** versions, so run it *after* any `npm install` / `cargo update`
 / `pip install -U`. Commit the result; the frontend build (§3, via `npm run build`)
-bakes it into the bundle. (`backend/.venv` needs `pip-licenses`:
-`backend/.venv/bin/pip install pip-licenses`.)
+bakes it into the bundle.
 
-## 2. Rebuild the backend
+## 2. Build the backend bundle
 
 Whenever the backend changed since the last release, rebuild it so the bundles
 ship the new code:
 
 ```bash
-python scripts/fetch_ffmpeg.py   # once per platform — downloads ffmpeg/ffprobe
-python scripts/build_backend.py
+bash scripts/build_ffmpeg.sh    # once per platform — build minimal ffmpeg+ffprobe
+#   (Windows: build_ffmpeg.sh --windows cross-compiles the .exe on Linux via mingw-w64)
+python scripts/build_core.py
 ```
 
-`build_backend.py` PyInstaller-bundles `backend/run_backend.py` (collecting
-yt-dlp's dynamic extractors + uvicorn internals + `curl_cffi` for impersonation,
-and embedding ffmpeg/ffprobe from `backend/vendor/ffmpeg/` if present) as a
-**one-folder** (`--onedir`) distribution and copies the folder to
-`src-tauri/binaries/yoink-backend/`, which `tauri.conf.json` bundles as a
-`resources` entry (`→ backend/`). `src-tauri/src/main.rs` launches the exe inside
-it directly (`std::process`), passing the port via `YOINK_PORT` and keeping a
-stdin pipe open as a shutdown watchdog; it kills the process (and any ffmpeg
-grandchild) on exit. The packaged backend listens on **8756** (matching the
-frontend's default `VITE_API_BASE_URL`); the bundled ffmpeg is wired to yt-dlp
-via `ffmpeg_location` (`app/core/ffmpeg.py`), which resolves `sys._MEIPASS`
-(the `_internal/` folder in a onedir build).
+`build_core.py` runs `cargo build --release` on `backend-rs`, then assembles
+`src-tauri/binaries/core/` with the three binaries the app needs:
 
-> **Linux sidecar — executable-stack fix (automated).** uv's managed
-> `libpython3.13.so` is built with an executable stack (`GNU_STACK = RWE`).
-> PyInstaller extracts and `dlopen`s it at runtime, and a hardened kernel then
-> refuses to start the sidecar with `cannot enable executable stack as shared
-> object requires`. `scripts/setup.py` handles this: on Linux it copies the 3.13
-> runtime to `backend/.python-rt` and clears the flag on the **copy**
-> (`patchelf --clear-execstack` — never uv's shared file), then builds
-> `backend/.venv` from there, so the bundled `libpython` is `GNU_STACK = RW` and
-> the sidecar starts. Requirement: **`patchelf` on PATH** at setup time (setup
-> warns if missing). `backend/.python-rt` is git-ignored and rebuilt by setup.
-> Still **verify the sidecar starts** before releasing. **Windows (Python 3.12)
-> is unaffected** (its libpython has no exec stack).
+- `yoink-core` — the native Rust backend (axum).
+- `yt-dlp` — the official standalone binary, pinned in `scripts/ytdlp-version.txt`
+  and downloaded for the target platform.
+- `ffmpeg` + `ffprobe` — the minimal self-contained build from
+  `backend/vendor/ffmpeg/` (see [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)).
+
+`tauri.conf.json` bundles that folder as the `core` `resources` entry.
+`src-tauri/src/main.rs` launches `yoink-core` directly (`std::process`), passing
+the port via `YOINK_PORT` and setting `YOINK_YTDLP`/`YOINK_FFMPEG` to the sibling
+binaries, with a stdin pipe as a shutdown watchdog; it kills the process group
+(and any ffmpeg grandchild) on exit. The packaged backend listens on **8756**
+(matching the frontend's default `VITE_API_BASE_URL`).
+
+Because `yoink-core` is a single native binary (no Python runtime), there is no
+PyInstaller step and none of its former gotchas (the `curl_cffi` collection or
+the Linux executable-stack `libpython` fix).
 
 ## 3. Build the bundles
 
@@ -168,10 +145,9 @@ APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_DMABUF_RENDERER=1 NO_STRIP=1 \
   npx tauri build --bundles deb,appimage
 ```
 
-> **Why skip Tauri's rpm.** Tauri's rpm bundler (the `rpm` Rust crate) takes
-> **10–12 min** to package the ~170 MB PyInstaller sidecar, while the `.deb` and
-> AppImage of the same payload bundle in *seconds*. It isn't the compressor
-> (the sidecar is incompressible — even `xz -9` is ~45 s) but the crate itself.
+> **Why skip Tauri's rpm.** Tauri's rpm bundler (the `rpm` Rust crate) has historically been
+> **much slower** to package the bundled binaries (yt-dlp + ffmpeg) than the
+> `.deb`/AppImage of the same payload, which bundle in *seconds*.
 > So we build deb+appimage here and convert the deb to rpm in §3b (seconds).
 > The rpm plays **no part in self-update** (the updater only uses the AppImage on
 > Linux — see §6), so this can't affect existing users' auto-updates.
@@ -245,15 +221,6 @@ src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb
 src-tauri/target/release/bundle/rpm/Yoink-<ver>-1.x86_64.rpm   # from §3b
 ```
 
-The `.deb`/`.rpm` also ship the `yoink-cli` command-line wrapper at
-`/usr/bin/yoink-cli` (declared in `tauri.conf.json` → `bundle.linux.deb.files`;
-the rpm inherits it via `build_rpm.py`). To confirm it made it into the package:
-
-```bash
-bsdtar -xOf src-tauri/target/release/bundle/deb/Yoink_<ver>_amd64.deb data.tar.gz \
-  | bsdtar -tzf - | grep usr/bin        # expect: usr/bin/yoink  AND  usr/bin/yoink-cli
-```
-
 ### 3c. Browser extension — NOT an app-release asset
 
 The **"Send to Yoink" browser extension** (`extension/`) ships on its **own channels**,
@@ -280,13 +247,12 @@ shipped the extension zips as app-release assets for the launch; from then on it
 # backend on :8756. (ffmpeg is bundled — no system install needed.)
 ```
 
-> **Verify the backend launch, especially on Windows.** The backend is bundled
-> as a one-folder resource and spawned by `main.rs`, so the launch path is
-> exercised here — confirm the backend actually answers on :8756 and that closing
-> the app leaves **no** orphan `yoink-backend` (nothing holding the port). This
-> was verified on Linux end-to-end; the **Windows** build must be smoke-tested the
-> same way on the VM before publishing, since the resource path + process spawn
-> can't be checked from Linux. (Auto-update is unaffected either way — the updater
+> **Verify the backend launch, especially on Windows.** `yoink-core` is spawned
+> by `main.rs`, so the launch path is exercised here — confirm it answers on
+> :8756 and that closing the app leaves **no** orphan `yoink-core` (nothing
+> holding the port). The **Windows** build must be smoke-tested the same way
+> before publishing, since the resource path + process spawn can't be checked
+> from Linux. (Auto-update is unaffected either way — the updater
 > replaces the whole AppImage/installer and doesn't care what's inside.)
 
 Quick structural check (no GUI needed) — confirm the backend folder is inside:
@@ -294,7 +260,7 @@ Quick structural check (no GUI needed) — confirm the backend folder is inside:
 ```bash
 APPIMAGE_EXTRACT_AND_RUN=1 ./...AppImage --appimage-extract
 ls squashfs-root/usr/bin                       # expect: yoink
-ls squashfs-root/usr/lib/Yoink/backend         # expect: yoink-backend  _internal
+ls squashfs-root/usr/lib/Yoink/core             # expect: yoink-core  yt-dlp  ffmpeg  ffprobe
 rm -rf squashfs-root
 ```
 
@@ -413,22 +379,24 @@ Notes:
 
 ## Windows builds
 
-The Windows installers (`.msi` + NSIS `.exe`) must be built **on Windows** —
-Tauri uses WebView2 + the MSVC toolchain, so there's no cross-compile from
-Linux. (You can drive it over SSH on a Windows box/VM; the shell there is
-PowerShell, so chain commands with `;`, not `&&`.)
+The recommended path is **CI** (§0): `release.yml` builds and signs the Windows
+installers on a `windows-latest` runner. The Windows `ffmpeg`/`ffprobe` are
+**cross-compiled on the Linux runner** (`build_ffmpeg.sh --windows`, mingw-w64)
+and handed to the Windows job as an artifact, so the Windows machine only builds
+`yoink-core` + the Tauri installers.
 
-Prerequisites on the Windows machine: **Rust** (MSVC toolchain) + **VS Build
-Tools** (C++ workload), **Node**, **Python**, **Git**, **WebView2 Runtime**.
+To build Windows **manually** (e.g. on a local Windows box — Tauri needs WebView2
++ the MSVC toolchain, which aren't on Linux):
 
-The scripts are cross-platform; from the repo root:
+Prerequisites: **Rust** (MSVC toolchain) + **VS Build Tools** (C++ workload),
+**Node**, **Python**, **Git**, **WebView2 Runtime**. From the repo root (the
+shell is PowerShell, so chain with `;`, not `&&`):
 
 ```powershell
-python scripts/setup.py                               # venv + deps + npm install
-backend\.venv\Scripts\python -m pip install pyinstaller
-python scripts/fetch_ffmpeg.py                        # downloads the win64 ffmpeg
-python scripts/build_backend.py                       # -> yoink-backend-...-windows-msvc.exe
-npm run tauri build                                   # -> target\release\bundle\{msi,nsis}\
+npm ci                                    # frontend deps
+bash scripts/build_ffmpeg.sh --windows    # or copy the CI-built ffmpeg.exe/ffprobe.exe
+python scripts/build_core.py              # cargo build + fetch yt-dlp.exe + assemble core
+npm run tauri build                       # -> target\release\bundle\{msi,nsis}\
 ```
 
 Output: `Yoink_<ver>_x64_en-US.msi` (WiX) and `Yoink_<ver>_x64-setup.exe` (NSIS).
@@ -436,27 +404,10 @@ The backend port (8756), CORS and ffmpeg bundling work the same. WebView2 is
 Chromium-based, so the WebKitGTK rendering quirks (blur ghosting) don't apply on
 Windows.
 
-**Driving the VM over SSH.** The shell is PowerShell, so chain with `;`. Sync the
-repo as a tarball (excluding `node_modules`/`.venv`/`target`/`vendor`/…) and
-extract it **over** the existing checkout to reuse the cached venv/node_modules/
-target — much faster; re-run `setup.py` only when deps change. SSH output can
-carry banner noise (OpenSSH/post-quantum notices) — filter it if scripting.
-
-**Build unsigned on the VM, sign locally.** The signing key must not touch the
-VM, so flip `createUpdaterArtifacts` to `false` in the VM's copy of
-`tauri.conf.json` before `npm run tauri build`, produce the `.msi`/`-setup.exe`
-**unsigned**, copy them back, and sign the `-setup.exe` here with `tauri signer
-sign` — see [§6](#6-signed-updater-artifacts-self-update). Minimal toggle script:
-
-```python
-# disable_updater.py  →  python disable_updater.py src-tauri/tauri.conf.json
-import sys
-p = sys.argv[1]
-c = open(p, encoding="utf-8").read()
-n = '"createUpdaterArtifacts": true'
-open(p, "w", encoding="utf-8").write(
-    c.replace(n, '"createUpdaterArtifacts": false')) if n in c else print("already off")
-```
+**Build unsigned, sign locally** (to keep the signing key off the build machine):
+set `createUpdaterArtifacts:false` in `tauri.conf.json`, drop the signing env,
+build **unsigned**, copy the `.msi`/`-setup.exe` back, and sign the `-setup.exe`
+here with `tauri signer sign` — see [§6](#6-signed-updater-artifacts-self-update).
 
 ---
 
@@ -545,7 +496,7 @@ NO_STRIP=1                       # skip stripping (avoids linuxdeploy strip quir
 
 ---
 
-## Packaged-app gotchas (WebKitGTK + sidecar)
+## Packaged-app gotchas (WebKitGTK + the backend)
 
 The dev server runs in your **system browser** (Chromium); the bundle runs in
 the **Tauri webview** — WebKitGTK on Linux (origin `tauri://localhost`),
@@ -555,23 +506,23 @@ devtools (below) and check the console first.
 
 ### CORS — scoped to local origins
 The webview origin differs per platform: `tauri://localhost` (Linux/macOS) and
-`http://tauri.localhost` (Windows — note `http`, not `https`). `main.py` allows
-those plus the dev server via an `allow_origin_regex` (`config.cors_origin_regex`),
-not a blanket `*`, so a random web page open in a browser can't reach the local
+`http://tauri.localhost` (Windows — note `http`, not `https`). `main.rs` (the backend) allows those plus the dev server via a scoped CORS
+layer, not a blanket `*`, so a random web page open in a browser can't reach the local
 API. If you change the webview origin (e.g. enabling https on Windows) update the
 regex, or the UI silently gets no data (Settings won't open). Devtools symptom:
 `... is not allowed by Access-Control-Allow-Origin`.
 
 ### Backend port — avoid 8000
-The sidecar listens on a fixed port the frontend hardcodes
+The backend listens on a fixed port the frontend hardcodes
 (`VITE_API_BASE_URL` default; `YOINK_PORT` for the backend). 8000 is heavily
-used and collided on the dev machine, so the sidecar couldn't bind and the app
-had no API. We use **8756**. Symptom in the sidecar log:
+used and collided on the dev machine, so the backend couldn't bind and the app
+had no API. We use **8756**. Symptom in the backend log:
 `error while attempting to bind on address ('127.0.0.1', 8000): address already in use`.
 
-### Slow sidecar startup — retry the initial load
-The PyInstaller sidecar unpacks ffmpeg (~155 MB) and starts uvicorn, which takes
-several seconds — notably on Windows. The frontend retries the initial
+### Backend startup race — retry the initial load
+`yoink-core` is a native binary and starts in well under a second, but the
+first request can still arrive before it has bound the port. The frontend
+retries the initial
 settings/history fetch (`App.tsx`) until the backend answers, and a startup
 splash (`Splash.tsx`) covers the wait. Symptom if this regresses:
 `net::ERR_CONNECTION_REFUSED` on load and the app stuck with no data.
@@ -582,15 +533,15 @@ WebKitGTK fails to repaint content scrolled over a large CSS blur, leaving
 behind anything that scrolls: use a `radial-gradient` instead of `blur-3xl`, and
 solid translucent backgrounds instead of `backdrop-blur`. Don't reintroduce these.
 
-### Kill the sidecar on exit
+### Kill the backend on exit
 The spawned backend does **not** die with the app by default — it lingers
 holding the port, so the next launch talks to a **stale** backend (e.g. one
 built before a fix). `main.rs` stores the `CommandChild` and kills it on
-`RunEvent::Exit`/`ExitRequested`. A leftover `yoink-backend` on the port is an
+`RunEvent::Exit`/`ExitRequested`. A leftover `yoink-core` on the port is an
 orphan — kill it before retesting (especially after installing several test
-builds in a row, where an *old* sidecar with stale CORS keeps serving 8756):
+builds in a row, where an *old* backend with stale CORS keeps serving 8756):
 - Linux: `kill $(lsof -ti:8756)`
-- Windows: `Get-Process yoink-backend,yoink -ErrorAction SilentlyContinue | Stop-Process -Force`
+- Windows: `Get-Process yoink-core,yoink -ErrorAction SilentlyContinue | Stop-Process -Force`
 
 ### Debugging the webview (devtools)
 Release builds have no devtools. To inspect the packaged app temporarily:

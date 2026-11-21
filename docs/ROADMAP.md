@@ -8,19 +8,17 @@
 > Legend: ✅ shipped · 🚧 in progress · ⬜ planned · effort **S**/**M**/**L**.
 > Per-feature shipped detail lives in the [GitHub releases](https://github.com/ayozetr/yoink-app/releases)
 > and git history — this file stays forward-looking.
->
-> A full-project code-audit backlog (bugs / hardening / polish, by severity) lives
-> in [`audit.md`](audit.md).
 
 ## 📍 Status
 
-- **In progress:** **v4.0.0** — a full **UI redesign** (branch `redesign/v4`): a flat,
-  de-boxed "Flat Minimal" + editorial look (Gloock titles + Inter), **modular tabs**
-  (Inicio/Cola/Historial/Ajustes) replacing the fixed two-column layout, a **light/dark
-  theme** preference in Settings, toasts, an animated slide-over **Drawer** for tagging,
-  the **YouTube/SoundCloud selector inside the URL field**, a scrollspy "on this page"
-  Settings index, and a **Tailwind v4** (CSS-first) migration. Also **relicensed to
-  AGPL-3.0-or-later** (was CC BY-NC-SA 4.0).
+- **In progress:** **native Rust backend** (branch `rust-core`) — the Python/FastAPI
+  backend is replaced by `yoink-core`, a single native Rust (axum) binary that shells
+  out to the bundled yt-dlp + ffmpeg, dropping the Python runtime and PyInstaller
+  entirely. Same API contract and UI; feature parity reached (downloads, music import
+  for all 5 services, auto-tag, VR, HLS trim, loudness). Also ships a **minimal
+  self-built ffmpeg** (~33 MB vs ~336 MB) and builds releases on GitHub Actions
+  (Linux + Windows, the Windows ffmpeg cross-compiled on Linux). The original Python
+  backend is preserved on the `legacy` branch.
 - **Current release:** **v3.9.0** — **more sources & faster pulls**: an opt-in
   **aria2c multi-connection** downloader (wired as yt-dlp's external downloader when a
   binary is found, to beat per-connection speed caps), and **Instagram photo** support —
@@ -81,7 +79,7 @@
   stdin, taking only the links), **playlists**, **music-service imports**, **VR**, **trim**,
   **subtitles**, **chapters**, catalogue **auto-tagging**, per-run **overrides**
   (rate limit / proxy / cookies / SponsorBlock / normalize / filename), and **shell
-  completion** — see [`docs/cli.md`](cli.md). Plus UI polish for **single wrapped items**
+  completion**. Plus UI polish for **single wrapped items**
   (an Instagram **story/post** is labelled as such, drops the batch chapters toggle, and
   saves under its container title instead of "Video by …").
 - **Previously:** **v3.1.0** — the **"Send to Yoink" browser extension (beta)** is
@@ -161,9 +159,9 @@
   from five services**, SoundCloud search, **14 UI languages**. (v1.9.x:
   immersive VR, the queue, hardening.)
 - **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
-- **Stack:** React 19 / TS / Tailwind · FastAPI / yt-dlp · ffmpeg bundled in a
-  one-folder backend (PyInstaller `--onedir`, shipped as a Tauri resource).
-- **Health:** backend (pytest, 350) green · frontend build + e2e (21) + vitest (56) green · `npm audit` 0 · strict TS · Rust `cargo check`/deep-link tests green.
+- **Stack:** React 19 / TS / Tailwind · native Rust backend (`yoink-core`, axum) /
+  yt-dlp · minimal ffmpeg, both shipped as a Tauri resource.
+- **Health:** backend `cargo fmt`/`clippy -D warnings`/`test` green · frontend build + e2e (21) + vitest (56) green · `npm audit` 0 · strict TS.
 
 ---
 
@@ -394,8 +392,8 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   nfo), a history image icon, and per-entry `kind: "image"` in a mixed highlight.
   The full card treatment lands with the v4.0.0 redesign.
 - ✅ **Zero-config PO token — mint in the WebView** (L) — *validated live
-  2026-09-15; ships opt-in (default `manual`).* Full design + status in
-  [`po-token-webview.md`](po-token-webview.md). **Done:** the `po_token_mode`
+  2026-09-15 in the Python app; the WebView minting is not yet reinstated in the
+  Rust backend (`po_token` is a manual setting there).* **Done then:** the `po_token_mode`
   setting (`off` / `manual` / `auto`, default `manual`) end-to-end (14 locales); a
   backend broker + `/api/po-token/*` bridge (long-poll `pending`, `result`, and a
   Google-host-scoped `proxy` for bgutils' network); **session** minting wired into
@@ -579,7 +577,7 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
 - ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
   read-only today (it lists the fixed bindings, now split into local + global); let
   the user **rebind** them (persisted).
-- ✅ **Thin CLI** *(next)* — `scripts/yoink <url>...` drives the same engine in-process
+- ✅ **Thin CLI** *(shipped v3.2.0 in Python; not yet reinstated in the Rust backend)* — `yoink <url>...` drove the same engine in-process
   (no server): reuses saved settings, writes to the same history DB. Handles single URLs,
   **batch input** (several URLs, `-a`/`--batch-file`, or stdin `-` — only the links are
   taken from arbitrary text), **playlists** (`--items 1,3-5` / `--filter` /
@@ -592,7 +590,7 @@ extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
   Also **format inspection** (`--list-formats`), a **`config`** sub-command that
   reads/edits the saved settings (`yoink config [get|set KEY [VALUE]]`),
   `--info`/`--json`/`--quiet`, `--version` and **shell completion**
-  (`--print-completion bash|zsh|fish`). See [`docs/cli.md`](cli.md).
+  (`--print-completion bash|zsh|fish`).
 - ⬜ **More distribution channels** — AUR (S) / Flatpak (M) / winget + Chocolatey (M).
 
 ---
@@ -607,12 +605,11 @@ also in *Next up* are the urgent ones.)
 - ✅ **SQLite schema versioning** *(next)* — `PRAGMA user_version` + an ordered,
   idempotent migration list; legacy (v0) DBs migrate cleanly on startup.
 - ✅ **Kill `download.ts` ↔ `media.py` drift** *(next)* — a contract test asserts
-  the hand-written TS types mirror the Pydantic models 1:1 (enforced in pytest),
-  plus `scripts/gen_api_types.py` to generate the literal OpenAPI types on demand
-  (via npx — `openapi-typescript` still peers on TS 5.x, the app is on TS 6.x).
+  the hand-written TS types in `src/types/` are the JSON contract and the Rust
+  structs serialize (serde) to match them.
 - ✅ **Pin yt-dlp exactly per release** — already pinned
   (`yt-dlp[default,curl-cffi]==2026.06.09` in `requirements.txt`).
-- ⬜ **ruff + mypy in CI** (S) — currently only `pytest` runs (CI itself paused on billing).
+- ✅ **Rust lint/format in CI** — `cargo fmt --check` + `clippy -D warnings` gate every push (see `ci.yml`).
 - ✅ **More tests** *(next)* — `_host_is_blocked` cases, queue/VR integration in the
   WS, and the frontend `estimatedSizeBytes`/`formatBytes` size helpers.
 - ✅ **Render perf: memoize the main-column panels** *(next)* — `DownloaderPanel` /
@@ -624,13 +621,10 @@ also in *Next up* are the urgent ones.)
   flat listing immediately; `source_lossless`/`best_audio_abr` are computed lazily
   (only when the user picks audio) instead of a second full `extract_info` up front,
   halving playlist-analysis latency. *(Carried over from the v1.9.0 audit.)*
-- ✅ **PyInstaller `--onedir`** (M) — the backend ships as a one-folder Tauri
-  resource spawned by `main.rs` (std::process, stdin-pipe shutdown watchdog),
-  not a onefile sidecar, so it starts without re-extracting ~180 MB each launch.
-  Trade-off: bigger install (AppImage ~173→255 MB). Verified end-to-end on Linux
-  (spawns, binds :8756, ffmpeg/yt-dlp work, no orphan on exit); self-update is
-  unaffected (the updater swaps the whole AppImage). Windows launch to be smoke-
-  tested on the VM before it ships.
+- ✅ **PyInstaller `--onedir`** (M) — *(historical; superseded by the Rust
+  backend — see Status.)* The Python backend shipped as a one-folder Tauri
+  resource spawned by `main.rs`; the Rust `yoink-core` is now a single native
+  binary spawned the same way, with no per-launch extraction.
 - ✅ **Slow `.rpm` bundling at release time** (M · build) — Tauri 2.11's rpm
   bundler took ~10–12 min to package the ~170 MB PyInstaller sidecar, while the
   `.deb`/AppImage of the same payload bundle in seconds. **Root-caused** (measured
@@ -687,19 +681,18 @@ Bigger, standalone efforts. Desktop (Linux/Windows) stays the focus.
 
 - ⬜ **Subscriptions + scheduled downloads** (L) — follow a channel/playlist and
   auto-grab new items (PVR-style), OPML import/export. Needs tray/autostart + archive.
-- ⬜ **macOS build** (L) — the sidecar + ffmpeg bundle should port; needs a Mac to
+- ⬜ **macOS build** (L) — `yoink-core` + the ffmpeg build port cleanly; needs a Mac to
   build/sign/notarize. Unblocks re-adding **Safari** to the cookies selector.
-- ⬜ **Android** (L) — the PyInstaller sidecar can't run on Android, so the local
-  server must be replaced. Routes: embed Python (Chaquopy) + ffmpeg-kit · native
-  yt-dlp lib (Seal-style) · thin remote client. Proven feasible (cf. Seal).
+- ⬜ **Android** (L) — now simpler with the Rust backend: `yoink-core` compiles to
+  Android natively, so the main work is a native shell + ffmpeg-kit / a native
+  yt-dlp lib (Seal-style). Proven feasible (cf. Seal).
 - ⬜ **Windows on ARM — native ARM64** (L) — the x64 build already runs on
   Snapdragon Win11 via the Prism emulator (fine for download + stream-copy mux,
   slower only for re-encode), so nobody's blocked. A native
   `aarch64-pc-windows-msvc` build is feasible — Tauri + WebView2 are ready, ffmpeg
-  ships `winarm64` (BtbN), pydantic-core has ARM64 wheels — but gated on: an ARM64
-  Windows build machine (**PyInstaller can't cross-compile**) and, the key unknown,
-  a **`curl_cffi`** ARM64 wheel (the anti-bot impersonation dep). Also needs a
-  `windows-aarch64` entry + signed builds in `latest.json`.
+  ships `winarm64` (BtbN) and Rust cross-compiles to `aarch64-pc-windows-msvc`
+  cleanly (no PyInstaller/wheel blockers now). Mostly needs an ARM64 runner +
+  a `windows-aarch64` entry + signed builds in `latest.json`.
 
 ---
 
@@ -708,8 +701,7 @@ Bigger, standalone efforts. Desktop (Linux/Windows) stays the focus.
 Decisions kept here so they aren't re-proposed.
 
 - **Concurrent downloads** — the queue is **sequential by design**, and a
-  process-wide **single-download lock** (frontend + an `asyncio.Lock` backstop)
-  now enforces it across every engine (panel / queue / music import) so two jobs
+  frontend **single-download lock** now enforces it across every engine (panel / queue / music import) so two jobs
   can't collide on the same `.part`. Parallelising means redesigning the whole
   progress/history UI for a modest gain and real regression risk; revisit only with
   a dedicated multi-progress UI.

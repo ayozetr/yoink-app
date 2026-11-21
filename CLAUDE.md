@@ -188,8 +188,6 @@ the bundled **`yoink-core`** (the native Rust backend) from the `core` Tauri
 the pinned standalone `yt-dlp` (version in `scripts/ytdlp-version.txt`), and the
 minimal `ffmpeg`/`ffprobe`. `main.rs` sets `YOINK_YTDLP`/`YOINK_FFMPEG` to the
 sibling binaries, so the shipped app needs no system Python, yt-dlp or ffmpeg.
-The Linux `.deb`/`.rpm` ship a `/usr/bin/yoink-cli` wrapper (`src-tauri/yoink-cli`)
-that forwards to `yoink-core`'s CLI mode.
 Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1). Icons are
 generated with `npm run tauri icon`. See `docs/releasing.md` for the full
 release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg attribution.

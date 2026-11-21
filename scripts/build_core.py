@@ -12,11 +12,11 @@ Compiles `backend-rs` in release mode and lays out
   - `yoink-core`  — the Rust backend (axum; orchestrates the two below)
   - `yt-dlp`      — the official standalone binary, pinned to the same version as
                     `scripts/ytdlp-version.txt` (no Python runtime needed)
-  - `ffmpeg` + `ffprobe` — from `backend/vendor/ffmpeg/` (run `fetch_ffmpeg.py` once)
+  - `ffmpeg` + `ffprobe` — from `backend/vendor/ffmpeg/` (run `build_ffmpeg.sh` once)
 
 `tauri.conf.json` bundles that folder as the `core` resource; `main.rs` launches
 `yoink-core` from it and points it at the sibling `yt-dlp`/`ffmpeg` via
-`YOINK_YTDLP`/`YOINK_FFMPEG`. This replaces the PyInstaller `build_backend.py`.
+`YOINK_YTDLP`/`YOINK_FFMPEG`. This replaces the old PyInstaller backend build.
 """
 
 from __future__ import annotations

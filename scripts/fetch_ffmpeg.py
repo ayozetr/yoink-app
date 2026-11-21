@@ -8,7 +8,7 @@
 
 Fetches LGPL builds from BtbN/FFmpeg-Builds for the current platform and places
 `ffmpeg`/`ffprobe` (or `.exe` on Windows) under `backend/vendor/ffmpeg/`.
-`build_backend.py` then embeds them into the PyInstaller sidecar so the app
+`build_core.py` then copies them into the bundle so the shipped app
 works without a system ffmpeg. Re-run to refresh; the binaries are gitignored.
 
 LGPL builds keep distribution simple and include libmp3lame (for MP3 output);

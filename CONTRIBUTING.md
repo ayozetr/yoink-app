@@ -22,12 +22,9 @@ with attribution) — the same terms that protect the rest of the project.
 ## Ground rules
 
 - **Commits** in English, with a subject **and** a body explaining the *why*.
-- Keep the JSON contract in sync: the Pydantic models and their TypeScript types
-  mirror each other 1:1 — `backend/app/models/media.py` ↔ `src/types/download.ts`,
-  `models/music.py` ↔ `types/music.ts`, and `models/autotag.py` ↔
-  `types/autotag.ts`. `backend/tests/test_type_contract.py` fails if a model and
-  its interface drift; `scripts/gen_api_types.py` regenerates the literal
-  OpenAPI types.
+- Keep the JSON contract in sync: the TypeScript types in `src/types/`
+  (`download.ts`, `music.ts`, `autotag.ts`) describe the API, and the Rust structs
+  in `backend-rs/src/` serialize (serde) to match them — change both together.
 - Run the checks before opening a PR:
   - Frontend: `npm run build`, `npm run lint`, and `npm run test:e2e` if the UI
     changed.

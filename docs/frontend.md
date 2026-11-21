@@ -64,9 +64,8 @@ src/
 │                                #   Tauri self-updater, OS notifications, taskbar progress, focus trap, native dialogs
 ├── types/
 │   ├── download.ts              # shared domain types (backend JSON contract)
-│   ├── music.ts                 # music-import types (mirror backend models)
-│   ├── autotag.ts               # audio auto-tagging types (mirror backend models)
-│   └── api.generated.ts         # OpenAPI-generated literal types (scripts/gen_api_types.py)
+│   ├── music.ts                 # music-import types (mirror the backend structs)
+│   └── autotag.ts               # audio auto-tagging types (mirror the backend structs)
 ├── App.tsx                      # composition root
 ├── main.tsx                     # React entry point (imports ./i18n)
 └── index.css                    # Tailwind v4 @theme + design tokens + global styles
