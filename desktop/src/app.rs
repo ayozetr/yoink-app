@@ -83,6 +83,14 @@ pub struct App {
     quality: String,
     container: String,
     audio_format: String,
+    // Advanced options (single download).
+    codec: String,   // any | h264 | h265 | vp9 | av1
+    bitrate: String, // best | 320 | 256 | 192 | 128
+    trim_start: String,
+    trim_end: String,
+    embed_subs: bool,
+    subtitle_lang: String,
+    embed_chapters: bool,
     source: String, // "youtube" | "soundcloud" for the search selector
     search_results: Vec<SearchItem>,
     search_pending: Option<std::time::Instant>,
@@ -143,6 +151,13 @@ impl App {
             quality: "best".into(),
             container: "mp4".into(),
             audio_format: "mp3".into(),
+            codec: "any".into(),
+            bitrate: "best".into(),
+            trim_start: String::new(),
+            trim_end: String::new(),
+            embed_subs: false,
+            subtitle_lang: String::new(),
+            embed_chapters: false,
             source: "youtube".into(),
             search_results: Vec::new(),
             search_pending: None,
@@ -231,6 +246,9 @@ impl App {
                     });
                 }
             }
+        }
+        if std::env::var("YOINK_SHOT_ADV").is_ok() {
+            app.advanced_open = true;
         }
         app
     }
@@ -348,6 +366,7 @@ impl App {
                     kind,
                     container: it.container.clone(),
                     audio_format: it.audio.clone(),
+                    ..Default::default()
                 }));
             }
             QSource::Music(track) => {
@@ -426,14 +445,36 @@ impl App {
         self.speed = None;
         self.eta = None;
         self.status = Status::Downloading;
+        let video = self.kind == "video";
         self.backend.send(Cmd::Download(DownloadReq {
             url: self.url.trim().to_string(),
             kind: self.kind.clone(),
-            quality: (self.kind == "video").then(|| self.quality.clone()),
+            quality: video.then(|| self.quality.clone()),
             container: self.container.clone(),
             audio_format: self.audio_format.clone(),
+            video_codec: (video && self.codec != "any").then(|| self.codec.clone()),
+            audio_bitrate: (!video && self.bitrate != "best").then(|| self.bitrate.clone()),
+            embed_subs: video && self.embed_subs,
+            subtitle_lang: (video && self.embed_subs && !self.subtitle_lang.is_empty())
+                .then(|| self.subtitle_lang.clone()),
+            embed_chapters: video && self.embed_chapters,
+            trim_start: parse_timecode(&self.trim_start),
+            trim_end: parse_timecode(&self.trim_end),
         }));
     }
+}
+
+/// Parse a "m:ss" / "h:mm:ss" / plain-seconds timecode into seconds.
+fn parse_timecode(s: &str) -> Option<f64> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    let mut secs = 0.0;
+    for part in s.split(':') {
+        secs = secs * 60.0 + part.trim().parse::<f64>().ok()?;
+    }
+    Some(secs)
 }
 
 impl eframe::App for App {
@@ -995,7 +1036,8 @@ impl App {
                 });
                 ui.add_space(16.0);
                 let (ha, bh, bs) = (v.has_audio, v.best_height(), v.best_filesize());
-                self.ui_download_controls(ui, p, ha, bh, bs);
+                let (hs, hc) = (!v.subtitle_langs.is_empty(), v.has_chapters);
+                self.ui_download_controls(ui, p, ha, bh, bs, hs, hc);
                 self.ui_progress(ui, p);
             }
             Preview::Playlist { title, count } => {
@@ -1076,6 +1118,7 @@ impl App {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn ui_download_controls(
         &mut self,
         ui: &mut egui::Ui,
@@ -1083,6 +1126,8 @@ impl App {
         has_audio: bool,
         best_h: Option<u32>,
         best_size: Option<i64>,
+        has_subs: bool,
+        has_chapters: bool,
     ) {
         let lang = self.lang;
         ui.horizontal(|ui| {
@@ -1181,37 +1226,74 @@ impl App {
             }
         });
 
-        // Collapsible advanced options: the format pickers.
+        // Collapsible advanced options: FORMAT (+ codec/bitrate), subtitles /
+        // chapters when the source has them, and a trim range — like the web.
         if self.advanced_open {
+            ui.add_space(10.0);
+            ui.separator();
             ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                if self.kind == "video" {
-                    combo(
+            let kind = self.kind.clone();
+            adv_row(ui, p, tl(lang, "adv.format"), |ui| {
+                if kind == "video" {
+                    combo_bare(
                         ui,
                         lang,
-                        "q",
-                        tl(lang, "field.quality"),
+                        "aq",
                         &mut self.quality,
                         &["best", "2160", "1440", "1080", "720", "480"],
                     );
-                    combo(
+                    combo_bare(
                         ui,
                         lang,
-                        "c",
-                        tl(lang, "field.container"),
+                        "ac",
                         &mut self.container,
                         &["mp4", "mov", "mkv", "webm"],
                     );
-                } else {
-                    combo(
+                    combo_bare(
                         ui,
                         lang,
-                        "f",
-                        tl(lang, "field.format"),
+                        "acd",
+                        &mut self.codec,
+                        &["any", "h264", "h265", "vp9", "av1"],
+                    );
+                } else {
+                    combo_bare(
+                        ui,
+                        lang,
+                        "af",
                         &mut self.audio_format,
                         &["mp3", "m4a", "opus", "flac", "wav"],
                     );
+                    combo_bare(
+                        ui,
+                        lang,
+                        "abr",
+                        &mut self.bitrate,
+                        &["best", "320", "256", "192", "128"],
+                    );
                 }
+            });
+            if kind == "video" && has_subs {
+                adv_row(ui, p, tl(lang, "field.subs"), |ui| {
+                    toggle(ui, &mut self.embed_subs, p);
+                });
+            }
+            if kind == "video" && has_chapters {
+                adv_row(ui, p, tl(lang, "field.chapters"), |ui| {
+                    toggle(ui, &mut self.embed_chapters, p);
+                });
+            }
+            adv_row(ui, p, tl(lang, "adv.trim"), |ui| {
+                let field = |ui: &mut egui::Ui, v: &mut String, hint: &str| {
+                    ui.add(
+                        egui::TextEdit::singleline(v)
+                            .hint_text(hint)
+                            .desired_width(88.0),
+                    );
+                };
+                field(ui, &mut self.trim_start, "0:00");
+                ui.label(RichText::new("→").color(p.fg_dim));
+                field(ui, &mut self.trim_end, "m:ss");
             });
         }
     }
@@ -2104,6 +2186,23 @@ fn opt_label(lang: Lang, v: &str) -> String {
     }
 }
 
+/// An advanced-options row: a small uppercase label on the left, controls on
+/// the right (the web's "FORMAT / TRIM / …" rows).
+fn adv_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, content: impl FnOnce(&mut egui::Ui)) {
+    ui.horizontal(|ui| {
+        ui.allocate_ui_with_layout(
+            egui::vec2(88.0, 24.0),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                ui.label(RichText::new(label.to_uppercase()).small().color(p.fg_dim));
+            },
+        );
+        ui.add_space(10.0);
+        content(ui);
+    });
+    ui.add_space(10.0);
+}
+
 fn combo_bare(ui: &mut egui::Ui, lang: Lang, id: &str, value: &mut String, options: &[&str]) {
     egui::ComboBox::from_id_salt(id)
         .selected_text(opt_label(lang, value))
@@ -2112,24 +2211,4 @@ fn combo_bare(ui: &mut egui::Ui, lang: Lang, id: &str, value: &mut String, optio
                 ui.selectable_value(value, opt.to_string(), opt_label(lang, opt));
             }
         });
-}
-
-fn combo(
-    ui: &mut egui::Ui,
-    lang: Lang,
-    id: &str,
-    label: &str,
-    value: &mut String,
-    options: &[&str],
-) {
-    ui.vertical(|ui| {
-        ui.label(RichText::new(label).small());
-        egui::ComboBox::from_id_salt(id)
-            .selected_text(opt_label(lang, value))
-            .show_ui(ui, |ui| {
-                for opt in options {
-                    ui.selectable_value(value, opt.to_string(), opt_label(lang, opt));
-                }
-            });
-    });
 }

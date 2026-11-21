@@ -190,13 +190,29 @@ pub fn is_music_url(url: &str) -> bool {
 
 /// The subset of `DownloadRequest` the UI sets; the backend fills the rest from
 /// its serde defaults.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct DownloadReq {
     pub url: String,
     pub kind: String, // "video" | "audio"
     pub quality: Option<String>,
     pub container: String,    // mp4 | mov | mkv | webm
     pub audio_format: String, // mp3 | m4a | opus | flac | wav
+    // Advanced options — omitted from the JSON when unset so the backend keeps
+    // its own serde defaults.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub video_codec: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio_bitrate: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub embed_subs: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subtitle_lang: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub embed_chapters: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trim_start: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trim_end: Option<f64>,
 }
 
 /// The fields of `VideoInfo` the preview shows.
@@ -213,6 +229,10 @@ pub struct VideoLite {
     pub has_audio: bool,
     #[serde(default)]
     pub is_vr: bool,
+    #[serde(default)]
+    pub subtitle_langs: Vec<String>,
+    #[serde(default)]
+    pub has_chapters: bool,
     #[serde(default)]
     pub formats: Vec<FmtLite>,
 }
@@ -700,6 +720,7 @@ async fn import_track(track: MusicTrack, tx: std::sync::mpsc::Sender<Evt>, ctx: 
         quality: None,
         container: "mp4".into(),
         audio_format: "mp3".into(),
+        ..Default::default()
     };
     let Some(path) = run_ws_download(&req, &tx, &ctx).await else {
         return; // error already emitted
