@@ -840,7 +840,7 @@ impl eframe::App for App {
                             .small()
                             .color(p.fg_dim),
                     );
-                    ui.add_space(8.0);
+                    ui.add_space(10.0);
                     for (key, label) in [
                         ("sec.general", "set.general"),
                         ("sec.downloads", "set.downloads"),
@@ -850,14 +850,23 @@ impl eframe::App for App {
                         ("sec.sponsorblock", "set.sponsorblock"),
                         ("sec.network", "set.network"),
                     ] {
-                        if ui
-                            .add(
-                                egui::Button::new(RichText::new(tl(lang, label)).color(p.fg_dim))
-                                    .fill(egui::Color32::TRANSPARENT)
-                                    .frame(false),
-                            )
-                            .clicked()
-                        {
+                        let txt = tl(lang, label).to_string();
+                        let w = ui.available_width();
+                        let (rect, resp) =
+                            ui.allocate_exact_size(egui::vec2(w, 30.0), egui::Sense::click());
+                        let hov = resp.hovered();
+                        let col = if hov { p.fg } else { p.fg_dim };
+                        if hov {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        ui.painter().text(
+                            rect.left_center(),
+                            egui::Align2::LEFT_CENTER,
+                            &txt,
+                            egui::FontId::proportional(14.0),
+                            col,
+                        );
+                        if resp.clicked() {
                             self.settings_scroll_to = Some(key.to_string());
                         }
                     }

@@ -111,6 +111,14 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     ctx.global_style_mut(|style| {
         style.spacing.item_spacing = egui::vec2(8.0, 8.0);
         style.spacing.button_padding = egui::vec2(12.0, 7.0);
+        // A thin, unobtrusive scrollbar instead of egui's thick default.
+        let mut scroll = egui::style::ScrollStyle::thin();
+        scroll.bar_width = 6.0;
+        scroll.floating = true;
+        scroll.dormant_handle_opacity = 0.0;
+        scroll.interact_handle_opacity = 0.6;
+        scroll.active_handle_opacity = 0.7;
+        style.spacing.scroll = scroll;
 
         use egui::{FontFamily::Proportional, FontId, TextStyle};
         style.text_styles = [
