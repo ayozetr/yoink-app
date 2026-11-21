@@ -29,6 +29,7 @@ fn http_base() -> String {
 /// A request from the UI to the worker.
 pub enum Cmd {
     Analyze(String),
+    Search { query: String, source: String },
     ResolveMusic(String),
     Download(DownloadReq),
     ImportTrack(Box<MusicTrack>),
@@ -49,6 +50,7 @@ pub enum Evt {
     },
     Analyzing,
     Info(VideoLite),
+    SearchResults(Vec<SearchItem>),
     Music(Box<MusicInfo>),
     Playlist {
         title: String,
@@ -138,6 +140,19 @@ pub struct MusicTrack {
     pub cover_url: Option<String>,
     #[serde(default)]
     pub source_url: String,
+}
+
+/// One search result (`GET /api/search`).
+#[derive(Clone, Deserialize)]
+pub struct SearchItem {
+    pub title: String,
+    pub url: String,
+    #[serde(default)]
+    pub uploader: Option<String>,
+    #[serde(default)]
+    pub duration_string: Option<String>,
+    #[serde(default)]
+    pub thumbnail_url: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -241,6 +256,9 @@ impl Backend {
                     match cmd {
                         Cmd::Analyze(url) => {
                             tokio::spawn(async move { analyze(url, evt_tx, ctx).await });
+                        }
+                        Cmd::Search { query, source } => {
+                            tokio::spawn(async move { search(query, source, evt_tx, ctx).await });
                         }
                         Cmd::ResolveMusic(url) => {
                             tokio::spawn(async move { resolve_music(url, evt_tx, ctx).await });
@@ -467,6 +485,29 @@ async fn run_ws_download(
         }
     }
     None
+}
+
+async fn search(
+    query: String,
+    source: String,
+    tx: std::sync::mpsc::Sender<Evt>,
+    ctx: egui::Context,
+) {
+    #[derive(Deserialize)]
+    struct Resp {
+        #[serde(default)]
+        results: Vec<SearchItem>,
+    }
+    let res = reqwest::Client::new()
+        .get(format!("{}/api/search", http_base()))
+        .query(&[("q", query.as_str()), ("source", source.as_str())])
+        .send()
+        .await;
+    if let Ok(r) = res {
+        if let Ok(resp) = r.json::<Resp>().await {
+            emit(&tx, &ctx, Evt::SearchResults(resp.results));
+        }
+    }
 }
 
 async fn resolve_music(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {

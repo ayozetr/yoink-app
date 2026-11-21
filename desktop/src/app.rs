@@ -8,8 +8,8 @@
 use egui::RichText;
 
 use crate::api::{
-    is_music_url, Backend, Cmd, DownloadReq, Evt, HistoryEntry, MusicInfo, MusicTrack, Settings,
-    VideoLite,
+    is_music_url, Backend, Cmd, DownloadReq, Evt, HistoryEntry, MusicInfo, MusicTrack, SearchItem,
+    Settings, VideoLite,
 };
 use crate::i18n::{tl, Lang};
 use crate::theme;
@@ -83,6 +83,10 @@ pub struct App {
     quality: String,
     container: String,
     audio_format: String,
+    source: String, // "youtube" | "soundcloud" for the search selector
+    search_results: Vec<SearchItem>,
+    search_pending: Option<std::time::Instant>,
+    last_query: String,
     preview: Preview,
     status: Status,
     progress: f32,
@@ -131,6 +135,10 @@ impl App {
             quality: "best".into(),
             container: "mp4".into(),
             audio_format: "mp3".into(),
+            source: "youtube".into(),
+            search_results: Vec::new(),
+            search_pending: None,
+            last_query: String::new(),
             preview: Preview::None,
             status: Status::Idle,
             progress: 0.0,
@@ -176,8 +184,16 @@ impl App {
         }
         if let Ok(u) = std::env::var("YOINK_SHOT_URL") {
             if !u.is_empty() {
-                app.url = u;
-                app.analyze();
+                app.url = u.clone();
+                if is_url(&u) {
+                    app.analyze();
+                } else {
+                    app.last_query = u.clone();
+                    app.backend.send(Cmd::Search {
+                        query: u,
+                        source: app.source.clone(),
+                    });
+                }
             }
         }
         app
@@ -200,7 +216,9 @@ impl App {
                 Evt::Info(v) => {
                     self.preview = Preview::Video(v);
                     self.status = Status::Idle;
+                    self.search_results.clear();
                 }
+                Evt::SearchResults(r) => self.search_results = r,
                 Evt::Playlist { title, count } => {
                     self.preview = Preview::Playlist { title, count };
                     self.status = Status::Idle;
@@ -341,11 +359,19 @@ impl App {
         }
         self.preview = Preview::None;
         self.status = Status::Analyzing;
+        self.search_results.clear();
+        self.search_pending = None;
         if is_music_url(&url) {
             self.backend.send(Cmd::ResolveMusic(url));
         } else {
             self.backend.send(Cmd::Analyze(url));
         }
+    }
+
+    /// Analyze a picked search result.
+    fn pick(&mut self, url: String) {
+        self.url = url;
+        self.analyze();
     }
 
     fn start_download(&mut self) {
@@ -382,6 +408,20 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
         self.pump_queue();
+        // Debounced search: fire once the typed query settles.
+        if let Some(at) = self.search_pending {
+            if at.elapsed().as_millis() > 350 {
+                self.search_pending = None;
+                let q = self.url.trim().to_string();
+                if !q.is_empty() && !is_url(&q) {
+                    self.last_query = q.clone();
+                    self.backend.send(Cmd::Search {
+                        query: q,
+                        source: self.source.clone(),
+                    });
+                }
+            }
+        }
         // Lazy-load the history the first time its tab is opened.
         if self.tab == Tab::Historial && !self.history_loaded {
             self.history_loaded = true;
@@ -535,18 +575,44 @@ impl App {
             egui::Frame::new()
                 .fill(p.surface_hi)
                 .corner_radius(10)
-                .inner_margin(egui::Margin::symmetric(14, 9))
+                .inner_margin(egui::Margin::symmetric(10, 7))
                 .show(ui, |ui| {
                     ui.set_width(total - 128.0);
-                    let resp = ui.add(
-                        egui::TextEdit::singleline(&mut self.url)
-                            .hint_text(tl(lang, "inicio.url_hint"))
-                            .frame(egui::Frame::NONE)
-                            .desired_width(f32::INFINITY),
-                    );
-                    if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                        self.analyze();
-                    }
+                    ui.horizontal(|ui| {
+                        egui::ComboBox::from_id_salt("source")
+                            .selected_text(if self.source == "soundcloud" {
+                                "SoundCloud"
+                            } else {
+                                "YouTube"
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut self.source, "youtube".into(), "YouTube");
+                                ui.selectable_value(
+                                    &mut self.source,
+                                    "soundcloud".into(),
+                                    "SoundCloud",
+                                );
+                            });
+                        ui.add_space(4.0);
+                        let resp = ui.add(
+                            egui::TextEdit::singleline(&mut self.url)
+                                .hint_text(tl(lang, "inicio.url_hint"))
+                                .frame(egui::Frame::NONE)
+                                .desired_width(f32::INFINITY),
+                        );
+                        if resp.changed() {
+                            let q = self.url.trim();
+                            if q.is_empty() || is_url(q) {
+                                self.search_results.clear();
+                                self.search_pending = None;
+                            } else {
+                                self.search_pending = Some(std::time::Instant::now());
+                            }
+                        }
+                        if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            self.analyze();
+                        }
+                    });
                 });
             ui.add_space(8.0);
             let btn = egui::Button::image_and_text(
@@ -560,16 +626,48 @@ impl App {
                 self.analyze();
             }
         });
-        // "Supported sites" hint, right-aligned under the bar.
+        // "Supported sites" hint, right-aligned under the bar (fixed height so it
+        // doesn't grab the column's remaining vertical space).
         ui.add_space(3.0);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add_space(112.0);
-            ui.label(
-                RichText::new(tl(lang, "inicio.supported"))
-                    .small()
-                    .color(p.fg_dim),
-            );
-        });
+        ui.allocate_ui_with_layout(
+            egui::vec2(ui.available_width(), 16.0),
+            egui::Layout::right_to_left(egui::Align::Center),
+            |ui| {
+                ui.add_space(112.0);
+                ui.label(
+                    RichText::new(tl(lang, "inicio.supported"))
+                        .small()
+                        .color(p.fg_dim),
+                );
+            },
+        );
+
+        // Search results dropdown (when typing a query, not a URL).
+        if !self.search_results.is_empty() && matches!(self.preview, Preview::None) {
+            ui.add_space(8.0);
+            let mut picked: Option<String> = None;
+            egui::Frame::new()
+                .fill(p.surface)
+                .corner_radius(10)
+                .inner_margin(egui::Margin::same(6))
+                .show(ui, |ui| {
+                    ui.spacing_mut().button_padding = egui::vec2(10.0, 8.0);
+                    for r in self.search_results.iter().take(8) {
+                        let resp = ui.add_sized(
+                            egui::vec2(ui.available_width(), 36.0),
+                            egui::Button::new(RichText::new(&r.title).color(p.fg))
+                                .fill(egui::Color32::TRANSPARENT)
+                                .corner_radius(6),
+                        );
+                        if resp.clicked() {
+                            picked = Some(r.url.clone());
+                        }
+                    }
+                });
+            if let Some(u) = picked {
+                self.pick(u);
+            }
+        }
 
         // Status line.
         match &self.status {
@@ -1369,6 +1467,14 @@ fn notify_done(verb: &str, path: &str) {
             .body(&body)
             .show();
     });
+}
+
+/// Heuristic: looks like a link (so analyze it) rather than a search query.
+fn is_url(s: &str) -> bool {
+    let s = s.trim();
+    s.starts_with("http")
+        || s.contains("://")
+        || (s.contains('.') && !s.contains(' ') && s.len() > 3)
 }
 
 fn human_bytes(n: i64) -> String {
