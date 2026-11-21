@@ -750,6 +750,7 @@ async fn run_download(mut socket: WebSocket) {
                     Some(&quality_label),
                     None,
                 );
+                log_line(&format!("completed: {filename}"));
                 Message::Text(
                     serde_json::json!({
                         "type": "completed",
@@ -782,6 +783,7 @@ async fn run_download(mut socket: WebSocket) {
             Some(&quality_label),
             Some(&reason),
         );
+        log_line(&format!("error: {} ({reason})", req.url));
         err_event(&reason)
     };
     let _ = socket.send(msg).await;
@@ -1035,6 +1037,40 @@ fn record_download(
             rusqlite::params![title, url, kind, status, filename, filepath, filesize, quality, error, created],
         );
     }
+}
+
+// ---- logs (Registro tab) -----------------------------------------------------
+
+fn log_file() -> std::path::PathBuf {
+    data_dir().join("logs").join("yoink.log")
+}
+
+/// Append one timestamped line to the app log (best-effort).
+fn log_line(msg: &str) {
+    let path = log_file();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let line = format!("{} {msg}\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"));
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = f.write_all(line.as_bytes());
+    }
+}
+
+async fn get_logs() -> Json<Value> {
+    let path = log_file();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let all: Vec<&str> = content.lines().collect();
+    const CAP: usize = 1000;
+    let truncated = all.len() > CAP;
+    let tail = if truncated { &all[all.len() - CAP..] } else { &all[..] };
+    Json(serde_json::json!({
+        "path": path.display().to_string(),
+        "content": tail.join("\n"),
+        "lines": tail.len(),
+        "truncated": truncated,
+    }))
 }
 
 // ---- misc endpoints ----------------------------------------------------------
@@ -1409,6 +1445,7 @@ async fn main() {
         .route("/api/history/stats", get(get_history_stats))
         .route("/api/ytdlp-version", get(ytdlp_version))
         .route("/api/release-notes", get(release_notes))
+        .route("/api/logs", get(get_logs))
         .route("/api/open", post(open_path))
         .route("/api/music/match", post(music_match))
         .route("/api/music/resolve", post(music_resolve))
@@ -1438,6 +1475,7 @@ async fn main() {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     println!("yoink-core {APP_VERSION} listening on http://{addr}");
+    log_line(&format!("yoink-core {APP_VERSION} started on port {port}"));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
