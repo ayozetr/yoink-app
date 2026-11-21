@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Yoink
+GenericName=Media Downloader
+Comment=Download high-fidelity video and audio
+Exec=yoink-desktop %u
+Icon=yoink
+Terminal=false
+Categories=AudioVideo;Network;Utility;
+MimeType=x-scheme-handler/yoink;
+StartupWMClass=Yoink
+Keywords=download;video;audio;youtube;music;

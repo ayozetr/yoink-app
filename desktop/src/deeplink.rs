@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Ayoze Torres
+
+//! `yoink://` deep links + single-instance. The browser and the "Send to Yoink"
+//! extension launch `yoink://download?url=<encoded>`; this hands that URL to the
+//! already-running app (over a Unix socket) instead of opening a second window,
+//! and surfaces incoming links to the UI through a channel.
+
+#[cfg(unix)]
+use std::io::{Read, Write};
+#[cfg(unix)]
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::sync::mpsc::Sender;
+
+#[cfg(unix)]
+fn sock_path() -> std::path::PathBuf {
+    if let Ok(p) = std::env::var("YOINK_DESKTOP_SOCK") {
+        if !p.is_empty() {
+            return p.into();
+        }
+    }
+    let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
+    std::path::PathBuf::from(dir).join("yoink-desktop.sock")
+}
+
+/// Percent-decode (and `+` → space), enough for a URL carried in a deep link.
+fn pct_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'%' if i + 2 < b.len() => {
+                let hex = std::str::from_utf8(&b[i + 1..i + 3]).unwrap_or("");
+                if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                    out.push(byte);
+                    i += 3;
+                    continue;
+                }
+                out.push(b'%');
+            }
+            b'+' => out.push(b' '),
+            c => out.push(c),
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Extract the target URL from a `yoink://download?url=<enc>` (or bare
+/// `yoink://<enc>`) link.
+pub fn parse(link: &str) -> Option<String> {
+    let rest = link.strip_prefix("yoink://")?;
+    let raw = match rest.split_once("url=") {
+        Some((_, after)) => after.split('&').next().unwrap_or(""),
+        None => rest
+            .trim_start_matches("download")
+            .trim_start_matches(['?', '/']),
+    };
+    let decoded = pct_decode(raw);
+    decoded.starts_with("http").then_some(decoded)
+}
+
+/// The deep-link URL this process was launched with, if any.
+pub fn url_from_args() -> Option<String> {
+    std::env::args().skip(1).find_map(|a| parse(&a))
+}
+
+/// Claim the single-instance slot. If another instance is already running, hand
+/// it `pending` and return `true` (the caller should exit). Otherwise take over,
+/// start a listener that forwards future links to `tx`, and return `false`.
+#[cfg(unix)]
+pub fn single_instance(pending: Option<String>, tx: Sender<String>) -> bool {
+    let path = sock_path();
+    if let Ok(mut stream) = UnixStream::connect(&path) {
+        if let Some(url) = pending {
+            let _ = stream.write_all(url.as_bytes());
+        }
+        return true; // a live instance took it
+    }
+    let _ = std::fs::remove_file(&path); // clear a stale socket
+    if let Ok(listener) = UnixListener::bind(&path) {
+        std::thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                let mut buf = String::new();
+                let mut s = stream;
+                if s.read_to_string(&mut buf).is_ok() {
+                    if let Some(url) = parse(buf.trim()).or_else(|| {
+                        buf.trim()
+                            .starts_with("http")
+                            .then(|| buf.trim().to_string())
+                    }) {
+                        let _ = tx.send(url);
+                    }
+                }
+            }
+        });
+    }
+    false
+}
+
+#[cfg(not(unix))]
+pub fn single_instance(_pending: Option<String>, _tx: Sender<String>) -> bool {
+    false
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_pulls_the_url() {
+        assert_eq!(
+            parse("yoink://download?url=https%3A%2F%2Fa.com%2Fx%3Fv%3D1").as_deref(),
+            Some("https://a.com/x?v=1")
+        );
+        assert_eq!(
+            parse("yoink://https%3A%2F%2Fb.com").as_deref(),
+            Some("https://b.com")
+        );
+        assert_eq!(parse("http://not-a-deeplink"), None);
+        assert_eq!(parse("yoink://download?url=ftp%3A%2F%2Fx"), None);
+    }
+
+    #[test]
+    fn handoff_delivers_to_the_owner() {
+        let sock = std::env::temp_dir().join(format!("yoink-test-{}.sock", std::process::id()));
+        std::env::set_var("YOINK_DESKTOP_SOCK", &sock);
+        let _ = std::fs::remove_file(&sock);
+
+        // First claim owns the slot and listens.
+        let (tx, rx) = std::sync::mpsc::channel();
+        assert!(
+            !single_instance(None, tx),
+            "first instance should be the owner"
+        );
+
+        // Second claim hands its link over and signals the caller to exit.
+        let (tx2, _rx2) = std::sync::mpsc::channel();
+        assert!(
+            single_instance(Some("https://x.test/v".into()), tx2),
+            "second instance should hand off"
+        );
+
+        let got = rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("owner receives it");
+        assert_eq!(got, "https://x.test/v");
+        let _ = std::fs::remove_file(&sock);
+        std::env::remove_var("YOINK_DESKTOP_SOCK");
+    }
+}

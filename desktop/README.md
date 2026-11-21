@@ -43,9 +43,14 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   for titles, Inter for UI, bundled as TTF in `assets/fonts` with their OFL
   licenses) and the exact `--c-*` palette from `src/index.css` (violet accent,
   deep near-neutral surfaces), in both dark and light.
-- **Later:** a standalone auto-tag screen for existing files; then the remaining
-  Tauri shell concerns (in-app updater, system tray, `yoink://` deep link) as
-  native crates.
+- **Phase 10 (done):** app shell — a window/taskbar icon (the bundled app PNG) and
+  the `yoink://` deep link with single-instance: a link passed on launch is
+  analyzed, and when the app is already running a second launch hands its link over
+  a Unix socket and exits (`deeplink.rs`, unit-tested) instead of opening a second
+  window. `packaging/yoink.desktop` registers the scheme on Linux.
+- **Later:** a standalone auto-tag screen for existing files; a system tray and an
+  in-app updater; then native packaging of the trio (desktop + minter + core) to
+  replace the Tauri bundler.
 
 ## Run
 

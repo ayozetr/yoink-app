@@ -92,16 +92,21 @@ pub struct App {
     queue: Vec<QueueItem>,
     queue_url: String,
     next_qid: u64,
+    deeplink_rx: std::sync::mpsc::Receiver<String>,
 }
 
 impl App {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> App {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        pending: Option<String>,
+        deeplink_rx: std::sync::mpsc::Receiver<String>,
+    ) -> App {
         let dark = true;
         crate::fonts::install(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, dark);
         // Enables egui::Image to load remote thumbnails (JPEG/PNG/WebP over http).
         egui_extras::install_image_loaders(&cc.egui_ctx);
-        App {
+        let mut app = App {
             backend: Backend::spawn(cc.egui_ctx.clone()),
             minter: crate::minter::Minter::new(crate::api::port()),
             dark,
@@ -125,7 +130,14 @@ impl App {
             queue: Vec::new(),
             queue_url: String::new(),
             next_qid: 0,
+            deeplink_rx,
+        };
+        // A link the app was launched with (yoink://…) analyzes straight away.
+        if let Some(url) = pending {
+            app.url = url;
+            app.analyze();
         }
+        app
     }
 
     fn drain_events(&mut self) {
@@ -312,7 +324,17 @@ impl App {
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        // Poll a little even when idle, so deep links handed over by another launch
+        // are picked up promptly (and progress bars stay smooth).
+        ctx.request_repaint_after(std::time::Duration::from_millis(400));
         self.drain_events();
+        // A yoink:// link handed over by another launch: analyze it and raise.
+        while let Ok(url) = self.deeplink_rx.try_recv() {
+            self.url = url;
+            self.tab = Tab::Inicio;
+            self.analyze();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        }
         self.pump_queue();
         // Lazy-load the history the first time its tab is opened.
         if self.tab == Tab::Historial && !self.history_loaded {
