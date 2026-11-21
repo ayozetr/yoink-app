@@ -1025,6 +1025,67 @@ fn record_download(
     }
 }
 
+// ---- misc endpoints ----------------------------------------------------------
+
+async fn ytdlp_version() -> Json<VersionInfo> {
+    let current = tokio::process::Command::new(ytdlp_bin())
+        .arg("--version")
+        .output()
+        .await
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|| "unknown".into());
+    Json(VersionInfo {
+        current,
+        latest: None,
+        update_available: false,
+        release_url: None,
+        error: None,
+    })
+}
+
+#[derive(Deserialize)]
+struct OpenRequest {
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    open_file: bool,
+}
+
+/// Reveal a file/folder in the OS file manager — constrained to the download
+/// directory so it can't browse arbitrary paths (as in routers/history.py).
+async fn open_path(Json(req): Json<OpenRequest>) -> Result<Json<Value>, (StatusCode, String)> {
+    let settings = load_settings();
+    let dl = std::path::PathBuf::from(&settings.download_dir);
+    let _ = std::fs::create_dir_all(&dl);
+    let dl = dl.canonicalize().unwrap_or(dl);
+
+    let target = match &req.path {
+        Some(p) => {
+            let t = std::path::PathBuf::from(p);
+            let t = t.canonicalize().unwrap_or(t);
+            if t != dl && !t.starts_with(&dl) {
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    "path is outside the download directory".into(),
+                ));
+            }
+            t
+        }
+        None => dl.clone(),
+    };
+    let to_open = if req.open_file {
+        target
+    } else if target.is_file() {
+        target.parent().map(std::path::Path::to_path_buf).unwrap_or(target)
+    } else {
+        target
+    };
+    let _ = std::process::Command::new("xdg-open").arg(&to_open).spawn();
+    Ok(Json(serde_json::json!({ "status": "ok" })))
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -1058,6 +1119,8 @@ async fn main() {
         .route("/api/settings", get(get_settings).put(put_settings))
         .route("/api/history", get(get_history))
         .route("/api/history/stats", get(get_history_stats))
+        .route("/api/ytdlp-version", get(ytdlp_version))
+        .route("/api/open", post(open_path))
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
