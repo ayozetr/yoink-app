@@ -1466,17 +1466,105 @@ impl App {
             );
         });
 
+        // Quality.
+        ui.add_space(20.0);
+        heading(ui, "set.quality");
+        setting_row(ui, p, tl(lang, "set.bitrate"), |ui| {
+            combo_bare(
+                ui,
+                "set.br",
+                &mut s.audio_bitrate,
+                &["best", "320", "256", "192", "128"],
+            );
+        });
+        setting_row(ui, p, tl(lang, "set.vcodec"), |ui| {
+            combo_bare(
+                ui,
+                "set.vc",
+                &mut s.video_codec,
+                &["any", "h264", "h265", "vp9", "av1"],
+            );
+        });
+
         // Processing.
         ui.add_space(20.0);
         heading(ui, "set.options");
         setting_row(ui, p, tl(lang, "set.normalize"), |ui| {
             toggle(ui, &mut s.normalize_audio, p);
         });
-        setting_row(ui, p, tl(lang, "set.sponsorblock"), |ui| {
-            toggle(ui, &mut s.sponsorblock_enabled, p);
-        });
         setting_row(ui, p, tl(lang, "set.lyrics"), |ui| {
             toggle(ui, &mut s.fetch_lyrics, p);
+        });
+        setting_row(ui, p, tl(lang, "set.music_folders"), |ui| {
+            toggle(ui, &mut s.music_folders, p);
+        });
+        setting_row(ui, p, tl(lang, "set.nfo"), |ui| {
+            toggle(ui, &mut s.nfo_sidecars, p);
+        });
+        setting_row(ui, p, tl(lang, "set.autotag"), |ui| {
+            combo_bare(
+                ui,
+                "set.at",
+                &mut s.autotag_source,
+                &["auto", "apple", "deezer", "musicbrainz"],
+            );
+        });
+
+        // SponsorBlock.
+        ui.add_space(20.0);
+        heading(ui, "set.sponsorblock");
+        setting_row(ui, p, tl(lang, "set.sb_enabled"), |ui| {
+            toggle(ui, &mut s.sponsorblock_enabled, p);
+        });
+        if s.sponsorblock_enabled {
+            setting_row(ui, p, tl(lang, "set.sb_action"), |ui| {
+                combo_bare(
+                    ui,
+                    "set.sba",
+                    &mut s.sponsorblock_action,
+                    &["remove", "mark"],
+                );
+            });
+        }
+
+        // Network & access.
+        ui.add_space(20.0);
+        heading(ui, "set.network");
+        setting_row(ui, p, tl(lang, "set.proxy"), |ui| {
+            let mut v = s.proxy.clone().unwrap_or_default();
+            if ui
+                .add(
+                    egui::TextEdit::singleline(&mut v)
+                        .hint_text("http://…")
+                        .desired_width(220.0),
+                )
+                .changed()
+            {
+                s.proxy = (!v.is_empty()).then_some(v);
+            }
+        });
+        setting_row(ui, p, tl(lang, "set.ratelimit"), |ui| {
+            let mut v = s.rate_limit.clone().unwrap_or_default();
+            if ui
+                .add(
+                    egui::TextEdit::singleline(&mut v)
+                        .hint_text("1M")
+                        .desired_width(220.0),
+                )
+                .changed()
+            {
+                s.rate_limit = (!v.is_empty()).then_some(v);
+            }
+        });
+        setting_row(ui, p, tl(lang, "set.cookies"), |ui| {
+            let mut v = s.cookies_from_browser.clone().unwrap_or_default();
+            combo_bare(
+                ui,
+                "set.ck",
+                &mut v,
+                &["", "chrome", "firefox", "chromium", "edge", "brave"],
+            );
+            s.cookies_from_browser = (!v.is_empty()).then_some(v);
         });
 
         ui.add_space(22.0);
