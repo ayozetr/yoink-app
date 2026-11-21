@@ -74,3 +74,6 @@ extension/.env
 
 # Local scratch (personal URLs, never committed)
 URLs.txt
+
+# ffmpeg minimal-build work dir (scripts/build_ffmpeg.sh)
+/build/
