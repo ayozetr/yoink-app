@@ -72,11 +72,48 @@ struct VideoInfo {
 }
 
 #[derive(Serialize)]
+struct PlaylistEntry {
+    id: String,
+    title: String,
+    url: String,
+    duration_string: Option<String>,
+    thumbnail_url: Option<String>,
+    uploader: Option<String>,
+    view_count: Option<i64>,
+    already_downloaded: bool,
+    playlist_index: Option<i64>,
+    is_image: bool,
+}
+
+#[derive(Serialize)]
+struct PlaylistInfo {
+    id: String,
+    title: String,
+    uploader: Option<String>,
+    thumbnail_url: Option<String>,
+    entry_count: usize,
+    entries: Vec<PlaylistEntry>,
+    truncated: bool,
+}
+
+#[derive(Serialize)]
 struct InfoResponse {
     #[serde(rename = "type")]
     kind: &'static str,
     video: Option<VideoInfo>,
-    playlist: Option<Value>,
+    playlist: Option<PlaylistInfo>,
+}
+
+#[derive(Serialize)]
+struct SearchResponse {
+    results: Vec<PlaylistEntry>,
+}
+
+#[derive(Deserialize)]
+struct SearchParams {
+    q: String,
+    #[serde(default)]
+    source: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -137,6 +174,110 @@ fn keys(v: &Value, key: &str) -> Vec<String> {
         .and_then(Value::as_object)
         .map(|m| m.keys().cloned().collect())
         .unwrap_or_default()
+}
+
+fn fmt_duration(secs: f64) -> String {
+    let total = secs as i64;
+    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
+    if h > 0 {
+        format!("{h}:{m:02}:{s:02}")
+    } else {
+        format!("{m}:{s:02}")
+    }
+}
+
+/// Best thumbnail URL for an item (flat entries carry a `thumbnails` array).
+fn thumb_of(v: &Value) -> Option<String> {
+    if let Some(t) = s(v, "thumbnail") {
+        return Some(t);
+    }
+    v.get("thumbnails")
+        .and_then(Value::as_array)
+        .and_then(|a| a.last())
+        .and_then(|t| s(t, "url"))
+}
+
+/// Map one flat playlist/search entry to the PlaylistEntry contract.
+fn map_entry(e: &Value) -> PlaylistEntry {
+    let duration_string = s(e, "duration_string")
+        .or_else(|| e.get("duration").and_then(Value::as_f64).map(fmt_duration));
+    PlaylistEntry {
+        id: s(e, "id").unwrap_or_default(),
+        title: s(e, "title").unwrap_or_else(|| "(untitled)".into()),
+        url: s(e, "url").or_else(|| s(e, "webpage_url")).unwrap_or_default(),
+        duration_string,
+        thumbnail_url: thumb_of(e),
+        uploader: s(e, "uploader").or_else(|| s(e, "channel")),
+        view_count: e.get("view_count").and_then(Value::as_i64),
+        // TODO(slice-history): matched against completed downloads for playlist sync.
+        already_downloaded: false,
+        playlist_index: None,
+        is_image: false,
+    }
+}
+
+fn map_entries(j: &Value) -> Vec<PlaylistEntry> {
+    j.get("entries")
+        .and_then(Value::as_array)
+        .map(|es| es.iter().filter(|e| !e.is_null()).map(map_entry).collect())
+        .unwrap_or_default()
+}
+
+/// Entries shown for a playlist. Mirrors `_ENTRY_CAP` in ytdlp_service.py: a big
+/// listing (a whole channel, a YouTube mix) is capped and flagged `truncated`.
+const ENTRY_CAP: usize = 200;
+
+/// Build the flat PlaylistInfo from yt-dlp's `--flat-playlist` JSON — deduped by
+/// id and capped, like ytdlp_service.py's `_build_playlist`.
+fn map_playlist(j: &Value) -> PlaylistInfo {
+    let raw: Vec<&Value> = j
+        .get("entries")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter(|e| e.is_object()).collect())
+        .unwrap_or_default();
+    let reported_total = j.get("playlist_count").and_then(Value::as_u64).map(|c| c as usize);
+
+    // Dynamic mixes repeat the same id; dedupe (first wins, but swap in a later
+    // copy if the kept one has no usable URL) so one pick is one download.
+    let has_url = |e: &Value| e.get("url").is_some() || e.get("webpage_url").is_some();
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut unique: Vec<&Value> = Vec::new();
+    for e in raw.iter().copied() {
+        let id = s(e, "id").unwrap_or_default();
+        if !id.is_empty() {
+            if let Some(&idx) = seen.get(&id) {
+                if !has_url(unique[idx]) && has_url(e) {
+                    unique[idx] = e;
+                }
+                continue;
+            }
+            seen.insert(id, unique.len());
+        }
+        unique.push(e);
+    }
+
+    let unique_len = unique.len();
+    let entries: Vec<PlaylistEntry> =
+        unique.into_iter().take(ENTRY_CAP).map(map_entry).collect();
+    let capped = unique_len > ENTRY_CAP;
+    let fetched_all = reported_total.map_or(true, |t| raw.len() >= t);
+    let truncated = capped || !fetched_all;
+    let entry_count = if fetched_all && !capped {
+        entries.len()
+    } else {
+        reported_total.unwrap_or(unique_len)
+    };
+    let thumbnail_url =
+        thumb_of(j).or_else(|| entries.first().and_then(|e| e.thumbnail_url.clone()));
+    PlaylistInfo {
+        id: s(j, "id").unwrap_or_default(),
+        title: s(j, "title").unwrap_or_else(|| "(untitled)".into()),
+        uploader: s(j, "uploader").or_else(|| s(j, "channel")),
+        thumbnail_url,
+        entry_count,
+        entries,
+        truncated,
+    }
 }
 
 /// Build the VideoInfo from yt-dlp's single-video JSON.
@@ -232,7 +373,9 @@ async fn version() -> Json<VersionInfo> {
 
 async fn info(Json(req): Json<InfoRequest>) -> Result<Json<InfoResponse>, (StatusCode, String)> {
     let output = tokio::process::Command::new(ytdlp_bin())
-        .args(["-J", "--no-warnings", &req.url])
+        // --flat-playlist keeps a single video fully detailed (formats survive)
+        // while a playlist URL returns a fast, flat listing of its entries.
+        .args(["-J", "--flat-playlist", "--no-warnings", &req.url])
         .output()
         .await
         .map_err(|e| {
@@ -256,17 +399,51 @@ async fn info(Json(req): Json<InfoRequest>) -> Result<Json<InfoResponse>, (Statu
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("bad yt-dlp JSON: {e}")))?;
 
     if j.get("_type").and_then(Value::as_str) == Some("playlist") {
-        // TODO(slice-2): map playlists (flat listing) — see routers/info.py.
-        return Err((
-            StatusCode::NOT_IMPLEMENTED,
-            "playlists are not handled by the Rust core yet".to_string(),
-        ));
+        // TODO(slice-history): flag each entry's `already_downloaded` against the
+        // download history (playlist sync), as routers/info.py does.
+        return Ok(Json(InfoResponse {
+            kind: "playlist",
+            video: None,
+            playlist: Some(map_playlist(&j)),
+        }));
     }
 
     Ok(Json(InfoResponse {
         kind: "video",
         video: Some(map_video(&j)),
         playlist: None,
+    }))
+}
+
+async fn search(
+    axum::extract::Query(p): axum::extract::Query<SearchParams>,
+) -> Result<Json<SearchResponse>, (StatusCode, String)> {
+    let prefix = match p.source.as_deref() {
+        Some("soundcloud") => "scsearch",
+        _ => "ytsearch",
+    };
+    let query = format!("{prefix}20:{}", p.q);
+    let output = tokio::process::Command::new(ytdlp_bin())
+        .args(["-J", "--flat-playlist", "--no-warnings", &query])
+        .output()
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("could not run yt-dlp: {e}"),
+            )
+        })?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            format!("search failed: {}", err.trim()),
+        ));
+    }
+    let j: Value = serde_json::from_slice(&output.stdout)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("bad yt-dlp JSON: {e}")))?;
+    Ok(Json(SearchResponse {
+        results: map_entries(&j),
     }))
 }
 
@@ -298,6 +475,7 @@ async fn main() {
     let app = Router::new()
         .route("/api/version", get(version))
         .route("/api/info", post(info))
+        .route("/api/search", get(search))
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
