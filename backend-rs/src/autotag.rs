@@ -291,6 +291,11 @@ async fn auto_search(artist: &str, title: &str) -> Vec<TagCandidate> {
             }
         }
     }
+    // MusicBrainz is a fallback only when both fast sources come up empty
+    // (broad coverage, but rate-limited).
+    if combined.is_empty() {
+        return musicbrainz_search(artist, title).await;
+    }
     combined
 }
 
@@ -299,7 +304,8 @@ pub async fn search_catalogue(source: &str, artist: &str, title: &str) -> Vec<Ta
     let results = match source {
         "deezer" => deezer_search(artist, title).await,
         "apple" | "itunes" => itunes_search(artist, title).await,
-        _ => auto_search(artist, title).await, // "auto" (+ musicbrainz fallback: TODO)
+        "musicbrainz" => musicbrainz_search(artist, title).await,
+        _ => auto_search(artist, title).await, // "auto" = Apple + Deezer, MusicBrainz fallback
     };
     rank(relevant(results, title), artist, title)
 }
@@ -397,4 +403,65 @@ pub async fn fetch_lyrics(title: &str, artist: &str, album: Option<&str>, durati
         }
     }
     empty
+}
+
+// --- MusicBrainz (fallback when Apple + Deezer both come up empty) ----------
+
+fn mb_escape(v: &str) -> String {
+    v.chars().flat_map(|c| if c == '"' || c == '\\' { vec!['\\', c] } else { vec![c] }).collect()
+}
+
+async fn musicbrainz_search(artist: &str, title: &str) -> Vec<TagCandidate> {
+    if title.trim().is_empty() {
+        return vec![];
+    }
+    let mut terms = vec![format!("recording:\"{}\"", mb_escape(title))];
+    if !artist.trim().is_empty() {
+        terms.insert(0, format!("artist:\"{}\"", mb_escape(artist)));
+    }
+    let q = terms.join(" AND ");
+    // MusicBrainz requires a descriptive, contactable User-Agent.
+    let client = reqwest::Client::builder()
+        .user_agent("Yoink/4.4.0 (+https://github.com/ayozetr/yoink-app)")
+        .build()
+        .unwrap_or_default();
+    let data = match client
+        .get("https://musicbrainz.org/ws/2/recording")
+        .query(&[("query", q.as_str()), ("fmt", "json"), ("limit", "8")])
+        .send()
+        .await
+    {
+        Ok(r) => r.json::<Value>().await.ok(),
+        Err(_) => None,
+    };
+    let Some(data) = data else { return vec![] };
+    let mut out = Vec::new();
+    for rec in data.get("recordings").and_then(Value::as_array).into_iter().flatten() {
+        let name = rec
+            .get("artist-credit")
+            .and_then(Value::as_array)
+            .map(|cs| {
+                cs.iter()
+                    .map(|c| {
+                        c.get("name").and_then(Value::as_str).unwrap_or("").to_string()
+                            + c.get("joinphrase").and_then(Value::as_str).unwrap_or("")
+                    })
+                    .collect::<String>()
+            })
+            .unwrap_or_default();
+        let release = rec.get("releases").and_then(Value::as_array).and_then(|r| r.first());
+        let mbid = release.and_then(|r| sget(r, "id"));
+        let date = release.and_then(|r| r.get("date").and_then(Value::as_str)).unwrap_or("");
+        out.push(TagCandidate {
+            title: sget(rec, "title").unwrap_or_default(),
+            artist: name,
+            album: release.and_then(|r| sget(r, "title")),
+            year: (date.len() >= 4).then(|| date[..4].to_string()),
+            genre: None,
+            track_number: None,
+            // Cover Art Archive serves the front cover by release MBID (307 → image, else 404).
+            cover_url: mbid.map(|id| format!("https://coverartarchive.org/release/{id}/front-500")),
+        });
+    }
+    out
 }
