@@ -7,7 +7,7 @@
 
 use egui::RichText;
 
-use crate::api::{Backend, Cmd, DownloadReq, Evt, VideoLite};
+use crate::api::{Backend, Cmd, DownloadReq, Evt, HistoryEntry, Settings, VideoLite};
 use crate::theme;
 
 #[derive(PartialEq, Clone, Copy)]
@@ -47,6 +47,10 @@ pub struct App {
     progress: f32,
     speed: Option<String>,
     eta: Option<String>,
+    settings: Option<Settings>,
+    settings_note: Option<String>,
+    history: Vec<HistoryEntry>,
+    history_loaded: bool,
 }
 
 impl App {
@@ -68,13 +72,22 @@ impl App {
             progress: 0.0,
             speed: None,
             eta: None,
+            settings: None,
+            settings_note: None,
+            history: Vec::new(),
+            history_loaded: false,
         }
     }
 
     fn drain_events(&mut self) {
         while let Ok(evt) = self.backend.rx.try_recv() {
             match evt {
-                Evt::Settings { po_token_auto } => self.minter.set_auto(po_token_auto),
+                Evt::Settings(s) => {
+                    self.minter.set_auto(s.po_token_mode == "auto");
+                    self.settings = Some(*s);
+                }
+                Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
+                Evt::History(h) => self.history = h,
                 Evt::Analyzing => self.status = Status::Analyzing,
                 Evt::Info(v) => {
                     self.preview = Preview::Video(v);
@@ -136,6 +149,11 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.drain_events();
+        // Lazy-load the history the first time its tab is opened.
+        if self.tab == Tab::Historial && !self.history_loaded {
+            self.history_loaded = true;
+            self.backend.send(Cmd::LoadHistory);
+        }
         let p = theme::palette(self.dark);
 
         egui::Panel::top("topbar")
@@ -178,17 +196,11 @@ impl eframe::App for App {
                         ui.set_max_width(680.0);
                         match self.tab {
                             Tab::Inicio => self.ui_inicio(ui, p),
-                            other => {
+                            Tab::Historial => self.ui_historial(ui, p),
+                            Tab::Ajustes => self.ui_ajustes(ui, p),
+                            Tab::Cola => {
                                 ui.add_space(40.0);
-                                let name = match other {
-                                    Tab::Cola => "Cola",
-                                    Tab::Historial => "Historial",
-                                    Tab::Ajustes => "Ajustes",
-                                    Tab::Inicio => "",
-                                };
-                                ui.label(
-                                    RichText::new(format!("{name} — próximamente")).color(p.fg_dim),
-                                );
+                                ui.label(RichText::new("Cola — próximamente").color(p.fg_dim));
                             }
                         }
                     });
@@ -348,6 +360,164 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    fn ui_historial(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("Historial").heading().color(p.fg));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("Refrescar").clicked() {
+                    self.backend.send(Cmd::LoadHistory);
+                }
+            });
+        });
+        ui.add_space(8.0);
+
+        if self.history.is_empty() {
+            ui.add_space(24.0);
+            ui.label(RichText::new("Todavía no hay descargas.").color(p.fg_dim));
+            return;
+        }
+
+        for e in self.history.clone() {
+            card(ui, p, |ui| {
+                ui.horizontal(|ui| {
+                    let color = match e.status.as_str() {
+                        "completed" => p.ok,
+                        "error" => p.err,
+                        _ => p.fg_dim,
+                    };
+                    ui.vertical(|ui| {
+                        ui.set_width(ui.available_width() - 90.0);
+                        ui.label(RichText::new(&e.title).strong().color(p.fg));
+                        let mut meta = vec![e.kind.clone()];
+                        if let Some(q) = &e.quality {
+                            if !q.is_empty() {
+                                meta.push(q.clone());
+                            }
+                        }
+                        if let Some(sz) = e.filesize {
+                            meta.push(human_bytes(sz));
+                        }
+                        meta.push(e.created_at.chars().take(10).collect());
+                        ui.label(RichText::new(meta.join("  ·  ")).small().color(color));
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if let Some(path) = e.filepath.clone() {
+                            if e.status == "completed" && ui.button("Abrir").clicked() {
+                                self.backend.send(Cmd::Open(path));
+                            }
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    fn ui_ajustes(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
+        ui.add_space(12.0);
+        ui.label(RichText::new("Ajustes").heading().color(p.fg));
+        ui.add_space(8.0);
+
+        let Some(mut s) = self.settings.clone() else {
+            ui.add_space(24.0);
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(RichText::new("Cargando…").color(p.fg_dim));
+            });
+            return;
+        };
+
+        card(ui, p, |ui| {
+            ui.label(RichText::new("Descargas").strong().color(p.fg));
+            ui.add_space(6.0);
+            ui.label(
+                RichText::new("Carpeta de descargas")
+                    .small()
+                    .color(p.fg_dim),
+            );
+            ui.add(egui::TextEdit::singleline(&mut s.download_dir).desired_width(f32::INFINITY));
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                combo(ui, "Tipo", &mut s.default_kind, &["video", "audio"]);
+                combo(
+                    ui,
+                    "Calidad",
+                    &mut s.default_quality,
+                    &["best", "2160", "1440", "1080", "720", "480"],
+                );
+                combo(
+                    ui,
+                    "Contenedor",
+                    &mut s.default_container,
+                    &["mp4", "mov", "mkv", "webm"],
+                );
+                combo(
+                    ui,
+                    "Audio",
+                    &mut s.default_audio_format,
+                    &["mp3", "m4a", "opus", "flac", "wav"],
+                );
+            });
+        });
+
+        ui.add_space(12.0);
+        card(ui, p, |ui| {
+            ui.label(RichText::new("YouTube PO token").strong().color(p.fg));
+            ui.add_space(6.0);
+            ui.label(
+                RichText::new(
+                    "auto mintea un token en un WebView oculto para saltar el muro antibot.",
+                )
+                .small()
+                .color(p.fg_dim),
+            );
+            ui.add_space(6.0);
+            combo(ui, "Modo", &mut s.po_token_mode, &["off", "manual", "auto"]);
+        });
+
+        ui.add_space(12.0);
+        card(ui, p, |ui| {
+            ui.label(RichText::new("Opciones").strong().color(p.fg));
+            ui.add_space(6.0);
+            ui.checkbox(&mut s.normalize_audio, "Normalizar audio a -14 LUFS");
+            ui.checkbox(&mut s.sponsorblock_enabled, "SponsorBlock");
+            ui.checkbox(&mut s.fetch_lyrics, "Buscar letras");
+            ui.checkbox(&mut s.check_updates, "Buscar actualizaciones al iniciar");
+            ui.checkbox(&mut s.notify_on_complete, "Notificar al terminar");
+        });
+
+        ui.add_space(14.0);
+        ui.horizontal(|ui| {
+            let btn =
+                egui::Button::new(RichText::new("  Guardar  ").color(p.accent_fg)).fill(p.accent);
+            if ui.add(btn).clicked() {
+                self.settings_note = None;
+                self.backend.send(Cmd::SaveSettings(Box::new(s.clone())));
+            }
+            if let Some(note) = &self.settings_note {
+                ui.label(RichText::new(format!("✓ {note}")).color(p.ok));
+            }
+        });
+
+        // Keep edits in the in-memory copy so they persist across frames until saved.
+        self.settings = Some(s);
+    }
+}
+
+fn human_bytes(n: i64) -> String {
+    const U: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut v = n as f64;
+    let mut i = 0;
+    while v >= 1024.0 && i < U.len() - 1 {
+        v /= 1024.0;
+        i += 1;
+    }
+    if i == 0 {
+        format!("{n} B")
+    } else {
+        format!("{v:.1} {}", U[i])
     }
 }
 

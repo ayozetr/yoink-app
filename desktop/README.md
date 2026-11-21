@@ -20,9 +20,13 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   blank page served by the backend (same origin, no CORS) and injects the bundled
   `bgutils-js` minter loop. Verified end to end: the app auto-spawns it and real
   session GVS tokens are minted for downloads (`dispatched → proxy → token`).
-- **Later:** the Cola, Historial, Ajustes, music-import and auto-tag screens; i18n
-  (reusing a Rust i18n layer); thumbnails; then the Tauri shell concerns
-  (updater, tray, deep link, notifications) as native crates.
+- **Phase 3 (done):** the Historial screen (`GET /api/history`, with size/quality/
+  date and an "Abrir" button via `POST /api/open`) and the Ajustes screen (reads
+  the whole `AppSettings`, edits the common fields incl. `po_token_mode`, and saves
+  the full object back so nothing is lost).
+- **Later:** the Cola (queue), music-import and auto-tag screens; i18n (reusing a
+  Rust i18n layer); thumbnails; then the Tauri shell concerns (updater, tray, deep
+  link, notifications) as native crates.
 
 ## Run
 
