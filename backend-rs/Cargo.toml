@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ayoze Torres
+[package]
+name = "yoink-core"
+version = "4.4.0"
+edition = "2021"
+description = "Rust core for Yoink — orchestrates the yt-dlp and ffmpeg binaries (replaces the Python backend)."
+license = "AGPL-3.0-or-later"
+
+[[bin]]
+name = "yoink-core"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "macros", "process", "net"] }
+axum = "0.7.9"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.137"
+tower-http = { version = "0.6.2", features = ["cors"] }
+
+[profile.release]
+strip = true
