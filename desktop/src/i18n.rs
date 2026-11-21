@@ -239,6 +239,22 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("set.nfo", En) => ".nfo sidecars",
         ("set.autotag", Es) => "Fuente de etiquetado",
         ("set.autotag", En) => "Auto-tag source",
+        ("set.autotag_desc", Es) => {
+            "Prueba Apple Music, luego Deezer y luego MusicBrainz hasta encontrar coincidencias."
+        }
+        ("set.autotag_desc", En) => {
+            "Tries Apple Music, then Deezer, then MusicBrainz until it finds matches."
+        }
+        ("set.filename", Es) => "Plantilla de nombre",
+        ("set.filename", En) => "Filename template",
+        ("set.embed_subs", Es) => "Incrustar subtítulos por defecto",
+        ("set.embed_subs", En) => "Embed subtitles by default",
+        ("set.embed_chapters", Es) => "Incrustar capítulos por defecto",
+        ("set.embed_chapters", En) => "Embed chapters by default",
+        ("set.prefer_lossless", Es) => "Preferir lossless de SoundCloud",
+        ("set.prefer_lossless", En) => "Prefer lossless from SoundCloud",
+        ("set.loudness", Es) => "Objetivo de sonoridad",
+        ("set.loudness", En) => "Loudness target",
         ("set.sb_enabled", Es) => "Activar SponsorBlock",
         ("set.sb_enabled", En) => "Enable SponsorBlock",
         ("set.sb_action", Es) => "Acción",

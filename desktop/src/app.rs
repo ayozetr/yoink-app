@@ -255,6 +255,10 @@ impl App {
         if std::env::var("YOINK_SHOT_SITES").is_ok() {
             app.supported_open = true;
         }
+        if let Ok(sec) = std::env::var("YOINK_SHOT_SCROLL") {
+            app.tab = Tab::Ajustes;
+            app.settings_scroll_to = Some(sec);
+        }
         app
     }
 
@@ -2008,6 +2012,24 @@ impl App {
                 &["mp3", "m4a", "opus", "flac", "wav"],
             );
         });
+        ui.add_space(10.0);
+        ui.label(
+            RichText::new(tl(lang, "set.filename"))
+                .small()
+                .color(p.fg_dim),
+        );
+        ui.add_space(3.0);
+        ui.add(
+            egui::TextEdit::singleline(&mut s.filename_template)
+                .desired_width(f32::INFINITY)
+                .margin(egui::Margin::symmetric(10, 7)),
+        );
+        setting_row(ui, p, tl(lang, "set.embed_subs"), |ui| {
+            toggle(ui, &mut s.default_embed_subs, p);
+        });
+        setting_row(ui, p, tl(lang, "set.embed_chapters"), |ui| {
+            toggle(ui, &mut s.default_embed_chapters, p);
+        });
 
         // PO token.
         ui.add_space(20.0);
@@ -2053,18 +2075,6 @@ impl App {
         // Processing.
         ui.add_space(20.0);
         heading(ui, "sec.options", "set.options");
-        setting_row(ui, p, tl(lang, "set.normalize"), |ui| {
-            toggle(ui, &mut s.normalize_audio, p);
-        });
-        setting_row(ui, p, tl(lang, "set.lyrics"), |ui| {
-            toggle(ui, &mut s.fetch_lyrics, p);
-        });
-        setting_row(ui, p, tl(lang, "set.music_folders"), |ui| {
-            toggle(ui, &mut s.music_folders, p);
-        });
-        setting_row(ui, p, tl(lang, "set.nfo"), |ui| {
-            toggle(ui, &mut s.nfo_sidecars, p);
-        });
         setting_row(ui, p, tl(lang, "set.autotag"), |ui| {
             combo_bare(
                 ui,
@@ -2073,6 +2083,53 @@ impl App {
                 &mut s.autotag_source,
                 &["auto", "apple", "deezer", "musicbrainz"],
             );
+        });
+        ui.label(
+            RichText::new(tl(lang, "set.autotag_desc"))
+                .small()
+                .color(p.fg_dim),
+        );
+        ui.add_space(6.0);
+        setting_row(ui, p, tl(lang, "set.normalize"), |ui| {
+            toggle(ui, &mut s.normalize_audio, p);
+        });
+        // Loudness target slider, shown only while normalization is on.
+        if s.normalize_audio {
+            egui::Frame::new()
+                .fill(p.surface)
+                .corner_radius(10)
+                .inner_margin(egui::Margin::symmetric(12, 10))
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(tl(lang, "set.loudness")).small().color(p.fg));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(RichText::new("Spotify/YouTube").small().color(p.fg_dim));
+                            ui.add_space(6.0);
+                            ui.label(
+                                RichText::new(format!("{} LUFS", s.normalize_lufs))
+                                    .small()
+                                    .strong()
+                                    .color(p.accent),
+                            );
+                        });
+                    });
+                    ui.add_space(4.0);
+                    ui.spacing_mut().slider_width = ui.available_width() - 16.0;
+                    ui.add(egui::Slider::new(&mut s.normalize_lufs, -23..=-9).show_value(false));
+                });
+            ui.add_space(6.0);
+        }
+        setting_row(ui, p, tl(lang, "set.nfo"), |ui| {
+            toggle(ui, &mut s.nfo_sidecars, p);
+        });
+        setting_row(ui, p, tl(lang, "set.music_folders"), |ui| {
+            toggle(ui, &mut s.music_folders, p);
+        });
+        setting_row(ui, p, tl(lang, "set.prefer_lossless"), |ui| {
+            toggle(ui, &mut s.prefer_soundcloud_lossless, p);
+        });
+        setting_row(ui, p, tl(lang, "set.lyrics"), |ui| {
+            toggle(ui, &mut s.fetch_lyrics, p);
         });
 
         // SponsorBlock.
