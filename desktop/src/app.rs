@@ -980,7 +980,11 @@ impl App {
                         if let Some(u) = &v.uploader {
                             meta.push(u.clone());
                         }
-                        if let Some(d) = &v.duration_string {
+                        // The best available resolution, like the web ("2160p available"),
+                        // falling back to the duration when formats carry no height.
+                        if let Some(h) = v.best_height() {
+                            meta.push(format!("{h}p {}", tl(lang, "inicio.available")));
+                        } else if let Some(d) = &v.duration_string {
                             meta.push(d.clone());
                         }
                         if v.is_vr {
@@ -990,7 +994,8 @@ impl App {
                     });
                 });
                 ui.add_space(16.0);
-                self.ui_download_controls(ui, p, v.has_audio);
+                let (ha, bh, bs) = (v.has_audio, v.best_height(), v.best_filesize());
+                self.ui_download_controls(ui, p, ha, bh, bs);
                 self.ui_progress(ui, p);
             }
             Preview::Playlist { title, count } => {
@@ -1071,7 +1076,14 @@ impl App {
         }
     }
 
-    fn ui_download_controls(&mut self, ui: &mut egui::Ui, p: theme::Palette, has_audio: bool) {
+    fn ui_download_controls(
+        &mut self,
+        ui: &mut egui::Ui,
+        p: theme::Palette,
+        has_audio: bool,
+        best_h: Option<u32>,
+        best_size: Option<i64>,
+    ) {
         let lang = self.lang;
         ui.horizontal(|ui| {
             // Video / Audio segmented pills.
@@ -1100,15 +1112,21 @@ impl App {
                 });
             }
             ui.add_space(10.0);
-            // Wide Download button, with the chosen format summarised.
+            // Wide Download button, with the chosen format summarised — the way
+            // the web does it: "2160p · MP4 · ≈ 1.3 GB" when "best" resolves to a
+            // concrete height, plus a rough size estimate.
             let summary = if self.kind == "video" {
-                format!(
-                    "{} · {}",
-                    self.quality.to_uppercase(),
-                    self.container.to_uppercase()
-                )
+                let q = match best_h {
+                    Some(h) if self.quality == "best" => format!("{h}p"),
+                    _ => opt_label(lang, &self.quality),
+                };
+                let mut s = format!("{q} · {}", opt_label(lang, &self.container));
+                if let Some(sz) = best_size {
+                    s.push_str(&format!(" · ≈ {}", human_bytes(sz)));
+                }
+                s
             } else {
-                self.audio_format.to_uppercase()
+                opt_label(lang, &self.audio_format)
             };
             let busy = self.active.is_some();
             let label = format!("{}   ·  {summary}", tl(lang, "action.download"));

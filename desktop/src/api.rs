@@ -213,6 +213,42 @@ pub struct VideoLite {
     pub has_audio: bool,
     #[serde(default)]
     pub is_vr: bool,
+    #[serde(default)]
+    pub formats: Vec<FmtLite>,
+}
+
+/// Just enough of a format to show the best resolution and a size estimate.
+#[derive(Clone, Deserialize)]
+pub struct FmtLite {
+    #[serde(default)]
+    pub resolution: Option<String>,
+    #[serde(default)]
+    pub filesize: Option<i64>,
+}
+
+impl VideoLite {
+    /// The tallest video height among the formats (e.g. 2160 for "3840x2160").
+    pub fn best_height(&self) -> Option<u32> {
+        self.formats
+            .iter()
+            .filter_map(|f| {
+                // Video formats carry a height, as "2160p" (this backend) or
+                // "3840x2160"; audio-only ones say "audio only", which won't
+                // parse — so a parseable height is itself the "is video" test.
+                let r = f.resolution.as_deref()?;
+                let h = match r.split_once('x') {
+                    Some((_, h)) => h,
+                    None => r.trim_end_matches('p'),
+                };
+                h.trim().parse::<u32>().ok()
+            })
+            .max()
+    }
+
+    /// The largest known format filesize — a rough "download size" estimate.
+    pub fn best_filesize(&self) -> Option<i64> {
+        self.formats.iter().filter_map(|f| f.filesize).max()
+    }
 }
 
 #[derive(Deserialize)]
