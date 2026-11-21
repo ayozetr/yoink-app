@@ -27,6 +27,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tower_http::cors::CorsLayer;
 
+mod audio_normalize;
 mod autotag;
 mod matching;
 mod music;
@@ -721,6 +722,25 @@ async fn run_download(mut socket: WebSocket) {
 
     let status = child.wait().await;
     let ok = matches!(status, Ok(s) if s.success());
+
+    // Loudness-normalize an audio download when enabled (-14 LUFS EBU R128,
+    // two-pass ffmpeg loudnorm, in place). Best-effort: a failure keeps the file.
+    if ok && req.kind == "audio" && settings.normalize_audio {
+        if let Some(path) = final_path.clone() {
+            let fmt = req.audio_format.clone();
+            let bitrate = req.audio_bitrate.clone().unwrap_or_else(|| "best".into());
+            let target = settings.normalize_lufs as f64;
+            let done = tokio::task::spawn_blocking(move || {
+                audio_normalize::normalize(&path, &fmt, &bitrate, target)
+            })
+            .await
+            .unwrap_or(false);
+            if done {
+                log_line(&format!("normalized to {} LUFS: {path}", settings.normalize_lufs,
+                    path = final_path.as_deref().unwrap_or("")));
+            }
+        }
+    }
 
     // History `quality` column: resolution for video, format/bitrate for audio.
     let quality_label = if req.kind == "audio" {
