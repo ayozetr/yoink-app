@@ -14,9 +14,12 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   default), the typed design system (`theme.rs` — the Tailwind replacement), and
   the download screen end to end: analyze a URL (`POST /api/info`), pick
   format/quality, download with live progress (`WS /api/ws/download`).
-- **Phase 2 (next):** the hidden WebView (a separate `wry` process) that mints
-  YouTube PO tokens with `bgutils-js` — the one thing that still needs a JS
-  runtime — so `po_token_mode: "auto"` keeps working under a native UI.
+- **Phase 2 (done):** the hidden WebView that mints YouTube PO tokens — the one
+  thing that still needs a JS runtime — as a separate `wry` process
+  (`../desktop-minter`) the app spawns only in `po_token_mode: "auto"`. It loads a
+  blank page served by the backend (same origin, no CORS) and injects the bundled
+  `bgutils-js` minter loop. Verified end to end: the app auto-spawns it and real
+  session GVS tokens are minted for downloads (`dispatched → proxy → token`).
 - **Later:** the Cola, Historial, Ajustes, music-import and auto-tag screens; i18n
   (reusing a Rust i18n layer); thumbnails; then the Tauri shell concerns
   (updater, tray, deep link, notifications) as native crates.

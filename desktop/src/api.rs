@@ -13,7 +13,7 @@ use serde_json::Value;
 use tokio_tungstenite::tungstenite::Message;
 
 /// The local backend's port (`YOINK_PORT`, default 8756).
-fn port() -> u16 {
+pub fn port() -> u16 {
     std::env::var("YOINK_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
@@ -34,11 +34,21 @@ pub enum Cmd {
 
 /// A piece of news from the worker to the UI.
 pub enum Evt {
+    Settings {
+        po_token_auto: bool,
+    },
     Analyzing,
     Info(VideoLite),
-    Playlist { title: String, count: usize },
+    Playlist {
+        title: String,
+        count: usize,
+    },
     AnalyzeErr(String),
-    Progress { percent: f32, speed: Option<String>, eta: Option<String> },
+    Progress {
+        percent: f32,
+        speed: Option<String>,
+        eta: Option<String>,
+    },
     Done(String),
     DownloadErr(String),
 }
@@ -48,9 +58,9 @@ pub enum Evt {
 #[derive(Clone, Serialize)]
 pub struct DownloadReq {
     pub url: String,
-    pub kind: String,        // "video" | "audio"
+    pub kind: String, // "video" | "audio"
     pub quality: Option<String>,
-    pub container: String,   // mp4 | mov | mkv | webm
+    pub container: String,    // mp4 | mov | mkv | webm
     pub audio_format: String, // mp3 | m4a | opus | flac | wav
 }
 
@@ -105,6 +115,12 @@ impl Backend {
                 .build()
                 .expect("tokio runtime");
             rt.block_on(async move {
+                // Read settings once at startup so the UI knows whether to run the
+                // PO-token minter.
+                {
+                    let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
+                    tokio::spawn(async move { fetch_settings(evt_tx, ctx).await });
+                }
                 while let Some(cmd) = cmd_rx.recv().await {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     match cmd {
@@ -119,7 +135,10 @@ impl Backend {
             });
         });
 
-        Backend { tx: cmd_tx, rx: evt_rx }
+        Backend {
+            tx: cmd_tx,
+            rx: evt_rx,
+        }
     }
 
     pub fn send(&self, cmd: Cmd) {
@@ -130,6 +149,25 @@ impl Backend {
 fn emit(tx: &std::sync::mpsc::Sender<Evt>, ctx: &egui::Context, evt: Evt) {
     let _ = tx.send(evt);
     ctx.request_repaint();
+}
+
+async fn fetch_settings(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let res = reqwest::Client::new()
+        .get(format!("{}/api/settings", http_base()))
+        .send()
+        .await;
+    if let Ok(r) = res {
+        if let Ok(v) = r.json::<Value>().await {
+            let auto = v.get("po_token_mode").and_then(Value::as_str) == Some("auto");
+            emit(
+                &tx,
+                &ctx,
+                Evt::Settings {
+                    po_token_auto: auto,
+                },
+            );
+        }
+    }
 }
 
 async fn analyze(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
@@ -146,15 +184,30 @@ async fn analyze(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Conte
                 if let Some(v) = info.video {
                     emit(&tx, &ctx, Evt::Info(v));
                 } else if let Some(p) = info.playlist {
-                    emit(&tx, &ctx, Evt::Playlist { title: p.title, count: p.entry_count });
+                    emit(
+                        &tx,
+                        &ctx,
+                        Evt::Playlist {
+                            title: p.title,
+                            count: p.entry_count,
+                        },
+                    );
                 } else {
                     emit(&tx, &ctx, Evt::AnalyzeErr("empty response".into()));
                 }
             }
             Err(e) => emit(&tx, &ctx, Evt::AnalyzeErr(format!("bad response: {e}"))),
         },
-        Ok(r) => emit(&tx, &ctx, Evt::AnalyzeErr(format!("backend returned {}", r.status()))),
-        Err(e) => emit(&tx, &ctx, Evt::AnalyzeErr(format!("cannot reach backend: {e}"))),
+        Ok(r) => emit(
+            &tx,
+            &ctx,
+            Evt::AnalyzeErr(format!("backend returned {}", r.status())),
+        ),
+        Err(e) => emit(
+            &tx,
+            &ctx,
+            Evt::AnalyzeErr(format!("cannot reach backend: {e}")),
+        ),
     }
 }
 
@@ -162,10 +215,16 @@ async fn download(req: DownloadReq, tx: std::sync::mpsc::Sender<Evt>, ctx: egui:
     let url = format!("ws://127.0.0.1:{}/api/ws/download", port());
     let (mut ws, _) = match tokio_tungstenite::connect_async(&url).await {
         Ok(s) => s,
-        Err(e) => return emit(&tx, &ctx, Evt::DownloadErr(format!("ws connect failed: {e}"))),
+        Err(e) => {
+            return emit(
+                &tx,
+                &ctx,
+                Evt::DownloadErr(format!("ws connect failed: {e}")),
+            )
+        }
     };
     let payload = serde_json::to_string(&req).unwrap_or_default();
-    if let Err(e) = ws.send(Message::Text(payload.into())).await {
+    if let Err(e) = ws.send(Message::Text(payload)).await {
         return emit(&tx, &ctx, Evt::DownloadErr(format!("ws send failed: {e}")));
     }
     while let Some(msg) = ws.next().await {
@@ -174,7 +233,9 @@ async fn download(req: DownloadReq, tx: std::sync::mpsc::Sender<Evt>, ctx: egui:
             Ok(Message::Close(_)) | Err(_) => break,
             Ok(_) => continue,
         };
-        let Ok(v) = serde_json::from_str::<Value>(&text) else { continue };
+        let Ok(v) = serde_json::from_str::<Value>(&text) else {
+            continue;
+        };
         match v.get("type").and_then(Value::as_str) {
             Some("progress") => emit(
                 &tx,
@@ -186,12 +247,19 @@ async fn download(req: DownloadReq, tx: std::sync::mpsc::Sender<Evt>, ctx: egui:
                 },
             ),
             Some("completed") => {
-                let path = v.get("filepath").and_then(Value::as_str).unwrap_or("").to_string();
+                let path = v
+                    .get("filepath")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string();
                 emit(&tx, &ctx, Evt::Done(path));
                 break;
             }
             Some("error") => {
-                let msg = v.get("message").and_then(Value::as_str).unwrap_or("download failed");
+                let msg = v
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("download failed");
                 emit(&tx, &ctx, Evt::DownloadErr(msg.to_string()));
                 break;
             }

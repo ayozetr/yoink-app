@@ -2052,6 +2052,7 @@ async fn main() {
         .route("/api/autotag/identify", post(autotag_identify))
         .route("/api/autotag/search", post(autotag_search))
         .route("/api/autotag/lyrics", post(autotag_lyrics))
+        .route("/api/po-token/host", get(po_token::host_page))
         .route("/api/po-token/pending", get(po_token::pending))
         .route("/api/po-token/result", post(po_token::result))
         .route("/api/po-token/proxy", post(po_token::proxy))

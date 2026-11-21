@@ -117,7 +117,10 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
             (TextStyle::Body, FontId::new(15.0, Proportional)),
             (TextStyle::Button, FontId::new(15.0, Proportional)),
             (TextStyle::Small, FontId::new(12.0, Proportional)),
-            (TextStyle::Monospace, FontId::new(13.0, egui::FontFamily::Monospace)),
+            (
+                TextStyle::Monospace,
+                FontId::new(13.0, egui::FontFamily::Monospace),
+            ),
         ]
         .into();
     });

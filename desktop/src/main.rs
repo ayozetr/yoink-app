@@ -8,6 +8,7 @@
 
 mod api;
 mod app;
+mod minter;
 mod theme;
 
 fn main() -> eframe::Result {

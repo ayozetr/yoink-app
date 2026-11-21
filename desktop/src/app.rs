@@ -34,6 +34,7 @@ enum Status {
 
 pub struct App {
     backend: Backend,
+    minter: crate::minter::Minter,
     dark: bool,
     tab: Tab,
     url: String,
@@ -54,6 +55,7 @@ impl App {
         theme::apply(&cc.egui_ctx, dark);
         App {
             backend: Backend::spawn(cc.egui_ctx.clone()),
+            minter: crate::minter::Minter::new(crate::api::port()),
             dark,
             tab: Tab::Inicio,
             url: String::new(),
@@ -72,6 +74,7 @@ impl App {
     fn drain_events(&mut self) {
         while let Ok(evt) = self.backend.rx.try_recv() {
             match evt {
+                Evt::Settings { po_token_auto } => self.minter.set_auto(po_token_auto),
                 Evt::Analyzing => self.status = Status::Analyzing,
                 Evt::Info(v) => {
                     self.preview = Preview::Video(v);
@@ -85,7 +88,11 @@ impl App {
                     self.preview = Preview::None;
                     self.status = Status::Error(e);
                 }
-                Evt::Progress { percent, speed, eta } => {
+                Evt::Progress {
+                    percent,
+                    speed,
+                    eta,
+                } => {
                     self.status = Status::Downloading;
                     self.progress = (percent / 100.0).clamp(0.0, 1.0);
                     self.speed = speed;
@@ -132,7 +139,11 @@ impl eframe::App for App {
         let p = theme::palette(self.dark);
 
         egui::Panel::top("topbar")
-            .frame(egui::Frame::new().fill(p.surface).inner_margin(egui::Margin::symmetric(16, 10)))
+            .frame(
+                egui::Frame::new()
+                    .fill(p.surface)
+                    .inner_margin(egui::Margin::symmetric(16, 10)),
+            )
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("Yoink").size(22.0).strong().color(p.fg));
@@ -156,7 +167,11 @@ impl eframe::App for App {
             });
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(p.canvas).inner_margin(egui::Margin::same(20)))
+            .frame(
+                egui::Frame::new()
+                    .fill(p.canvas)
+                    .inner_margin(egui::Margin::same(20)),
+            )
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.vertical_centered(|ui| {
@@ -171,7 +186,9 @@ impl eframe::App for App {
                                     Tab::Ajustes => "Ajustes",
                                     Tab::Inicio => "",
                                 };
-                                ui.label(RichText::new(format!("{name} — próximamente")).color(p.fg_dim));
+                                ui.label(
+                                    RichText::new(format!("{name} — próximamente")).color(p.fg_dim),
+                                );
                             }
                         }
                     });
@@ -183,7 +200,11 @@ impl eframe::App for App {
 impl App {
     fn ui_inicio(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         ui.add_space(12.0);
-        ui.label(RichText::new("Pega un enlace para empezar").heading().color(p.fg));
+        ui.label(
+            RichText::new("Pega un enlace para empezar")
+                .heading()
+                .color(p.fg),
+        );
         ui.add_space(12.0);
 
         // URL input + analyze.
@@ -195,7 +216,11 @@ impl App {
                 let resp = ui.add(field);
                 let submit = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                 let analyzing = matches!(self.status, Status::Analyzing);
-                if ui.add_enabled(!analyzing, egui::Button::new("Analizar")).clicked() || submit {
+                if ui
+                    .add_enabled(!analyzing, egui::Button::new("Analizar"))
+                    .clicked()
+                    || submit
+                {
                     self.analyze();
                 }
             });
@@ -249,7 +274,11 @@ impl App {
                     ui.label(RichText::new(&title).size(17.0).strong().color(p.fg));
                     ui.label(RichText::new(format!("Lista · {count} elementos")).color(p.fg_dim));
                     ui.add_space(6.0);
-                    ui.label(RichText::new("La descarga de listas llega en una fase posterior.").small().color(p.fg_dim));
+                    ui.label(
+                        RichText::new("La descarga de listas llega en una fase posterior.")
+                            .small()
+                            .color(p.fg_dim),
+                    );
                 });
             }
             Preview::None => {}
@@ -266,15 +295,31 @@ impl App {
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if self.kind == "video" {
-                combo(ui, "Calidad", &mut self.quality, &["best", "2160", "1440", "1080", "720", "480"]);
-                combo(ui, "Contenedor", &mut self.container, &["mp4", "mov", "mkv", "webm"]);
+                combo(
+                    ui,
+                    "Calidad",
+                    &mut self.quality,
+                    &["best", "2160", "1440", "1080", "720", "480"],
+                );
+                combo(
+                    ui,
+                    "Contenedor",
+                    &mut self.container,
+                    &["mp4", "mov", "mkv", "webm"],
+                );
             } else {
-                combo(ui, "Formato", &mut self.audio_format, &["mp3", "m4a", "opus", "flac", "wav"]);
+                combo(
+                    ui,
+                    "Formato",
+                    &mut self.audio_format,
+                    &["mp3", "m4a", "opus", "flac", "wav"],
+                );
             }
         });
         ui.add_space(12.0);
         let busy = matches!(self.status, Status::Downloading);
-        let btn = egui::Button::new(RichText::new("  Descargar  ").color(p.accent_fg)).fill(p.accent);
+        let btn =
+            egui::Button::new(RichText::new("  Descargar  ").color(p.accent_fg)).fill(p.accent);
         if ui.add_enabled(!busy, btn).clicked() {
             self.start_download();
         }
@@ -291,7 +336,11 @@ impl App {
                 if let Some(e) = &self.eta {
                     extra.push(format!("ETA {e}"));
                 }
-                ui.add(egui::ProgressBar::new(self.progress).show_percentage().text(extra.join("  ·  ")));
+                ui.add(
+                    egui::ProgressBar::new(self.progress)
+                        .show_percentage()
+                        .text(extra.join("  ·  ")),
+                );
             }
             Status::Done(path) => {
                 ui.add_space(12.0);

@@ -236,6 +236,13 @@ async fn mint_via_webview() -> Option<(String, String)> {
             Some(Instant::now() + MINT_BACKOFF)
         };
     }
+    match &result {
+        Some(_) => crate::log_line("auto-PO: minted a session GVS token in the WebView"),
+        None => crate::log_line(&format!(
+            "auto-PO: WebView mint failed/timed out; backing off {}s",
+            MINT_BACKOFF.as_secs()
+        )),
+    }
     result.map(|r| (r.token, r.visitor_data))
 }
 
@@ -317,6 +324,15 @@ pub async fn download_extractor_args(url: &str, settings: &crate::AppSettings) -
 
 // --------------------------------------------------- `/api/po-token/*` routes
 
+/// A blank page served so the hidden minter WebView runs in the backend's own
+/// origin — its `/api/po-token/*` fetches are then same-origin (no CORS). The
+/// minter binary injects the bundled bgutils loop as an initialization script.
+pub async fn host_page() -> axum::response::Html<&'static str> {
+    axum::response::Html(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>yoink-minter</title></head><body></body></html>",
+    )
+}
+
 #[derive(Serialize)]
 pub struct MintJob {
     pub id: String,
@@ -325,7 +341,10 @@ pub struct MintJob {
 /// Long-poll for the next mint job; 204 when there's nothing to do.
 pub async fn pending() -> Response {
     match broker().next_job(POLL_WAIT).await {
-        Some(id) => Json(MintJob { id }).into_response(),
+        Some(id) => {
+            crate::log_line("auto-PO: dispatched a mint job to the WebView");
+            Json(MintJob { id }).into_response()
+        }
         None => StatusCode::NO_CONTENT.into_response(),
     }
 }
@@ -351,6 +370,9 @@ pub async fn result(Json(r): Json<MintResultIn>) -> Json<Value> {
         }),
         _ => None,
     };
+    if payload.is_some() {
+        crate::log_line("auto-PO: WebView returned a token");
+    }
     let delivered = broker().complete(&r.id, payload);
     Json(json!({ "ok": delivered }))
 }
@@ -453,6 +475,10 @@ pub async fn proxy(
     {
         return Err(bad("URL is not an allowed PO-token host."));
     }
+    crate::log_line(&format!(
+        "auto-PO: proxying a bgutils request to {}",
+        url.host_str().unwrap_or("?")
+    ));
     let method = reqwest::Method::from_bytes(req.method.to_uppercase().as_bytes())
         .map_err(|_| bad("Invalid method."))?;
     let body = match req.body_b64.as_deref() {
