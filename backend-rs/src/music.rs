@@ -718,3 +718,151 @@ pub async fn resolve_apple(url: &str) -> Result<MusicImportInfo, String> {
         truncated: false,
     })
 }
+
+// --- Tidal (public embed scrape) -------------------------------------------
+
+fn tidal_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r"(?i)^(?:https?://)?(?:tidal\.com|embed\.tidal\.com|listen\.tidal\.com)/(?:browse/)?(track|album|playlist)s?/([\w-]+)",
+        )
+        .unwrap()
+    })
+}
+
+fn tidal_item_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?s)<list-item\b.*?</list-item>").unwrap())
+}
+
+fn tidal_slot_re(slot: &str) -> Regex {
+    Regex::new(&format!(r#"(?s)<(?:span|time) slot="{slot}"[^>]*>(.*?)</(?:span|time)>"#)).unwrap()
+}
+
+fn strip_tags(s: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"<[^>]+>").unwrap());
+    re.replace_all(s, "").to_string()
+}
+
+fn tidal_join_artists(fragment: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"<[^>]+>").unwrap());
+    let mut names: Vec<String> = Vec::new();
+    for part in re.split(fragment) {
+        let p = unescape_html(part.trim());
+        if !p.is_empty() && p != "," && p != "&" && p != "/" && !names.contains(&p) {
+            names.push(p);
+        }
+    }
+    names.join(", ")
+}
+
+fn mmss_to_ms(t: &str) -> Option<i64> {
+    let parts: Vec<&str> = t.trim().split(':').collect();
+    let nums: Vec<i64> = parts.iter().filter_map(|p| p.trim().parse::<i64>().ok()).collect();
+    if nums.len() != parts.len() || nums.is_empty() {
+        return None;
+    }
+    Some(nums.iter().fold(0i64, |acc, n| acc * 60 + n) * 1000)
+}
+
+pub async fn resolve_tidal(url: &str) -> Result<MusicImportInfo, String> {
+    let caps = tidal_re()
+        .captures(url)
+        .ok_or_else(|| "Not a recognised Tidal URL.".to_string())?;
+    let kind = caps[1].to_lowercase();
+    let tid = caps[2].to_string();
+    let html = get_text(&format!("https://embed.tidal.com/{kind}s/{tid}?countryCode=US")).await?;
+    let page = get_text(&format!("https://tidal.com/{kind}/{tid}")).await.unwrap_or_default();
+
+    let (mut og_artist, mut og_name) = (None, None);
+    if let Some(text) = meta_content(&page, "og:title") {
+        if let Some((a, n)) = text.split_once(" - ") {
+            og_artist = Some(a.trim().to_string());
+            og_name = Some(n.trim().to_string());
+        } else {
+            og_name = Some(text.trim().to_string());
+        }
+    }
+    let cover = meta_content(&page, "og:image");
+
+    let title_re = tidal_slot_re("title");
+    let artist_re = tidal_slot_re("artist");
+    let duration_re = tidal_slot_re("duration");
+    let pid_re = Regex::new(r#"product-id="(\d+)""#).unwrap();
+
+    let mut tracks: Vec<MusicTrack> = Vec::new();
+    for block in tidal_item_re().find_iter(&html).map(|m| m.as_str()) {
+        let Some(tm) = title_re.captures(block) else { continue };
+        let title = unescape_html(&strip_tags(&tm[1])).trim().to_string();
+        if title.is_empty() {
+            continue;
+        }
+        let artist = artist_re
+            .captures(block)
+            .map(|am| tidal_join_artists(&am[1]))
+            .unwrap_or_default();
+        let dur_ms = duration_re
+            .captures(block)
+            .and_then(|dm| mmss_to_ms(&strip_tags(&dm[1])));
+        let pid = pid_re.captures(block).map(|m| m[1].to_string());
+        tracks.push(MusicTrack {
+            title,
+            artists: if artist.is_empty() { og_artist.clone().unwrap_or_default() } else { artist },
+            isrc: None,
+            duration_ms: dur_ms,
+            is_explicit: block.contains(r#"slot="explicit-badge"><i class="badge explicit""#),
+            album: if kind == "album" { og_name.clone() } else { None },
+            year: None,
+            cover_url: if kind == "album" { cover.clone() } else { None },
+            source_url: pid.map(|p| format!("https://tidal.com/track/{p}")).unwrap_or_default(),
+        });
+    }
+
+    // A single-track URL has no list-items — build it from the page's og tags.
+    if kind == "track" && tracks.is_empty() {
+        if let Some(name) = og_name.clone() {
+            tracks.push(MusicTrack {
+                title: name,
+                artists: og_artist.clone().unwrap_or_default(),
+                isrc: None,
+                duration_ms: None,
+                is_explicit: false,
+                album: None,
+                year: None,
+                cover_url: cover.clone(),
+                source_url: format!("https://tidal.com/track/{tid}"),
+            });
+        }
+    }
+
+    if tracks.is_empty() {
+        return Err("Could not read the Tidal tracklist.".into());
+    }
+    // TODO(slice-music): _deezer_enrich_each for a playlist's per-track covers.
+    if kind == "track" {
+        tracks.truncate(1);
+        let t = &tracks[0];
+        return Ok(MusicImportInfo {
+            source: "tidal".into(),
+            kind: "track".into(),
+            name: t.title.clone(),
+            subtitle: Some(t.artists.clone()),
+            cover_url: cover,
+            tracks,
+            truncated: false,
+        });
+    }
+    let subtitle = if kind == "album" { og_artist } else { None };
+    Ok(MusicImportInfo {
+        source: "tidal".into(),
+        kind,
+        name: og_name.unwrap_or_else(|| "Tidal".into()),
+        subtitle,
+        cover_url: cover,
+        tracks,
+        truncated: false,
+    })
+}
