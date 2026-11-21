@@ -1313,6 +1313,45 @@ async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (St
     Ok(Json(serde_json::json!({ "ok": true, "embedded_cover": embedded })))
 }
 
+#[derive(Deserialize)]
+struct IdentifyRequest {
+    path: String,
+}
+
+/// Catalogue matches for a downloaded file, keyed on its filename (mirrors
+/// autotag_service.identify). Only the basename is read, not the file.
+async fn autotag_identify(Json(req): Json<IdentifyRequest>) -> Json<Value> {
+    let name = std::path::Path::new(&req.path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    let (artist, title) = autotag::guess_from_filename(name);
+    let source = load_settings().autotag_source;
+    let mut results = if title.is_empty() {
+        vec![]
+    } else {
+        autotag::search_catalogue(&source, &artist, &title).await
+    };
+    // Some channels title "Song - Artist"; retry swapped if nothing matched.
+    if results.is_empty() && !artist.is_empty() && !title.is_empty() {
+        results = autotag::search_catalogue(&source, &title, &artist).await;
+    }
+    Json(serde_json::json!({ "results": results }))
+}
+
+#[derive(Deserialize)]
+struct AutotagSearchRequest {
+    #[serde(default)]
+    artist: String,
+    title: String,
+}
+
+async fn autotag_search(Json(req): Json<AutotagSearchRequest>) -> Json<Value> {
+    let source = load_settings().autotag_source;
+    let results = autotag::search_catalogue(&source, &req.artist, &req.title).await;
+    Json(serde_json::json!({ "results": results }))
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -1353,6 +1392,8 @@ async fn main() {
         .route("/api/music/resolve", post(music_resolve))
         .route("/api/music/cover", post(music_cover))
         .route("/api/autotag/apply", post(autotag_apply))
+        .route("/api/autotag/identify", post(autotag_identify))
+        .route("/api/autotag/search", post(autotag_search))
         .layer(cors);
 
     // Shut down when the parent (the Tauri shell) closes our stdin — mirrors the
