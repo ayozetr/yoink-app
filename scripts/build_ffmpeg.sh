@@ -49,10 +49,13 @@ if [ "$TARGET" = "windows" ]; then
   MBED_CROSS=(-DCMAKE_SYSTEM_NAME=Windows
     -DCMAKE_C_COMPILER=${CROSS}gcc -DCMAKE_CXX_COMPILER=${CROSS}g++
     -DCMAKE_RC_COMPILER=${CROSS}windres)
-  # mingw ffmpeg + mbedTLS need the Win32 socket/crypto system libs.
+  # mingw ffmpeg + mbedTLS need the Win32 socket/crypto system libs, and -static
+  # links the mingw runtime (libwinpthread/libgcc) in so the .exe needs no
+  # bundled DLLs (the UCRT it still imports ships with Windows 10+).
   SYS_LIBS="-lws2_32 -lbcrypt -lcrypt32"
+  LD_STATIC="-static"
 else
-  CROSS=""; EXE=""; LAME_HOST=""; FF_CROSS=(); MBED_CROSS=(); SYS_LIBS=""
+  CROSS=""; EXE=""; LAME_HOST=""; FF_CROSS=(); MBED_CROSS=(); SYS_LIBS=""; LD_STATIC=""
 fi
 
 echo "[1/5] libmp3lame $LAME_VERSION (static, $TARGET)…"
@@ -93,7 +96,7 @@ echo "[4/5] configure ($TARGET: native codecs + libmp3lame + mbedTLS, no externa
 PKG_CONFIG_PATH="$DEPS/lib/pkgconfig" ./configure \
   --prefix="$WORK/out-$TARGET" "${FF_CROSS[@]}" \
   --enable-libmp3lame --enable-mbedtls --enable-version3 \
-  --extra-cflags="-I$DEPS/include" --extra-ldflags="-L$DEPS/lib" \
+  --extra-cflags="-I$DEPS/include" --extra-ldflags="-L$DEPS/lib $LD_STATIC" \
   --extra-libs="-lmbedtls -lmbedx509 -lmbedcrypto $SYS_LIBS" --pkg-config-flags=--static \
   --enable-small $ASM_FLAG --disable-doc --disable-htmlpages --disable-manpages \
   --disable-txtpages --disable-ffplay --disable-debug --disable-shared --enable-static >/dev/null
