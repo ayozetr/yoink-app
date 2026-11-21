@@ -27,6 +27,8 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tower_http::cors::CorsLayer;
 
+mod matching;
+
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Lossless audio codecs — mirrors the Python `source_lossless` heuristic.
@@ -1086,6 +1088,50 @@ async fn open_path(Json(req): Json<OpenRequest>) -> Result<Json<Value>, (StatusC
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }
 
+// ---- music match -------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct MusicTrack {
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    artists: String,
+    #[serde(default)]
+    duration_ms: Option<i64>,
+    #[serde(default)]
+    isrc: Option<String>,
+}
+
+/// Rank YouTube candidates for an imported track with the spotDL-style scorer and
+/// return the best source URL (+ the ISRC for tagging). TODO(slice-music): the
+/// YouTube-Music-by-ISRC exact match and the SoundCloud-lossless preference.
+async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (StatusCode, String)> {
+    let query = format!("ytsearch10:{} {}", track.title, track.artists);
+    let output = tokio::process::Command::new(ytdlp_bin())
+        .args(["-J", "--flat-playlist", "--no-warnings", &query])
+        .output()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("could not run yt-dlp: {e}")))?;
+    let candidates: Vec<Value> = if output.status.success() {
+        serde_json::from_slice::<Value>(&output.stdout)
+            .ok()
+            .and_then(|j| j.get("entries").and_then(Value::as_array).cloned())
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+    let youtube_url =
+        matching::best_match(&track.title, &track.artists, track.duration_ms, &candidates).and_then(
+            |(cand, _score)| {
+                cand.get("url")
+                    .or_else(|| cand.get("webpage_url"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            },
+        );
+    Ok(Json(serde_json::json!({ "youtube_url": youtube_url, "isrc": track.isrc })))
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -1121,6 +1167,7 @@ async fn main() {
         .route("/api/history/stats", get(get_history_stats))
         .route("/api/ytdlp-version", get(ytdlp_version))
         .route("/api/open", post(open_path))
+        .route("/api/music/match", post(music_match))
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
