@@ -562,6 +562,10 @@ fn open_url(url: &str) {
         .spawn();
 }
 
+/// Max width of the centered content container (header + body share it), so the
+/// brand, tabs and content all line up — the web UI's `max-w` container.
+const CONTENT_W: f32 = 860.0;
+
 /// The manually-verified sites shown in the "supported sites" dialog
 /// (slug for the bundled logo, display name, homepage).
 const SUPPORTED_SITES: &[(&str, &str, &str)] = &[
@@ -714,62 +718,67 @@ impl eframe::App for App {
                     .fill(p.surface)
                     .inner_margin(egui::Margin {
                         left: 20,
-                        right: 16,
+                        right: 20,
                         top: 12,
-                        bottom: 12,
+                        bottom: 10,
                     }),
             )
             .show(ui, |ui| {
-                ui.vertical(|ui| {
-                    // Brand: a violet logo tile + the Gloock wordmark.
-                    ui.horizontal(|ui| {
-                        egui::Frame::new()
-                            .fill(p.accent)
-                            .corner_radius(6)
-                            .inner_margin(egui::Margin::same(4))
-                            .show(ui, |ui| crate::icons::show(ui, "music", 14.0, p.accent_fg));
-                        ui.add_space(7.0);
-                        ui.label(
-                            RichText::new("Yoink")
-                                .size(20.0)
-                                .family(crate::fonts::display())
-                                .color(p.fg),
-                        );
-                    });
-                    ui.add_space(8.0);
-                    // Pill tabs with icons (compact).
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().button_padding = egui::vec2(9.0, 5.0);
-                        ui.spacing_mut().item_spacing.x = 5.0;
-                        for (tab, key, ic) in [
-                            (Tab::Inicio, "tab.inicio", "home"),
-                            (Tab::Cola, "tab.cola", "queue"),
-                            (Tab::Historial, "tab.historial", "history"),
-                            (Tab::Ajustes, "tab.ajustes", "settings"),
-                            (Tab::Logs, "tab.logs", "logs"),
-                        ] {
-                            let active = self.tab == tab;
-                            let (fg, fill) = if active {
-                                (p.accent_fg, p.accent)
-                            } else {
-                                (p.fg_dim, egui::Color32::TRANSPARENT)
-                            };
-                            // The Queue tab shows a live item count, like the web.
-                            let text = if tab == Tab::Cola && !self.queue.is_empty() {
-                                format!("{} · {}", tl(lang, key), self.queue.len())
-                            } else {
-                                tl(lang, key).to_string()
-                            };
-                            let btn = egui::Button::image_and_text(
-                                crate::icons::img(ic, 14.0, fg),
-                                RichText::new(text).size(13.0).color(fg),
-                            )
-                            .fill(fill)
-                            .corner_radius(7);
-                            if ui.add(btn).clicked() {
-                                self.tab = tab;
+                let avail = ui.available_width();
+                let pad = ((avail - CONTENT_W.min(avail)) / 2.0).max(0.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(pad);
+                    ui.vertical(|ui| {
+                        // Brand: a violet logo tile + the Gloock wordmark.
+                        ui.horizontal(|ui| {
+                            egui::Frame::new()
+                                .fill(p.accent)
+                                .corner_radius(6)
+                                .inner_margin(egui::Margin::same(4))
+                                .show(ui, |ui| crate::icons::show(ui, "music", 14.0, p.accent_fg));
+                            ui.add_space(7.0);
+                            ui.label(
+                                RichText::new("Yoink")
+                                    .size(20.0)
+                                    .family(crate::fonts::display())
+                                    .color(p.fg),
+                            );
+                        });
+                        ui.add_space(8.0);
+                        // Pill tabs with icons (compact).
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().button_padding = egui::vec2(9.0, 5.0);
+                            ui.spacing_mut().item_spacing.x = 5.0;
+                            for (tab, key, ic) in [
+                                (Tab::Inicio, "tab.inicio", "home"),
+                                (Tab::Cola, "tab.cola", "queue"),
+                                (Tab::Historial, "tab.historial", "history"),
+                                (Tab::Ajustes, "tab.ajustes", "settings"),
+                                (Tab::Logs, "tab.logs", "logs"),
+                            ] {
+                                let active = self.tab == tab;
+                                let (fg, fill) = if active {
+                                    (p.accent_fg, p.accent)
+                                } else {
+                                    (p.fg_dim, egui::Color32::TRANSPARENT)
+                                };
+                                // The Queue tab shows a live item count, like the web.
+                                let text = if tab == Tab::Cola && !self.queue.is_empty() {
+                                    format!("{} · {}", tl(lang, key), self.queue.len())
+                                } else {
+                                    tl(lang, key).to_string()
+                                };
+                                let btn = egui::Button::image_and_text(
+                                    crate::icons::img(ic, 14.0, fg),
+                                    RichText::new(text).size(13.0).color(fg),
+                                )
+                                .fill(fill)
+                                .corner_radius(7);
+                                if ui.add(btn).clicked() {
+                                    self.tab = tab;
+                                }
                             }
-                        }
+                        });
                     });
                 });
             });
@@ -882,24 +891,34 @@ impl eframe::App for App {
             .frame(
                 egui::Frame::new()
                     .fill(p.canvas)
-                    .inner_margin(egui::Margin::same(20)),
+                    .inner_margin(egui::Margin {
+                        left: 20,
+                        right: 20,
+                        top: 10,
+                        bottom: 20,
+                    }),
             )
             .show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
                     .show(ui, |ui| {
-                        // Left-aligned content with a generous max width, so it lines
-                        // up with the brand and tabs in the header (like the web UI).
-                        let w = (ui.available_width() - 4.0).min(1120.0);
-                        ui.vertical(|ui| {
-                            ui.set_width(w);
-                            match self.tab {
-                                Tab::Inicio => self.ui_inicio(ui, p),
-                                Tab::Historial => self.ui_historial(ui, p),
-                                Tab::Ajustes => self.ui_ajustes(ui, p),
-                                Tab::Cola => self.ui_cola(ui, p),
-                                Tab::Logs => self.ui_logs(ui, p),
-                            }
+                        // A centered container (the same width the header uses), so
+                        // the content lines up with the brand/tabs, like the web UI.
+                        let avail = ui.available_width();
+                        let w = CONTENT_W.min(avail - 8.0);
+                        let pad = ((avail - w) / 2.0).max(0.0);
+                        ui.horizontal_top(|ui| {
+                            ui.add_space(pad);
+                            ui.vertical(|ui| {
+                                ui.set_width(w);
+                                match self.tab {
+                                    Tab::Inicio => self.ui_inicio(ui, p),
+                                    Tab::Historial => self.ui_historial(ui, p),
+                                    Tab::Ajustes => self.ui_ajustes(ui, p),
+                                    Tab::Cola => self.ui_cola(ui, p),
+                                    Tab::Logs => self.ui_logs(ui, p),
+                                }
+                            });
                         });
                     });
             });
@@ -1110,7 +1129,7 @@ impl App {
 
     fn ui_inicio(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         let lang = self.lang;
-        ui.add_space(16.0);
+        ui.add_space(6.0);
 
         // URL bar: a rounded pill field + a soft-violet Analyze button to the right.
         let analyzing = matches!(self.status, Status::Analyzing);
