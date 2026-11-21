@@ -3,9 +3,9 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, rust-core]
   pull_request:
-    branches: [main]
+    branches: [main, rust-core]
 
 # Cancel superseded runs on the same ref.
 concurrency:
@@ -30,19 +30,24 @@ jobs:
         run: npm audit --audit-level=high
 
   backend:
-    name: Backend (pytest)
+    name: Backend (fmt · clippy · build · test)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          python-version: "3.13"
-          cache: pip
-          cache-dependency-path: backend/requirements*.txt
-      - name: ffmpeg (for tag-writing round-trip tests)
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install -r requirements.txt -r requirements-dev.txt
-      - run: python -m pytest
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend-rs
+      - name: Format check
+        working-directory: backend-rs
+        run: cargo fmt --check
+      - name: Clippy (deny warnings)
+        working-directory: backend-rs
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Build + test
+        working-directory: backend-rs
+        run: |
+          cargo build --release --locked
+          cargo test --locked

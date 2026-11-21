@@ -3,8 +3,13 @@ name: Release
 # Builds the signed desktop bundles for Linux + Windows and drafts the GitHub
 # release — replaces the hand-run build + the Windows VM (see docs/releasing.md).
 #
-#   Push a tag v<ver> (after bumping the five version files)  -> build + draft release
-#   Run manually (workflow_dispatch)                          -> build only, artifacts, no release
+#   Push a tag v<ver> (after bumping the version files)  -> build + draft release
+#   Run manually (workflow_dispatch)                     -> build only, artifacts, no release
+#
+# The app ships the native Rust backend (yoink-core) plus a minimal, self-built
+# ffmpeg/ffprobe (~33 MB vs the old ~336 MB BtbN prebuilds) — see
+# scripts/build_ffmpeg.sh. The Windows ffmpeg is cross-compiled on a Linux runner
+# and handed to the Windows job.
 #
 # The updater signing key lives in two repo secrets (never in the repo):
 #   TAURI_SIGNING_PRIVATE_KEY           contents of ~/.tauri/yoink.key
@@ -23,10 +28,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Gate: a broken tag must not produce (let alone publish) a release. Mirrors
-  # ci.yml, which does not run on a tag push (it only triggers on branch pushes).
+  # Gate: a broken tag must not produce (let alone publish) a release.
   test:
-    name: Test (lint · build · vitest · pytest)
+    name: Test (lint · build · vitest · cargo)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -38,16 +42,35 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
-      - uses: actions/setup-python@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         with:
-          python-version: "3.13"
-          cache: pip
-          cache-dependency-path: backend/requirements*.txt
-      - name: ffmpeg (for tag-writing round-trip tests)
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-      - run: python -m pytest
-        working-directory: backend
+          workspaces: backend-rs
+      - name: Rust backend (build + test)
+        working-directory: backend-rs
+        run: |
+          cargo build --release --locked
+          cargo test --locked
+
+  # Cross-compile the minimal Windows ffmpeg/ffprobe on Linux (fast + reproducible)
+  # and hand the .exe files to the Windows build job as an artifact.
+  ffmpeg-windows:
+    name: Cross-build Windows ffmpeg
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain (mingw-w64 + nasm + cmake)
+        run: sudo apt-get update && sudo apt-get install -y mingw-w64 nasm cmake
+      - name: Build minimal ffmpeg (windows cross)
+        run: bash scripts/build_ffmpeg.sh --windows
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ffmpeg-windows
+          path: |
+            backend/vendor/ffmpeg/ffmpeg.exe
+            backend/vendor/ffmpeg/ffprobe.exe
+            backend/vendor/ffmpeg/FFMPEG-LICENSE.txt
+          if-no-files-found: error
 
   build-linux:
     name: Build Linux (AppImage · deb · rpm)
@@ -65,41 +88,27 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend-rs
+
       - name: System build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
-            libayatana-appindicator3-dev patchelf rpm fakeroot file xz-utils
+            libayatana-appindicator3-dev patchelf rpm fakeroot file xz-utils \
+            nasm cmake pkg-config
 
-      - name: Install uv + Python 3.13 (backend runtime)
-        run: |
-          python -m pip install uv
-          uv python install 3.13
+      - name: npm install
+        run: npm ci
 
-      - name: Setup (backend venv + deps + npm install)
-        run: python scripts/setup.py
+      - name: Build minimal ffmpeg + ffprobe (native)
+        run: bash scripts/build_ffmpeg.sh
 
-      - name: Add PyInstaller to the backend venv
-        run: backend/.venv/bin/python -m pip install pyinstaller
-
-      - name: Fetch bundled ffmpeg + ffprobe
-        run: python scripts/fetch_ffmpeg.py
-
-      - name: Build the backend sidecar (PyInstaller onedir)
-        run: python scripts/build_backend.py
-
-      - name: Verify curl_cffi native lib survived packaging
-        run: |
-          python - <<'PY'
-          import glob, sys
-          hits = glob.glob("src-tauri/binaries/yoink-backend/_internal/curl_cffi/_wrapper*")
-          print("curl_cffi native lib:", hits or "MISSING")
-          if not hits:
-              print("::error::PyInstaller dropped curl_cffi's native lib "
-                    "(impersonation would break) — ensure --collect-all curl_cffi")
-              sys.exit(1)
-          PY
+      - name: Build + assemble the Rust backend (yoink-core + yt-dlp + ffmpeg)
+        run: python scripts/build_core.py
 
       - name: Build bundles (deb + appimage), signed
         env:
@@ -140,7 +149,7 @@ jobs:
 
   build-windows:
     name: Build Windows (msi · nsis)
-    needs: test
+    needs: [test, ffmpeg-windows]
     runs-on: windows-latest
     defaults:
       run:
@@ -157,34 +166,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install uv + Python 3.13 (backend runtime)
-        run: |
-          python -m pip install uv
-          uv python install 3.13
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend-rs
 
-      - name: Setup (backend venv + deps + npm install)
-        run: python scripts/setup.py
+      - name: npm install
+        run: npm ci
 
-      - name: Add PyInstaller to the backend venv
-        run: backend/.venv/Scripts/python -m pip install pyinstaller
+      - name: Fetch the cross-built Windows ffmpeg
+        uses: actions/download-artifact@v8
+        with:
+          name: ffmpeg-windows
+          path: backend/vendor/ffmpeg
 
-      - name: Fetch bundled ffmpeg + ffprobe
-        run: python scripts/fetch_ffmpeg.py
-
-      - name: Build the backend sidecar (PyInstaller onedir)
-        run: python scripts/build_backend.py
-
-      - name: Verify curl_cffi native lib survived packaging
-        run: |
-          python - <<'PY'
-          import glob, sys
-          hits = glob.glob("src-tauri/binaries/yoink-backend/_internal/curl_cffi/_wrapper*")
-          print("curl_cffi native lib:", hits or "MISSING")
-          if not hits:
-              print("::error::PyInstaller dropped curl_cffi's native lib "
-                    "(impersonation would break) — ensure --collect-all curl_cffi")
-              sys.exit(1)
-          PY
+      - name: Build + assemble the Rust backend (yoink-core + yt-dlp + ffmpeg)
+        run: python scripts/build_core.py
 
       - name: Build installers (msi + nsis), signed
         env:
@@ -219,7 +216,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: dist
-          pattern: "*"
+          pattern: "{linux,windows}"
           merge-multiple: true
 
       - name: List downloaded artifacts
