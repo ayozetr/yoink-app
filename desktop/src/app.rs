@@ -508,39 +508,26 @@ impl eframe::App for App {
             )
             .show(ui, |ui| {
                 ui.vertical(|ui| {
-                    // Brand: a violet logo tile + the Gloock wordmark, theme toggle right.
+                    // Brand: a violet logo tile + the Gloock wordmark.
                     ui.horizontal(|ui| {
                         egui::Frame::new()
                             .fill(p.accent)
-                            .corner_radius(7)
-                            .inner_margin(egui::Margin::same(5))
-                            .show(ui, |ui| crate::icons::show(ui, "music", 16.0, p.accent_fg));
-                        ui.add_space(8.0);
+                            .corner_radius(6)
+                            .inner_margin(egui::Margin::same(4))
+                            .show(ui, |ui| crate::icons::show(ui, "music", 14.0, p.accent_fg));
+                        ui.add_space(7.0);
                         ui.label(
                             RichText::new("Yoink")
-                                .size(23.0)
+                                .size(20.0)
                                 .family(crate::fonts::display())
                                 .color(p.fg),
                         );
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let tint = p.fg_dim;
-                            let ic = if self.dark { "sun" } else { "moon" };
-                            if ui
-                                .add(
-                                    egui::Button::image(crate::icons::img(ic, 18.0, tint))
-                                        .frame(false),
-                                )
-                                .on_hover_text(tl(lang, "theme.toggle"))
-                                .clicked()
-                            {
-                                self.dark = !self.dark;
-                                theme::apply(&ctx, self.dark);
-                            }
-                        });
                     });
                     ui.add_space(8.0);
-                    // Pill tabs with icons.
+                    // Pill tabs with icons (compact).
                     ui.horizontal(|ui| {
+                        ui.spacing_mut().button_padding = egui::vec2(9.0, 5.0);
+                        ui.spacing_mut().item_spacing.x = 5.0;
                         for (tab, key, ic) in [
                             (Tab::Inicio, "tab.inicio", "home"),
                             (Tab::Cola, "tab.cola", "queue"),
@@ -555,11 +542,11 @@ impl eframe::App for App {
                                 (p.fg_dim, egui::Color32::TRANSPARENT)
                             };
                             let btn = egui::Button::image_and_text(
-                                crate::icons::img(ic, 16.0, fg),
-                                RichText::new(tl(lang, key)).color(fg),
+                                crate::icons::img(ic, 14.0, fg),
+                                RichText::new(tl(lang, key)).size(13.0).color(fg),
                             )
                             .fill(fill)
-                            .corner_radius(8);
+                            .corner_radius(7);
                             if ui.add(btn).clicked() {
                                 self.tab = tab;
                             }
@@ -670,7 +657,8 @@ impl eframe::App for App {
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     // A centered column with LEFT-aligned content (like the web UI).
-                    let w = 720.0_f32.min(ui.available_width() - 48.0);
+                    let wide = self.tab == Tab::Ajustes;
+                    let w = (if wide { 720.0_f32 } else { 640.0 }).min(ui.available_width() - 48.0);
                     let pad = ((ui.available_width() - w) / 2.0).max(0.0);
                     ui.horizontal_top(|ui| {
                         ui.add_space(pad);
@@ -790,11 +778,19 @@ impl App {
             let total = ui.available_width();
             egui::Frame::new()
                 .fill(p.surface_hi)
+                .stroke(egui::Stroke::new(1.0, p.line))
                 .corner_radius(10)
                 .inner_margin(egui::Margin::symmetric(10, 7))
                 .show(ui, |ui| {
                     ui.set_width(total - 128.0);
                     ui.horizontal(|ui| {
+                        let red = if self.source == "soundcloud" {
+                            egui::Color32::from_rgb(255, 136, 0)
+                        } else {
+                            egui::Color32::from_rgb(237, 70, 70)
+                        };
+                        crate::icons::show(ui, "youtube", 15.0, red);
+                        ui.add_space(3.0);
                         egui::ComboBox::from_id_salt("source")
                             .selected_text(if self.source == "soundcloud" {
                                 "SoundCloud"
@@ -814,7 +810,7 @@ impl App {
                             egui::TextEdit::singleline(&mut self.url)
                                 .hint_text(tl(lang, "inicio.url_hint"))
                                 .frame(egui::Frame::NONE)
-                                .desired_width(f32::INFINITY),
+                                .desired_width(ui.available_width() - 26.0),
                         );
                         if resp.changed() {
                             let q = self.url.trim();
@@ -828,6 +824,10 @@ impl App {
                         if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                             self.analyze();
                         }
+                        let _ = ui.add(
+                            egui::Button::image(crate::icons::img("paste", 15.0, p.fg_dim))
+                                .frame(false),
+                        );
                     });
                 });
             ui.add_space(8.0);
@@ -930,10 +930,10 @@ impl App {
         if matches!(self.preview, Preview::None)
             && !matches!(self.status, Status::Analyzing | Status::Error(_))
         {
-            ui.add_space(72.0);
+            ui.add_space(40.0);
             ui.vertical_centered(|ui| {
-                crate::icons::show(ui, "download", 44.0, p.fg_dim);
-                ui.add_space(10.0);
+                crate::icons::show(ui, "cloud", 44.0, p.fg_dim);
+                ui.add_space(12.0);
                 ui.label(
                     RichText::new(tl(lang, "inicio.empty_title"))
                         .strong()
@@ -1620,6 +1620,19 @@ impl App {
                     }
                 });
         });
+        let mut dark = self.dark;
+        setting_row(ui, p, tl(lang, "set.theme"), |ui| {
+            egui::ComboBox::from_id_salt("theme")
+                .selected_text(tl(lang, if dark { "theme.dark" } else { "theme.light" }))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut dark, true, tl(lang, "theme.dark"));
+                    ui.selectable_value(&mut dark, false, tl(lang, "theme.light"));
+                });
+        });
+        if dark != self.dark {
+            self.dark = dark;
+            theme::apply(&ui.ctx().clone(), dark);
+        }
         setting_row(ui, p, tl(lang, "set.updates"), |ui| {
             toggle(ui, &mut s.check_updates, p);
         });
