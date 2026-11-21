@@ -194,7 +194,8 @@ pytest                                # run the backend test suite
 ### Desktop app (Tauri)
 
 ```bash
-python scripts/fetch_ffmpeg.py    # once: download ffmpeg+ffprobe (LGPL) to bundle
+bash scripts/build_ffmpeg.sh      # once: build a minimal ffmpeg+ffprobe (~33 MB total)
+# python scripts/fetch_ffmpeg.py  # fallback: download BtbN LGPL prebuilts (~336 MB)
 python scripts/build_backend.py   # bundle the backend (+ffmpeg) as a PyInstaller onedir folder
 npm run tauri build               # produce desktop installers in src-tauri/target
 ```
