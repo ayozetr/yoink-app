@@ -152,6 +152,10 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("hist.downloads", En) => "downloads",
         ("hist.transferred", Es) => "transferido",
         ("hist.transferred", En) => "transferred",
+        ("hist.search", Es) => "Buscar en el historial…",
+        ("hist.search", En) => "Search history…",
+        ("time.now", Es) => "ahora",
+        ("time.now", En) => "just now",
 
         ("set.general", Es) => "General",
         ("set.general", En) => "General",

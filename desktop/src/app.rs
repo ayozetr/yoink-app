@@ -96,6 +96,7 @@ pub struct App {
     settings_note: Option<String>,
     history: Vec<HistoryEntry>,
     history_loaded: bool,
+    hist_query: String,
     logs_text: String,
     logs_path: String,
     logs_loaded: bool,
@@ -148,6 +149,7 @@ impl App {
             settings_note: None,
             history: Vec::new(),
             history_loaded: false,
+            hist_query: String::new(),
             logs_text: String::new(),
             logs_path: String::new(),
             logs_loaded: false,
@@ -511,7 +513,7 @@ impl eframe::App for App {
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     // A centered column with LEFT-aligned content (like the web UI).
-                    let w = 720.0_f32.min(ui.available_width() - 24.0);
+                    let w = 720.0_f32.min(ui.available_width() - 48.0);
                     let pad = ((ui.available_width() - w) / 2.0).max(0.0);
                     ui.horizontal_top(|ui| {
                         ui.add_space(pad);
@@ -1037,7 +1039,7 @@ impl App {
                 }
             });
         });
-        ui.add_space(14.0);
+        ui.add_space(12.0);
 
         if self.history.is_empty() {
             ui.add_space(24.0);
@@ -1045,7 +1047,32 @@ impl App {
             return;
         }
 
-        for e in self.history.clone() {
+        // Search filter.
+        egui::Frame::new()
+            .fill(p.surface_hi)
+            .corner_radius(10)
+            .inner_margin(egui::Margin::symmetric(12, 8))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    crate::icons::show(ui, "search", 15.0, p.fg_dim);
+                    ui.add_space(6.0);
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.hist_query)
+                            .hint_text(tl(lang, "hist.search"))
+                            .frame(egui::Frame::NONE)
+                            .desired_width(f32::INFINITY),
+                    );
+                });
+            });
+        ui.add_space(8.0);
+
+        let q = self.hist_query.to_lowercase();
+        for e in self
+            .history
+            .clone()
+            .into_iter()
+            .filter(|e| q.is_empty() || e.title.to_lowercase().contains(&q))
+        {
             card(ui, p, |ui| {
                 ui.horizontal(|ui| {
                     fmt_badge(ui, p, &badge_label(&e));
@@ -1069,7 +1096,7 @@ impl App {
                             if let Some(sz) = e.filesize {
                                 meta.push(human_bytes(sz));
                             }
-                            meta.push(e.created_at.chars().take(10).collect());
+                            meta.push(relative(&e.created_at, lang));
                             ui.label(RichText::new(meta.join("  ·  ")).small().color(p.fg_dim));
                         });
                     });
@@ -1492,6 +1519,25 @@ fn notify_done(verb: &str, path: &str) {
             .body(&body)
             .show();
     });
+}
+
+/// A relative time ("hace 3 h" / "3 h ago") from an RFC3339 timestamp.
+fn relative(iso: &str, lang: Lang) -> String {
+    use chrono::{DateTime, Utc};
+    let Ok(dt) = DateTime::parse_from_rfc3339(iso) else {
+        return iso.chars().take(10).collect();
+    };
+    let s = (Utc::now() - dt.with_timezone(&Utc)).num_seconds().max(0);
+    match (s, lang) {
+        (s, _) if s < 60 => tl(lang, "time.now").to_string(),
+        (s, Lang::Es) if s < 3600 => format!("hace {} min", s / 60),
+        (s, Lang::En) if s < 3600 => format!("{} min ago", s / 60),
+        (s, Lang::Es) if s < 86400 => format!("hace {} h", s / 3600),
+        (s, Lang::En) if s < 86400 => format!("{} h ago", s / 3600),
+        (s, Lang::Es) if s < 604800 => format!("hace {} d", s / 86400),
+        (s, Lang::En) if s < 604800 => format!("{} d ago", s / 86400),
+        _ => iso.chars().take(10).collect(),
+    }
 }
 
 /// Heuristic: looks like a link (so analyze it) rather than a search query.
