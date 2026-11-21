@@ -5,9 +5,9 @@
 """Build the release `.rpm` by repackaging the built `.deb` with rpmbuild — fast.
 
 Why this exists: Tauri's own rpm bundler (the `rpm` Rust crate) takes **10-12
-minutes** to package the ~170 MB PyInstaller sidecar, while the `.deb` and
-AppImage of the same payload bundle in *seconds*. It's not the compressor
-(measured: the sidecar is incompressible, so even `xz -9` is ~45 s, and
+minutes** to package the bundled binaries (yt-dlp + ffmpeg), while the `.deb`
+and AppImage of the same payload bundle in *seconds*. It's not the compressor
+(measured: even `xz -9` is ~45 s, and
 SHA256/cpio are <1 s) — the cost is inside the crate itself. So the release flow
 builds only `deb` + `appimage` with Tauri (`--bundles deb,appimage`) and runs
 this to get the `.rpm` in seconds.
@@ -253,7 +253,7 @@ def main() -> int:
             "\n! Unexpected Requires (autoreq leaked a bundled-lib dependency the "
             "target distro may not package):\n"
             + "\n".join(f"    {dep}" for dep in leaked)
-            + "\n  These come from scanning _internal/*.so. Exclude them from "
+            + "\n  These come from scanning the bundled binaries' .so deps. Exclude them from "
             "autoreq (%global __requires_exclude) before publishing."
         )
         return 1

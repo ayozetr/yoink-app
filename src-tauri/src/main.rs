@@ -143,7 +143,7 @@ fn toggle_window(app: &tauri::AppHandle) {
 /// it — falling back lets Yoink still start instead of failing to bind.
 fn pick_backend_port() -> u16 {
     use std::net::TcpListener;
-    // Probing by binding then dropping leaves a tiny race before uvicorn binds,
+    // Probing by binding then dropping leaves a tiny race before yoink-core binds,
     // but the common path (8756 free) is unaffected and the fallback is rare.
     if TcpListener::bind(("127.0.0.1", DEFAULT_PORT)).is_ok() {
         return DEFAULT_PORT;
@@ -163,8 +163,8 @@ fn pick_backend_port() -> u16 {
 /// Locate the bundled backend executable inside the app's resource directory.
 ///
 /// The backend is `yoink-core` — a single Rust binary that shells out to the
-/// `yt-dlp` and `ffmpeg` binaries bundled beside it (replacing the old PyInstaller
-/// one-folder distribution). Try the few layouts Tauri may place resources under.
+/// `yt-dlp` and `ffmpeg` binaries bundled beside it. Try the few layouts Tauri
+/// may place resources under.
 /// Returns `None` in dev (no bundled resource) — the backend then runs separately
 /// on the default port.
 fn backend_exe(app: &tauri::App) -> Option<PathBuf> {
@@ -188,7 +188,7 @@ fn backend_exe(app: &tauri::App) -> Option<PathBuf> {
     None
 }
 
-/// Spawn the bundled FastAPI backend, telling it which port to bind via
+/// Spawn the bundled backend (yoink-core), telling it which port to bind via
 /// `YOINK_PORT`. Returns the child handle so the caller can terminate it on exit
 /// (otherwise it would linger and hold the port). Its own logs still go to
 /// `~/.yoink/logs/yoink.log`; stderr is inherited so a terminal launch shows it.
@@ -268,8 +268,7 @@ fn spawn_backend(app: &tauri::App, port: u16) -> Option<Child> {
 
 /// Terminate the backend and any children (e.g. a running ffmpeg) on app exit.
 ///
-/// With the one-folder build the spawned exe *is* the backend process (no
-/// PyInstaller bootloader indirection), so `kill()` ends it directly. Its
+/// The spawned binary *is* the backend process, so `kill()` ends it directly. Its
 /// grandchildren (e.g. a running ffmpeg) are reaped first — by signalling the
 /// backend's process group on Unix and by process tree on Windows (`taskkill
 /// /T`) — so nothing lingers holding the backend port.
