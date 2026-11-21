@@ -2,14 +2,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ayoze Torres
 
-"""Run the Yoink backend and frontend together with one command.
+"""Run the Yoink backend (yoink-core) and frontend together with one command.
 
     python scripts/dev.py                 # backend :8756, frontend :5173
     python scripts/dev.py --api-port 8010 --web-port 5180
 
-Starts uvicorn (with --reload) and the Vite dev server, points the frontend at
-the chosen backend port, and shuts both down cleanly on Ctrl+C. Cross-platform
-(Linux + Windows): it locates the backend virtualenv automatically.
+Builds + runs the Rust backend with `cargo run`, starts the Vite dev server,
+points the frontend at the chosen backend port, and shuts both down cleanly on
+Ctrl+C. Cross-platform (Linux + Windows).
+
+The backend shells out to `yt-dlp` and `ffmpeg`: it uses the bundled
+`backend/vendor/ffmpeg` when present (set up by scripts/build_ffmpeg.sh) and
+otherwise falls back to whatever is on PATH; `yt-dlp` must be on PATH (or set
+YOINK_YTDLP) for a dev run.
 """
 
 from __future__ import annotations
@@ -22,20 +27,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BACKEND = ROOT / "backend"
-
-
-def _venv_python() -> str:
-    """Path to the backend venv's Python, or the current interpreter."""
-    candidates = [
-        BACKEND / ".venv" / "bin" / "python",  # Linux/macOS
-        BACKEND / ".venv" / "Scripts" / "python.exe",  # Windows
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return str(candidate)
-    print("! No backend venv found — run `python scripts/setup.py` first.")
-    return sys.executable
+CORE = ROOT / "backend-rs"
+VENDOR_FFMPEG = ROOT / "backend" / "vendor" / "ffmpeg"
 
 
 def main() -> int:
@@ -43,40 +36,29 @@ def main() -> int:
     parser.add_argument("--api-port", type=int, default=8756)
     parser.add_argument("--web-port", type=int, default=5173)
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--release", action="store_true", help="build the backend in release mode")
     args = parser.parse_args()
 
     api_base = f"http://{args.host}:{args.api_port}/api"
     npm = "npm.cmd" if os.name == "nt" else "npm"
 
-    backend_cmd = [
-        _venv_python(),
-        "-m",
-        "uvicorn",
-        "app.main:app",
-        "--reload",
-        "--host",
-        args.host,
-        "--port",
-        str(args.api_port),
-    ]
-    frontend_cmd = [
-        npm,
-        "run",
-        "dev",
-        "--",
-        "--host",
-        args.host,
-        "--port",
-        str(args.web_port),
-    ]
+    backend_cmd = ["cargo", "run"]
+    if args.release:
+        backend_cmd.append("--release")
+    frontend_cmd = [npm, "run", "dev", "--", "--host", args.host, "--port", str(args.web_port)]
 
-    print(f"> backend   http://{args.host}:{args.api_port}  (docs at /docs)")
+    # The backend reads these; ffmpeg is used bundled when available.
+    backend_env = {**os.environ, "YOINK_PORT": str(args.api_port)}
+    if VENDOR_FFMPEG.is_dir():
+        backend_env["YOINK_FFMPEG"] = str(VENDOR_FFMPEG)
+
+    print(f"> backend   http://{args.host}:{args.api_port}  (yoink-core)")
     print(f"> frontend  http://{args.host}:{args.web_port}")
     print("  Ctrl+C to stop both.\n")
 
     procs: list[subprocess.Popen[bytes]] = []
     try:
-        procs.append(subprocess.Popen(backend_cmd, cwd=BACKEND))
+        procs.append(subprocess.Popen(backend_cmd, cwd=CORE, env=backend_env))
         # The frontend reads VITE_API_BASE_URL to find the backend.
         env = {**os.environ, "VITE_API_BASE_URL": api_base}
         procs.append(subprocess.Popen(frontend_cmd, cwd=ROOT, env=env))

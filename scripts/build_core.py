@@ -11,7 +11,7 @@ Compiles `backend-rs` in release mode and lays out
 
   - `yoink-core`  — the Rust backend (axum; orchestrates the two below)
   - `yt-dlp`      — the official standalone binary, pinned to the same version as
-                    `backend/requirements.txt` (no Python runtime needed)
+                    `scripts/ytdlp-version.txt` (no Python runtime needed)
   - `ffmpeg` + `ffprobe` — from `backend/vendor/ffmpeg/` (run `fetch_ffmpeg.py` once)
 
 `tauri.conf.json` bundles that folder as the `core` resource; `main.rs` launches
@@ -38,13 +38,14 @@ VENDOR_FFMPEG = ROOT / "backend" / "vendor" / "ffmpeg"
 
 
 def _ytdlp_version() -> str:
-    text = (ROOT / "backend" / "requirements.txt").read_text(encoding="utf-8")
-    m = re.search(r"yt-dlp\[[^\]]*\]==([0-9.]+)", text) or re.search(
-        r"yt-dlp==([0-9.]+)", text
-    )
+    """The pinned yt-dlp release to bundle — bump scripts/ytdlp-version.txt to
+    update it (the app ships the official standalone binary; yt-dlp is
+    owner-managed, never self-updated in-app)."""
+    pin = (ROOT / "scripts" / "ytdlp-version.txt").read_text(encoding="utf-8").strip()
+    m = re.fullmatch(r"[0-9.]+", pin)
     if not m:
-        raise SystemExit("! could not read the pinned yt-dlp version from requirements.txt")
-    return m.group(1)
+        raise SystemExit("! scripts/ytdlp-version.txt must contain a version like 2026.10.26")
+    return pin
 
 
 def _ytdlp_asset() -> str:

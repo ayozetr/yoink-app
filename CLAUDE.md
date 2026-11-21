@@ -18,8 +18,10 @@ Two layers communicating asynchronously:
   reflect download progress. Lives at the repo root (`src/`). The v4 UI is a
   flat, de-boxed "Flat Minimal" look (Gloock titles + Inter), organised into
   modular tabs (Inicio/Cola/Historial/Ajustes), dark by default with a light theme.
-- **Backend** — Python + FastAPI, runs locally (`backend/`). Wraps yt-dlp,
-  manages the local filesystem, and invokes ffmpeg. Strictly typed.
+- **Backend** — native **Rust** (`yoink-core`, axum), runs locally
+  (`backend-rs/`). Shells out to the bundled `yt-dlp` + `ffmpeg` binaries,
+  manages the local filesystem, and streams download progress. No Python
+  runtime. (The original Python/FastAPI backend lives on the `legacy` branch.)
 
 ### Communication contract (strict)
 
@@ -86,13 +88,11 @@ Two layers communicating asynchronously:
   `take_pending_deep_link`); the frontend (`lib/desktop.ts` → `App.tsx`) routes it
   through the same analyze path as drag-and-drop.
 
-The TypeScript types in `src/types/download.ts` mirror the Pydantic models in
-`backend/app/models/media.py` (and `src/types/autotag.ts` ↔
-`backend/app/models/autotag.py`, `src/types/music.ts` ↔
-`backend/app/models/music.py`) — keep both sides in sync.
-`backend/tests/test_type_contract.py` enforces field-name parity (it fails if a
-model and its TS interface drift); `scripts/gen_api_types.py` regenerates the
-literal OpenAPI types on demand.
+The TypeScript types in `src/types/` (`download.ts`, `autotag.ts`, `music.ts`)
+are the JSON contract; the Rust structs in `backend-rs/src/` serialize to match
+them (serde) — keep both sides in sync. The UI is unchanged from the Python era,
+so the endpoint behaviours described above hold; only the implementation moved
+to Rust.
 
 ## Repository layout
 
@@ -116,38 +116,19 @@ literal OpenAPI types on demand.
 │   ├── lib/                  # API client (+ runtime backend-port resolve) + download WebSocket + single-download lock + queue store + theme + toast store + search-source pref + VR-layout memory + native dialogs + deep-link/desktop bridge
 │   └── types/                # shared domain types (backend JSON contract)
 ├── extension/                # "Send to Yoink" (beta) browser extension (Firefox + Chromium) — fires the yoink:// deep link
-└── backend/                  # FastAPI + yt-dlp engine
-    └── app/
-        ├── main.py           # app factory, logging setup, CORS, router mounting
-        ├── core/config.py    # typed settings (CORS, download dir, ~/.yoink data dir)
-        ├── core/logging_config.py     # rotating file log at ~/.yoink/logs/yoink.log
-        ├── models/media.py   # Pydantic models (JSON contract)
-        ├── models/autotag.py  # auto-tagging models (TagCandidate, CandidateList, …)
-        ├── models/music.py    # music-import models (MusicTrack, MusicImportInfo, …)
-        ├── core/humanize.py   # shared byte/size formatting
-        ├── core/ytdlp_options.py      # shared URL normalize + cookies (browser→file fallback)
-        ├── core/safe_http.py  # SSRF-safe fetch (public-host pinning) for client URLs
-        ├── routers/info.py    # POST /api/info (video or playlist + playlist-sync flags), GET /api/search
-        ├── routers/download.py        # WS /api/ws/download (live progress)
-        ├── routers/history.py         # GET/DELETE /api/history(/stats), POST /api/open
-        ├── routers/settings.py        # GET/PUT /api/settings, GET /api/version + /api/ytdlp-version + /api/release-notes
-        ├── routers/autotag.py         # POST /api/autotag/{identify,search,lyrics,apply}
-        ├── routers/music.py           # POST /api/music/{resolve,match,cover} (keyless import)
-        ├── routers/media.py           # GET /api/thumbnail (host-guarded proxy) + /api/cover (embedded art)
-        ├── services/ytdlp_service.py  # typed yt-dlp metadata wrapper
-        ├── services/download_service.py  # yt-dlp download + progress stream
-        ├── services/audio_normalize.py  # two-pass ffmpeg loudnorm (-14 LUFS EBU R128) for audio downloads
-        ├── services/threads_extractor.py  # custom Threads (Meta) yt-dlp extractor
-        ├── services/embedded_vr_extractor.py  # player-config extractor (overrides stale bundled ones)
-        ├── services/music_import.py    # keyless resolvers (5 services) + YouTube match
-        ├── services/matching.py        # spotDL-ported YouTube match ranking
-        ├── services/autotag_service.py # Apple Music lookup + mutagen tag writing (+ lyrics + .nfo)
-        ├── services/lyrics.py          # LRCLIB lyrics lookup (plain + synced .lrc)
-        ├── services/nfo.py             # Kodi/Jellyfin .nfo sidecars (movie / musicvideo + folder-level album/artist)
-        ├── services/vr.py              # VR detection + Spherical Video V2 (st3d/sv3d) tagging
-        ├── services/history_store.py  # SQLite persistence (history + stats)
-        ├── services/settings_store.py # persisted user settings overrides
-        └── services/updates.py        # GitHub release update check + release notes
+├── backend/
+│   └── vendor/ffmpeg/        # bundled minimal ffmpeg+ffprobe (gitignored; scripts/build_ffmpeg.sh)
+└── backend-rs/              # native Rust backend (yoink-core, axum + yt-dlp/ffmpeg)
+    ├── Cargo.toml
+    └── src/
+        ├── main.rs           # app factory + all HTTP/WS routes; download, history (rusqlite), settings, logs, info/search, yt-dlp retry+cookie helpers
+        ├── matching.rs       # spotDL-ported YouTube match ranking (unit-test-pinned to Python)
+        ├── music.rs          # keyless music import: Spotify/Deezer/Apple/Tidal/Amazon + Deezer enrich (rate-limit gate)
+        ├── autotag.rs        # catalogue lookups (Apple/Deezer/MusicBrainz) + lyrics (LRCLIB) + lofty tag writing
+        ├── nfo.rs            # Kodi/Jellyfin .nfo sidecars (movie / musicvideo + folder album/artist)
+        ├── library.rs        # music-folder relocation (Artist/Album layout) + rename-to-tagged
+        ├── vr.rs             # VR detection + Spherical Video V2/V1 box injection + MKV StereoMode
+        └── audio_normalize.rs # two-pass ffmpeg loudnorm (-14 LUFS) + HLS trim (with ffmpeg timeouts)
 ```
 
 ## Common commands
@@ -155,7 +136,7 @@ literal OpenAPI types on demand.
 ### Everything at once (recommended)
 
 ```bash
-python scripts/setup.py    # one-time: venv + backend deps + npm install
+python scripts/setup.py    # one-time: cargo build (backend) + npm install (frontend)
 python scripts/dev.py      # run backend (:8756) + frontend (:5173) together
 # python scripts/dev.py --api-port 8010 --web-port 5180   # custom ports
 ```
@@ -174,46 +155,46 @@ npm run lint     # eslint
 npm run test:e2e # Playwright E2E (mocked API; first run: npx playwright install chromium)
 ```
 
-### Backend (`backend/`)
+### Backend (`backend-rs/`)
 
-> Use **Python 3.13** (not 3.14): yt-dlp's `curl_cffi` impersonation — needed to
-> get past Cloudflare/anti-bot 403s — only works on a Python with compatible
-> `curl_cffi` wheels, and 3.14's newer OpenSSL fingerprint is itself blocked by
-> some sites. `scripts/setup.py` selects 3.13 automatically (via uv, isolated).
+The backend is **native Rust** (`yoink-core`, axum) — it shells out to the
+bundled `yt-dlp` + `ffmpeg` binaries. No Python runtime.
 
 ```bash
-python3.13 -m venv .venv          # or: uv venv --python 3.13 .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload    # http://127.0.0.1:8756  (docs at /docs)
-
-pip install -r requirements-dev.txt   # test deps (pytest, httpx)
-pytest                                # run the backend test suite
+cd backend-rs
+cargo run                 # serve the API on :8756 (set YOINK_PORT to change)
+cargo build --release     # optimized binary at target/release/yoink-core
+cargo fmt && cargo clippy  # format + lint (CI gates on both)
+cargo test                # unit tests (e.g. the spotDL matcher parity test)
 ```
+
+The backend finds `yt-dlp` on PATH (or `YOINK_YTDLP`) and ffmpeg at
+`YOINK_FFMPEG` (or PATH); `scripts/dev.py` points it at `backend/vendor/ffmpeg`
+when present.
 
 ### Desktop app (Tauri)
 
 ```bash
 bash scripts/build_ffmpeg.sh      # once: build a minimal ffmpeg+ffprobe (~33 MB total)
+# bash scripts/build_ffmpeg.sh --windows   # cross-compile the Windows .exe (mingw-w64)
 # python scripts/fetch_ffmpeg.py  # fallback: download BtbN LGPL prebuilts (~336 MB)
-python scripts/build_backend.py   # bundle the backend (+ffmpeg) as a PyInstaller onedir folder
+python scripts/build_core.py      # build yoink-core + fetch yt-dlp + assemble the core resource
 npm run tauri build               # produce desktop installers in src-tauri/target
 ```
 
-The Tauri shell (`src-tauri/`) loads the built frontend and, on startup,
-launches the bundled backend — a PyInstaller **one-folder** distribution shipped
-as a Tauri `resources` entry, spawned by `main.rs` (`--onedir`, not a onefile
-sidecar: it starts faster with no per-launch extraction). It embeds
-ffmpeg/ffprobe (wired to yt-dlp via `ffmpeg_location`), so the shipped app needs
-no system ffmpeg.
-The bundled backend binary does **double duty**: launched with no arguments
-(how `main.rs` spawns it) it serves the API, but launched *with* arguments it
-runs the CLI (`app/cli.py`) in-process — so the Linux `.deb`/`.rpm` ship a
-`/usr/bin/yoink-cli` wrapper (`src-tauri/yoink-cli`) that forwards to it, giving a
-real command line with no second binary. Dispatch lives in `backend/run_backend.py`.
+The Tauri shell (`src-tauri/`) loads the built frontend and, on startup, spawns
+the bundled **`yoink-core`** (the native Rust backend) from the `core` Tauri
+`resources` folder — assembled by `scripts/build_core.py` with `yoink-core`,
+the pinned standalone `yt-dlp` (version in `scripts/ytdlp-version.txt`), and the
+minimal `ffmpeg`/`ffprobe`. `main.rs` sets `YOINK_YTDLP`/`YOINK_FFMPEG` to the
+sibling binaries, so the shipped app needs no system Python, yt-dlp or ffmpeg.
+The Linux `.deb`/`.rpm` ship a `/usr/bin/yoink-cli` wrapper (`src-tauri/yoink-cli`)
+that forwards to `yoink-core`'s CLI mode.
 Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1). Icons are
 generated with `npm run tauri icon`. See `docs/releasing.md` for the full
-release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.
+release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg attribution.
+Releases build on GitHub Actions (`.github/workflows/release.yml`): Linux +
+Windows, signed, with the Windows ffmpeg cross-compiled on the Linux runner.
 
 ## Conventions
 
@@ -226,9 +207,9 @@ release flow and `docs/THIRD_PARTY_LICENSES.md` for the ffmpeg LGPL attribution.
   titles (`font-display`), Inter for the UI (`font-sans`).
 - **Frontend:** function components, feature-folder structure. Reusable visuals
   go in `components/ui`; screen-specific logic stays in `features/`.
-- **Backend:** strictly typed Python (`from __future__ import annotations`,
-  explicit return types). OS-agnostic paths via `pathlib` (Linux + Windows).
-  Dependencies isolated in a `venv`.
+- **Backend:** native Rust (`backend-rs`, edition 2021). `cargo fmt` + `cargo
+  clippy` clean (CI gates on `clippy -D warnings`). OS-agnostic paths via
+  `std::path`. Rust structs serialize (serde) to the TS JSON contract.
 - **Security:** keep `npm audit` at **0 vulnerabilities**.
 - **Icons:** `lucide-react`.
 - **i18n:** UI strings go through `react-i18next` (14 languages in

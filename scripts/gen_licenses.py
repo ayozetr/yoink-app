@@ -86,9 +86,17 @@ def _cargo() -> list[tuple[str, str]]:
 
 
 def _pip() -> list[tuple[str, str, str]]:
-    """Direct Python dependencies (requirements.txt), with their licenses."""
+    """Direct Python dependencies (requirements.txt), with their licenses.
+
+    The shipped backend is now Rust (backend-rs/yoink-core) — there is no Python
+    backend to attribute, so this is a no-op unless a requirements.txt is present.
+    TODO: list backend-rs's crate licenses here (like _cargo for src-tauri).
+    """
+    reqs = ROOT / "backend" / "requirements.txt"
+    if not reqs.exists():
+        return []
     direct: set[str] = set()
-    for line in (ROOT / "backend" / "requirements.txt").read_text().splitlines():
+    for line in reqs.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
