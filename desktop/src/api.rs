@@ -29,7 +29,9 @@ fn http_base() -> String {
 /// A request from the UI to the worker.
 pub enum Cmd {
     Analyze(String),
+    ResolveMusic(String),
     Download(DownloadReq),
+    ImportTrack(Box<MusicTrack>),
     SaveSettings(Box<Settings>),
     LoadHistory,
     Open(String),
@@ -42,6 +44,7 @@ pub enum Evt {
     History(Vec<HistoryEntry>),
     Analyzing,
     Info(VideoLite),
+    Music(Box<MusicInfo>),
     Playlist {
         title: String,
         count: usize,
@@ -108,6 +111,56 @@ pub struct HistoryEntry {
     #[serde(default)]
     pub quality: Option<String>,
     pub created_at: String,
+}
+
+/// One track of a resolved music-service import (`POST /api/music/resolve`). Sent
+/// back verbatim to `POST /api/music/match`, so it mirrors the backend `MusicTrack`.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct MusicTrack {
+    pub title: String,
+    pub artists: String,
+    #[serde(default)]
+    pub isrc: Option<String>,
+    #[serde(default)]
+    pub duration_ms: Option<i64>,
+    #[serde(default)]
+    pub is_explicit: bool,
+    #[serde(default)]
+    pub album: Option<String>,
+    #[serde(default)]
+    pub year: Option<String>,
+    #[serde(default)]
+    pub cover_url: Option<String>,
+    #[serde(default)]
+    pub source_url: String,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct MusicInfo {
+    pub source: String,
+    pub name: String,
+    #[serde(default)]
+    pub subtitle: Option<String>,
+    #[serde(default)]
+    pub cover_url: Option<String>,
+    pub tracks: Vec<MusicTrack>,
+}
+
+/// True for a Spotify/Deezer/Apple Music/Tidal/Amazon Music link (routed to the
+/// keyless music importer instead of yt-dlp).
+pub fn is_music_url(url: &str) -> bool {
+    let u = url.to_lowercase();
+    [
+        "open.spotify.com",
+        "spotify.link",
+        "deezer.com",
+        "deezer.page.link",
+        "music.apple.com",
+        "tidal.com",
+        "music.amazon.",
+    ]
+    .iter()
+    .any(|h| u.contains(h))
 }
 
 /// The subset of `DownloadRequest` the UI sets; the backend fills the rest from
@@ -186,8 +239,14 @@ impl Backend {
                         Cmd::Analyze(url) => {
                             tokio::spawn(async move { analyze(url, evt_tx, ctx).await });
                         }
+                        Cmd::ResolveMusic(url) => {
+                            tokio::spawn(async move { resolve_music(url, evt_tx, ctx).await });
+                        }
                         Cmd::Download(req) => {
                             tokio::spawn(async move { download(req, evt_tx, ctx).await });
+                        }
+                        Cmd::ImportTrack(t) => {
+                            tokio::spawn(async move { import_track(*t, evt_tx, ctx).await });
                         }
                         Cmd::SaveSettings(s) => {
                             tokio::spawn(async move { save_settings(s, evt_tx, ctx).await });
@@ -310,20 +369,31 @@ async fn analyze(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Conte
 }
 
 async fn download(req: DownloadReq, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    if let Some(path) = run_ws_download(&req, &tx, &ctx).await {
+        emit(&tx, &ctx, Evt::Done(path));
+    }
+}
+
+/// Open the download WebSocket, stream `Progress` events, and return the final
+/// filepath (emitting `DownloadErr` on failure). The caller decides what "done"
+/// means — a plain download emits `Done`; a music import tags first.
+async fn run_ws_download(
+    req: &DownloadReq,
+    tx: &std::sync::mpsc::Sender<Evt>,
+    ctx: &egui::Context,
+) -> Option<String> {
     let url = format!("ws://127.0.0.1:{}/api/ws/download", port());
     let (mut ws, _) = match tokio_tungstenite::connect_async(&url).await {
         Ok(s) => s,
         Err(e) => {
-            return emit(
-                &tx,
-                &ctx,
-                Evt::DownloadErr(format!("ws connect failed: {e}")),
-            )
+            emit(tx, ctx, Evt::DownloadErr(format!("ws connect failed: {e}")));
+            return None;
         }
     };
-    let payload = serde_json::to_string(&req).unwrap_or_default();
+    let payload = serde_json::to_string(req).unwrap_or_default();
     if let Err(e) = ws.send(Message::Text(payload)).await {
-        return emit(&tx, &ctx, Evt::DownloadErr(format!("ws send failed: {e}")));
+        emit(tx, ctx, Evt::DownloadErr(format!("ws send failed: {e}")));
+        return None;
     }
     while let Some(msg) = ws.next().await {
         let text = match msg {
@@ -336,8 +406,8 @@ async fn download(req: DownloadReq, tx: std::sync::mpsc::Sender<Evt>, ctx: egui:
         };
         match v.get("type").and_then(Value::as_str) {
             Some("progress") => emit(
-                &tx,
-                &ctx,
+                tx,
+                ctx,
                 Evt::Progress {
                     percent: v.get("percent").and_then(Value::as_f64).unwrap_or(0.0) as f32,
                     speed: v.get("speed").and_then(Value::as_str).map(str::to_string),
@@ -350,18 +420,106 @@ async fn download(req: DownloadReq, tx: std::sync::mpsc::Sender<Evt>, ctx: egui:
                     .and_then(Value::as_str)
                     .unwrap_or("")
                     .to_string();
-                emit(&tx, &ctx, Evt::Done(path));
-                break;
+                return Some(path);
             }
             Some("error") => {
                 let msg = v
                     .get("message")
                     .and_then(Value::as_str)
                     .unwrap_or("download failed");
-                emit(&tx, &ctx, Evt::DownloadErr(msg.to_string()));
-                break;
+                emit(tx, ctx, Evt::DownloadErr(msg.to_string()));
+                return None;
             }
             _ => {}
         }
     }
+    None
+}
+
+async fn resolve_music(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    emit(&tx, &ctx, Evt::Analyzing);
+    let res = reqwest::Client::new()
+        .post(format!("{}/api/music/resolve", http_base()))
+        .json(&serde_json::json!({ "url": url }))
+        .send()
+        .await;
+    match res {
+        Ok(r) if r.status().is_success() => match r.json::<MusicInfo>().await {
+            Ok(info) => emit(&tx, &ctx, Evt::Music(Box::new(info))),
+            Err(e) => emit(
+                &tx,
+                &ctx,
+                Evt::AnalyzeErr(format!("bad music response: {e}")),
+            ),
+        },
+        Ok(r) => emit(
+            &tx,
+            &ctx,
+            Evt::AnalyzeErr(format!("music resolve returned {}", r.status())),
+        ),
+        Err(e) => emit(
+            &tx,
+            &ctx,
+            Evt::AnalyzeErr(format!("cannot reach backend: {e}")),
+        ),
+    }
+}
+
+/// Import one track: match it on YouTube, download the audio, then tag it with the
+/// exact source metadata (title/artist/album/year/cover/ISRC).
+async fn import_track(track: MusicTrack, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let client = reqwest::Client::new();
+    // 1. Match on YouTube (spotDL-ported scorer, server-side).
+    let matched = client
+        .post(format!("{}/api/music/match", http_base()))
+        .json(&track)
+        .send()
+        .await
+        .ok();
+    let matched: Option<Value> = match matched {
+        Some(r) => r.json().await.ok(),
+        None => None,
+    };
+    let yt = matched
+        .as_ref()
+        .and_then(|m| m.get("youtube_url"))
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty());
+    let Some(yt) = yt else {
+        return emit(&tx, &ctx, Evt::DownloadErr("no YouTube match".into()));
+    };
+    let isrc = matched
+        .as_ref()
+        .and_then(|m| m.get("isrc"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .or_else(|| track.isrc.clone());
+
+    // 2. Download the audio (default mp3).
+    let req = DownloadReq {
+        url: yt.to_string(),
+        kind: "audio".into(),
+        quality: None,
+        container: "mp4".into(),
+        audio_format: "mp3".into(),
+    };
+    let Some(path) = run_ws_download(&req, &tx, &ctx).await else {
+        return; // error already emitted
+    };
+
+    // 3. Tag with the exact source metadata.
+    let _ = client
+        .post(format!("{}/api/autotag/apply", http_base()))
+        .json(&serde_json::json!({
+            "path": path,
+            "title": track.title,
+            "artist": track.artists,
+            "album": track.album,
+            "year": track.year,
+            "isrc": isrc,
+            "cover_url": track.cover_url,
+        }))
+        .send()
+        .await;
+    emit(&tx, &ctx, Evt::Done(path));
 }

@@ -32,8 +32,13 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
 - **Phase 6 (done):** i18n (`i18n.rs`): every UI string goes through `tl(lang,
   key)`, with Spanish and English, auto-detected from `LANG`/`LC_*` and switchable
   live in Ajustes. The table is a flat match, so more locales are just more arms.
-- **Later:** the music-import and auto-tag screens; then the Tauri shell concerns
-  (updater, tray, deep link, notifications) as native crates.
+- **Phase 7 (done):** music-service import. A Spotify/Deezer/Apple/Tidal/Amazon
+  link is detected and resolved (`POST /api/music/resolve`) into a track list shown
+  with its cover; "Import all" enqueues each track, and the worker runs the full
+  per-track pipeline — match on YouTube (`/api/music/match`), download the audio,
+  and tag it with the exact source metadata (`/api/autotag/apply`).
+- **Later:** a standalone auto-tag screen for existing files; then the Tauri shell
+  concerns (updater, tray, deep link, notifications) as native crates.
 
 ## Run
 

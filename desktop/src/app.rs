@@ -7,7 +7,10 @@
 
 use egui::RichText;
 
-use crate::api::{Backend, Cmd, DownloadReq, Evt, HistoryEntry, Settings, VideoLite};
+use crate::api::{
+    is_music_url, Backend, Cmd, DownloadReq, Evt, HistoryEntry, MusicInfo, MusicTrack, Settings,
+    VideoLite,
+};
 use crate::i18n::{tl, Lang};
 use crate::theme;
 
@@ -23,6 +26,7 @@ enum Preview {
     None,
     Video(VideoLite),
     Playlist { title: String, count: usize },
+    Music(MusicInfo),
 }
 
 enum Status {
@@ -48,10 +52,18 @@ enum QStatus {
     Error(String),
 }
 
+/// What a queue item downloads: a plain URL (yt-dlp) or a resolved music track
+/// (match → download → tag).
+enum QSource {
+    Url(String),
+    Music(Box<MusicTrack>),
+}
+
 struct QueueItem {
     id: u64,
-    url: String,
+    label: String,
     kind: String,
+    source: QSource,
     status: QStatus,
     progress: f32,
 }
@@ -133,6 +145,10 @@ impl App {
                     self.preview = Preview::Playlist { title, count };
                     self.status = Status::Idle;
                 }
+                Evt::Music(info) => {
+                    self.preview = Preview::Music(*info);
+                    self.status = Status::Idle;
+                }
                 Evt::AnalyzeErr(e) => {
                     self.preview = Preview::None;
                     self.status = Status::Error(e);
@@ -198,15 +214,23 @@ impl App {
         };
         it.status = QStatus::Downloading;
         it.progress = 0.0;
-        let (id, url, kind) = (it.id, it.url.clone(), it.kind.clone());
+        let id = it.id;
         self.active = Some(ActiveDl::Queue(id));
-        self.backend.send(Cmd::Download(DownloadReq {
-            url,
-            quality: (kind == "video").then(|| s.default_quality.clone()),
-            kind,
-            container: s.default_container.clone(),
-            audio_format: s.default_audio_format.clone(),
-        }));
+        match &it.source {
+            QSource::Url(url) => {
+                let kind = it.kind.clone();
+                self.backend.send(Cmd::Download(DownloadReq {
+                    url: url.clone(),
+                    quality: (kind == "video").then(|| s.default_quality.clone()),
+                    kind,
+                    container: s.default_container.clone(),
+                    audio_format: s.default_audio_format.clone(),
+                }));
+            }
+            QSource::Music(track) => {
+                self.backend.send(Cmd::ImportTrack(track.clone()));
+            }
+        }
     }
 
     fn queue_add(&mut self) {
@@ -221,13 +245,29 @@ impl App {
             .unwrap_or_else(|| "video".into());
         self.queue.push(QueueItem {
             id: self.next_qid,
-            url,
+            label: url.clone(),
             kind,
+            source: QSource::Url(url),
             status: QStatus::Pending,
             progress: 0.0,
         });
         self.next_qid += 1;
         self.queue_url.clear();
+    }
+
+    /// Enqueue every track of a resolved music import (match → download → tag).
+    fn enqueue_music(&mut self, info: &MusicInfo) {
+        for t in &info.tracks {
+            self.queue.push(QueueItem {
+                id: self.next_qid,
+                label: format!("{} — {}", t.artists, t.title),
+                kind: "music".into(),
+                source: QSource::Music(Box::new(t.clone())),
+                status: QStatus::Pending,
+                progress: 0.0,
+            });
+            self.next_qid += 1;
+        }
     }
 
     fn analyze(&mut self) {
@@ -237,7 +277,11 @@ impl App {
         }
         self.preview = Preview::None;
         self.status = Status::Analyzing;
-        self.backend.send(Cmd::Analyze(url));
+        if is_music_url(&url) {
+            self.backend.send(Cmd::ResolveMusic(url));
+        } else {
+            self.backend.send(Cmd::Analyze(url));
+        }
     }
 
     fn start_download(&mut self) {
@@ -431,6 +475,59 @@ impl App {
                     );
                 });
             }
+            Preview::Music(info) => {
+                let info = info.clone();
+                ui.add_space(14.0);
+                let mut import = false;
+                card(ui, p, |ui| {
+                    ui.horizontal(|ui| {
+                        if let Some(c) = info.cover_url.as_deref().filter(|s| !s.is_empty()) {
+                            ui.add(
+                                egui::Image::from_uri(c.to_string())
+                                    .fit_to_exact_size(egui::vec2(72.0, 72.0))
+                                    .corner_radius(6),
+                            );
+                            ui.add_space(10.0);
+                        }
+                        ui.vertical(|ui| {
+                            ui.label(RichText::new(&info.name).size(17.0).strong().color(p.fg));
+                            let mut meta = vec![info.source.clone()];
+                            if let Some(sub) = &info.subtitle {
+                                meta.push(sub.clone());
+                            }
+                            meta.push(format!(
+                                "{} {}",
+                                info.tracks.len(),
+                                tl(lang, "music.tracks")
+                            ));
+                            ui.label(RichText::new(meta.join("  ·  ")).color(p.fg_dim));
+                        });
+                    });
+                    ui.add_space(10.0);
+                    for t in info.tracks.iter().take(8) {
+                        ui.label(
+                            RichText::new(format!("• {} — {}", t.artists, t.title))
+                                .small()
+                                .color(p.fg_dim),
+                        );
+                    }
+                    if info.tracks.len() > 8 {
+                        ui.label(RichText::new("…").small().color(p.fg_dim));
+                    }
+                    ui.add_space(12.0);
+                    let label = format!("  {}  ", tl(lang, "music.import"));
+                    let btn =
+                        egui::Button::new(RichText::new(label).color(p.accent_fg)).fill(p.accent);
+                    if ui.add(btn).clicked() {
+                        import = true;
+                    }
+                });
+                if import {
+                    self.enqueue_music(&info);
+                    self.tab = Tab::Cola;
+                    self.preview = Preview::None;
+                }
+            }
             Preview::None => {}
         }
     }
@@ -622,7 +719,7 @@ impl App {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.set_width(ui.available_width() - 80.0);
-                        let label: String = it.url.chars().take(60).collect();
+                        let label: String = it.label.chars().take(60).collect();
                         ui.label(RichText::new(label).color(p.fg));
                         let (txt, col) = match &it.status {
                             QStatus::Pending => (tl(lang, "cola.pending").to_string(), p.fg_dim),

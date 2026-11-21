@@ -148,6 +148,11 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("set.language", Es) => "Idioma",
         ("set.language", En) => "Language",
 
+        ("music.tracks", Es) => "pistas",
+        ("music.tracks", En) => "tracks",
+        ("music.import", Es) => "Importar todo",
+        ("music.import", En) => "Import all",
+
         _ => key,
     }
 }
