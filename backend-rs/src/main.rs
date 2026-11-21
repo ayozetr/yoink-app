@@ -137,6 +137,22 @@ struct DownloadRequest {
     audio_format: String,
     #[serde(default)]
     audio_bitrate: Option<String>,
+    #[serde(default)]
+    video_codec: Option<String>,
+    #[serde(default)]
+    embed_subs: bool,
+    #[serde(default)]
+    subtitle_lang: Option<String>,
+    #[serde(default)]
+    embed_chapters: bool,
+    #[serde(default)]
+    audio_multistreams: bool,
+    #[serde(default)]
+    trim_start: Option<f64>,
+    #[serde(default)]
+    trim_end: Option<f64>,
+    #[serde(default)]
+    is_hls: bool,
 }
 
 fn d_video() -> String {
@@ -497,10 +513,22 @@ fn err_event(msg: &str) -> Message {
     Message::Text(serde_json::json!({ "type": "error", "message": msg }).to_string())
 }
 
-/// yt-dlp arguments for the common video/audio download path. The advanced
-/// options (subtitles, chapters, trimming, VR, HLS, multistreams) are later
-/// slices — see download_service.py.
-fn download_args(req: &DownloadRequest, out_template: &str) -> Vec<String> {
+/// yt-dlp format-sort token for a preferred video codec ("any" = no preference).
+fn vcodec_sort(codec: &str) -> Option<&'static str> {
+    match codec {
+        "h264" => Some("h264"),
+        "h265" => Some("hevc"),
+        "vp9" => Some("vp9"),
+        "av1" => Some("av01"),
+        _ => None,
+    }
+}
+
+/// Build the yt-dlp argument list for a download, honouring the request and the
+/// user's settings (cookies, proxy, rate limit, SponsorBlock, subs, chapters,
+/// codec, trimming). HLS trimming, VR tagging and loudness normalization need a
+/// post-ffmpeg pass and are later slices — see download_service.py.
+fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &str) -> Vec<String> {
     let mut a: Vec<String> = vec![
         "--newline".into(),
         "--progress".into(),
@@ -513,15 +541,50 @@ fn download_args(req: &DownloadRequest, out_template: &str) -> Vec<String> {
         "--print".into(),
         "after_move:YDONE|%(filepath)s".into(),
     ];
+    let nonempty = |o: &Option<String>| o.as_deref().filter(|s| !s.is_empty()).map(str::to_string);
+
+    // Network options (from settings).
+    if let Some(b) = nonempty(&settings.cookies_from_browser) {
+        a.push("--cookies-from-browser".into());
+        a.push(b);
+    } else if let Some(f) = nonempty(&settings.cookies_file) {
+        a.push("--cookies".into());
+        a.push(f);
+    }
+    if let Some(p) = nonempty(&settings.proxy) {
+        a.push("--proxy".into());
+        a.push(p);
+    }
+    if let Some(r) = nonempty(&settings.rate_limit) {
+        a.push("--limit-rate".into());
+        a.push(r);
+    }
+
+    // SponsorBlock (reachability check is a later slice — see download_service.py).
+    if settings.sponsorblock_enabled {
+        let flag = if settings.sponsorblock_action == "mark" {
+            "--sponsorblock-mark"
+        } else {
+            "--sponsorblock-remove"
+        };
+        a.push(flag.into());
+        a.push("all".into());
+    }
+
+    // Clip a range (non-HLS; HLS needs a full fetch + ffmpeg clip, a later slice).
+    if (req.trim_start.is_some() || req.trim_end.is_some()) && !req.is_hls {
+        let start = req.trim_start.unwrap_or(0.0);
+        let end = req.trim_end.map(|e| e.to_string()).unwrap_or_else(|| "inf".into());
+        a.push("--download-sections".into());
+        a.push(format!("*{start}-{end}"));
+    }
+
     if req.kind == "audio" {
         a.push("-x".into());
         a.push("--audio-format".into());
         a.push(req.audio_format.clone());
-        // "best" (or unset) -> yt-dlp's best (0); otherwise the chosen kbps.
-        let quality = match req.audio_bitrate.as_deref() {
-            Some(b) if b != "best" => format!("{b}K"),
-            _ => "0".into(),
-        };
+        let bitrate = req.audio_bitrate.as_deref().unwrap_or(&settings.audio_bitrate);
+        let quality = if bitrate != "best" { format!("{bitrate}K") } else { "0".into() };
         a.push("--audio-quality".into());
         a.push(quality);
     } else {
@@ -536,7 +599,26 @@ fn download_args(req: &DownloadRequest, out_template: &str) -> Vec<String> {
         a.push(format);
         a.push("--merge-output-format".into());
         a.push(req.container.clone());
+
+        let codec = req.video_codec.as_deref().unwrap_or(&settings.video_codec);
+        if let Some(sort) = vcodec_sort(codec) {
+            a.push("-S".into());
+            a.push(format!("vcodec:{sort}"));
+        }
+        if req.embed_subs {
+            a.push("--embed-subs".into());
+            a.push("--sub-langs".into());
+            a.push(req.subtitle_lang.clone().unwrap_or_else(|| "all".into()));
+        }
+        if req.embed_chapters {
+            a.push("--embed-chapters".into());
+            a.push("--embed-metadata".into());
+        }
+        if req.audio_multistreams {
+            a.push("--audio-multistreams".into());
+        }
     }
+
     a.push(req.url.clone());
     a
 }
@@ -586,10 +668,13 @@ async fn run_download(mut socket: WebSocket) {
         _ => return,
     };
 
-    let dir = download_dir();
+    let settings = load_settings();
+    let dir = std::env::var("YOINK_DOWNLOAD_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from(&settings.download_dir));
     let _ = std::fs::create_dir_all(&dir);
-    let template = format!("{}/%(title)s.%(ext)s", dir.display());
-    let args = download_args(&req, &template);
+    let template = format!("{}/{}.%(ext)s", dir.display(), settings.filename_template);
+    let args = download_args(&req, &settings, &template);
 
     let mut child = match tokio::process::Command::new(ytdlp_bin())
         .args(&args)
