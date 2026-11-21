@@ -30,31 +30,32 @@ const fn rgb(r: u8, g: u8, b: u8) -> Color32 {
     Color32::from_rgb(r, g, b)
 }
 
-/// Dark is the default, as in the web UI.
+/// Dark is the default, as in the web UI. Values mirror the `--c-*` tokens in
+/// `src/index.css` (violet accent, near-neutral deep surfaces).
 pub const DARK: Palette = Palette {
-    canvas: rgb(0x0f, 0x11, 0x15),
-    surface: rgb(0x17, 0x1a, 0x21),
-    surface_hi: rgb(0x1e, 0x22, 0x2b),
-    line: rgb(0x2a, 0x2f, 0x3a),
-    fg: rgb(0xe8, 0xea, 0xed),
-    fg_dim: rgb(0x9a, 0xa0, 0xad),
-    accent: rgb(0x7c, 0x3a, 0xed),
-    accent_fg: rgb(0xff, 0xff, 0xff),
-    ok: rgb(0x2e, 0xa4, 0x4f),
-    err: rgb(0xe5, 0x48, 0x4d),
+    canvas: rgb(10, 10, 12),     // #0a0a0c
+    surface: rgb(20, 20, 23),    // #141417
+    surface_hi: rgb(27, 27, 32), // #1b1b20 (surface-2)
+    line: rgb(42, 42, 48),       // #eceaf0 @ ~10% over surface
+    fg: rgb(236, 234, 240),      // #eceaf0
+    fg_dim: rgb(147, 143, 158),  // #938f9e
+    accent: rgb(139, 92, 246),   // #8b5cf6 violet-500
+    accent_fg: rgb(255, 255, 255),
+    ok: rgb(52, 199, 123),
+    err: rgb(239, 83, 80),
 };
 
 pub const LIGHT: Palette = Palette {
-    canvas: rgb(0xf7, 0xf8, 0xfa),
-    surface: rgb(0xff, 0xff, 0xff),
-    surface_hi: rgb(0xf0, 0xf2, 0xf5),
-    line: rgb(0xe2, 0xe5, 0xea),
-    fg: rgb(0x1a, 0x1d, 0x23),
-    fg_dim: rgb(0x5c, 0x63, 0x70),
-    accent: rgb(0x7c, 0x3a, 0xed),
-    accent_fg: rgb(0xff, 0xff, 0xff),
-    ok: rgb(0x2e, 0xa4, 0x4f),
-    err: rgb(0xe5, 0x48, 0x4d),
+    canvas: rgb(246, 245, 248),     // #f6f5f8
+    surface: rgb(255, 255, 255),    // #ffffff
+    surface_hi: rgb(240, 238, 244), // #f0eef4 (surface-2)
+    line: rgb(224, 222, 228),       // #14101e @ low alpha over white
+    fg: rgb(23, 21, 29),            // #17151d
+    fg_dim: rgb(95, 91, 107),       // #5f5b6b
+    accent: rgb(124, 58, 237),      // #7c3aed violet-600
+    accent_fg: rgb(255, 255, 255),
+    ok: rgb(34, 150, 83),
+    err: rgb(214, 54, 56),
 };
 
 /// The palette currently in force (dark unless the viewer chose light).
@@ -113,7 +114,10 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
 
         use egui::{FontFamily::Proportional, FontId, TextStyle};
         style.text_styles = [
-            (TextStyle::Heading, FontId::new(24.0, Proportional)),
+            (
+                TextStyle::Heading,
+                FontId::new(24.0, crate::fonts::display()),
+            ),
             (TextStyle::Body, FontId::new(15.0, Proportional)),
             (TextStyle::Button, FontId::new(15.0, Proportional)),
             (TextStyle::Small, FontId::new(12.0, Proportional)),

@@ -39,6 +39,10 @@ it skips the browser engine entirely (same stack as the author's `netlabcraft`).
   and tag it with the exact source metadata (`/api/autotag/apply`).
 - **Phase 8 (done):** desktop notifications on download completion (via
   `notify-rust`), gated by the existing `notify_on_complete` setting.
+- **Phase 9 (done):** visual fidelity to the web v4 look — the real fonts (Gloock
+  for titles, Inter for UI, bundled as TTF in `assets/fonts` with their OFL
+  licenses) and the exact `--c-*` palette from `src/index.css` (violet accent,
+  deep near-neutral surfaces), in both dark and light.
 - **Later:** a standalone auto-tag screen for existing files; then the remaining
   Tauri shell concerns (in-app updater, system tray, `yoink://` deep link) as
   native crates.

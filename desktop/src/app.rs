@@ -97,6 +97,7 @@ pub struct App {
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> App {
         let dark = true;
+        crate::fonts::install(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, dark);
         // Enables egui::Image to load remote thumbnails (JPEG/PNG/WebP over http).
         egui_extras::install_image_loaders(&cc.egui_ctx);
@@ -329,7 +330,12 @@ impl eframe::App for App {
             )
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Yoink").size(22.0).strong().color(p.fg));
+                    ui.label(
+                        RichText::new("Yoink")
+                            .size(24.0)
+                            .family(crate::fonts::display())
+                            .color(p.fg),
+                    );
                     ui.add_space(16.0);
                     for (tab, key) in [
                         (Tab::Inicio, "tab.inicio"),

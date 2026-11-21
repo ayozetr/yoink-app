@@ -8,6 +8,7 @@
 
 mod api;
 mod app;
+mod fonts;
 mod i18n;
 mod minter;
 mod theme;
