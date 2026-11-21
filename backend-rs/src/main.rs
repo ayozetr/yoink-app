@@ -33,6 +33,7 @@ mod library;
 mod matching;
 mod music;
 mod nfo;
+mod vr;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 // "Auto-tag name" filename templates (mirror core/config.py) — when one is the
@@ -164,6 +165,12 @@ struct DownloadRequest {
     trim_end: Option<f64>,
     #[serde(default)]
     is_hls: bool,
+    #[serde(default)]
+    is_vr: bool,
+    #[serde(default)]
+    vr_layout: Option<String>,
+    #[serde(default)]
+    auto_vr: bool,
 }
 
 fn d_video() -> String {
@@ -394,6 +401,9 @@ fn map_video(j: &Value) -> VideoInfo {
         .map(|c| !c.is_empty())
         .unwrap_or(false);
 
+    // VR heuristic (non-strict: the preview card lets the user confirm/override).
+    let (is_vr, vr_layout) = vr::detect_vr(j, false);
+
     VideoInfo {
         id: s(j, "id").unwrap_or_default(),
         title: s(j, "title").unwrap_or_else(|| "(untitled)".into()),
@@ -412,9 +422,8 @@ fn map_video(j: &Value) -> VideoInfo {
         has_chapters,
         is_hls,
         audio_langs,
-        // TODO(slice-2): port the VR / image heuristics from services/vr.py.
-        is_vr: false,
-        vr_layout: "180_sbs".to_string(),
+        is_vr,
+        vr_layout,
         is_image: false,
     }
 }
@@ -552,9 +561,9 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         "--print".into(),
         "after_move:YDONE|%(filepath)s".into(),
     ];
-    // Write yt-dlp's info JSON alongside the file so a download-time .nfo can be
-    // built from it (removed again after the .nfo is written).
-    if settings.nfo_sidecars {
+    // Write yt-dlp's info JSON alongside the file (removed after post-processing)
+    // when it's needed: the download-time .nfo, or auto-VR detection.
+    if settings.nfo_sidecars || req.auto_vr {
         a.push("--write-info-json".into());
     }
     // Bundled ffmpeg location (set by the Tauri shell), so merges/extraction work
@@ -734,21 +743,59 @@ async fn run_download(mut socket: WebSocket) {
     let status = child.wait().await;
     let ok = matches!(status, Ok(s) if s.success());
 
-    // Loudness-normalize an audio download when enabled (-14 LUFS EBU R128,
-    // two-pass ffmpeg loudnorm, in place). Best-effort: a failure keeps the file.
-    if ok && req.kind == "audio" && settings.normalize_audio {
+    // Post-processing on the finished file, in order: read the sidecar info.json
+    // once (for the .nfo + auto-VR detection) then remove it; loudness-normalize
+    // audio; VR-tag video (which renames the file, so this updates final_path).
+    if ok {
         if let Some(path) = final_path.clone() {
-            let fmt = req.audio_format.clone();
-            let bitrate = req.audio_bitrate.clone().unwrap_or_else(|| "best".into());
-            let target = settings.normalize_lufs as f64;
-            let done = tokio::task::spawn_blocking(move || {
-                audio_normalize::normalize(&path, &fmt, &bitrate, target)
-            })
-            .await
-            .unwrap_or(false);
-            if done {
-                log_line(&format!("normalized to {} LUFS: {path}", settings.normalize_lufs,
-                    path = final_path.as_deref().unwrap_or("")));
+            let info_json = std::path::Path::new(&path).with_extension("info.json");
+            let info: Option<Value> = std::fs::read_to_string(&info_json)
+                .ok()
+                .and_then(|t| serde_json::from_str(&t).ok());
+            // Download-time .nfo (audio gets rewritten later from the tagged data).
+            if settings.nfo_sidecars {
+                if let Some(ref i) = info {
+                    let k = if req.kind == "audio" { "audio" } else { "video" };
+                    nfo::write(std::path::Path::new(&path), &nfo::from_info(i, k));
+                }
+            }
+            let _ = std::fs::remove_file(&info_json); // written only for these steps
+
+            if req.kind == "audio" && settings.normalize_audio {
+                let fmt = req.audio_format.clone();
+                let bitrate = req.audio_bitrate.clone().unwrap_or_else(|| "best".into());
+                let target = settings.normalize_lufs as f64;
+                let pp = path.clone();
+                let done = tokio::task::spawn_blocking(move || {
+                    audio_normalize::normalize(&pp, &fmt, &bitrate, target)
+                })
+                .await
+                .unwrap_or(false);
+                if done {
+                    log_line(&format!("normalized to {} LUFS: {path}", settings.normalize_lufs));
+                }
+            } else if req.kind != "audio" {
+                let layout_opt = if req.is_vr {
+                    Some(req.vr_layout.clone().unwrap_or_else(|| vr::DEFAULT_LAYOUT.into()))
+                } else if req.auto_vr {
+                    info.as_ref().and_then(|i| {
+                        let (is_vr, layout) = vr::detect_vr(i, true);
+                        is_vr.then_some(layout)
+                    })
+                } else {
+                    None
+                };
+                if let Some(layout) = layout_opt {
+                    let pp = path.clone();
+                    if let Ok(np) = tokio::task::spawn_blocking(move || {
+                        vr::apply_vr(std::path::Path::new(&pp), &layout)
+                    })
+                    .await
+                    {
+                        final_path = Some(np.to_string_lossy().into_owned());
+                        log_line(&format!("VR-tagged: {}", final_path.as_deref().unwrap_or("")));
+                    }
+                }
             }
         }
     }
@@ -770,18 +817,6 @@ async fn run_download(mut socket: WebSocket) {
                 let p = std::path::Path::new(path);
                 let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
                 let title = p.file_stem().and_then(|n| n.to_str()).unwrap_or(&filename).to_string();
-                // Download-time .nfo from yt-dlp's info JSON (removed after). For
-                // audio, auto-tagging later rewrites it from the tagged metadata.
-                if settings.nfo_sidecars {
-                    let info_path = p.with_extension("info.json");
-                    if let Ok(txt) = std::fs::read_to_string(&info_path) {
-                        if let Ok(info) = serde_json::from_str::<Value>(&txt) {
-                            let k = if req.kind == "audio" { "audio" } else { "video" };
-                            nfo::write(p, &nfo::from_info(&info, k));
-                        }
-                    }
-                    let _ = std::fs::remove_file(&info_path);
-                }
                 record_download(
                     &title,
                     &req.url,
