@@ -836,13 +836,19 @@ impl eframe::App for App {
                                 .color(p.fg),
                         );
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui
-                                .add(
-                                    egui::Button::image(crate::icons::img("x", 16.0, p.fg_dim))
-                                        .frame(false),
-                                )
-                                .clicked()
-                            {
+                            // Close button that lights up on hover.
+                            let (rect, resp) = ui
+                                .allocate_exact_size(egui::vec2(30.0, 30.0), egui::Sense::click());
+                            let hov = resp.hovered();
+                            if hov {
+                                ui.painter().rect_filled(rect, 8.0, p.surface_hi);
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            let col = if hov { p.fg } else { p.fg_dim };
+                            let irect =
+                                egui::Rect::from_center_size(rect.center(), egui::vec2(16.0, 16.0));
+                            crate::icons::img("x", 16.0, col).paint_at(ui, irect);
+                            if resp.clicked() {
                                 self.supported_open = false;
                             }
                         });
@@ -851,30 +857,56 @@ impl eframe::App for App {
                     ui.label(RichText::new(tl(lang, "sites.intro")).color(p.fg_dim));
                     ui.add_space(16.0);
                     egui::ScrollArea::vertical()
-                        .max_height(460.0)
-                        .auto_shrink([false, false])
+                        .max_height(600.0)
+                        .auto_shrink([false, true])
+                        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
                         .show(ui, |ui| {
-                            // A 4-column grid of clickable logo + name tiles.
+                            // A 4-column grid of clickable logo + name tiles, each
+                            // lightening and gaining an accent border on hover.
+                            let lighten = |c: egui::Color32, d: u8| {
+                                egui::Color32::from_rgb(
+                                    c.r().saturating_add(d),
+                                    c.g().saturating_add(d),
+                                    c.b().saturating_add(d),
+                                )
+                            };
                             let cols = 4;
                             for row in SUPPORTED_SITES.chunks(cols) {
                                 ui.columns(cols, |c| {
                                     for (i, (slug, name, url)) in row.iter().enumerate() {
-                                        let resp = egui::Frame::new()
-                                            .fill(p.surface_hi)
-                                            .corner_radius(12)
-                                            .stroke(egui::Stroke::new(1.0, p.line))
-                                            .inner_margin(egui::Margin::symmetric(8, 16))
-                                            .show(&mut c[i], |ui| {
-                                                ui.vertical_centered(|ui| {
-                                                    ui.set_width(ui.available_width());
-                                                    ui.set_min_height(44.0);
-                                                    crate::icons::show_site(ui, slug, 26.0, p.fg);
-                                                    ui.add_space(9.0);
-                                                    ui.label(RichText::new(*name).color(p.fg));
-                                                });
-                                            })
-                                            .response
-                                            .interact(egui::Sense::click());
+                                        let col = &mut c[i];
+                                        let w = col.available_width();
+                                        let (rect, resp) = col.allocate_exact_size(
+                                            egui::vec2(w, 80.0),
+                                            egui::Sense::click(),
+                                        );
+                                        let hov = resp.hovered();
+                                        let fill = if hov {
+                                            lighten(p.surface_hi, 16)
+                                        } else {
+                                            p.surface_hi
+                                        };
+                                        let border = if hov { p.accent } else { p.line };
+                                        col.painter().rect_filled(rect, 12.0, fill);
+                                        col.painter().rect_stroke(
+                                            rect,
+                                            12.0,
+                                            egui::Stroke::new(1.0, border),
+                                            egui::StrokeKind::Inside,
+                                        );
+                                        let mut cui = col.new_child(
+                                            egui::UiBuilder::new().max_rect(rect).layout(
+                                                egui::Layout::top_down(egui::Align::Center),
+                                            ),
+                                        );
+                                        cui.add_space(15.0);
+                                        crate::icons::show_site(&mut cui, slug, 26.0, p.fg);
+                                        cui.add_space(9.0);
+                                        cui.label(RichText::new(*name).color(p.fg));
+                                        if hov {
+                                            col.ctx()
+                                                .set_cursor_icon(egui::CursorIcon::PointingHand);
+                                        }
                                         if resp.clicked() {
                                             open_url(url);
                                         }
