@@ -1143,14 +1143,16 @@ impl App {
                 .show(ui, |ui| {
                     ui.set_width(total - 128.0);
                     ui.horizontal(|ui| {
-                        // The selected source's real brand logo, in its colour.
-                        let (slug, col) = if self.source == "soundcloud" {
-                            ("soundcloud", egui::Color32::from_rgb(255, 102, 0))
+                        // A small, subtle brand glyph for the selected source,
+                        // integrated with the picker, then a faint divider — like
+                        // the web (not a big saturated logo).
+                        let slug = if self.source == "soundcloud" {
+                            "soundcloud"
                         } else {
-                            ("youtube", egui::Color32::from_rgb(255, 0, 0))
+                            "youtube"
                         };
-                        ui.add(crate::icons::site_img(slug, 16.0, col));
-                        ui.add_space(5.0);
+                        ui.add(crate::icons::site_img(slug, 13.0, p.fg_dim));
+                        ui.add_space(4.0);
                         egui::ComboBox::from_id_salt("source")
                             .selected_text(if self.source == "soundcloud" {
                                 "SoundCloud"
@@ -1165,7 +1167,12 @@ impl App {
                                     "SoundCloud",
                                 );
                             });
-                        ui.add_space(4.0);
+                        ui.add_space(8.0);
+                        // Faint vertical divider between the source picker and input.
+                        let (dr, _) =
+                            ui.allocate_exact_size(egui::vec2(1.0, 22.0), egui::Sense::hover());
+                        ui.painter().rect_filled(dr, 0.0, p.line);
+                        ui.add_space(8.0);
                         let resp = ui.add(
                             egui::TextEdit::singleline(&mut self.url)
                                 .hint_text(tl(lang, "inicio.url_hint"))
