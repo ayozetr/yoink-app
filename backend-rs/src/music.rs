@@ -1201,3 +1201,50 @@ pub async fn resolve_amazon(url: &str) -> Result<MusicImportInfo, String> {
         truncated: false,
     })
 }
+
+// --- ISRC resolution (keyless Deezer) for the YouTube-Music exact match --------
+
+const DURATION_TOLERANCE_MS: i64 = 3000;
+
+fn primary_artist(artists: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"(?i)\s*(?:,|&|/|\bfeat\.?\b|\bft\.?\b|\bcon\b)\s*").unwrap());
+    re.split(artists).next().unwrap_or(artists).trim().to_string()
+}
+
+/// Resolve a recording's ISRC via a keyless Deezer lookup (for sources that don't
+/// carry one). Gated on duration: accepted only when the hit is within 3 s (or no
+/// duration is known). Mirrors _deezer_isrc. Best-effort.
+pub async fn deezer_isrc(title: &str, artists: &str, duration_ms: Option<i64>) -> Option<String> {
+    if title.is_empty() {
+        return None;
+    }
+    let primary = primary_artist(artists);
+    let mut queries = vec![
+        format!("artist:\"{artists}\" track:\"{title}\""),
+        format!("{artists} {title}").trim().to_string(),
+    ];
+    if !primary.is_empty() && primary != artists {
+        queries.push(format!("artist:\"{primary}\" track:\"{title}\""));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for q in queries {
+        if q.is_empty() || !seen.insert(q.clone()) {
+            continue;
+        }
+        let Ok(found) = get_json_query("https://api.deezer.com/search/track", &[("limit", "1"), ("q", &q)]).await else { continue };
+        let Some(hit) = found.get("data").and_then(Value::as_array).and_then(|a| a.first()) else { continue };
+        let dur = hit.get("duration").and_then(Value::as_i64);
+        if let (Some(d), Some(target)) = (dur, duration_ms) {
+            if (d * 1000 - target).abs() > DURATION_TOLERANCE_MS {
+                continue;
+            }
+        }
+        let Some(tid) = hit.get("id").and_then(Value::as_i64) else { continue };
+        let Ok(full) = get_json(&format!("https://api.deezer.com/track/{tid}")).await else { continue };
+        if let Some(isrc) = full.get("isrc").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+            return Some(isrc.to_string());
+        }
+    }
+    None
+}

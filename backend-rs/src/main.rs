@@ -1261,34 +1261,130 @@ struct MusicTrack {
     isrc: Option<String>,
 }
 
-/// Rank YouTube candidates for an imported track with the spotDL-style scorer and
-/// return the best source URL (+ the ISRC for tagging). TODO(slice-music): the
-/// YouTube-Music-by-ISRC exact match and the SoundCloud-lossless preference.
-async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (StatusCode, String)> {
-    let query = format!("ytsearch10:{} {}", track.title, track.artists);
-    let output = tokio::process::Command::new(ytdlp_bin())
-        .args(["-J", "--flat-playlist", "--no-warnings", &query])
+/// Run a yt-dlp flat search/extract and return its `entries` array.
+async fn ytdlp_entries(query: &str) -> Vec<Value> {
+    let out = tokio::process::Command::new(ytdlp_bin())
+        .args(["-J", "--flat-playlist", "--no-warnings", query])
         .output()
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("could not run yt-dlp: {e}")))?;
-    let candidates: Vec<Value> = if output.status.success() {
-        serde_json::from_slice::<Value>(&output.stdout)
+        .await;
+    match out {
+        Ok(o) if o.status.success() => serde_json::from_slice::<Value>(&o.stdout)
             .ok()
             .and_then(|j| j.get("entries").and_then(Value::as_array).cloned())
-            .unwrap_or_default()
-    } else {
-        vec![]
+            .unwrap_or_default(),
+        _ => vec![],
+    }
+}
+
+fn cand_url(cand: &Value) -> Option<String> {
+    cand.get("url").or_else(|| cand.get("webpage_url")).and_then(Value::as_str).map(str::to_string)
+}
+
+/// Exact YouTube Music recording by ISRC (take result #1, duration-gated). ISRCs
+/// are plain [A-Z0-9], so no URL-encoding is needed. Mirrors _ytmusic_isrc_match.
+async fn ytmusic_isrc_match(isrc: &str, duration_ms: Option<i64>) -> Option<String> {
+    let search = format!("https://music.youtube.com/search?q={isrc}#songs");
+    let out = tokio::process::Command::new(ytdlp_bin())
+        .args(["-J", "--flat-playlist", "--playlist-items", "1", "--no-warnings", &search])
+        .output()
+        .await
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let j: Value = serde_json::from_slice(&out.stdout).ok()?;
+    let vid = j
+        .get("entries")
+        .and_then(Value::as_array)
+        .and_then(|a| a.first())
+        .and_then(|e| e.get("id"))
+        .and_then(Value::as_str)?
+        .to_string();
+    if let Some(target) = duration_ms {
+        let watch = format!("https://music.youtube.com/watch?v={vid}");
+        let out2 = tokio::process::Command::new(ytdlp_bin())
+            .args(["-J", "--no-warnings", "--skip-download", &watch])
+            .output()
+            .await
+            .ok()?;
+        if out2.status.success() {
+            if let Ok(full) = serde_json::from_slice::<Value>(&out2.stdout) {
+                if let Some(d) = full.get("duration").and_then(Value::as_f64) {
+                    if ((d as i64) * 1000 - target).abs() > 3000 {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+    Some(format!("https://music.youtube.com/watch?v={vid}"))
+}
+
+/// True if any audio format is lossless (FLAC/ALAC/WAV/AIFF).
+fn formats_lossless(formats: Option<&Value>) -> bool {
+    let Some(arr) = formats.and_then(Value::as_array) else { return false };
+    arr.iter().any(|f| {
+        let acodec = f.get("acodec").and_then(Value::as_str).unwrap_or("").to_lowercase();
+        let ext = f.get("ext").and_then(Value::as_str).unwrap_or("").to_lowercase();
+        matches!(acodec.as_str(), "flac" | "alac") || matches!(ext.as_str(), "wav" | "flac" | "aiff")
+    })
+}
+
+/// A lossless SoundCloud source for the track, if one exists and matches.
+async fn soundcloud_lossless_match(title: &str, artists: &str, duration_ms: Option<i64>) -> Option<String> {
+    let query = format!("{artists} {title}");
+    let query = query.trim();
+    if query.is_empty() {
+        return None;
+    }
+    let candidates = ytdlp_entries(&format!("scsearch5:{query}")).await;
+    let (best, _) = matching::best_match(title, artists, duration_ms, &candidates)?;
+    let url = cand_url(best)?;
+    let out = tokio::process::Command::new(ytdlp_bin())
+        .args(["-J", "--no-warnings", "--skip-download", &url])
+        .output()
+        .await
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let full: Value = serde_json::from_slice(&out.stdout).ok()?;
+    formats_lossless(full.get("formats")).then_some(url)
+}
+
+/// Best source URL for an imported track: a lossless SoundCloud source (opt-in),
+/// then the exact YouTube Music recording by ISRC, then a ranked YouTube text
+/// search (tight top-5, widening to top-10). Mirrors find_youtube_match.
+async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (StatusCode, String)> {
+    let settings = load_settings();
+    // Resolve the ISRC once (the track's own, else via Deezer) — for the match and
+    // for tagging downstream.
+    let isrc = match track.isrc.as_deref() {
+        Some(i) if !i.is_empty() => Some(i.to_string()),
+        _ => music::deezer_isrc(&track.title, &track.artists, track.duration_ms).await,
     };
-    let youtube_url =
-        matching::best_match(&track.title, &track.artists, track.duration_ms, &candidates).and_then(
-            |(cand, _score)| {
-                cand.get("url")
-                    .or_else(|| cand.get("webpage_url"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string)
-            },
-        );
-    Ok(Json(serde_json::json!({ "youtube_url": youtube_url, "isrc": track.isrc })))
+
+    if settings.prefer_soundcloud_lossless {
+        if let Some(url) = soundcloud_lossless_match(&track.title, &track.artists, track.duration_ms).await {
+            return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
+        }
+    }
+    if let Some(ref i) = isrc {
+        if let Some(url) = ytmusic_isrc_match(i, track.duration_ms).await {
+            return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
+        }
+    }
+    // Ranked text search: a tight top-5 first, widening to top-10 only if nothing
+    // clears the thresholds (a passing match is never displaced).
+    for count in [5, 10] {
+        let candidates = ytdlp_entries(&format!("ytsearch{count}:{} {}", track.title, track.artists)).await;
+        if let Some((cand, _)) = matching::best_match(&track.title, &track.artists, track.duration_ms, &candidates) {
+            if let Some(url) = cand_url(cand) {
+                return Ok(Json(serde_json::json!({ "youtube_url": url, "isrc": isrc })));
+            }
+        }
+    }
+    Ok(Json(serde_json::json!({ "youtube_url": Value::Null, "isrc": isrc })))
 }
 
 async fn music_cover(Json(track): Json<MusicTrack>) -> Json<Value> {
