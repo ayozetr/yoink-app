@@ -4,140 +4,151 @@
 ![Platforms](https://img.shields.io/badge/platforms-Linux%20%C2%B7%20Windows-2563eb)
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-backend-000000?logo=rust&logoColor=white)
 ![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
-[![Total Download Count](https://img.shields.io/github/downloads/ayozetr/yoink-app/total.svg?color=2ea44f)](https://github.com/ayozetr/yoink-app/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/ayozetr/yoink-app/total.svg?color=2ea44f)](https://github.com/ayozetr/yoink-app/releases/latest)
 
 ![Yoink — the analyze view with the format and quality picker](docs/screenshot_v4.0.0.png)
 
-**Yoink** is a **local** desktop app for downloading high-fidelity video and audio
-from ~1800 sites — a clean, dark UI over
-[yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/). Paste a
-link (or a whole Spotify / YouTube playlist), pick your format, and it's yours: real
-previews, live progress, and automatic music tagging. **Nothing leaves your machine
-but the download itself** — no account, no telemetry, no cloud.
+Yoink is a local desktop application for downloading high-fidelity video and
+audio from roughly 1,800 sites. It provides a clean user interface over
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/):
+paste a link (or an entire Spotify or YouTube playlist), choose a format, and
+download it with real previews, live progress and automatic music tagging.
+Nothing leaves the machine except the download itself — no account, no
+telemetry, no cloud service.
 
 ## Features
 
-**⬇️ Download**
-- **Paste any URL** or **search from the field** — preview with the real formats,
-  from ~1800 sites; a header toggle searches **YouTube** or **SoundCloud**.
-- **Any format** — MP4 / MOV / MKV video (optional subtitles + chapters) or
-  MP3 / M4A / FLAC / WAV audio, up to **4K**.
-- **Trim** a clip, save **presets**, and follow **live progress** (speed / ETA,
-  with cancel + retry).
-- **VR / 180°–360°** auto-detected and tagged so Quest / DeoVR / Heresphere play
-  it in 3D.
+### Downloading
 
-**🎵 Music**
-- **Import from Spotify, Deezer, Apple Music, Tidal or Amazon** (no account) —
-  Yoink finds the best YouTube match and tags it with the *exact* source
+- Paste any URL, or search directly from the input field, and preview the real
+  available formats. A source toggle searches YouTube or SoundCloud.
+- Video in MP4, MOV or MKV (with optional subtitles and chapters) or audio in
+  MP3, M4A, FLAC or WAV, up to 4K.
+- Trim a clip to a range, save format presets, and follow live progress (speed
+  and ETA, with cancel and retry).
+- VR 180°/360° content is detected and tagged so headset players such as Quest,
+  DeoVR and Heresphere render it in 3D.
+
+### Music
+
+- Import from Spotify, Deezer, Apple Music, Tidal or Amazon without an account.
+  Yoink finds the closest YouTube match and tags it with the exact source
   metadata and cover art.
-- **Auto-tag** audio downloads (artist / album / cover) from Apple Music, Deezer
-  or MusicBrainz, with a review step.
-- **Lyrics** (LRCLIB) and **loudness normalization** to −14 LUFS — both optional.
+- Auto-tag audio downloads (artist, album, cover) from Apple Music, Deezer or
+  MusicBrainz, with a review step before anything is written.
+- Optional lyrics (via LRCLIB) and loudness normalization to -14 LUFS.
 
-**📋 Batches & library**
-- **Playlists & a paste-many queue** — pick items, download in order, **resume**
-  after a crash, drag to reorder or skip live; *playlist sync* pre-selects only
-  what's new.
-- **History & stats** kept locally (SQLite), with re-tagging, cover art and
-  one-click open.
+### Batches and library
 
-**🖥️ The app**
-- **Self-contained desktop app** (Tauri · Linux + Windows) — bundles the backend
-  **and ffmpeg**, so there's nothing else to install.
-- **14 languages**, dark UI, **system tray** + launch-at-startup, global shortcuts,
-  desktop notifications, **auto-updates**, SponsorBlock, and cookies / proxy support.
-- **Send from your browser** — a `yoink://` deep link and the **"Send to Yoink"
-  (beta)** extension grab the page you're on with a right-click:
-  [Firefox](https://addons.mozilla.org/firefox/addon/send-to-yoink/) ·
+- Playlists and a paste-many queue: select items, download them in order,
+  resume after a crash, and reorder or skip live. Playlist sync pre-selects only
+  the entries that are new.
+- A local history and statistics store (SQLite), with re-tagging, cover art and
+  one-click file access.
+
+### The application
+
+- A self-contained desktop app (Tauri, for Linux and Windows) that bundles the
+  backend and ffmpeg, so there is nothing else to install.
+- 14 interface languages, a dark theme, system tray with launch-at-startup,
+  global shortcuts, desktop notifications, automatic updates, SponsorBlock, and
+  cookie and proxy support.
+- Browser integration through a `yoink://` deep link and the "Send to Yoink"
+  (beta) extension, which hands off the current page with a right-click:
+  [Firefox](https://addons.mozilla.org/firefox/addon/send-to-yoink/) and
   [Chrome](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp).
 
-## Install
+## Installation
 
-**Just want the app?** Download the installer for your OS from the
-**[latest release](https://github.com/ayozetr/yoink-app/releases/latest)** — Linux
-(AppImage · deb · rpm) or Windows (msi · NSIS). It's self-contained (no Python or
-ffmpeg to install) and updates itself.
+Download the installer for your operating system from the
+[latest release](https://github.com/ayozetr/yoink-app/releases/latest) — Linux
+(AppImage, deb, rpm) or Windows (msi, NSIS). The application is self-contained
+(no Python, yt-dlp or ffmpeg to install separately) and updates itself.
 
-## Run from source
+## Running from source
 
 ```bash
-python scripts/setup.py    # one-time: venv + backend deps + npm install
-python scripts/dev.py      # run backend (:8756) + frontend (:5173) together
+python scripts/setup.py    # one-time: cargo build (backend) + npm install (frontend)
+python scripts/dev.py      # run the backend (:8756) and frontend (:5173) together
 ```
 
-Then open <http://localhost:5173>. There's also a **command line**:
+Then open <http://localhost:5173>. A command-line interface is also available:
 `scripts/yoink <url>` downloads from the terminal with the same engine — see
-[`docs/cli.md`](docs/cli.md). For development you need **ffmpeg** on your
-PATH; the packaged desktop app bundles it. See [`CLAUDE.md`](CLAUDE.md) for
+[`docs/cli.md`](docs/cli.md). For development you need `yt-dlp` on your PATH and
+ffmpeg (the packaged app bundles both). See [`CLAUDE.md`](CLAUDE.md) for
 per-layer commands.
 
 ### Desktop build (Tauri)
 
 ```bash
-python scripts/fetch_ffmpeg.py    # once: download ffmpeg+ffprobe (LGPL) to bundle
-python scripts/build_backend.py   # bundle backend + ffmpeg as a PyInstaller onedir folder
+bash scripts/build_ffmpeg.sh      # one-time: build a minimal ffmpeg + ffprobe (~33 MB)
+python scripts/build_core.py      # build yoink-core, fetch yt-dlp, assemble the bundle
 npm run tauri build               # installers in src-tauri/target/release/bundle
 ```
 
-Prerequisites: Rust toolchain and, on Linux, `webkit2gtk` (4.1); on Windows,
-WebView2 + MSVC build tools. Full flow in [`docs/releasing.md`](docs/releasing.md).
+Prerequisites: the Rust toolchain and, on Linux, `webkit2gtk` (4.1); on Windows,
+WebView2 and the MSVC build tools. The full process is documented in
+[`docs/releasing.md`](docs/releasing.md).
 
-## Project structure
+## Architecture
 
-Two layers that talk asynchronously — a **React + TypeScript + Tailwind** frontend and
-a local **Python + FastAPI + yt-dlp** backend (metadata over REST `POST /api/info`,
-downloads streamed live over a WebSocket `/api/ws/download`):
+Yoink has two layers that communicate asynchronously: a React, TypeScript and
+Tailwind frontend, and a local native Rust backend (`yoink-core`, built on axum)
+that drives `yt-dlp` and `ffmpeg`. Metadata is fetched over REST
+(`POST /api/info`) and downloads are streamed live over a WebSocket
+(`/api/ws/download`).
 
 ```
-src/                      # frontend (React + TS + Tailwind)
+src/                      # frontend (React, TypeScript, Tailwind)
 ├── components/{layout,ui}
 ├── features/
-│   ├── autotag/          # Apple Music tagging cards (single + playlist batch)
+│   ├── autotag/          # catalogue tagging cards (single and playlist batch)
 │   ├── music/            # music-service import card (Spotify/Deezer/Apple/Tidal/Amazon)
-│   ├── downloader/       # URL input (source selector inside the field), preview, playlist, progress
-│   ├── queue/            # download queue (format picker, music/playlist groups, skip/reorder)
-│   ├── history/          # download history + stats (its own tab)
-│   └── settings/         # settings tab (download dir, defaults, cookies, theme, version, auto-update)
-├── lib/                  # API client + download WebSocket
-└── types/                # shared domain types (mirror the backend JSON contract)
+│   ├── downloader/       # URL input and source selector, preview, playlist, progress
+│   ├── queue/            # download queue (format picker, groups, skip/reorder)
+│   ├── history/          # download history and statistics
+│   └── settings/         # settings (download dir, defaults, cookies, theme, updates)
+├── lib/                  # API client and download WebSocket
+└── types/                # shared domain types (the backend JSON contract)
 
-backend/                  # FastAPI + yt-dlp engine (see backend/README.md)
+backend-rs/               # native Rust backend (yoink-core); see CLAUDE.md
 src-tauri/                # Tauri desktop shell
-extension/                # "Send to Yoink" (beta) browser extension (Firefox + Chromium)
-scripts/                  # setup.py, dev.py, fetch_ffmpeg.py, build_backend.py
+extension/                # "Send to Yoink" (beta) browser extension (Firefox, Chromium)
+scripts/                  # setup.py, dev.py, build_ffmpeg.sh, build_core.py
 e2e/                      # Playwright end-to-end tests
 ```
 
 ## Contributing
 
-Issues and pull requests are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md)
-for how to propose a change and the checks to run.
+Issues and pull requests are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md)
+for how to propose a change and the checks to run before submitting.
 
 ## License
 
-Yoink's own source code is licensed under the **GNU Affero General Public License
-v3.0 or later** (AGPL-3.0-or-later) — see [`LICENSE`](LICENSE). You're free to use,
-study, modify and redistribute it (including commercially), as long as derivatives
-stay under the AGPL and their source stays available — including to anyone who
-interacts with a modified version over a network. Copyright © 2026 Ayoze Torres.
-Bundled third-party components keep their own licenses (ffmpeg = LGPL,
-yt-dlp = Unlicense); see [`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md).
+Yoink's own source code is licensed under the GNU Affero General Public License,
+version 3.0 or later (AGPL-3.0-or-later); see [`LICENSE`](LICENSE). You are free
+to use, study, modify and redistribute it, including commercially, provided that
+derivative works remain under the AGPL and their source remains available —
+including to anyone who interacts with a modified version over a network.
+Copyright © 2026 Ayoze Torres. Bundled third-party components retain their own
+licenses (ffmpeg under the LGPL, yt-dlp under the Unlicense); see
+[`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md).
 
 ## Disclaimer
 
-Yoink is a personal tool for downloading media you are **entitled to access**
-(content you own, public-domain, openly licensed, or with the rights holder's
-permission). It is **not** for piracy or copyright infringement, and by using it you
-accept that **you alone** are responsible for how you use it and for complying with
-all applicable laws and platform terms. Full text: [`DISCLAIMER.md`](DISCLAIMER.md).
+Yoink is a personal tool for downloading media that you are entitled to access —
+content you own, that is in the public domain, that is openly licensed, or that
+you have the rights holder's permission to download. It is not intended for
+piracy or copyright infringement. By using it, you accept that you alone are
+responsible for how you use it and for complying with all applicable laws and
+platform terms. The full text is in [`DISCLAIMER.md`](DISCLAIMER.md).
 
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to contribute
-- [`docs/`](docs/) — architecture, per-layer guides, the [roadmap](docs/ROADMAP.md),
-  the [release process](docs/releasing.md) and
-  [third-party licenses](docs/THIRD_PARTY_LICENSES.md)
+- [`docs/`](docs/) — architecture, per-layer guides, the
+  [roadmap](docs/ROADMAP.md), the [release process](docs/releasing.md) and
+  the [third-party licenses](docs/THIRD_PARTY_LICENSES.md)
