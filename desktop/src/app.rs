@@ -112,6 +112,8 @@ pub struct App {
     advanced_open: bool,
     update_available: Option<String>,
     update_dismissed: bool,
+    whatsnew: Vec<(String, String)>,
+    whatsnew_open: bool,
     deeplink_rx: std::sync::mpsc::Receiver<String>,
     tray_rx: std::sync::mpsc::Receiver<crate::tray::TrayMsg>,
     shot: Option<(String, std::time::Instant)>, // (output path, started) for YOINK_SHOT
@@ -169,6 +171,8 @@ impl App {
             advanced_open: false,
             update_available: None,
             update_dismissed: false,
+            whatsnew: Vec::new(),
+            whatsnew_open: false,
             deeplink_rx,
             tray_rx,
             shot: std::env::var("YOINK_SHOT")
@@ -183,6 +187,24 @@ impl App {
         }
         if std::env::var("YOINK_FAKE_UPDATE").is_ok() {
             app.update_available = Some("4.5.0".into());
+        }
+        // First launch after an update: fetch "what's new" since the last-seen version.
+        let marker = whatsnew_marker();
+        let last = marker
+            .as_ref()
+            .and_then(|m| std::fs::read_to_string(m).ok())
+            .unwrap_or_default();
+        let current = env!("CARGO_PKG_VERSION");
+        if last.trim() != current {
+            app.backend.send(Cmd::LoadWhatsNew {
+                since: last.trim().to_string(),
+            });
+            if let Some(m) = &marker {
+                if let Some(dir) = m.parent() {
+                    let _ = std::fs::create_dir_all(dir);
+                }
+                let _ = std::fs::write(m, current);
+            }
         }
         // Screenshot helpers (YOINK_SHOT): pick a tab / pre-analyze a URL to capture.
         if let Ok(t) = std::env::var("YOINK_SHOT_TAB") {
@@ -220,6 +242,12 @@ impl App {
                 }
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
                 Evt::UpdateAvailable { version } => self.update_available = Some(version),
+                Evt::WhatsNew(entries) => {
+                    if !entries.is_empty() {
+                        self.whatsnew = entries;
+                        self.whatsnew_open = true;
+                    }
+                }
                 Evt::History(h) => self.history = h,
                 Evt::Logs { path, content } => {
                     self.logs_path = path;
@@ -618,6 +646,46 @@ impl eframe::App for App {
                     });
                 });
             });
+
+        // "What's new" popup after an update.
+        if self.whatsnew_open {
+            let mut open = true;
+            egui::Window::new(tl(lang, "whatsnew.title"))
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(&ctx, |ui| {
+                    ui.set_max_width(520.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(380.0)
+                        .show(ui, |ui| {
+                            for (ver, notes) in &self.whatsnew {
+                                ui.label(
+                                    RichText::new(ver)
+                                        .size(18.0)
+                                        .family(crate::fonts::display())
+                                        .color(p.fg),
+                                );
+                                ui.add_space(4.0);
+                                ui.label(RichText::new(notes).color(p.fg_dim));
+                                ui.add_space(14.0);
+                            }
+                        });
+                    ui.add_space(6.0);
+                    let btn = egui::Button::new(
+                        RichText::new(format!("  {}  ", tl(lang, "whatsnew.close")))
+                            .color(p.accent_fg),
+                    )
+                    .fill(p.accent)
+                    .corner_radius(8);
+                    if ui.add(btn).clicked() {
+                        open = false;
+                    }
+                });
+            if !open {
+                self.whatsnew_open = false;
+            }
+        }
 
         self.maybe_screenshot(&ctx);
     }
@@ -1499,6 +1567,9 @@ impl App {
         setting_row(ui, p, tl(lang, "set.tray"), |ui| {
             toggle(ui, &mut s.minimize_to_tray, p);
         });
+        setting_row(ui, p, tl(lang, "set.autostart"), |ui| {
+            toggle(ui, &mut s.launch_at_startup, p);
+        });
 
         // Downloads.
         ui.add_space(20.0);
@@ -1667,6 +1738,7 @@ impl App {
                 .min_size(egui::vec2(0.0, 34.0));
             if ui.add(btn).clicked() {
                 self.settings_note = None;
+                set_autostart(s.launch_at_startup);
                 self.backend.send(Cmd::SaveSettings(Box::new(s.clone())));
             }
             if self.settings_note.is_some() {
@@ -1680,6 +1752,40 @@ impl App {
         }
         // Keep edits in memory until saved.
         self.settings = Some(s);
+    }
+}
+
+/// Where the last-seen app version is recorded (for the "what's new" popup).
+fn whatsnew_marker() -> Option<std::path::PathBuf> {
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.config")))?;
+    Some(
+        std::path::PathBuf::from(base)
+            .join("yoink")
+            .join("last-version"),
+    )
+}
+
+/// Create or remove the XDG autostart entry for launch-at-startup.
+fn set_autostart(enabled: bool) {
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.config")));
+    let Some(base) = base else { return };
+    let dir = std::path::PathBuf::from(base).join("autostart");
+    let path = dir.join("yoink.desktop");
+    if enabled {
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(
+            &path,
+            "[Desktop Entry]\nType=Application\nName=Yoink\nExec=yoink-desktop\n\
+             Icon=yoink\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+        );
+    } else {
+        let _ = std::fs::remove_file(&path);
     }
 }
 

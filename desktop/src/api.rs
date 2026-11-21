@@ -36,6 +36,7 @@ pub enum Cmd {
     SaveSettings(Box<Settings>),
     LoadHistory,
     LoadLogs,
+    LoadWhatsNew { since: String },
     Open(String),
 }
 
@@ -46,6 +47,7 @@ pub enum Evt {
     UpdateAvailable {
         version: String,
     },
+    WhatsNew(Vec<(String, String)>),
     History(Vec<HistoryEntry>),
     Logs {
         path: String,
@@ -285,6 +287,9 @@ impl Backend {
                         Cmd::LoadLogs => {
                             tokio::spawn(async move { load_logs(evt_tx, ctx).await });
                         }
+                        Cmd::LoadWhatsNew { since } => {
+                            tokio::spawn(async move { load_whatsnew(since, evt_tx, ctx).await });
+                        }
                         Cmd::Open(path) => {
                             tokio::spawn(async move { open_path(path).await });
                         }
@@ -395,6 +400,35 @@ fn is_newer(a: &str, b: &str) -> bool {
         }
     }
     false
+}
+
+async fn load_whatsnew(since: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let mut req = reqwest::Client::new().get(format!("{}/api/release-notes", http_base()));
+    if !since.is_empty() {
+        req = req.query(&[("since", since.as_str())]);
+    }
+    if let Ok(r) = req.send().await {
+        if let Ok(v) = r.json::<Value>().await {
+            let entries = v
+                .get("entries")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|e| {
+                            Some((
+                                e.get("version").and_then(Value::as_str)?.to_string(),
+                                e.get("notes")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("")
+                                    .to_string(),
+                            ))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            emit(&tx, &ctx, Evt::WhatsNew(entries));
+        }
+    }
 }
 
 async fn load_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
