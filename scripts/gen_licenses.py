@@ -10,7 +10,7 @@ ecosystems:
 
   * Frontend  — npm         (`package.json` dependencies)
   * Desktop   — Rust        (`src-tauri/Cargo.toml`, resolved for the desktop target)
-  * Backend   — Python      (`backend/requirements.txt`)
+  * Backend & desktop — Rust (`backend-rs` + `src-tauri`, via cargo metadata)
 
 plus the bundled media tools (ffmpeg / yt-dlp). The result is imported `?raw` by
 `src/features/settings/LicensesModal.tsx` and shown under Settings > About.
@@ -29,6 +29,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 # The desktop targets Yoink actually ships; direct deps resolve the same on both.
 CARGO_TARGETS = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# The two Rust crates whose direct deps are attributed: the Tauri desktop shell
+# and the native backend.
+CARGO_CRATES = [("src-tauri", "yoink"), ("backend-rs", "yoink-core")]
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> str:
@@ -58,19 +61,21 @@ def _npm() -> list[tuple[str, str, str]]:
 
 
 def _cargo() -> list[tuple[str, str]]:
-    """Direct Rust dependencies of the `yoink` crate (its normal deps only)."""
+    """Direct Rust dependencies of the desktop shell (`yoink`) and the native
+    backend (`yoink-core`), their normal deps only."""
     result: dict[tuple[str, str], bool] = {}
-    for triple in CARGO_TARGETS:
+    for crate_dir, crate_name in CARGO_CRATES:
+      for triple in CARGO_TARGETS:
         data = json.loads(
             _run(
                 ["cargo", "metadata", "--format-version", "1", "--filter-platform", triple],
-                ROOT / "src-tauri",
+                ROOT / crate_dir,
             )
         )
         pkgs = {p["id"]: p for p in data["packages"]}
         nodes = {n["id"]: n for n in data["resolve"]["nodes"]}
         root = data["resolve"].get("root") or next(
-            i for i, p in pkgs.items() if p["name"] == "yoink"
+            i for i, p in pkgs.items() if p["name"] == crate_name
         )
         for dep in nodes[root]["deps"]:
             if not any(dk.get("kind") is None for dk in dep.get("dep_kinds", [])):
@@ -85,62 +90,28 @@ def _cargo() -> list[tuple[str, str]]:
     return sorted(result, key=lambda r: r[0].lower())
 
 
-def _pip() -> list[tuple[str, str, str]]:
-    """Direct Python dependencies (requirements.txt), with their licenses.
-
-    The shipped backend is now Rust (backend-rs/yoink-core) — there is no Python
-    backend to attribute, so this is a no-op unless a requirements.txt is present.
-    TODO: list backend-rs's crate licenses here (like _cargo for src-tauri).
-    """
-    reqs = ROOT / "backend" / "requirements.txt"
-    if not reqs.exists():
-        return []
-    direct: set[str] = set()
-    for line in reqs.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        name = re.split(r"[<>=!~\[;\s]", line, maxsplit=1)[0].strip()
-        if name:
-            direct.add(name.lower().replace("_", "-"))
-    pip_licenses = ROOT / "backend" / ".venv" / "bin" / "pip-licenses"
-    if not pip_licenses.exists():
-        sys.exit(
-            "gen_licenses: pip-licenses not found — run "
-            "`backend/.venv/bin/pip install pip-licenses` first"
-        )
-    data = json.loads(_run([str(pip_licenses), "--format=json"]))
-    rows = {
-        (p["Name"], p.get("Version", ""), p.get("License", "?"))
-        for p in data
-        if p["Name"].lower().replace("_", "-") in direct
-    }
-    return sorted(rows, key=lambda r: r[0].lower())
 
 
 def main() -> None:
-    npm, cargo, pip = _npm(), _cargo(), _pip()
+    npm, cargo = _npm(), _cargo()
     out: list[str] = [
         "# Open-source licenses\n",
         "Yoink is built on open-source software. Listed below are Yoink's direct\n"
         "dependencies and their licenses — the libraries it uses directly; each in turn\n"
         "pulls in further open-source libraries under the same permissive licenses.\n",
         "## Bundled media tools\n",
-        "- **ffmpeg / ffprobe** — LGPL v2.1+ (dynamically bundled; see THIRD_PARTY_LICENSES.md)",
+        "- **ffmpeg / ffprobe** — LGPL v3 (built minimal; see THIRD_PARTY_LICENSES.md)",
         "- **yt-dlp** — The Unlicense (public domain) — the download engine\n",
         f"## Frontend — npm ({len(npm)})\n",
         *[f"- **{n}** {('v' + v) if v else ''} — {l}" for n, v, l in npm],
         "",
-        f"## Desktop shell — Rust / cargo ({len(cargo)})\n",
+        f"## Backend & desktop — Rust / cargo ({len(cargo)})\n",
         *[f"- **{n}** — {l}" for n, l in cargo],
-        "",
-        f"## Backend — Python / pip ({len(pip)})\n",
-        *[f"- **{n}** {('v' + v) if v else ''} — {l}" for n, v, l in pip],
         "",
     ]
     dest = ROOT / "OPEN_SOURCE_LICENSES.md"
     dest.write_text("\n".join(out), encoding="utf-8")
-    print(f"wrote {dest} (npm {len(npm)}, cargo {len(cargo)}, pip {len(pip)})")
+    print(f"wrote {dest} (npm {len(npm)}, cargo {len(cargo)})")
 
 
 if __name__ == "__main__":

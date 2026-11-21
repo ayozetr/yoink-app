@@ -148,8 +148,8 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
-    // The bundled backend (PyInstaller sidecar) can take several seconds to
-    // start — unpacking ffmpeg is slow, especially on Windows. Retry the
+    // yoink-core starts in well under a second, but the first request can
+    // still race the port bind. Retry the
     // initial load until it answers instead of giving up on the first refused
     // connection (which left the app with no data and Settings unopenable).
     const load = async () => {

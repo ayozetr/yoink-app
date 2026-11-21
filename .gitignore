@@ -27,16 +27,11 @@ dist-ssr
 *.sw?
 
 # Python / backend
-backend/venv/
 __pycache__/
 *.py[cod]
-.python-version
-.pytest_cache/
-backend/.env
 
 # Downloaded media
 downloads/
-backend/downloads/
 
 # Env files
 .env
@@ -51,10 +46,6 @@ blob-report/
 src-tauri/target/
 src-tauri/gen/
 src-tauri/binaries/
-
-# PyInstaller
-backend/dist/
-*.spec
 
 # Bundled ffmpeg/ffprobe (fetched via scripts/fetch_ffmpeg.py)
 backend/vendor/

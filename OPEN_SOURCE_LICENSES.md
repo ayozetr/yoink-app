@@ -6,7 +6,7 @@ pulls in further open-source libraries under the same permissive licenses.
 
 ## Bundled media tools
 
-- **ffmpeg / ffprobe** — LGPL v2.1+ (dynamically bundled; see THIRD_PARTY_LICENSES.md)
+- **ffmpeg / ffprobe** — LGPL v3 (built minimal; see THIRD_PARTY_LICENSES.md)
 - **yt-dlp** — The Unlicense (public domain) — the download engine
 
 ## Frontend — npm (16)
@@ -28,9 +28,16 @@ pulls in further open-source libraries under the same permissive licenses.
 - **react-i18next** v17.0.8 — MIT
 - **simple-icons** v16.38.0 — CC0-1.0
 
-## Desktop shell — Rust / cargo (15)
+## Backend & desktop — Rust / cargo (25)
 
+- **axum** — MIT
+- **chrono** — MIT OR Apache-2.0
+- **difflib** — MIT
 - **libc** — MIT OR Apache-2.0
+- **lofty** — MIT OR Apache-2.0
+- **regex** — MIT OR Apache-2.0
+- **reqwest** — MIT OR Apache-2.0
+- **rusqlite** — MIT
 - **serde** — MIT OR Apache-2.0
 - **serde_json** — MIT OR Apache-2.0
 - **tauri** — Apache-2.0 OR MIT
@@ -44,12 +51,7 @@ pulls in further open-source libraries under the same permissive licenses.
 - **tauri-plugin-process** — Apache-2.0 OR MIT
 - **tauri-plugin-single-instance** — Apache-2.0 OR MIT
 - **tauri-plugin-updater** — Apache-2.0 OR MIT
+- **tokio** — MIT
+- **tower-http** — MIT
+- **unicode-normalization** — (MIT OR Apache-2.0) AND Unicode-3.0
 - **url** — MIT OR Apache-2.0
-
-## Backend — Python / pip (5)
-
-- **fastapi** v0.165.0 — MIT
-- **pydantic** v2.14.4 — MIT
-- **pydantic-settings** v2.16.3 — MIT
-- **uvicorn** v0.54.0 — BSD-3-Clause
-- **yt-dlp** v2026.10.26 — Unlicense

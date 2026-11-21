@@ -25,7 +25,7 @@ Two layers communicating asynchronously:
 
 ### Communication contract (strict)
 
-- **Metadata (REST):** when the user pastes a URL, the frontend calls FastAPI.
+- **Metadata (REST):** when the user pastes a URL, the frontend calls the backend.
   The backend runs yt-dlp with `download=False` and returns an `InfoResponse`
   that is **either** a single video (title, thumbnail, formats, plus
   `source_lossless`/`best_audio_abr`/`has_audio`/`subtitle_langs`/`has_chapters`,

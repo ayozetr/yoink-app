@@ -22,7 +22,7 @@ with a body explaining the why (see CLAUDE.md → Git conventions).
 - [ ] `npm run build` (type-check + build) passes
 - [ ] `npm run lint` passes
 - [ ] `npm run test:e2e` passes (if UI behavior changed)
-- [ ] `pytest` passes (if the backend changed)
+- [ ] `cargo test` (and `cargo clippy`) pass (if the backend changed)
 - [ ] `npm audit` is still at 0 vulnerabilities
 
 ## Contract sync
@@ -30,7 +30,7 @@ with a body explaining the why (see CLAUDE.md → Git conventions).
 <!-- If you touched the JSON contract, both sides must match. -->
 
 - [ ] Not applicable
-- [ ] `backend/app/models/media.py` and `src/types/download.ts` were updated together
+- [ ] the backend Rust structs and `src/types/*` were updated together
 
 ## Notes for the reviewer
 

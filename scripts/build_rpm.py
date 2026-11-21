@@ -93,11 +93,11 @@ def _product_name() -> str:
 
 # rpm Requires the package may legitimately carry: the C/C++ runtime (glibc &
 # friends) and Tauri's GTK/WebKit stack, plus rpm's own bookkeeping. Anything
-# outside this set means autoreq scanned the bundled PyInstaller `_internal/*.so`
+# outside this set means autoreq scanned the bundled binaries (ffmpeg etc.)
 # and leaked a dependency the target distro may not package — the install then
 # fails on a clean box. We assert against it after building so a future
-# PyInstaller/yt-dlp change that introduces such a leak fails the build here
-# rather than silently shipping an uninstallable rpm. (The bundled .so are
+# ffmpeg/yt-dlp change that introduces such a leak fails the build here
+# rather than silently shipping an uninstallable rpm. (The bundled binaries are
 # self-Provided, so their own needs resolve internally and never show up here.)
 _ALLOWED_REQUIRE_RE = re.compile(
     r"^(?:/bin/sh|rpmlib\(|rtld\(|ld-linux|libc\.|libm\.|libmvec|libdl|"
@@ -241,7 +241,7 @@ def main() -> int:
     print(requires.stdout, end="")
 
     # Gate on the Requires: anything outside the known system set means autoreq
-    # leaked a dependency from the bundled PyInstaller `_internal/*.so`, which can
+    # leaked a dependency from the bundled binaries, which can
     # make the rpm uninstallable on a clean distro. Fail loudly here.
     leaked = [
         line.strip()
