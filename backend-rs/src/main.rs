@@ -28,6 +28,7 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tower_http::cors::CorsLayer;
 
 mod matching;
+mod music;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -1132,6 +1133,32 @@ async fn music_match(Json(track): Json<MusicTrack>) -> Result<Json<Value>, (Stat
     Ok(Json(serde_json::json!({ "youtube_url": youtube_url, "isrc": track.isrc })))
 }
 
+#[derive(Deserialize)]
+struct ResolveRequest {
+    url: String,
+}
+
+/// Resolve a music-service URL into a tracklist (keyless). Deezer is ported;
+/// Spotify/Apple/Tidal/Amazon are later slices.
+async fn music_resolve(
+    Json(req): Json<ResolveRequest>,
+) -> Result<Json<music::MusicImportInfo>, (StatusCode, String)> {
+    match music::detect_source(&req.url) {
+        Some("deezer") => music::resolve_deezer(&req.url)
+            .await
+            .map(Json)
+            .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e)),
+        Some(other) => Err((
+            StatusCode::NOT_IMPLEMENTED,
+            format!("{other} import is not ported to the Rust core yet"),
+        )),
+        None => Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Not a recognised music-service URL.".into(),
+        )),
+    }
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -1168,6 +1195,7 @@ async fn main() {
         .route("/api/ytdlp-version", get(ytdlp_version))
         .route("/api/open", post(open_path))
         .route("/api/music/match", post(music_match))
+        .route("/api/music/resolve", post(music_resolve))
         .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
