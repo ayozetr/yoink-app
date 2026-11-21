@@ -29,10 +29,16 @@ use tower_http::cors::CorsLayer;
 
 mod audio_normalize;
 mod autotag;
+mod library;
 mod matching;
 mod music;
+mod nfo;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+// "Auto-tag name" filename templates (mirror core/config.py) — when one is the
+// active template, auto-tagging renames the file to the tagged "Artist - Title".
+const AUTOTAG_FILENAME_TEMPLATE: &str = "%(autotag)s";
+const AUTOTAG_FILENAME_TEMPLATE_REVERSED: &str = "%(autotag_ta)s";
 
 /// Lossless audio codecs — mirrors the Python `source_lossless` heuristic.
 const LOSSLESS: &[&str] = &["flac", "alac", "wav", "pcm", "tta", "ape", "wavpack"];
@@ -546,6 +552,11 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         "--print".into(),
         "after_move:YDONE|%(filepath)s".into(),
     ];
+    // Write yt-dlp's info JSON alongside the file so a download-time .nfo can be
+    // built from it (removed again after the .nfo is written).
+    if settings.nfo_sidecars {
+        a.push("--write-info-json".into());
+    }
     // Bundled ffmpeg location (set by the Tauri shell), so merges/extraction work
     // without a system ffmpeg.
     if let Ok(dir) = std::env::var("YOINK_FFMPEG") {
@@ -759,6 +770,18 @@ async fn run_download(mut socket: WebSocket) {
                 let p = std::path::Path::new(path);
                 let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
                 let title = p.file_stem().and_then(|n| n.to_str()).unwrap_or(&filename).to_string();
+                // Download-time .nfo from yt-dlp's info JSON (removed after). For
+                // audio, auto-tagging later rewrites it from the tagged metadata.
+                if settings.nfo_sidecars {
+                    let info_path = p.with_extension("info.json");
+                    if let Ok(txt) = std::fs::read_to_string(&info_path) {
+                        if let Ok(info) = serde_json::from_str::<Value>(&txt) {
+                            let k = if req.kind == "audio" { "audio" } else { "video" };
+                            nfo::write(p, &nfo::from_info(&info, k));
+                        }
+                    }
+                    let _ = std::fs::remove_file(&info_path);
+                }
                 record_download(
                     &title,
                     &req.url,
@@ -1059,6 +1082,30 @@ fn record_download(
     }
 }
 
+/// After auto-tagging: relabel the latest history row for this file to the tagged
+/// "Artist - Title" (mirrors history_store.update_title).
+fn update_history_title(filepath: &str, title: &str) {
+    if let Ok(conn) = rusqlite::Connection::open(history_db()) {
+        let _ = conn.execute(
+            "UPDATE downloads SET title = ?1 \
+             WHERE id = (SELECT MAX(id) FROM downloads WHERE filepath = ?2)",
+            rusqlite::params![title, filepath],
+        );
+    }
+}
+
+/// After auto-tagging renamed/relocated the file: update title + location of the
+/// latest history row for the old path (mirrors history_store.update_after_tag).
+fn update_history_after_tag(old_filepath: &str, new_filepath: &str, filename: &str, title: &str) {
+    if let Ok(conn) = rusqlite::Connection::open(history_db()) {
+        let _ = conn.execute(
+            "UPDATE downloads SET title = ?1, filepath = ?2, filename = ?3 \
+             WHERE id = (SELECT MAX(id) FROM downloads WHERE filepath = ?4)",
+            rusqlite::params![title, new_filepath, filename, old_filepath],
+        );
+    }
+}
+
 // ---- logs (Registro tab) -----------------------------------------------------
 
 fn log_file() -> std::path::PathBuf {
@@ -1355,6 +1402,16 @@ async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (St
         Some(u) if !u.is_empty() => autotag::fetch_cover(u).await,
         _ => None,
     };
+    // Capture the tagged fields before they move into ApplyFields (needed for the
+    // .nfo + rename/relocate below).
+    let path_s = req.path.clone();
+    let title_s = req.title.clone().unwrap_or_default().trim().to_string();
+    let artist_s = req.artist.clone().unwrap_or_default().trim().to_string();
+    let album_s = req.album.clone().unwrap_or_default().trim().to_string();
+    let year_s = req.year.clone().unwrap_or_default().trim().to_string();
+    let genre_s = req.genre.clone().unwrap_or_default().trim().to_string();
+    let cover_url_s = req.cover_url.clone().unwrap_or_default();
+
     let fields = autotag::ApplyFields {
         path: req.path,
         title: req.title,
@@ -1370,6 +1427,69 @@ async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (St
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .map_err(|e| (StatusCode::UNPROCESSABLE_ENTITY, e))?;
+
+    // Rewrite the per-file .nfo (if enabled) with the *tagged* metadata.
+    if settings.nfo_sidecars {
+        let body = nfo::build(&nfo::NfoFields {
+            kind: "audio",
+            title: &title_s,
+            artist: &artist_s,
+            album: &album_s,
+            genre: &genre_s,
+            year: &year_s,
+            thumb: &cover_url_s,
+            ..Default::default()
+        });
+        nfo::write(std::path::Path::new(&path_s), &body);
+    }
+
+    // Reflect "Artist - Title" in history, and rename/relocate the file per the
+    // active filename template + the music-folders setting (mirrors the router).
+    let have_both = !artist_s.is_empty() && !title_s.is_empty();
+    let new_title = if have_both { format!("{artist_s} - {title_s}") } else { title_s.clone() };
+    let renamed: Option<String> = if have_both {
+        if settings.filename_template == AUTOTAG_FILENAME_TEMPLATE {
+            Some(format!("{artist_s} - {title_s}"))
+        } else if settings.filename_template == AUTOTAG_FILENAME_TEMPLATE_REVERSED {
+            Some(format!("{title_s} - {artist_s}"))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    if !new_title.is_empty() {
+        let download_root = std::env::var("YOINK_DOWNLOAD_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| std::path::PathBuf::from(&settings.download_dir));
+        if settings.music_folders && have_both {
+            let stem = renamed.clone().unwrap_or_else(|| new_title.clone());
+            let (old, a, al, y, cu, ns) =
+                (path_s.clone(), artist_s.clone(), album_s.clone(), year_s.clone(), cover_url_s.clone(), stem.clone());
+            let nfo_on = settings.nfo_sidecars;
+            let new_path = tokio::task::spawn_blocking(move || {
+                library::organize_music_library(
+                    std::path::Path::new(&old), &a, &al, &y, &ns,
+                    (!cu.is_empty()).then_some(cu.as_str()), &download_root, nfo_on,
+                )
+            })
+            .await
+            .unwrap_or_else(|_| std::path::PathBuf::from(&path_s));
+            let filename = new_path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+            update_history_after_tag(&path_s, &new_path.to_string_lossy(), &filename, &stem);
+        } else if let Some(r) = renamed.clone() {
+            let (old, rr) = (path_s.clone(), r.clone());
+            let new_path = tokio::task::spawn_blocking(move || {
+                library::rename_to_tagged(std::path::Path::new(&old), &rr)
+            })
+            .await
+            .unwrap_or_else(|_| std::path::PathBuf::from(&path_s));
+            let filename = new_path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+            update_history_after_tag(&path_s, &new_path.to_string_lossy(), &filename, &r);
+        } else {
+            update_history_title(&path_s, &new_title);
+        }
+    }
     Ok(Json(serde_json::json!({ "ok": true, "embedded_cover": embedded })))
 }
 
