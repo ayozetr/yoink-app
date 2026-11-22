@@ -61,6 +61,65 @@ enum ThemeMode {
     Light,
 }
 
+impl ThemeMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            ThemeMode::System => "system",
+            ThemeMode::Dark => "dark",
+            ThemeMode::Light => "light",
+        }
+    }
+    fn from_str(s: &str) -> ThemeMode {
+        match s {
+            "dark" => ThemeMode::Dark,
+            "light" => ThemeMode::Light,
+            _ => ThemeMode::System,
+        }
+    }
+}
+
+/// Local UI preferences persisted outside the backend settings (the web keeps
+/// these in `localStorage`): the theme choice and the language override.
+#[derive(serde::Serialize, serde::Deserialize, Default)]
+struct UiPrefs {
+    #[serde(default)]
+    theme: String,
+    /// `None` = follow the OS language; otherwise a [`Lang::code`].
+    #[serde(default)]
+    lang: Option<String>,
+}
+
+/// Where UI prefs live (`<config>/yoink/ui.json`).
+fn prefs_path() -> Option<std::path::PathBuf> {
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.config")))?;
+    Some(std::path::PathBuf::from(base).join("yoink").join("ui.json"))
+}
+
+fn load_prefs() -> UiPrefs {
+    prefs_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_prefs(theme_mode: ThemeMode, lang_mode: Option<Lang>) {
+    let prefs = UiPrefs {
+        theme: theme_mode.as_str().to_string(),
+        lang: lang_mode.map(|l| l.code().to_string()),
+    };
+    if let Some(path) = prefs_path() {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        if let Ok(json) = serde_json::to_string_pretty(&prefs) {
+            let _ = std::fs::write(path, json);
+        }
+    }
+}
+
 /// A saved format preset: a named bundle of the advanced selectors, applied to
 /// the current media in one click. Local convenience state, persisted as JSON.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -136,7 +195,10 @@ pub struct App {
     minter: crate::minter::Minter,
     dark: bool,
     theme_mode: ThemeMode,
-    lang: Lang,
+    os_dark: Option<bool>,                 // last probed OS light/dark preference
+    theme_probe: std::time::Instant,       // throttles re-probing the OS theme
+    lang: Lang,                            // the resolved UI language
+    lang_mode: Option<Lang>,               // None = follow the OS language
     tab: Tab,
     url: String,
     kind: String,
@@ -197,6 +259,20 @@ pub struct App {
     focus_url: bool, // a pending Ctrl+L: focus the URL field next frame
 }
 
+/// The OS light/dark preference, or `None` if it can't be determined. Tries
+/// egui's own `system_theme` first (set by the windowing layer on macOS/Windows),
+/// then the XDG desktop portal (`dark-light`), which is what works on Wayland/KDE.
+fn detect_os_dark(ctx: &egui::Context) -> Option<bool> {
+    if let Some(t) = ctx.system_theme() {
+        return Some(t == egui::Theme::Dark);
+    }
+    match dark_light::detect() {
+        dark_light::Mode::Dark => Some(true),
+        dark_light::Mode::Light => Some(false),
+        dark_light::Mode::Default => None,
+    }
+}
+
 impl App {
     pub fn new(
         cc: &eframe::CreationContext<'_>,
@@ -207,12 +283,19 @@ impl App {
         // Default to following the OS; resolve the initial value from it (dark if
         // the system theme isn't known yet). The per-frame check in `ui` keeps it
         // in sync afterwards.
-        let theme_mode = ThemeMode::System;
-        let dark = cc
-            .egui_ctx
-            .system_theme()
-            .map(|t| t == egui::Theme::Dark)
-            .unwrap_or(true);
+        let prefs = load_prefs();
+        let theme_mode = if prefs.theme.is_empty() {
+            ThemeMode::System
+        } else {
+            ThemeMode::from_str(&prefs.theme)
+        };
+        let lang_mode = prefs.lang.as_deref().and_then(crate::i18n::Lang::from_code);
+        let os_dark = detect_os_dark(&cc.egui_ctx);
+        let dark = match theme_mode {
+            ThemeMode::System => os_dark.unwrap_or(true),
+            ThemeMode::Dark => true,
+            ThemeMode::Light => false,
+        };
         crate::fonts::install(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, dark);
         // The web UI renders at a more generous scale; match it so controls and
@@ -229,7 +312,10 @@ impl App {
             minter: crate::minter::Minter::new(crate::api::port()),
             dark,
             theme_mode,
-            lang: crate::i18n::detect(),
+            os_dark,
+            theme_probe: std::time::Instant::now(),
+            lang: lang_mode.unwrap_or_else(crate::i18n::detect),
+            lang_mode,
             tab: Tab::Inicio,
             url: String::new(),
             kind: "video".into(),
@@ -969,17 +1055,30 @@ impl eframe::App for App {
         }
 
         // Resolve the effective theme (System follows the OS) and re-apply on change.
+        // Re-probe the OS at most every ~2s so a live theme switch is picked up
+        // without a blocking portal call every frame.
+        if self.theme_mode == ThemeMode::System
+            && self.theme_probe.elapsed().as_secs_f32() > 2.0
+        {
+            self.os_dark = detect_os_dark(&ctx);
+            self.theme_probe = std::time::Instant::now();
+        }
         let want_dark = match self.theme_mode {
-            ThemeMode::System => ctx
-                .system_theme()
-                .map(|t| t == egui::Theme::Dark)
-                .unwrap_or(self.dark),
+            ThemeMode::System => self.os_dark.unwrap_or(self.dark),
             ThemeMode::Dark => true,
             ThemeMode::Light => false,
         };
         if want_dark != self.dark {
             self.dark = want_dark;
             theme::apply(&ctx, want_dark);
+        }
+
+        // System language follows the OS locale live.
+        if self.lang_mode.is_none() {
+            let detected = crate::i18n::detect();
+            if detected != self.lang {
+                self.lang = detected;
+            }
         }
 
         // Debounced search: fire once the typed query settles.
@@ -1486,8 +1585,15 @@ impl eframe::App for App {
                     ui.horizontal(|ui| {
                         crate::icons::show(ui, "sparkles", 18.0, p.accent);
                         ui.add_space(8.0);
+                        // The version lives in the title (e.g. "Novedades · v4.4.0");
+                        // the newest entry names it. With several versions the
+                        // per-version heading below keeps them apart.
+                        let title = match self.whatsnew.first() {
+                            Some((ver, _)) => format!("{} · {}", tl(lang, "whatsnew.title"), ver),
+                            None => tl(lang, "whatsnew.title").to_string(),
+                        };
                         ui.label(
-                            RichText::new(tl(lang, "whatsnew.title"))
+                            RichText::new(title)
                                 .size(19.0)
                                 .family(crate::fonts::display())
                                 .color(p.fg),
@@ -1506,22 +1612,40 @@ impl eframe::App for App {
                             egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded,
                         )
                         .show(ui, |ui| {
+                            // Only label each version when several are shown at once;
+                            // a single version is already named in the modal title.
+                            let multi = self.whatsnew.len() > 1;
                             for (ver, notes) in &self.whatsnew {
-                                ui.label(
-                                    RichText::new(ver)
-                                        .size(17.0)
-                                        .family(crate::fonts::display())
-                                        .color(p.fg),
-                                );
-                                ui.add_space(6.0);
+                                if multi {
+                                    ui.label(
+                                        RichText::new(ver)
+                                            .size(17.0)
+                                            .family(crate::fonts::display())
+                                            .color(p.fg),
+                                    );
+                                    ui.add_space(6.0);
+                                }
                                 for line in notes.lines() {
                                     let t = line.trim();
-                                    if let Some(h) = t.strip_prefix("## ") {
-                                        ui.add_space(4.0);
-                                        ui.label(RichText::new(h).strong().color(p.fg));
+                                    if let Some(h) =
+                                        t.strip_prefix("## ").or_else(|| t.strip_prefix("### "))
+                                    {
+                                        ui.add_space(6.0);
+                                        ui.label(
+                                            RichText::new(h)
+                                                .family(crate::fonts::semibold())
+                                                .color(p.fg),
+                                        );
+                                        ui.add_space(2.0);
                                     } else if let Some(h) = t.strip_prefix("# ") {
-                                        ui.add_space(4.0);
-                                        ui.label(RichText::new(h).size(15.0).strong().color(p.fg));
+                                        ui.add_space(6.0);
+                                        ui.label(
+                                            RichText::new(h)
+                                                .size(15.0)
+                                                .family(crate::fonts::semibold())
+                                                .color(p.fg),
+                                        );
+                                        ui.add_space(2.0);
                                     } else if let Some(b) =
                                         t.strip_prefix("- ").or_else(|| t.strip_prefix("* "))
                                     {
@@ -1642,6 +1766,7 @@ impl App {
                         // pixels and drawn inside the rect, so all four edges are crisp.
                         crisp_combo(ui, p, |ui| {
                             egui::ComboBox::from_id_salt("source")
+                                .popup_style(hide_combo_scrollbar.into())
                                 .selected_text(if self.source == "soundcloud" {
                                     "SoundCloud"
                                 } else {
@@ -2795,7 +2920,7 @@ impl App {
             });
             return;
         };
-        let mut new_lang = self.lang;
+        let mut lang_sel = self.lang_mode; // None = follow the OS
         let scroll_to = self.settings_scroll_to.take();
 
         let heading = |ui: &mut egui::Ui, sec: &str, key: &str| {
@@ -2818,12 +2943,17 @@ impl App {
         setting_row(ui, p, tl(lang, "set.language"), |ui| {
             crisp_combo(ui, p, |ui| {
                 egui::ComboBox::from_id_salt("lang")
+                    .popup_style(hide_combo_scrollbar.into())
                     .width(CTRL_COMBO_W)
-                    .selected_text(self.lang.label())
+                    .selected_text(match self.lang_mode {
+                        None => tl(lang, "lang.system"),
+                        Some(l) => l.label(),
+                    })
                     .show_ui(ui, |ui| {
                         style_combo_items(ui);
+                        ui.selectable_value(&mut lang_sel, None, tl(lang, "lang.system"));
                         for l in Lang::ALL {
-                            ui.selectable_value(&mut new_lang, l, l.label());
+                            ui.selectable_value(&mut lang_sel, Some(l), l.label());
                         }
                     })
                     .response
@@ -2838,6 +2968,7 @@ impl App {
         setting_row(ui, p, tl(lang, "set.theme"), |ui| {
             crisp_combo(ui, p, |ui| {
                 egui::ComboBox::from_id_salt("theme")
+                    .popup_style(hide_combo_scrollbar.into())
                     .width(CTRL_COMBO_W)
                     .selected_text(mode_label(mode))
                     .show_ui(ui, |ui| {
@@ -2861,16 +2992,17 @@ impl App {
             self.theme_mode = mode;
             // Apply immediately; the per-frame resolver keeps System in sync.
             let dark = match mode {
-                ThemeMode::System => ui
-                    .ctx()
-                    .system_theme()
-                    .map(|t| t == egui::Theme::Dark)
-                    .unwrap_or(self.dark),
+                ThemeMode::System => {
+                    self.os_dark = detect_os_dark(&ui.ctx().clone());
+                    self.theme_probe = std::time::Instant::now();
+                    self.os_dark.unwrap_or(self.dark)
+                }
                 ThemeMode::Dark => true,
                 ThemeMode::Light => false,
             };
             self.dark = dark;
             theme::apply(&ui.ctx().clone(), dark);
+            save_prefs(self.theme_mode, self.lang_mode);
         }
         setting_row(ui, p, tl(lang, "set.updates"), |ui| {
             toggle(ui, &mut s.check_updates, p);
@@ -3276,8 +3408,10 @@ impl App {
         });
         ui.add_space(20.0);
 
-        if new_lang != self.lang {
-            self.lang = new_lang;
+        if lang_sel != self.lang_mode {
+            self.lang_mode = lang_sel;
+            self.lang = lang_sel.unwrap_or_else(crate::i18n::detect);
+            save_prefs(self.theme_mode, self.lang_mode);
         }
         // Keep edits in memory until saved.
         self.settings = Some(s);
@@ -3643,6 +3777,15 @@ fn adv_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, content: impl FnOn
 /// (like the web's fixed-width control column) instead of hugging each label.
 const CTRL_COMBO_W: f32 = 168.0;
 
+/// Make a combo popup's scrollbar invisible (the list still scrolls by wheel),
+/// matching the web's borderless selects. Applied per-combo via `popup_style`, so
+/// other scroll areas (history, logs, the what's-new modal) keep their scrollbar.
+fn hide_combo_scrollbar(style: &mut egui::Style) {
+    style.spacing.scroll.dormant_handle_opacity = 0.0;
+    style.spacing.scroll.interact_handle_opacity = 0.0;
+    style.spacing.scroll.active_handle_opacity = 0.0;
+}
+
 /// Run a combo with egui's own 1px border muted, then paint our own border
 /// snapped to whole physical pixels and drawn inside the rect. egui's stroke
 /// straddles the pixel grid, so at a fractional pixels_per_point (e.g. a 1.15
@@ -3703,6 +3846,7 @@ fn combo_bare(ui: &mut egui::Ui, lang: Lang, id: &str, value: &mut String, optio
     let p = theme::palette(ui.visuals().dark_mode);
     crisp_combo(ui, p, |ui| {
         egui::ComboBox::from_id_salt(id)
+            .popup_style(hide_combo_scrollbar.into())
             .width(CTRL_COMBO_W)
             .selected_text(opt_label(lang, value))
             .show_ui(ui, |ui| {

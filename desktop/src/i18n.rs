@@ -42,6 +42,31 @@ impl Lang {
         Lang::Ko,
     ];
 
+    /// Stable short code for persistence (ISO 639-1).
+    pub fn code(self) -> &'static str {
+        match self {
+            Lang::En => "en",
+            Lang::Es => "es",
+            Lang::Fr => "fr",
+            Lang::De => "de",
+            Lang::It => "it",
+            Lang::Pt => "pt",
+            Lang::Ru => "ru",
+            Lang::Pl => "pl",
+            Lang::Uk => "uk",
+            Lang::Id => "id",
+            Lang::Hi => "hi",
+            Lang::Zh => "zh",
+            Lang::Ja => "ja",
+            Lang::Ko => "ko",
+        }
+    }
+
+    /// Parse a code from [`Lang::code`].
+    pub fn from_code(code: &str) -> Option<Lang> {
+        Lang::ALL.into_iter().find(|l| l.code() == code)
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Lang::En => "English",
@@ -374,6 +399,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
 
         ("theme.system", Es) => "Sistema",
         ("theme.system", En) => "System",
+        // The language picker's "follow the OS" option reads the same as the theme's.
+        ("lang.system", l) => tl(l, "theme.system"),
         ("preset.plural", Es) => "Presets",
         ("preset.plural", En) => "Presets",
         ("preset.name", Es) => "Nombre…",
