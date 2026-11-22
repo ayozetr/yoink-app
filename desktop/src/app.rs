@@ -445,10 +445,15 @@ impl App {
                             self.shot.is_none() || std::env::var("YOINK_SHOT_WHATSNEW").is_ok();
                     }
                 }
-                Evt::History(h) => self.history = h,
+                Evt::History(h) => {
+                    self.history = h;
+                    // Prefetched at startup — don't refetch when the tab opens.
+                    self.history_loaded = true;
+                }
                 Evt::Logs { path, content } => {
                     self.logs_path = path;
                     self.logs_text = content;
+                    self.logs_loaded = true;
                 }
                 Evt::Analyzing => self.status = Status::Analyzing,
                 Evt::Info(v) => {

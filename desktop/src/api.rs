@@ -326,6 +326,16 @@ impl Backend {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     tokio::spawn(async move { check_update(evt_tx, ctx).await });
                 }
+                // Prefetch the History and Logs tabs so switching to them is
+                // instant instead of waiting for a request on first open.
+                {
+                    let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
+                    tokio::spawn(async move { load_history(evt_tx, ctx).await });
+                }
+                {
+                    let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
+                    tokio::spawn(async move { load_logs(evt_tx, ctx).await });
+                }
                 while let Some(cmd) = cmd_rx.recv().await {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     match cmd {
