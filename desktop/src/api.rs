@@ -384,14 +384,20 @@ fn emit(tx: &std::sync::mpsc::Sender<Evt>, ctx: &egui::Context, evt: Evt) {
 }
 
 async fn fetch_settings(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
-    let res = reqwest::Client::new()
-        .get(format!("{}/api/settings", http_base()))
-        .send()
-        .await;
-    if let Ok(r) = res {
-        if let Ok(s) = r.json::<Settings>().await {
-            emit(&tx, &ctx, Evt::Settings(Box::new(s)));
+    // The bundled backend may still be starting, so retry (for up to ~60 s)
+    // instead of leaving Settings stuck on its spinner forever.
+    for _ in 0..120 {
+        if let Ok(r) = reqwest::Client::new()
+            .get(format!("{}/api/settings", http_base()))
+            .send()
+            .await
+        {
+            if let Ok(s) = r.json::<Settings>().await {
+                emit(&tx, &ctx, Evt::Settings(Box::new(s)));
+                return;
+            }
         }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
 }
 

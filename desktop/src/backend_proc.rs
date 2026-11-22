@@ -28,6 +28,20 @@ fn locate() -> PathBuf {
             if sibling.exists() {
                 return sibling;
             }
+            // Dev convenience: a released app ships yoink-core beside it, but a
+            // `cargo build` of the desktop crate doesn't — find the workspace's
+            // backend build by walking up to `backend-rs/target/{release,debug}`.
+            for anc in dir.ancestors() {
+                for sub in [
+                    "backend-rs/target/release/yoink-core",
+                    "backend-rs/target/debug/yoink-core",
+                ] {
+                    let cand = anc.join(sub);
+                    if cand.exists() {
+                        return cand;
+                    }
+                }
+            }
         }
     }
     "yoink-core".into()
