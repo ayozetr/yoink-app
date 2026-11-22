@@ -854,9 +854,12 @@ impl eframe::App for App {
         let lang = self.lang;
 
         egui::Panel::top("topbar")
+            .show_separator_line(false)
             .frame(
+                // Same AMOLED canvas as the body — a seamless header, no gray band
+                // or dividing line (matches the flat web UI).
                 egui::Frame::new()
-                    .fill(p.surface)
+                    .fill(p.canvas)
                     .inner_margin(egui::Margin {
                         left: 20,
                         right: 20,
@@ -935,6 +938,7 @@ impl eframe::App for App {
         if show_update {
             let version = self.update_available.clone().unwrap_or_default();
             egui::Panel::top("update")
+                .show_separator_line(false)
                 .frame(
                     egui::Frame::new()
                         .fill(p.accent.gamma_multiply(0.18))
@@ -982,6 +986,7 @@ impl eframe::App for App {
         if self.tab == Tab::Ajustes {
             egui::Panel::right("settings-nav")
                 .resizable(false)
+                .show_separator_line(false)
                 .exact_size(210.0)
                 .frame(
                     egui::Frame::new()
@@ -1295,7 +1300,12 @@ impl App {
                         } else {
                             "youtube"
                         };
-                        ui.add(crate::icons::site_img(slug, 13.0, p.fg_dim));
+                        // Center the small brand glyph on the picker row (match
+                        // the 22px divider height) so it lines up with the label.
+                        ui.add_sized(
+                            egui::vec2(14.0, 22.0),
+                            crate::icons::site_img(slug, 14.0, p.fg_dim),
+                        );
                         ui.add_space(4.0);
                         egui::ComboBox::from_id_salt("source")
                             .selected_text(if self.source == "soundcloud" {
