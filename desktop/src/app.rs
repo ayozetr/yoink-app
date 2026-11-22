@@ -1009,14 +1009,19 @@ impl eframe::App for App {
                 ui.horizontal(|ui| {
                     ui.add_space(pad);
                     ui.vertical(|ui| {
-                        // Brand: a violet logo tile + the Gloock wordmark.
+                        // Brand: the real Yoink logo (the gradient tile with the
+                        // music-note + play mark, the same image the web UI and the
+                        // title bar use) + the Gloock wordmark.
                         ui.horizontal(|ui| {
-                            egui::Frame::new()
-                                .fill(p.accent)
-                                .corner_radius(6)
-                                .inner_margin(egui::Margin::same(4))
-                                .show(ui, |ui| crate::icons::show(ui, "music", 14.0, p.accent_fg));
-                            ui.add_space(7.0);
+                            ui.add(
+                                egui::Image::from_bytes(
+                                    "bytes://brand-logo",
+                                    include_bytes!("../assets/icon.png") as &[u8],
+                                )
+                                .fit_to_exact_size(egui::vec2(28.0, 28.0))
+                                .corner_radius(8),
+                            );
+                            ui.add_space(9.0);
                             ui.label(
                                 RichText::new("Yoink")
                                     .size(20.0)
