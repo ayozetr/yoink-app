@@ -745,6 +745,22 @@ fn resize_handles(ctx: &egui::Context) {
         });
 }
 
+/// Dim the app behind a modal with a *rounded* overlay, painted on a layer above
+/// the UI but below the modal. A modal's own backdrop is a full rectangle that
+/// would paint over (and square off) the window's transparent rounded corners,
+/// so modals set their backdrop transparent and call this instead.
+fn rounded_backdrop(ctx: &egui::Context) {
+    ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Middle,
+        egui::Id::unique("modal-backdrop"),
+    ))
+    .rect_filled(
+        ctx.content_rect(),
+        WINDOW_RADIUS,
+        egui::Color32::from_black_alpha(170),
+    );
+}
+
 /// Open a URL in the user's default browser (fire-and-forget).
 fn open_url(url: &str) {
     #[cfg(target_os = "linux")]
@@ -1227,9 +1243,13 @@ impl eframe::App for App {
         // Supported-sites dialog — an egui Modal (it dims only the background and
         // closes on backdrop click / Escape), with a custom title-bar-less panel.
         if self.supported_open {
+            rounded_backdrop(&ctx);
+            // Cap the dialog to the window so a short window never clips it; the
+            // grid scrolls inside if it doesn't fit.
+            let grid_max_h = (ctx.content_rect().height() - 210.0).max(200.0);
             let resp = egui::Modal::new(egui::Id::unique("sites_modal"))
                 .frame(modal_frame(p))
-                .backdrop_color(egui::Color32::from_black_alpha(170))
+                .backdrop_color(egui::Color32::TRANSPARENT)
                 .show(&ctx, |ui| {
                     ui.set_width(560.0);
                     // Header: globe + title (left), close (right).
@@ -1251,9 +1271,9 @@ impl eframe::App for App {
                     ui.add_space(6.0);
                     ui.label(RichText::new(tl(lang, "sites.intro")).color(p.fg_dim));
                     ui.add_space(16.0);
-                    // A 4-column grid of clickable logo + name tiles (no scroll, so
-                    // nothing is clipped and there's no scrollbar), each lightening
-                    // and gaining an accent border on hover.
+                    // A 4-column grid of clickable logo + name tiles, each
+                    // lightening and gaining an accent border on hover. It scrolls
+                    // inside the capped height so a short window never clips it.
                     let lighten = |c: egui::Color32, d: u8| {
                         egui::Color32::from_rgb(
                             c.r().saturating_add(d),
@@ -1262,6 +1282,13 @@ impl eframe::App for App {
                         )
                     };
                     let cols = 4;
+                    egui::ScrollArea::vertical()
+                        .max_height(grid_max_h)
+                        .auto_shrink([false, true])
+                        .scroll_bar_visibility(
+                            egui::scroll_area::ScrollBarVisibility::AlwaysHidden,
+                        )
+                        .show(ui, |ui| {
                     for row in SUPPORTED_SITES.chunks(cols) {
                         ui.columns(cols, |c| {
                             for (i, (slug, name, url)) in row.iter().enumerate() {
@@ -1302,6 +1329,7 @@ impl eframe::App for App {
                         });
                         ui.add_space(8.0);
                     }
+                        });
                     ui.add_space(10.0);
                     ui.vertical_centered(|ui| {
                         ui.label(
@@ -1319,9 +1347,10 @@ impl eframe::App for App {
         // "What's new" popup after an update — same custom modal look as the
         // supported-sites dialog (dimmed backdrop + title-bar-less panel).
         if self.whatsnew_open {
+            rounded_backdrop(&ctx);
             let resp = egui::Modal::new(egui::Id::unique("whatsnew_modal"))
                 .frame(modal_frame(p))
-                .backdrop_color(egui::Color32::from_black_alpha(170))
+                .backdrop_color(egui::Color32::TRANSPARENT)
                 .show(&ctx, |ui| {
                     ui.set_width(520.0);
                     ui.horizontal(|ui| {
