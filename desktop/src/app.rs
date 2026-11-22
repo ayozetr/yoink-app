@@ -1186,9 +1186,9 @@ impl eframe::App for App {
 
                     let item_h = 23.0;
                     for (key, label) in [
+                        // Same sections, in the same order, as the web's rail.
                         ("sec.general", "set.general"),
                         ("sec.downloads", "set.downloads"),
-                        ("sec.potoken", "set.potoken"),
                         ("sec.quality", "set.quality"),
                         ("sec.options", "set.options"),
                         ("sec.sponsorblock", "set.sponsorblock"),
@@ -2821,25 +2821,6 @@ impl App {
             toggle(ui, &mut s.default_embed_chapters, p);
         });
 
-        // PO token.
-        ui.add_space(20.0);
-        heading(ui, "sec.potoken", "set.potoken");
-        ui.add_space(4.0);
-        ui.label(
-            RichText::new(tl(lang, "set.potoken_desc"))
-                .small()
-                .color(p.fg_dim),
-        );
-        setting_row(ui, p, tl(lang, "set.mode"), |ui| {
-            combo_bare(
-                ui,
-                lang,
-                "set.mode",
-                &mut s.po_token_mode,
-                &["off", "manual", "auto"],
-            );
-        });
-
         // Quality.
         ui.add_space(20.0);
         heading(ui, "sec.quality", "set.quality");
@@ -2980,6 +2961,22 @@ impl App {
             );
             s.cookies_from_browser = (!v.is_empty()).then_some(v);
         });
+        // YouTube PO token — part of network access, as in the web UI.
+        setting_row(ui, p, tl(lang, "set.potoken"), |ui| {
+            combo_bare(
+                ui,
+                lang,
+                "set.mode",
+                &mut s.po_token_mode,
+                &["off", "manual", "auto"],
+            );
+        });
+        ui.label(
+            RichText::new(tl(lang, "set.potoken_desc"))
+                .small()
+                .color(p.fg_dim),
+        );
+        ui.add_space(6.0);
 
         // Shortcuts.
         ui.add_space(20.0);

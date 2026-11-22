@@ -213,8 +213,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         }
         ("set.mode", Es) => "Modo",
         ("set.mode", En) => "Mode",
-        ("set.options", Es) => "Opciones",
-        ("set.options", En) => "Options",
+        ("set.options", Es) => "Procesado",
+        ("set.options", En) => "Processing",
         ("set.normalize", Es) => "Normalizar audio a -14 LUFS",
         ("set.normalize", En) => "Normalize audio to -14 LUFS",
         ("set.sponsorblock", Es) => "SponsorBlock",
