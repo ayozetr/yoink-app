@@ -2648,6 +2648,7 @@ impl App {
         let scroll_to = self.settings_scroll_to.take();
 
         let heading = |ui: &mut egui::Ui, sec: &str, key: &str| {
+            settings_section();
             ui.add_space(10.0);
             let r = ui.label(
                 RichText::new(tl(lang, key))
@@ -2726,6 +2727,7 @@ impl App {
                 .desired_width(f32::INFINITY)
                 .margin(egui::Margin::symmetric(10, 7)),
         );
+        settings_row_rendered();
         setting_row(ui, p, tl(lang, "field.kind"), |ui| {
             combo_bare(
                 ui,
@@ -3231,8 +3233,34 @@ fn toggle(ui: &mut egui::Ui, on: &mut bool, p: theme::Palette) -> egui::Response
     resp
 }
 
-/// A settings row: label on the left, control on the right.
+thread_local! {
+    // True when the next `setting_row` is the first in its section (so it draws
+    // no divider above it). `settings_section` resets it.
+    static SETTINGS_FIRST_ROW: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+/// Call at the start of each settings section so its first row skips the divider.
+fn settings_section() {
+    SETTINGS_FIRST_ROW.with(|f| f.set(true));
+}
+
+/// Mark that a custom (non-`setting_row`) row was rendered, so the next
+/// `setting_row` draws a divider above it.
+fn settings_row_rendered() {
+    SETTINGS_FIRST_ROW.with(|f| f.set(false));
+}
+
+/// A settings row: label on the left, control on the right, with a hairline
+/// divider above it (skipped for the first row of a section).
 fn setting_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, add: impl FnOnce(&mut egui::Ui)) {
+    // A hairline between rows (as in the web), skipped for the first row of a
+    // section.
+    if !SETTINGS_FIRST_ROW.with(|f| f.replace(false)) {
+        ui.add_space(4.0);
+        let (sep, _) =
+            ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
+        ui.painter().rect_filled(sep, 0.0, p.line.gamma_multiply(0.5));
+    }
     ui.add_space(12.0);
     ui.horizontal(|ui| {
         ui.label(RichText::new(label).color(p.fg));
