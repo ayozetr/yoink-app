@@ -291,6 +291,12 @@ pub fn tl(lang: Lang, key: &str) -> &str {
 
         ("theme.system", Es) => "Sistema",
         ("theme.system", En) => "System",
+        ("preset.plural", Es) => "Presets",
+        ("preset.plural", En) => "Presets",
+        ("preset.name", Es) => "Nombre…",
+        ("preset.name", En) => "Name…",
+        ("preset.save_current", Es) => "Guardar actual",
+        ("preset.save_current", En) => "Save current",
 
         // Settings: Shortcuts / Extension / About sections.
         ("set.shortcuts", Es) => "Atajos",

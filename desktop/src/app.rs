@@ -61,6 +61,56 @@ enum ThemeMode {
     Light,
 }
 
+/// A saved format preset: a named bundle of the advanced selectors, applied to
+/// the current media in one click. Local convenience state, persisted as JSON.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct Preset {
+    name: String,
+    kind: String,
+    quality: String,
+    container: String,
+    audio_format: String,
+    bitrate: String,
+    codec: String,
+    #[serde(default)]
+    embed_subs: bool,
+    #[serde(default)]
+    embed_chapters: bool,
+}
+
+/// Where presets live (`<config>/yoink/presets.json`).
+fn presets_path() -> Option<std::path::PathBuf> {
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.config")))?;
+    Some(
+        std::path::PathBuf::from(base)
+            .join("yoink")
+            .join("presets.json"),
+    )
+}
+
+/// Load saved presets (empty on any problem).
+fn load_presets() -> Vec<Preset> {
+    presets_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+/// Persist presets to disk (best-effort).
+fn save_presets(presets: &[Preset]) {
+    if let Some(path) = presets_path() {
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        if let Ok(json) = serde_json::to_string_pretty(presets) {
+            let _ = std::fs::write(path, json);
+        }
+    }
+}
+
 /// What a queue item downloads: a plain URL (yt-dlp) or a resolved music track
 /// (match → download → tag).
 enum QSource {
@@ -129,6 +179,9 @@ pub struct App {
     q_audio: String,
     advanced_open: bool,
     supported_open: bool,
+    presets: Vec<Preset>,
+    preset_naming: bool,
+    preset_name: String,
     update_available: Option<String>,
     update_dismissed: bool,
     whatsnew: Vec<(String, String)>,
@@ -214,6 +267,9 @@ impl App {
             q_audio: "mp3".into(),
             advanced_open: false,
             supported_open: false,
+            presets: load_presets(),
+            preset_naming: false,
+            preset_name: String::new(),
             update_available: None,
             update_dismissed: false,
             whatsnew: Vec::new(),
@@ -278,6 +334,25 @@ impl App {
         }
         if std::env::var("YOINK_SHOT_ADV").is_ok() {
             app.advanced_open = true;
+        }
+        if std::env::var("YOINK_SHOT_PREVIEW").is_ok() {
+            // Seed a fake video preview so the preview + advanced panel render
+            // without hitting the network.
+            app.preview = Preview::Video(VideoLite {
+                title: "Big Buck Bunny — Official Blender Foundation Short Film".into(),
+                thumbnail_url: None,
+                uploader: Some("Blender Foundation".into()),
+                duration_string: Some("9:56".into()),
+                has_audio: true,
+                is_vr: false,
+                subtitle_langs: vec!["en".into(), "es".into()],
+                has_chapters: true,
+                formats: vec![crate::api::FmtLite {
+                    resolution: Some("2160p".into()),
+                    filesize: Some(734_003_200),
+                }],
+            });
+            app.status = Status::Idle;
         }
         if std::env::var("YOINK_SHOT_SITES").is_ok() {
             app.supported_open = true;
@@ -1706,6 +1781,116 @@ impl App {
             ui.add_space(10.0);
             ui.separator();
             ui.add_space(8.0);
+
+            // Presets: apply a saved format bundle, or save the current one.
+            adv_row(ui, p, tl(lang, "preset.plural"), |ui| {
+                let presets = self.presets.clone();
+                let mut apply: Option<usize> = None;
+                let mut del: Option<usize> = None;
+                for (i, pr) in presets.iter().enumerate() {
+                    egui::Frame::new()
+                        .fill(p.surface)
+                        .corner_radius(8)
+                        .stroke(egui::Stroke::new(1.0, p.line))
+                        .inner_margin(egui::Margin {
+                            left: 10,
+                            right: 4,
+                            top: 2,
+                            bottom: 2,
+                        })
+                        .show(ui, |ui| {
+                            if ui
+                                .add(
+                                    egui::Button::new(RichText::new(&pr.name).small().color(p.fg))
+                                        .frame(false),
+                                )
+                                .clicked()
+                            {
+                                apply = Some(i);
+                            }
+                            let (xr, xresp) = ui
+                                .allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::click());
+                            let hov = xresp.hovered();
+                            if hov {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            let xc = if hov { p.err } else { p.fg_dim };
+                            crate::icons::img("x", 11.0, xc).paint_at(
+                                ui,
+                                egui::Rect::from_center_size(xr.center(), egui::vec2(11.0, 11.0)),
+                            );
+                            if xresp.clicked() {
+                                del = Some(i);
+                            }
+                        });
+                }
+                if self.preset_naming {
+                    let r = ui.add(
+                        egui::TextEdit::singleline(&mut self.preset_name)
+                            .hint_text(tl(lang, "preset.name"))
+                            .desired_width(120.0),
+                    );
+                    let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                        self.preset_naming = false;
+                        self.preset_name.clear();
+                    } else if (ui
+                        .add(
+                            egui::Button::new(
+                                RichText::new(tl(lang, "action.save")).small().color(p.accent),
+                            )
+                            .fill(p.accent.gamma_multiply(0.16))
+                            .corner_radius(8),
+                        )
+                        .clicked()
+                        || enter)
+                        && !self.preset_name.trim().is_empty()
+                    {
+                        self.presets.push(Preset {
+                            name: self.preset_name.trim().to_string(),
+                            kind: self.kind.clone(),
+                            quality: self.quality.clone(),
+                            container: self.container.clone(),
+                            audio_format: self.audio_format.clone(),
+                            bitrate: self.bitrate.clone(),
+                            codec: self.codec.clone(),
+                            embed_subs: self.embed_subs,
+                            embed_chapters: self.embed_chapters,
+                        });
+                        save_presets(&self.presets);
+                        self.preset_naming = false;
+                        self.preset_name.clear();
+                    }
+                } else if ui
+                    .add(
+                        egui::Button::image_and_text(
+                            crate::icons::img("plus", 12.0, p.fg_dim),
+                            RichText::new(tl(lang, "preset.save_current")).small().color(p.fg_dim),
+                        )
+                        .frame(false),
+                    )
+                    .clicked()
+                {
+                    self.preset_naming = true;
+                    self.preset_name.clear();
+                }
+                if let Some(i) = apply {
+                    let pr = &self.presets[i];
+                    self.kind = pr.kind.clone();
+                    self.quality = pr.quality.clone();
+                    self.container = pr.container.clone();
+                    self.audio_format = pr.audio_format.clone();
+                    self.bitrate = pr.bitrate.clone();
+                    self.codec = pr.codec.clone();
+                    self.embed_subs = pr.embed_subs;
+                    self.embed_chapters = pr.embed_chapters;
+                }
+                if let Some(i) = del {
+                    self.presets.remove(i);
+                    save_presets(&self.presets);
+                }
+            });
+
             let kind = self.kind.clone();
             adv_row(ui, p, tl(lang, "adv.format"), |ui| {
                 if kind == "video" {
