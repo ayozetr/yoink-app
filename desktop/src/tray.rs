@@ -13,7 +13,7 @@ pub enum TrayMsg {
 }
 
 #[cfg(target_os = "linux")]
-pub fn spawn(tx: std::sync::mpsc::Sender<TrayMsg>) {
+pub fn spawn(tx: std::sync::mpsc::Sender<TrayMsg>, show_label: String, quit_label: String) {
     std::thread::spawn(move || {
         if gtk::init().is_err() {
             return;
@@ -22,8 +22,8 @@ pub fn spawn(tx: std::sync::mpsc::Sender<TrayMsg>) {
         use tray_icon::TrayIconBuilder;
 
         let menu = Menu::new();
-        let show = MenuItem::new("Mostrar Yoink", true, None);
-        let quit = MenuItem::new("Salir", true, None);
+        let show = MenuItem::new(&show_label, true, None);
+        let quit = MenuItem::new(&quit_label, true, None);
         let _ = menu.append(&show);
         let _ = menu.append(&quit);
 
@@ -63,4 +63,4 @@ fn icon() -> tray_icon::Icon {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn spawn(_tx: std::sync::mpsc::Sender<TrayMsg>) {}
+pub fn spawn(_tx: std::sync::mpsc::Sender<TrayMsg>, _show_label: String, _quit_label: String) {}

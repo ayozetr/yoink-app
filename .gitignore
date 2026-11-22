@@ -50,3 +50,7 @@ blob-report/
 
 # Legacy Tauri local leftovers (deleted from the repo)
 src-tauri/
+
+# Python tooling caches
+.pytest_cache/
+.ruff_cache/

@@ -673,7 +673,7 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
     if settings.nfo_sidecars || req.auto_vr {
         a.push("--write-info-json".into());
     }
-    // Bundled ffmpeg location (set by the Tauri shell), so merges/extraction work
+    // Bundled ffmpeg location (set by the desktop app via backend_proc.rs), so merges/extraction work
     // without a system ffmpeg.
     if let Ok(dir) = std::env::var("YOINK_FFMPEG") {
         if !dir.is_empty() {
@@ -1144,7 +1144,6 @@ struct AppSettings {
     music_folders: bool,
     prefer_soundcloud_lossless: bool,
     fetch_lyrics: bool,
-    lyrics_lrc: bool,
     cookies_from_browser: Option<String>,
     cookies_file: Option<String>,
     proxy: Option<String>,
@@ -1155,7 +1154,6 @@ struct AppSettings {
     sponsorblock_action: String,
     filename_template: String,
     rate_limit: Option<String>,
-    use_aria2c: bool,
     video_codec: String,
     audio_bitrate: String,
     normalize_audio: bool,
@@ -1164,7 +1162,6 @@ struct AppSettings {
     notify_on_complete: bool,
     minimize_to_tray: bool,
     launch_at_startup: bool,
-    disable_global_hotkeys: bool,
 }
 
 impl Default for AppSettings {
@@ -1181,7 +1178,6 @@ impl Default for AppSettings {
             music_folders: false,
             prefer_soundcloud_lossless: false,
             fetch_lyrics: false,
-            lyrics_lrc: false,
             cookies_from_browser: None,
             cookies_file: None,
             proxy: None,
@@ -1192,7 +1188,6 @@ impl Default for AppSettings {
             sponsorblock_action: "remove".into(),
             filename_template: "%(title)s".into(),
             rate_limit: None,
-            use_aria2c: false,
             video_codec: "any".into(),
             audio_bitrate: "best".into(),
             normalize_audio: false,
@@ -1201,7 +1196,6 @@ impl Default for AppSettings {
             notify_on_complete: true,
             minimize_to_tray: false,
             launch_at_startup: false,
-            disable_global_hotkeys: false,
         }
     }
 }
@@ -2058,7 +2052,7 @@ async fn main() {
         .route("/api/po-token/proxy", post(po_token::proxy))
         .layer(cors);
 
-    // Shut down when the parent (the Tauri shell) closes our stdin — mirrors the
+    // Shut down when the parent (the desktop app) closes our stdin — mirrors the
     // Python backend's watchdog. Only when the shell asks (it hands us an open
     // pipe); a dev/standalone run inherits an already-EOF stdin and must NOT
     // exit, so the watchdog is gated on the env var the shell sets.

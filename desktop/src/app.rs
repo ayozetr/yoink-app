@@ -3752,11 +3752,20 @@ fn set_autostart(enabled: bool) {
     let dir = std::path::PathBuf::from(base).join("autostart");
     let path = dir.join("yoink.desktop");
     if enabled {
+        // The real launchable path, not a bare name: the AppImage ($APPIMAGE), or
+        // this executable — `yoink-desktop` isn't on $PATH for a portable build.
+        let exec = std::env::var_os("APPIMAGE")
+            .map(std::path::PathBuf::from)
+            .or_else(|| std::env::current_exe().ok())
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "yoink-desktop".into());
         let _ = std::fs::create_dir_all(&dir);
         let _ = std::fs::write(
             &path,
-            "[Desktop Entry]\nType=Application\nName=Yoink\nExec=yoink-desktop\n\
-             Icon=yoink\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+            format!(
+                "[Desktop Entry]\nType=Application\nName=Yoink\nExec={exec} %u\n\
+                 Icon=yoink\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
+            ),
         );
     } else {
         let _ = std::fs::remove_file(&path);

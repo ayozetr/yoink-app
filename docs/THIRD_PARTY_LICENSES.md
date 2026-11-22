@@ -21,7 +21,7 @@ to embed subtitles, chapters and metadata.
   FFmpeg's native codecs plus libmp3lame (MP3 encoding) and mbedTLS (https); none
   of the heavy external video codec libraries, since Yoink never decodes or
   re-encodes video (it stream-copies). This is ~33 MB total vs the ~336 MB of the
-  previous all-codecs prebuild. `scripts/fetch_ffmpeg.py` (BtbN LGPL prebuilts)
+  previous all-codecs prebuild. `scripts/build_ffmpeg.sh` (BtbN LGPL prebuilts)
   remains as a fallback.
 - **Corresponding source & relinking (LGPL):** the complete source of FFmpeg and
   of the statically linked libraries is the upstream of each pinned version

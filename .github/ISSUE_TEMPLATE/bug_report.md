@@ -30,7 +30,7 @@ assignees: ayozetr
 
 - Yoink version: <!-- e.g. 4.1.0 — shown in Settings › About, or in package.json -->
 - Platform: <!-- Windows / Linux -->
-- Install method: <!-- Windows installer (.exe NSIS / .msi) · Linux .AppImage / .deb / .rpm · dev (scripts/dev.py) -->
+- Install method: <!-- Linux AppImage · built from source (cargo run) -->
 - Host OS + version: <!-- e.g. Windows 11 23H2; on Linux `uname -srm` + distro -->
 - Source you were downloading from: <!-- e.g. a YouTube video/playlist; single video vs playlist. You can redact the id. -->
 - Format picked: <!-- e.g. video MKV 1080p, codec AV1, with subtitles; or audio Opus 256 kbps / FLAC -->

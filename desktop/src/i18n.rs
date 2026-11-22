@@ -405,6 +405,10 @@ pub fn tl(lang: Lang, key: &str) -> &str {
 
         ("theme.system", Es) => "Sistema",
         ("theme.system", En) => "System",
+        ("tray.show", Es) => "Mostrar Yoink",
+        ("tray.show", En) => "Show Yoink",
+        ("tray.quit", Es) => "Salir",
+        ("tray.quit", En) => "Quit",
         // The language picker's "follow the OS" option reads the same as the theme's.
         ("lang.system", l) => tl(l, "theme.system"),
         ("preset.plural", Es) => "Presets",

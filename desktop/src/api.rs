@@ -108,7 +108,6 @@ pub struct Settings {
     pub music_folders: bool,
     pub prefer_soundcloud_lossless: bool,
     pub fetch_lyrics: bool,
-    pub lyrics_lrc: bool,
     pub cookies_from_browser: Option<String>,
     pub cookies_file: Option<String>,
     pub proxy: Option<String>,
@@ -119,7 +118,6 @@ pub struct Settings {
     pub sponsorblock_action: String,
     pub filename_template: String,
     pub rate_limit: Option<String>,
-    pub use_aria2c: bool,
     pub video_codec: String,
     pub audio_bitrate: String,
     pub normalize_audio: bool,
@@ -128,7 +126,6 @@ pub struct Settings {
     pub notify_on_complete: bool,
     pub minimize_to_tray: bool,
     pub launch_at_startup: bool,
-    pub disable_global_hotkeys: bool,
 }
 
 /// A row of the download history (`GET /api/history`).

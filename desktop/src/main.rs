@@ -92,9 +92,15 @@ fn main() -> eframe::Result {
     // Start (and own) the backend if one isn't already running; dropped on exit.
     let _backend = backend_proc::Backend::ensure();
 
-    // System tray (its clicks come back over this channel).
+    // System tray (its clicks come back over this channel). Labels in the OS
+    // language the app starts in.
     let (tray_tx, tray_rx) = std::sync::mpsc::channel::<tray::TrayMsg>();
-    tray::spawn(tray_tx);
+    let tl = crate::i18n::detect();
+    tray::spawn(
+        tray_tx,
+        crate::i18n::tl(tl, "tray.show").to_string(),
+        crate::i18n::tl(tl, "tray.quit").to_string(),
+    );
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
