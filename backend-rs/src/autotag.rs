@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Ayoze Torres
 
-//! Audio auto-tagging — the write side of services/autotag_service.py. Writes the
-//! chosen metadata (title/artist/album/year/genre/track/ISRC) and embeds the cover
-//! into a downloaded file with `lofty`, which maps each tag to the right frame per
-//! format (ID3 TSRC, MP4 iTunes atom, Vorbis `ISRC`, …). The catalogue lookups
-//! (Apple/Deezer/MusicBrainz), lyrics and .nfo/music-folders are later slices.
+//! Audio auto-tagging. Writes the chosen metadata
+//! (title/artist/album/year/genre/track/ISRC), embeds the cover and (optionally)
+//! plain lyrics into a downloaded file with `lofty`, which maps each tag to the
+//! right frame per format (ID3 TSRC, MP4 iTunes atom, Vorbis `ISRC`, …). The
+//! catalogue lookups are Apple Music, Deezer and MusicBrainz; lyrics come from
+//! LRCLIB. The .nfo sidecar and music-folder relocation live in the apply route.
 
 use lofty::config::WriteOptions;
 use lofty::file::TaggedFileExt;
@@ -82,6 +83,22 @@ pub fn write_tags(f: &ApplyFields) -> Result<bool, String> {
     tag.save_to_path(&f.path, WriteOptions::default())
         .map_err(|e| e.to_string())?;
     Ok(embedded)
+}
+
+/// Embed plain lyrics into the file's primary tag (best-effort). Mirrors the
+/// cover/ISRC path in `write_tags`: open, ensure a tag, set the lyrics field, save.
+pub fn embed_lyrics(path: &str, text: &str) -> Result<(), String> {
+    let mut tagged = lofty::read_from_path(path).map_err(|e| e.to_string())?;
+    let tag_type = tagged.primary_tag_type();
+    if tagged.primary_tag_mut().is_none() {
+        tagged.insert_tag(Tag::new(tag_type));
+    }
+    let tag = tagged
+        .primary_tag_mut()
+        .ok_or_else(|| "this file type cannot be tagged".to_string())?;
+    tag.insert_text(ItemKey::Lyrics, text.to_string());
+    tag.save_to_path(path, WriteOptions::default())
+        .map_err(|e| e.to_string())
 }
 
 /// Fetch cover bytes (best-effort) for embedding.

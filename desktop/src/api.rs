@@ -29,21 +29,37 @@ fn http_base() -> String {
 /// A request from the UI to the worker.
 pub enum Cmd {
     Analyze(String),
-    Search { query: String, source: String },
+    Search {
+        query: String,
+        source: String,
+    },
     ResolveMusic(String),
-    Download(DownloadReq),
+    Download(DownloadReq, AutotagOpts),
     ImportTrack(Box<MusicTrack>),
     SaveSettings(Box<Settings>),
     ReloadSettings,
     LoadHistory,
     LoadLogs,
-    LoadWhatsNew { since: String },
+    LoadWhatsNew {
+        since: String,
+    },
     Open(String),
     /// Re-run the GitHub release check on demand (the About "check" button).
     CheckUpdate,
     /// Download the given release asset (verifying `signature`) and replace this
     /// binary in place.
-    SelfUpdate { url: String, signature: String },
+    SelfUpdate {
+        url: String,
+        signature: String,
+    },
+}
+
+/// What the client should do after a plain audio download finishes. The catalogue
+/// source itself is read server-side by the autotag routes (`AppSettings`); the
+/// client only needs to know whether to also fetch + embed lyrics.
+#[derive(Clone, Copy, Default)]
+pub struct AutotagOpts {
+    pub fetch_lyrics: bool,
 }
 
 /// A piece of news from the worker to the UI.
@@ -76,7 +92,10 @@ pub enum Evt {
     },
     Analyzing,
     Info(VideoLite),
-    SearchResults { query: String, items: Vec<SearchItem> },
+    SearchResults {
+        query: String,
+        items: Vec<SearchItem>,
+    },
     Music(Box<MusicInfo>),
     Playlist {
         title: String,
@@ -355,8 +374,8 @@ impl Backend {
                         Cmd::ResolveMusic(url) => {
                             tokio::spawn(async move { resolve_music(url, evt_tx, ctx).await });
                         }
-                        Cmd::Download(req) => {
-                            tokio::spawn(async move { download(req, evt_tx, ctx).await });
+                        Cmd::Download(req, autotag) => {
+                            tokio::spawn(async move { download(req, autotag, evt_tx, ctx).await });
                         }
                         Cmd::ImportTrack(t) => {
                             tokio::spawn(async move { import_track(*t, evt_tx, ctx).await });
@@ -383,9 +402,9 @@ impl Backend {
                             tokio::spawn(async move { open_path(path).await });
                         }
                         Cmd::SelfUpdate { url, signature } => {
-                            tokio::spawn(
-                                async move { do_self_update(url, signature, evt_tx, ctx).await },
-                            );
+                            tokio::spawn(async move {
+                                do_self_update(url, signature, evt_tx, ctx).await
+                            });
                         }
                     }
                 }
@@ -824,9 +843,79 @@ async fn analyze(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Conte
     }
 }
 
-async fn download(req: DownloadReq, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+async fn download(
+    req: DownloadReq,
+    autotag: AutotagOpts,
+    tx: std::sync::mpsc::Sender<Evt>,
+    ctx: egui::Context,
+) {
     if let Some(path) = run_ws_download(&req, &tx, &ctx).await {
+        // Auto-tag an audio download from the catalogue (title/artist/album/cover,
+        // + .nfo / music-folder relocation server-side), mirroring the CLI. A file
+        // with no catalogue match is left untouched. Best-effort: a tagging hiccup
+        // never fails the download.
+        if req.kind == "audio" {
+            autotag_file(&path, autotag.fetch_lyrics).await;
+        }
         emit(&tx, &ctx, Evt::Done(path));
+    }
+}
+
+/// Run the auto-tag cascade for a freshly downloaded audio file: identify the
+/// best catalogue match, apply its tags, and (when enabled) fetch + embed lyrics.
+/// The autotag source is read server-side; this only orchestrates the calls.
+async fn autotag_file(path: &str, fetch_lyrics: bool) {
+    let client = reqwest::Client::new();
+    // 1. Identify: the server guesses artist/title from the filename and searches
+    //    the configured catalogue, returning ranked candidates.
+    let results: Option<Value> = match client
+        .post(format!("{}/api/autotag/identify", http_base()))
+        .json(&serde_json::json!({ "path": path }))
+        .send()
+        .await
+    {
+        Ok(r) => r.json().await.ok(),
+        Err(_) => return,
+    };
+    let best = results
+        .as_ref()
+        .and_then(|v| v.get("results"))
+        .and_then(Value::as_array)
+        .and_then(|a| a.first());
+    let Some(best) = best else { return }; // no match → leave the file untagged
+
+    // 2. Apply the top candidate's tags (+ cover, .nfo, relocation server-side).
+    let _ = client
+        .post(format!("{}/api/autotag/apply", http_base()))
+        .json(&serde_json::json!({
+            "path": path,
+            "title": best.get("title"),
+            "artist": best.get("artist"),
+            "album": best.get("album"),
+            "year": best.get("year"),
+            "genre": best.get("genre"),
+            "track_number": best.get("track_number"),
+            "cover_url": best.get("cover_url"),
+        }))
+        .send()
+        .await;
+
+    // 3. Lyrics (opt-in): fetch from LRCLIB and embed into the file.
+    if fetch_lyrics {
+        let title = best.get("title").and_then(Value::as_str).unwrap_or("");
+        let artist = best.get("artist").and_then(Value::as_str).unwrap_or("");
+        if !title.is_empty() {
+            let _ = client
+                .post(format!("{}/api/autotag/lyrics", http_base()))
+                .json(&serde_json::json!({
+                    "title": title,
+                    "artist": artist,
+                    "album": best.get("album"),
+                    "path": path,
+                }))
+                .send()
+                .await;
+        }
     }
 }
 

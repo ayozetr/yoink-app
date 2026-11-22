@@ -195,14 +195,14 @@ pub struct App {
     minter: crate::minter::Minter,
     dark: bool,
     theme_mode: ThemeMode,
-    os_dark: Option<bool>,                 // last probed OS light/dark preference
-    theme_probe: std::time::Instant,       // throttles re-probing the OS theme
+    os_dark: Option<bool>,           // last probed OS light/dark preference
+    theme_probe: std::time::Instant, // throttles re-probing the OS theme
     os_dark_tx: std::sync::mpsc::Sender<Option<bool>>, // background OS-theme probe result
     os_dark_rx: std::sync::mpsc::Receiver<Option<bool>>,
-    os_probe_inflight: bool,               // a background OS-theme probe is running
-    lang: Lang,                            // the resolved UI language
-    lang_mode: Option<Lang>,               // None = follow the OS language
-    template_custom: bool,                 // filename template: custom (free-text) vs a preset
+    os_probe_inflight: bool, // a background OS-theme probe is running
+    lang: Lang,              // the resolved UI language
+    lang_mode: Option<Lang>, // None = follow the OS language
+    template_custom: bool,   // filename template: custom (free-text) vs a preset
     tab: Tab,
     url: String,
     kind: String,
@@ -229,7 +229,7 @@ pub struct App {
     settings: Option<Settings>,
     settings_note: Option<String>,
     settings_scroll_to: Option<String>,
-    settings_failed: bool, // the backend never answered the settings request
+    settings_failed: bool,  // the backend never answered the settings request
     active_section: String, // settings section currently in view (for the nav scrollspy)
     history: Vec<HistoryEntry>,
     history_loaded: bool,
@@ -258,8 +258,8 @@ pub struct App {
     update_progress: Option<f32>,
     update_error: Option<String>,
     update_dismissed: bool,
-    update_checking: bool, // a manual "check for updates" is in flight
-    update_checked: bool,  // a check has completed (so we can show "up to date")
+    update_checking: bool,        // a manual "check for updates" is in flight
+    update_checked: bool,         // a check has completed (so we can show "up to date")
     startup_update_checked: bool, // the one-time startup check has been triggered
     whatsnew: Vec<(String, String)>,
     whatsnew_open: bool,
@@ -268,7 +268,7 @@ pub struct App {
     deeplink_rx: std::sync::mpsc::Receiver<String>,
     tray_rx: std::sync::mpsc::Receiver<crate::tray::TrayMsg>,
     shot: Option<(String, std::time::Instant)>, // (output path, started) for YOINK_SHOT
-    focus_url: bool, // a pending Ctrl+L: focus the URL field next frame
+    focus_url: bool,                            // a pending Ctrl+L: focus the URL field next frame
 }
 
 /// The OS light/dark preference, or `None` if it can't be determined. Tries
@@ -537,7 +537,9 @@ impl App {
                 Evt::Settings(s) => {
                     self.minter.set_auto(s.po_token_mode == "auto");
                     // A loaded template that isn't one of the presets is a custom one.
-                    self.template_custom = !TEMPLATE_PRESETS.iter().any(|(v, _)| *v == s.filename_template);
+                    self.template_custom = !TEMPLATE_PRESETS
+                        .iter()
+                        .any(|(v, _)| *v == s.filename_template);
                     // Run the one-time startup update check now that we know the
                     // user's preference (honouring the "check for updates" setting).
                     if !self.startup_update_checked {
@@ -689,16 +691,21 @@ impl App {
             QSource::Url(url) => {
                 let kind = it.kind.clone();
                 let is_audio = kind == "audio";
-                self.backend.send(Cmd::Download(DownloadReq {
-                    url: url.clone(),
-                    quality: (!is_audio).then(|| it.quality.clone()),
-                    kind,
-                    container: it.container.clone(),
-                    audio_format: it.audio.clone(),
-                    audio_bitrate: (is_audio && it.bitrate != "best")
-                        .then(|| it.bitrate.clone()),
-                    ..Default::default()
-                }));
+                self.backend.send(Cmd::Download(
+                    DownloadReq {
+                        url: url.clone(),
+                        quality: (!is_audio).then(|| it.quality.clone()),
+                        kind,
+                        container: it.container.clone(),
+                        audio_format: it.audio.clone(),
+                        audio_bitrate: (is_audio && it.bitrate != "best")
+                            .then(|| it.bitrate.clone()),
+                        ..Default::default()
+                    },
+                    crate::api::AutotagOpts {
+                        fetch_lyrics: self.settings.as_ref().is_some_and(|s| s.fetch_lyrics),
+                    },
+                ));
             }
             QSource::Music(track) => {
                 self.backend.send(Cmd::ImportTrack(track.clone()));
@@ -779,21 +786,26 @@ impl App {
         self.eta = None;
         self.status = Status::Downloading;
         let video = self.kind == "video";
-        self.backend.send(Cmd::Download(DownloadReq {
-            url: self.url.trim().to_string(),
-            kind: self.kind.clone(),
-            quality: video.then(|| self.quality.clone()),
-            container: self.container.clone(),
-            audio_format: self.audio_format.clone(),
-            video_codec: (video && self.codec != "any").then(|| self.codec.clone()),
-            audio_bitrate: (!video && self.bitrate != "best").then(|| self.bitrate.clone()),
-            embed_subs: video && self.embed_subs,
-            subtitle_lang: (video && self.embed_subs && !self.subtitle_lang.is_empty())
-                .then(|| self.subtitle_lang.clone()),
-            embed_chapters: video && self.embed_chapters,
-            trim_start: parse_timecode(&self.trim_start),
-            trim_end: parse_timecode(&self.trim_end),
-        }));
+        self.backend.send(Cmd::Download(
+            DownloadReq {
+                url: self.url.trim().to_string(),
+                kind: self.kind.clone(),
+                quality: video.then(|| self.quality.clone()),
+                container: self.container.clone(),
+                audio_format: self.audio_format.clone(),
+                video_codec: (video && self.codec != "any").then(|| self.codec.clone()),
+                audio_bitrate: (!video && self.bitrate != "best").then(|| self.bitrate.clone()),
+                embed_subs: video && self.embed_subs,
+                subtitle_lang: (video && self.embed_subs && !self.subtitle_lang.is_empty())
+                    .then(|| self.subtitle_lang.clone()),
+                embed_chapters: video && self.embed_chapters,
+                trim_start: parse_timecode(&self.trim_start),
+                trim_end: parse_timecode(&self.trim_end),
+            },
+            crate::api::AutotagOpts {
+                fetch_lyrics: self.settings.as_ref().is_some_and(|s| s.fetch_lyrics),
+            },
+        ));
     }
 }
 
@@ -901,18 +913,59 @@ fn resize_handles(ctx: &egui::Context) {
     use egui::{CursorIcon as Cur, ResizeDirection as Dir};
     let r = ctx.content_rect();
     let b = 6.0;
-    let rect =
-        |x0: f32, y0: f32, x1: f32, y1: f32| egui::Rect::from_min_max(egui::pos2(x0, y0), egui::pos2(x1, y1));
+    let rect = |x0: f32, y0: f32, x1: f32, y1: f32| {
+        egui::Rect::from_min_max(egui::pos2(x0, y0), egui::pos2(x1, y1))
+    };
     let handles = [
         // Edges first, then corners (corners are added later so they win overlap).
-        ("rz_n", rect(r.left() + b, r.top(), r.right() - b, r.top() + b), Dir::North, Cur::ResizeVertical),
-        ("rz_s", rect(r.left() + b, r.bottom() - b, r.right() - b, r.bottom()), Dir::South, Cur::ResizeVertical),
-        ("rz_w", rect(r.left(), r.top() + b, r.left() + b, r.bottom() - b), Dir::West, Cur::ResizeHorizontal),
-        ("rz_e", rect(r.right() - b, r.top() + b, r.right(), r.bottom() - b), Dir::East, Cur::ResizeHorizontal),
-        ("rz_nw", rect(r.left(), r.top(), r.left() + b, r.top() + b), Dir::NorthWest, Cur::ResizeNwSe),
-        ("rz_ne", rect(r.right() - b, r.top(), r.right(), r.top() + b), Dir::NorthEast, Cur::ResizeNeSw),
-        ("rz_sw", rect(r.left(), r.bottom() - b, r.left() + b, r.bottom()), Dir::SouthWest, Cur::ResizeNeSw),
-        ("rz_se", rect(r.right() - b, r.bottom() - b, r.right(), r.bottom()), Dir::SouthEast, Cur::ResizeNwSe),
+        (
+            "rz_n",
+            rect(r.left() + b, r.top(), r.right() - b, r.top() + b),
+            Dir::North,
+            Cur::ResizeVertical,
+        ),
+        (
+            "rz_s",
+            rect(r.left() + b, r.bottom() - b, r.right() - b, r.bottom()),
+            Dir::South,
+            Cur::ResizeVertical,
+        ),
+        (
+            "rz_w",
+            rect(r.left(), r.top() + b, r.left() + b, r.bottom() - b),
+            Dir::West,
+            Cur::ResizeHorizontal,
+        ),
+        (
+            "rz_e",
+            rect(r.right() - b, r.top() + b, r.right(), r.bottom() - b),
+            Dir::East,
+            Cur::ResizeHorizontal,
+        ),
+        (
+            "rz_nw",
+            rect(r.left(), r.top(), r.left() + b, r.top() + b),
+            Dir::NorthWest,
+            Cur::ResizeNwSe,
+        ),
+        (
+            "rz_ne",
+            rect(r.right() - b, r.top(), r.right(), r.top() + b),
+            Dir::NorthEast,
+            Cur::ResizeNeSw,
+        ),
+        (
+            "rz_sw",
+            rect(r.left(), r.bottom() - b, r.left() + b, r.bottom()),
+            Dir::SouthWest,
+            Cur::ResizeNeSw,
+        ),
+        (
+            "rz_se",
+            rect(r.right() - b, r.bottom() - b, r.right(), r.bottom()),
+            Dir::SouthEast,
+            Cur::ResizeNwSe,
+        ),
     ];
     egui::Area::new(egui::Id::unique("resize-handles"))
         .order(egui::Order::Foreground)
@@ -924,7 +977,8 @@ fn resize_handles(ctx: &egui::Context) {
                     ui.ctx().set_cursor_icon(cur);
                 }
                 if resp.drag_started() {
-                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::BeginResize(dir));
+                    ui.ctx()
+                        .send_viewport_cmd(egui::ViewportCommand::BeginResize(dir));
                 }
             }
         });
@@ -1190,11 +1244,8 @@ impl eframe::App for App {
         // background behind everything, and keep every panel's fill transparent,
         // so the four corners outside this rounded rect stay clear — rounded
         // window corners that we control, consistent across platforms.
-        ui.painter().rect_filled(
-            ctx.content_rect(),
-            WINDOW_RADIUS,
-            p.canvas,
-        );
+        ui.painter()
+            .rect_filled(ctx.content_rect(), WINDOW_RADIUS, p.canvas);
 
         // Our own title bar (native decoration is off): a flat AMOLED strip with
         // the window controls on the right. The empty area drags the window; a
@@ -1203,12 +1254,16 @@ impl eframe::App for App {
         egui::Panel::top("titlebar")
             .show_separator_line(false)
             .exact_size(34.0)
-            .frame(egui::Frame::new().fill(egui::Color32::TRANSPARENT).inner_margin(egui::Margin {
-                left: 12,
-                right: 0,
-                top: 0,
-                bottom: 0,
-            }))
+            .frame(
+                egui::Frame::new()
+                    .fill(egui::Color32::TRANSPARENT)
+                    .inner_margin(egui::Margin {
+                        left: 12,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                    }),
+            )
             .show(ui, |ui| {
                 let bar = ui.max_rect();
                 let drag = ui.interact(
@@ -1359,9 +1414,7 @@ impl eframe::App for App {
                                     .corner_radius(3),
                             );
                         } else if self.update_error.is_some() {
-                            ui.label(
-                                RichText::new(tl(lang, "update.failed")).color(p.fg),
-                            );
+                            ui.label(RichText::new(tl(lang, "update.failed")).color(p.fg));
                         } else {
                             ui.label(
                                 RichText::new(format!(
@@ -1605,50 +1658,51 @@ impl eframe::App for App {
                     egui::ScrollArea::vertical()
                         .max_height(grid_max_h)
                         .auto_shrink([false, true])
-                        .scroll_bar_visibility(
-                            egui::scroll_area::ScrollBarVisibility::AlwaysHidden,
-                        )
+                        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
                         .show(ui, |ui| {
-                    for row in SUPPORTED_SITES.chunks(cols) {
-                        ui.columns(cols, |c| {
-                            for (i, (slug, name, url)) in row.iter().enumerate() {
-                                let col = &mut c[i];
-                                let w = col.available_width();
-                                let (rect, resp) = col
-                                    .allocate_exact_size(egui::vec2(w, 76.0), egui::Sense::click());
-                                let hov = resp.hovered();
-                                let fill = if hov {
-                                    lighten(p.surface_hi, 16)
-                                } else {
-                                    p.surface_hi
-                                };
-                                let border = if hov { p.accent } else { p.line };
-                                col.painter().rect_filled(rect, 12.0, fill);
-                                col.painter().rect_stroke(
-                                    rect,
-                                    12.0,
-                                    egui::Stroke::new(1.0, border),
-                                    egui::StrokeKind::Inside,
-                                );
-                                let mut cui = col.new_child(
-                                    egui::UiBuilder::new()
-                                        .max_rect(rect)
-                                        .layout(egui::Layout::top_down(egui::Align::Center)),
-                                );
-                                cui.add_space(16.0);
-                                crate::icons::show_site(&mut cui, slug, 22.0, p.fg);
-                                cui.add_space(9.0);
-                                cui.label(RichText::new(*name).small().color(p.fg));
-                                if hov {
-                                    col.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                }
-                                if resp.clicked() {
-                                    open_url(url);
-                                }
+                            for row in SUPPORTED_SITES.chunks(cols) {
+                                ui.columns(cols, |c| {
+                                    for (i, (slug, name, url)) in row.iter().enumerate() {
+                                        let col = &mut c[i];
+                                        let w = col.available_width();
+                                        let (rect, resp) = col.allocate_exact_size(
+                                            egui::vec2(w, 76.0),
+                                            egui::Sense::click(),
+                                        );
+                                        let hov = resp.hovered();
+                                        let fill = if hov {
+                                            lighten(p.surface_hi, 16)
+                                        } else {
+                                            p.surface_hi
+                                        };
+                                        let border = if hov { p.accent } else { p.line };
+                                        col.painter().rect_filled(rect, 12.0, fill);
+                                        col.painter().rect_stroke(
+                                            rect,
+                                            12.0,
+                                            egui::Stroke::new(1.0, border),
+                                            egui::StrokeKind::Inside,
+                                        );
+                                        let mut cui = col.new_child(
+                                            egui::UiBuilder::new().max_rect(rect).layout(
+                                                egui::Layout::top_down(egui::Align::Center),
+                                            ),
+                                        );
+                                        cui.add_space(16.0);
+                                        crate::icons::show_site(&mut cui, slug, 22.0, p.fg);
+                                        cui.add_space(9.0);
+                                        cui.label(RichText::new(*name).small().color(p.fg));
+                                        if hov {
+                                            col.ctx()
+                                                .set_cursor_icon(egui::CursorIcon::PointingHand);
+                                        }
+                                        if resp.clicked() {
+                                            open_url(url);
+                                        }
+                                    }
+                                });
+                                ui.add_space(8.0);
                             }
-                        });
-                        ui.add_space(8.0);
-                    }
                         });
                     ui.add_space(10.0);
                     ui.vertical_centered(|ui| {
@@ -1954,11 +2008,10 @@ impl App {
                 // Clickable hint that lights up on hover (dim → full foreground).
                 let txt = tl(lang, "inicio.supported").to_string();
                 let font = egui::TextStyle::Small.resolve(ui.style());
-                let galley =
-                    ui.painter()
-                        .layout_no_wrap(txt.clone(), font.clone(), p.fg_dim);
-                let (rect, resp) =
-                    ui.allocate_exact_size(galley.size(), egui::Sense::click());
+                let galley = ui
+                    .painter()
+                    .layout_no_wrap(txt.clone(), font.clone(), p.fg_dim);
+                let (rect, resp) = ui.allocate_exact_size(galley.size(), egui::Sense::click());
                 let col = if resp.hovered() {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                     p.fg
@@ -2429,7 +2482,9 @@ impl App {
                     } else if (ui
                         .add(
                             egui::Button::new(
-                                RichText::new(tl(lang, "action.save")).small().color(p.accent),
+                                RichText::new(tl(lang, "action.save"))
+                                    .small()
+                                    .color(p.accent),
                             )
                             .fill(p.accent.gamma_multiply(0.16))
                             .corner_radius(8),
@@ -2457,7 +2512,9 @@ impl App {
                     .add(
                         egui::Button::image_and_text(
                             crate::icons::img("plus", 12.0, p.fg_dim),
-                            RichText::new(tl(lang, "preset.save_current")).small().color(p.fg_dim),
+                            RichText::new(tl(lang, "preset.save_current"))
+                                .small()
+                                .color(p.fg_dim),
                         )
                         .frame(false),
                     )
@@ -3120,7 +3177,11 @@ impl App {
                             ThemeMode::System,
                             mode_label(ThemeMode::System),
                         );
-                        ui.selectable_value(&mut mode, ThemeMode::Dark, mode_label(ThemeMode::Dark));
+                        ui.selectable_value(
+                            &mut mode,
+                            ThemeMode::Dark,
+                            mode_label(ThemeMode::Dark),
+                        );
                         ui.selectable_value(
                             &mut mode,
                             ThemeMode::Light,
@@ -3361,7 +3422,9 @@ impl App {
                             );
                             if !note.is_empty() {
                                 ui.add_space(6.0);
-                                ui.label(RichText::new(format!("· {note}")).small().color(p.fg_dim));
+                                ui.label(
+                                    RichText::new(format!("· {note}")).small().color(p.fg_dim),
+                                );
                             }
                         });
                     });
@@ -3373,9 +3436,11 @@ impl App {
                         v.widgets.inactive.bg_fill = p.accent;
                         v.widgets.inactive.bg_stroke = egui::Stroke::NONE;
                         v.widgets.hovered.bg_fill = p.accent;
-                        v.widgets.hovered.bg_stroke = egui::Stroke::new(3.0, p.accent.gamma_multiply(0.3));
+                        v.widgets.hovered.bg_stroke =
+                            egui::Stroke::new(3.0, p.accent.gamma_multiply(0.3));
                         v.widgets.active.bg_fill = p.accent;
-                        v.widgets.active.bg_stroke = egui::Stroke::new(3.0, p.accent.gamma_multiply(0.4));
+                        v.widgets.active.bg_stroke =
+                            egui::Stroke::new(3.0, p.accent.gamma_multiply(0.4));
                         v.selection.bg_fill = p.accent;
                         v.handle_shape = egui::style::HandleShape::Circle;
                         ui.spacing_mut().slider_width = ui.available_width() - 6.0;
@@ -3517,7 +3582,14 @@ impl App {
             ui.label(RichText::new(tl(lang, "ext.other")).color(p.fg_dim));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui
-                    .add(egui::Button::new(RichText::new(tl(lang, "ext.manual")).small().color(p.accent)).frame(false))
+                    .add(
+                        egui::Button::new(
+                            RichText::new(tl(lang, "ext.manual"))
+                                .small()
+                                .color(p.accent),
+                        )
+                        .frame(false),
+                    )
                     .clicked()
                 {
                     open_url("https://github.com/ayozetr/yoink-app/releases/tag/ext-latest");
@@ -3547,7 +3619,11 @@ impl App {
             ui.add_space(12.0);
             ui.vertical(|ui| {
                 ui.label(RichText::new("Yoink").size(19.0).strong().color(p.fg));
-                ui.label(RichText::new(tl(lang, "about.subtitle")).small().color(p.fg_dim));
+                ui.label(
+                    RichText::new(tl(lang, "about.subtitle"))
+                        .small()
+                        .color(p.fg_dim),
+                );
                 ui.label(
                     RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
                         .monospace()
@@ -3562,8 +3638,10 @@ impl App {
         // this section, so place the control explicitly).
         let mut recheck = false;
         let row_h = 30.0;
-        let (row, _) =
-            ui.allocate_exact_size(egui::vec2(ui.available_width(), row_h), egui::Sense::hover());
+        let (row, _) = ui.allocate_exact_size(
+            egui::vec2(ui.available_width(), row_h),
+            egui::Sense::hover(),
+        );
         // The row is laid out wider than the scroll viewport's clip rect, so pin the
         // control to the visible (clipped) right edge, not the row's right edge.
         let rx = row.right().min(ui.clip_rect().right() - 2.0);
@@ -3608,9 +3686,11 @@ impl App {
         } else if self.update_checked {
             // "✓ al día", clickable to re-check.
             let text = tl(lang, "about.uptodate");
-            let galley =
-                ui.painter()
-                    .layout_no_wrap(text.to_owned(), egui::FontId::proportional(12.0), p.ok);
+            let galley = ui.painter().layout_no_wrap(
+                text.to_owned(),
+                egui::FontId::proportional(12.0),
+                p.ok,
+            );
             let tw = galley.size().x;
             let hit = egui::Rect::from_min_size(
                 egui::pos2(rx - tw - 20.0, row.top()),
@@ -3637,11 +3717,9 @@ impl App {
             recheck = resp.clicked();
         } else {
             let text = format!("  {}  ", tl(lang, "about.check"));
-            let galley = ui.painter().layout_no_wrap(
-                text.clone(),
-                egui::FontId::proportional(12.0),
-                p.fg,
-            );
+            let galley =
+                ui.painter()
+                    .layout_no_wrap(text.clone(), egui::FontId::proportional(12.0), p.fg);
             let bw = galley.size().x + 8.0;
             let br = egui::Rect::from_min_size(
                 egui::pos2(rx - bw, row.center().y - 14.0),
@@ -3686,7 +3764,13 @@ impl App {
         ) {
             open_url("https://github.com/ayozetr");
         }
-        if about_link_row(ui, p, "coffee", RichText::new(tl(lang, "about.donate")), None) {
+        if about_link_row(
+            ui,
+            p,
+            "coffee",
+            RichText::new(tl(lang, "about.donate")),
+            None,
+        ) {
             open_url("https://ko-fi.com/ayozetr");
         }
         ui.add_space(12.0);
@@ -3879,7 +3963,8 @@ fn setting_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, add: impl FnOn
         ui.add_space(4.0);
         let (sep, _) =
             ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
-        ui.painter().rect_filled(sep, 0.0, p.line.gamma_multiply(0.5));
+        ui.painter()
+            .rect_filled(sep, 0.0, p.line.gamma_multiply(0.5));
     }
     ui.add_space(12.0);
     ui.horizontal(|ui| {
@@ -3908,8 +3993,13 @@ fn kbd_chip(ui: &mut egui::Ui, p: theme::Palette, label: &str) {
         egui::Stroke::new(1.0, p.line),
         egui::StrokeKind::Inside,
     );
-    ui.painter()
-        .text(rect.center(), egui::Align2::CENTER_CENTER, label, font, p.fg);
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        font,
+        p.fg,
+    );
     ui.add_space(5.0);
 }
 
@@ -3935,8 +4025,10 @@ fn ext_row(ui: &mut egui::Ui, p: theme::Palette, lang: Lang, name: &str, store: 
         });
     });
     ui.add_space(4.0);
-    let (sep, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
-    ui.painter().rect_filled(sep, 0.0, p.line.gamma_multiply(0.5));
+    let (sep, _) =
+        ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
+    ui.painter()
+        .rect_filled(sep, 0.0, p.line.gamma_multiply(0.5));
     clicked
 }
 
@@ -3981,7 +4073,10 @@ fn about_link_row(
     let chev = rect.right() - 14.0 + if hov { 2.0 } else { 0.0 };
     crate::icons::img("chevron", 14.0, p.fg_dim).paint_at(
         ui,
-        egui::Rect::from_min_size(egui::pos2(chev, rect.center().y - 7.0), egui::vec2(14.0, 14.0)),
+        egui::Rect::from_min_size(
+            egui::pos2(chev, rect.center().y - 7.0),
+            egui::vec2(14.0, 14.0),
+        ),
     );
     // Hairline separator, centered in the inter-row gap (egui adds item_spacing
     // above this rect) so the row's text sits centered between two separators.
@@ -4253,9 +4348,8 @@ fn path_field(ui: &mut egui::Ui, p: theme::Palette, value: &mut String) -> bool 
                     [avail - 26.0, 22.0],
                     egui::TextEdit::singleline(value).frame(egui::Frame::NONE),
                 );
-                let r = ui.add(
-                    crate::icons::img("folder", 18.0, p.fg_dim).sense(egui::Sense::click()),
-                );
+                let r =
+                    ui.add(crate::icons::img("folder", 18.0, p.fg_dim).sense(egui::Sense::click()));
                 if r.hovered() {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                 }

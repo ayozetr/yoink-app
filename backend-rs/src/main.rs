@@ -1800,7 +1800,8 @@ struct ApplyRequest {
 }
 
 /// Write the chosen tags + cover into a downloaded audio file (constrained to the
-/// download directory). Lyrics, .nfo and music-folder relocation are later slices.
+/// download directory), then rewrite the .nfo sidecar and rename/relocate per the
+/// music-folders setting. Lyrics are embedded by the separate `/lyrics` route.
 async fn autotag_apply(Json(req): Json<ApplyRequest>) -> Result<Json<Value>, (StatusCode, String)> {
     let settings = load_settings();
     let dl = std::path::PathBuf::from(&settings.download_dir);
@@ -1987,12 +1988,37 @@ struct LyricsRequest {
 async fn autotag_lyrics(Json(req): Json<LyricsRequest>) -> Json<Value> {
     let duration = req.path.as_deref().and_then(autotag::probe_duration);
     let r = autotag::fetch_lyrics(&req.title, &req.artist, req.album.as_deref(), duration).await;
+    // Embed the plain lyrics into the file when we have both a found (non-
+    // instrumental) result and a path inside the download directory.
+    let mut embedded = false;
+    if r.found && !r.instrumental {
+        if let (Some(path), Some(plain)) = (req.path.as_deref(), r.plain.as_deref()) {
+            if !plain.is_empty() && path_in_download_dir(path) {
+                let (p, text) = (path.to_string(), plain.to_string());
+                embedded = tokio::task::spawn_blocking(move || autotag::embed_lyrics(&p, &text))
+                    .await
+                    .map(|res| res.is_ok())
+                    .unwrap_or(false);
+            }
+        }
+    }
     Json(serde_json::json!({
         "found": r.found,
         "instrumental": r.instrumental,
         "has_synced": r.has_synced,
         "plain": r.plain,
+        "embedded": embedded,
     }))
+}
+
+/// Whether `path` canonicalizes to a file inside the configured download
+/// directory — the same guard the apply route uses before writing to a file.
+fn path_in_download_dir(path: &str) -> bool {
+    let dl = std::path::PathBuf::from(&load_settings().download_dir);
+    let dl = dl.canonicalize().unwrap_or(dl);
+    let p = std::path::PathBuf::from(path);
+    let p = p.canonicalize().unwrap_or(p);
+    p == dl || p.starts_with(&dl)
 }
 
 // ---- server ------------------------------------------------------------------
@@ -2000,7 +2026,7 @@ async fn autotag_lyrics(Json(req): Json<LyricsRequest>) -> Json<Value> {
 #[tokio::main]
 async fn main() {
     // Launched with arguments → run the CLI; with none → serve the API (how the
-    // Tauri shell spawns it).
+    // desktop app spawns it).
     let argv: Vec<String> = std::env::args().collect();
     if argv.len() > 1 {
         std::process::exit(cli::run(argv).await);
