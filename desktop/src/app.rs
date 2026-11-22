@@ -2704,6 +2704,7 @@ impl App {
         heading(ui, "sec.general", "set.general");
         setting_row(ui, p, tl(lang, "set.language"), |ui| {
             egui::ComboBox::from_id_salt("lang")
+                .width(CTRL_COMBO_W)
                 .selected_text(self.lang.label())
                 .show_ui(ui, |ui| {
                     for l in Lang::ALL {
@@ -2719,6 +2720,7 @@ impl App {
         };
         setting_row(ui, p, tl(lang, "set.theme"), |ui| {
             egui::ComboBox::from_id_salt("theme")
+                .width(CTRL_COMBO_W)
                 .selected_text(mode_label(mode))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut mode, ThemeMode::System, mode_label(ThemeMode::System));
@@ -3504,8 +3506,13 @@ fn adv_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, content: impl FnOn
     ui.add_space(10.0);
 }
 
+/// A consistent width for Settings dropdowns, so the select column lines up
+/// (like the web's fixed-width control column) instead of hugging each label.
+const CTRL_COMBO_W: f32 = 168.0;
+
 fn combo_bare(ui: &mut egui::Ui, lang: Lang, id: &str, value: &mut String, options: &[&str]) {
     egui::ComboBox::from_id_salt(id)
+        .width(CTRL_COMBO_W)
         .selected_text(opt_label(lang, value))
         .show_ui(ui, |ui| {
             for opt in options {
