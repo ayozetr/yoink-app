@@ -254,6 +254,7 @@ pub struct App {
     preset_name: String,
     update_available: Option<String>,
     update_asset_url: Option<String>,
+    update_signature: Option<String>,
     update_progress: Option<f32>,
     update_error: Option<String>,
     update_dismissed: bool,
@@ -382,6 +383,7 @@ impl App {
             preset_name: String::new(),
             update_available: None,
             update_asset_url: None,
+            update_signature: None,
             update_progress: None,
             update_error: None,
             update_dismissed: false,
@@ -408,6 +410,7 @@ impl App {
         if std::env::var("YOINK_FAKE_UPDATE").is_ok() {
             app.update_available = Some("4.5.0".into());
             app.update_asset_url = Some("https://example.invalid/Yoink.AppImage".into());
+            app.update_signature = Some("fake".into());
             if let Ok(p) = std::env::var("YOINK_FAKE_UPDATE_PROGRESS") {
                 app.update_progress = p.parse().ok();
             }
@@ -548,9 +551,14 @@ impl App {
                 }
                 Evt::SettingsLoadFailed => self.settings_failed = true,
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
-                Evt::UpdateAvailable { version, asset_url } => {
+                Evt::UpdateAvailable {
+                    version,
+                    asset_url,
+                    signature,
+                } => {
                     self.update_available = Some(version);
                     self.update_asset_url = asset_url;
+                    self.update_signature = signature;
                     self.update_checking = false;
                     self.update_checked = true;
                 }
@@ -1385,7 +1393,8 @@ impl eframe::App for App {
                             // page. A prior failure also falls back.
                             let can_self_update = self.update_error.is_none()
                                 && crate::api::self_update_target().is_some()
-                                && self.update_asset_url.is_some();
+                                && self.update_asset_url.is_some()
+                                && self.update_signature.is_some();
                             let label = if can_self_update {
                                 tl(lang, "update.install")
                             } else {
@@ -1403,6 +1412,10 @@ impl eframe::App for App {
                                     self.update_progress = Some(0.0);
                                     self.backend.send(Cmd::SelfUpdate {
                                         url: self.update_asset_url.clone().unwrap_or_default(),
+                                        signature: self
+                                            .update_signature
+                                            .clone()
+                                            .unwrap_or_default(),
                                     });
                                 } else {
                                     open_url(

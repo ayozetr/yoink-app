@@ -41,8 +41,9 @@ pub enum Cmd {
     Open(String),
     /// Re-run the GitHub release check on demand (the About "check" button).
     CheckUpdate,
-    /// Download the given release asset and replace this binary in place.
-    SelfUpdate { url: String },
+    /// Download the given release asset (verifying `signature`) and replace this
+    /// binary in place.
+    SelfUpdate { url: String, signature: String },
 }
 
 /// A piece of news from the worker to the UI.
@@ -56,6 +57,9 @@ pub enum Evt {
         /// The download URL of the asset for this platform (AppImage/exe), if the
         /// release has one — the in-place updater pulls from here.
         asset_url: Option<String>,
+        /// The asset's minisign signature (base64 of the `.sig` content) from
+        /// `latest.json`, verified before the download is installed.
+        signature: Option<String>,
     },
     /// A completed update check found no newer release (so the UI can confirm it).
     UpToDate,
@@ -381,8 +385,10 @@ impl Backend {
                         Cmd::Open(path) => {
                             tokio::spawn(async move { open_path(path).await });
                         }
-                        Cmd::SelfUpdate { url } => {
-                            tokio::spawn(async move { do_self_update(url, evt_tx, ctx).await });
+                        Cmd::SelfUpdate { url, signature } => {
+                            tokio::spawn(
+                                async move { do_self_update(url, signature, evt_tx, ctx).await },
+                            );
                         }
                     }
                 }
@@ -455,17 +461,24 @@ async fn load_history(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
     }
 }
 
-/// Check GitHub for a newer release (the app only; yt-dlp stays owner-managed).
+/// The platform key in `latest.json` for this OS.
+#[cfg(target_os = "windows")]
+const UPDATE_PLATFORM: &str = "windows-x86_64";
+#[cfg(not(target_os = "windows"))]
+const UPDATE_PLATFORM: &str = "linux-x86_64";
+
+/// Check for a newer release via the same `latest.json` manifest the legacy
+/// updater uses, so one release (one signature) serves both apps. We pull the
+/// platform's download URL and its minisign signature from it.
 async fn check_update(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
     let res = reqwest::Client::new()
-        .get("https://api.github.com/repos/ayozetr/yoink-app/releases/latest")
+        .get("https://github.com/ayozetr/yoink-app/releases/latest/download/latest.json")
         .header("User-Agent", "yoink-desktop")
-        .header("Accept", "application/vnd.github+json")
         .send()
         .await;
     // On any failure (offline, rate-limited, unexpected JSON) still emit a
     // terminal event so the UI's "checking…" state clears and the user can retry.
-    let Ok(r) = res else {
+    let Ok(r) = res.and_then(reqwest::Response::error_for_status) else {
         emit(&tx, &ctx, Evt::UpToDate);
         return;
     };
@@ -473,43 +486,34 @@ async fn check_update(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
         emit(&tx, &ctx, Evt::UpToDate);
         return;
     };
-    let Some(tag) = v.get("tag_name").and_then(Value::as_str) else {
+    let Some(version) = v.get("version").and_then(Value::as_str) else {
         emit(&tx, &ctx, Evt::UpToDate);
         return;
     };
-    let latest = tag.trim_start_matches('v');
-    if is_newer(latest, env!("CARGO_PKG_VERSION")) {
-        let asset_url = v
-            .get("assets")
-            .and_then(Value::as_array)
-            .and_then(|assets| {
-                assets.iter().find_map(|a| {
-                    let name = a.get("name").and_then(Value::as_str)?;
-                    name.to_ascii_lowercase()
-                        .ends_with(UPDATE_ASSET_SUFFIX)
-                        .then(|| a.get("browser_download_url").and_then(Value::as_str))
-                        .flatten()
-                        .map(str::to_string)
-                })
-            });
-        emit(
-            &tx,
-            &ctx,
-            Evt::UpdateAvailable {
-                version: latest.to_string(),
-                asset_url,
-            },
-        );
-    } else {
+    let latest = version.trim_start_matches('v');
+    if !is_newer(latest, env!("CARGO_PKG_VERSION")) {
         emit(&tx, &ctx, Evt::UpToDate);
+        return;
     }
+    let plat = v.get("platforms").and_then(|p| p.get(UPDATE_PLATFORM));
+    let asset_url = plat
+        .and_then(|p| p.get("url"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let signature = plat
+        .and_then(|p| p.get("signature"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    emit(
+        &tx,
+        &ctx,
+        Evt::UpdateAvailable {
+            version: latest.to_string(),
+            asset_url,
+            signature,
+        },
+    );
 }
-
-/// The release-asset filename suffix to pull for an in-place update on this OS.
-#[cfg(target_os = "windows")]
-const UPDATE_ASSET_SUFFIX: &str = ".exe";
-#[cfg(not(target_os = "windows"))]
-const UPDATE_ASSET_SUFFIX: &str = ".appimage";
 
 /// The file this running binary can replace in place, or `None` when in-place
 /// updates don't apply (a dev build, or a system-packaged .deb/.rpm): on Linux
@@ -533,56 +537,41 @@ pub fn self_update_target() -> Option<std::path::PathBuf> {
 /// Download `url` to a temp file beside `target`, then atomically swap it in and
 /// tell the UI to relaunch. Everything is staged in a sibling temp file so a
 /// failed or partial download never touches the live binary.
-async fn do_self_update(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+async fn do_self_update(
+    url: String,
+    signature: String,
+    tx: std::sync::mpsc::Sender<Evt>,
+    ctx: egui::Context,
+) {
     let Some(target) = self_update_target() else {
         emit(&tx, &ctx, Evt::UpdateError("unsupported".into()));
         return;
     };
-    match download_and_install(&url, &target, &tx, &ctx).await {
+    match download_and_install(&url, &signature, &target, &tx, &ctx).await {
         Ok(()) => emit(&tx, &ctx, Evt::UpdateInstalled(target)),
         Err(e) => emit(&tx, &ctx, Evt::UpdateError(e)),
     }
 }
 
-/// Ed25519 public key that release assets are signed with (the matching private
-/// key is the `YOINK_UPDATE_KEY` GitHub secret, used by the release workflow). An
-/// update is only installed if its `<asset>.ysig` verifies against this key, so a
-/// tampered/compromised download can't lead to running an attacker's binary.
-const UPDATE_PUBKEY: [u8; 32] = [
-    0x6b, 0x54, 0x4f, 0x16, 0x20, 0x0c, 0x97, 0x5b, 0x6c, 0xcb, 0x8b, 0x82, 0xdf, 0xc8, 0x9a, 0xe0,
-    0x49, 0xbf, 0xf0, 0xfa, 0x10, 0x65, 0xac, 0x75, 0x43, 0xba, 0x2b, 0x97, 0x66, 0x8b, 0xda, 0x75,
-];
+/// The minisign public key releases are signed with — the SAME key the legacy
+/// (Tauri) updater uses (from `src-tauri/tauri.conf.json`). One signature in
+/// `latest.json` serves both apps, and an update is installed only if it verifies
+/// against this key, so a tampered/compromised download can't run attacker code.
+const UPDATE_PUBKEY: &str = "RWR6dwLE3M1KiXJX7UfdVQtaQVSLUTrqF/K+Nvq9oLw+oJdvjbioh0p9";
 
-/// Download `<url>.ysig` (a raw 64-byte ed25519 signature) and verify it over the
-/// downloaded file. Fail-closed: any problem (missing signature, bad length, bad
-/// signature) aborts the update.
-async fn verify_update_signature(
-    url: &str,
-    file: &std::path::Path,
-    client: &reqwest::Client,
-) -> Result<(), String> {
-    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-    // `.ysig`, not `.sig`, so our ed25519 signature can coexist with the Tauri
-    // updater's `.sig` on the same asset during the legacy→egui migration release.
-    let sig_url = format!("{url}.ysig");
-    let parsed = reqwest::Url::parse(&sig_url).map_err(|e| e.to_string())?;
-    if !is_trusted_release_url(&parsed) {
-        return Err("untrusted signature URL".into());
-    }
-    let sig_bytes = client
-        .get(&sig_url)
-        .header("User-Agent", "yoink-desktop")
-        .send()
-        .await
-        .and_then(reqwest::Response::error_for_status)
-        .map_err(|_| "update signature missing".to_string())?
-        .bytes()
-        .await
-        .map_err(|e| e.to_string())?;
-    let vk = VerifyingKey::from_bytes(&UPDATE_PUBKEY).map_err(|e| e.to_string())?;
-    let sig = Signature::from_slice(&sig_bytes).map_err(|_| "malformed signature".to_string())?;
+/// Verify `file` against `signature` (base64 of a minisign `.sig`, from
+/// `latest.json`) using the embedded public key. Fail-closed.
+fn verify_update_signature(file: &std::path::Path, signature: &str) -> Result<(), String> {
+    use base64::Engine;
+    use minisign_verify::{PublicKey, Signature};
+    let sig_text = base64::engine::general_purpose::STANDARD
+        .decode(signature.trim())
+        .map_err(|_| "malformed signature".to_string())
+        .and_then(|b| String::from_utf8(b).map_err(|_| "malformed signature".to_string()))?;
+    let pk = PublicKey::from_base64(UPDATE_PUBKEY).map_err(|e| e.to_string())?;
+    let sig = Signature::decode(&sig_text).map_err(|_| "malformed signature".to_string())?;
     let data = std::fs::read(file).map_err(|e| e.to_string())?;
-    vk.verify(&data, &sig)
+    pk.verify(&data, &sig, false)
         .map_err(|_| "signature verification failed".to_string())
 }
 
@@ -599,10 +588,14 @@ fn is_trusted_release_url(url: &reqwest::Url) -> bool {
 
 async fn download_and_install(
     url: &str,
+    signature: &str,
     target: &std::path::Path,
     tx: &std::sync::mpsc::Sender<Evt>,
     ctx: &egui::Context,
 ) -> Result<(), String> {
+    if signature.is_empty() {
+        return Err("no signature for this release".into());
+    }
     let parsed = reqwest::Url::parse(url).map_err(|e| e.to_string())?;
     if !is_trusted_release_url(&parsed) {
         return Err("untrusted update URL".into());
@@ -666,9 +659,9 @@ async fn download_and_install(
         file.flush().map_err(|e| e.to_string())?;
     }
 
-    // Verify the ed25519 signature BEFORE the binary is made executable or swapped
-    // in — a tampered or wrong-host download never gets run.
-    if let Err(e) = verify_update_signature(url, &tmp, &client).await {
+    // Verify the minisign signature BEFORE the binary is made executable or
+    // swapped in — a tampered or wrong-host download never gets run.
+    if let Err(e) = verify_update_signature(&tmp, signature) {
         let _ = std::fs::remove_file(&tmp);
         return Err(e);
     }
@@ -1027,25 +1020,20 @@ async fn import_track(track: MusicTrack, tx: std::sync::mpsc::Sender<Evt>, ctx: 
 
 #[cfg(test)]
 mod update_sig_tests {
-    use super::UPDATE_PUBKEY;
-    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+    use super::{verify_update_signature, UPDATE_PUBKEY};
 
-    // A signature produced by `openssl pkeyutl -sign -rawin` with the matching
-    // private key must verify against the embedded public key — i.e. the release
-    // workflow's signing format and the client's verification agree.
+    // The embedded key parses, and a wrong/garbage signature is rejected
+    // (fail-closed). The format was validated out-of-band against a real Tauri
+    // `latest.json` signature over the published AppImage (minisign-verify accepts
+    // it and rejects a tampered file).
     #[test]
-    fn openssl_signature_verifies() {
-        let msg = b"hello yoink update payload\n";
-        let sig_hex = "caca535f221bc0fa18db421a6ce0fd96257abd85dbebd89f36341878f44ac70608cda7a3139a89cc9723ecbbb45e8d74ece2e03e1cd00753d3f33941de95ce02";
-        let sig_bytes: Vec<u8> = (0..sig_hex.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&sig_hex[i..i + 2], 16).unwrap())
-            .collect();
-        let vk = VerifyingKey::from_bytes(&UPDATE_PUBKEY).unwrap();
-        let sig = Signature::from_slice(&sig_bytes).unwrap();
-        assert!(vk.verify(msg, &sig).is_ok(), "valid signature should verify");
-
-        // A tampered message must NOT verify.
-        assert!(vk.verify(b"tampered", &sig).is_err());
+    fn pubkey_parses_and_bad_sig_rejected() {
+        assert!(minisign_verify::PublicKey::from_base64(UPDATE_PUBKEY).is_ok());
+        let f = std::env::temp_dir().join("yoink-sig-test.bin");
+        std::fs::write(&f, b"x").unwrap();
+        // Not base64 / not a signature → rejected, never a panic.
+        assert!(verify_update_signature(&f, "not-a-signature").is_err());
+        assert!(verify_update_signature(&f, "").is_err());
+        let _ = std::fs::remove_file(&f);
     }
 }
