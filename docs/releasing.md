@@ -7,8 +7,8 @@ being ported.
 ## Cut a release
 
 1. **Bump the version** in `desktop/Cargo.toml`, `backend-rs/Cargo.toml` and
-   `desktop-minter/Cargo.toml` (keep them in sync), and in `package.json` — the
-   updater manifest reads the version from there (`make_latest_json_egui.py`).
+   `desktop-minter/Cargo.toml` (keep them in sync). The updater manifest reads the
+   version from `desktop/Cargo.toml` (`make_latest_json_egui.py`).
 2. **Tag and push:** `git tag v<ver> && git push origin v<ver>`.
 3. CI builds + signs the AppImage and **drafts** the release with `latest.json`.
 4. **Edit the draft's notes** (keep the hidden `<!-- /whatsnew -->` marker before
