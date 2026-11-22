@@ -38,6 +38,8 @@ pub enum Cmd {
     LoadLogs,
     LoadWhatsNew { since: String },
     Open(String),
+    /// Re-run the GitHub release check on demand (the About "check" button).
+    CheckUpdate,
     /// Download the given release asset and replace this binary in place.
     SelfUpdate { url: String },
 }
@@ -52,6 +54,8 @@ pub enum Evt {
         /// release has one — the in-place updater pulls from here.
         asset_url: Option<String>,
     },
+    /// A completed update check found no newer release (so the UI can confirm it).
+    UpToDate,
     /// In-place update download progress, 0.0..=1.0.
     UpdateProgress(f32),
     /// The binary was replaced; the path to relaunch (the app then exits).
@@ -363,6 +367,9 @@ impl Backend {
                         Cmd::LoadLogs => {
                             tokio::spawn(async move { load_logs(evt_tx, ctx).await });
                         }
+                        Cmd::CheckUpdate => {
+                            tokio::spawn(async move { check_update(evt_tx, ctx).await });
+                        }
                         Cmd::LoadWhatsNew { since } => {
                             tokio::spawn(async move { load_whatsnew(since, evt_tx, ctx).await });
                         }
@@ -478,6 +485,8 @@ async fn check_update(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
                 asset_url,
             },
         );
+    } else {
+        emit(&tx, &ctx, Evt::UpToDate);
     }
 }
 

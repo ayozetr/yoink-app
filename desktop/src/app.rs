@@ -226,6 +226,7 @@ pub struct App {
     settings: Option<Settings>,
     settings_note: Option<String>,
     settings_scroll_to: Option<String>,
+    active_section: String, // settings section currently in view (for the nav scrollspy)
     history: Vec<HistoryEntry>,
     history_loaded: bool,
     hist_query: String,
@@ -252,8 +253,12 @@ pub struct App {
     update_progress: Option<f32>,
     update_error: Option<String>,
     update_dismissed: bool,
+    update_checking: bool, // a manual "check for updates" is in flight
+    update_checked: bool,  // a check has completed (so we can show "up to date")
     whatsnew: Vec<(String, String)>,
     whatsnew_open: bool,
+    terms_open: bool,
+    licenses_open: bool,
     deeplink_rx: std::sync::mpsc::Receiver<String>,
     tray_rx: std::sync::mpsc::Receiver<crate::tray::TrayMsg>,
     shot: Option<(String, std::time::Instant)>, // (output path, started) for YOINK_SHOT
@@ -343,6 +348,7 @@ impl App {
             settings: None,
             settings_note: None,
             settings_scroll_to: None,
+            active_section: "sec.general".into(),
             history: Vec::new(),
             history_loaded: false,
             hist_query: String::new(),
@@ -369,8 +375,12 @@ impl App {
             update_progress: None,
             update_error: None,
             update_dismissed: false,
+            update_checking: false,
+            update_checked: false,
             whatsnew: Vec::new(),
             whatsnew_open: false,
+            terms_open: false,
+            licenses_open: false,
             deeplink_rx,
             tray_rx,
             shot: std::env::var("YOINK_SHOT")
@@ -520,6 +530,12 @@ impl App {
                 Evt::UpdateAvailable { version, asset_url } => {
                     self.update_available = Some(version);
                     self.update_asset_url = asset_url;
+                    self.update_checking = false;
+                    self.update_checked = true;
+                }
+                Evt::UpToDate => {
+                    self.update_checking = false;
+                    self.update_checked = true;
                 }
                 Evt::UpdateProgress(pct) => self.update_progress = Some(pct),
                 Evt::UpdateInstalled(path) => {
@@ -1396,7 +1412,14 @@ impl eframe::App for App {
                         );
                         let resp = ui.interact(rect, egui::Id::unique(key), egui::Sense::click());
                         let hov = resp.hovered();
-                        let col = if hov { p.fg } else { p.fg_dim };
+                        let active = self.active_section == key;
+                        let col = if active {
+                            p.accent
+                        } else if hov {
+                            p.fg
+                        } else {
+                            p.fg_dim
+                        };
                         if hov {
                             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                         }
@@ -1629,37 +1652,7 @@ impl eframe::App for App {
                                     );
                                     ui.add_space(6.0);
                                 }
-                                for line in notes.lines() {
-                                    let t = line.trim();
-                                    if let Some(h) =
-                                        t.strip_prefix("## ").or_else(|| t.strip_prefix("### "))
-                                    {
-                                        ui.add_space(6.0);
-                                        ui.label(
-                                            RichText::new(h)
-                                                .family(crate::fonts::semibold())
-                                                .color(p.fg),
-                                        );
-                                        ui.add_space(2.0);
-                                    } else if let Some(h) = t.strip_prefix("# ") {
-                                        ui.add_space(6.0);
-                                        ui.label(
-                                            RichText::new(h)
-                                                .size(15.0)
-                                                .family(crate::fonts::semibold())
-                                                .color(p.fg),
-                                        );
-                                        ui.add_space(2.0);
-                                    } else if let Some(b) =
-                                        t.strip_prefix("- ").or_else(|| t.strip_prefix("* "))
-                                    {
-                                        ui.label(RichText::new(format!("•  {b}")).color(p.fg_dim));
-                                    } else if !t.is_empty() {
-                                        ui.label(RichText::new(t).color(p.fg_dim));
-                                    } else {
-                                        ui.add_space(4.0);
-                                    }
-                                }
+                                render_markdown(ui, p, notes);
                                 ui.add_space(14.0);
                             }
                         });
@@ -1677,6 +1670,53 @@ impl eframe::App for App {
                 });
             if resp.should_close() {
                 self.whatsnew_open = false;
+            }
+        }
+
+        // Terms of Use and Open-source licenses — scrollable text modals, same
+        // look as the other dialogs, filled from the bundled Markdown.
+        for (open, title_key, body) in [
+            (&mut self.terms_open, "about.terms", DISCLAIMER_MD),
+            (&mut self.licenses_open, "about.licenses", LICENSES_MD),
+        ] {
+            if !*open {
+                continue;
+            }
+            rounded_backdrop(&ctx);
+            let mut close = false;
+            let resp = egui::Modal::new(egui::Id::unique(title_key))
+                .frame(modal_frame(p))
+                .backdrop_color(egui::Color32::TRANSPARENT)
+                .show(&ctx, |ui| {
+                    ui.set_width(560.0);
+                    ui.horizontal(|ui| {
+                        crate::icons::show(ui, "logs", 18.0, p.accent);
+                        ui.add_space(8.0);
+                        ui.label(
+                            RichText::new(tl(lang, title_key))
+                                .size(19.0)
+                                .family(crate::fonts::display())
+                                .color(p.fg),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if close_button(ui, p).clicked() {
+                                close = true;
+                            }
+                        });
+                    });
+                    ui.add_space(12.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(420.0)
+                        .auto_shrink([false, true])
+                        .scroll_bar_visibility(
+                            egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded,
+                        )
+                        .show(ui, |ui| {
+                            render_markdown(ui, p, body);
+                        });
+                });
+            if close || resp.should_close() {
+                *open = false;
             }
         }
 
@@ -2926,6 +2966,9 @@ impl App {
         };
         let mut lang_sel = self.lang_mode; // None = follow the OS
         let scroll_to = self.settings_scroll_to.take();
+        // Scrollspy: the deepest section whose heading has reached the viewport top
+        // is the active one — the right-rail nav paints it in the accent colour.
+        let active = std::cell::RefCell::new(self.active_section.clone());
 
         let heading = |ui: &mut egui::Ui, sec: &str, key: &str| {
             settings_section();
@@ -2938,6 +2981,9 @@ impl App {
             );
             if scroll_to.as_deref() == Some(sec) {
                 r.scroll_to_me(Some(egui::Align::TOP));
+            }
+            if r.rect.top() <= ui.clip_rect().top() + 90.0 {
+                *active.borrow_mut() = sec.to_string();
             }
             ui.add_space(2.0);
         };
@@ -3419,38 +3465,117 @@ impl App {
             });
         });
         ui.add_space(14.0);
-        ui.horizontal(|ui| {
-            ui.label(RichText::new(tl(lang, "about.updates")).color(p.fg));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if let Some(v) = self.update_available.clone() {
-                    if ui
-                        .add(
-                            egui::Button::new(
-                                RichText::new(format!("{} {v}", tl(lang, "about.view_release")))
-                                    .small()
-                                    .color(p.accent),
-                            )
-                            .fill(p.accent.gamma_multiply(0.16))
-                            .corner_radius(255)
-                            .min_size(egui::vec2(0.0, 28.0)),
-                        )
-                        .clicked()
-                    {
-                        open_url("https://github.com/ayozetr/yoink-app/releases/latest");
-                    }
-                } else {
-                    ui.label(RichText::new(tl(lang, "about.uptodate")).small().color(p.ok));
-                    ui.add_space(4.0);
-                    crate::icons::show(ui, "check", 14.0, p.ok);
-                }
-            });
-        });
+        // A full-width row: the label on the left, the update control pinned to the
+        // right edge via an exact rect (egui's right_to_left layout misbehaves in
+        // this section, so place the control explicitly).
+        let mut recheck = false;
+        let row_h = 30.0;
+        let (row, _) =
+            ui.allocate_exact_size(egui::vec2(ui.available_width(), row_h), egui::Sense::hover());
+        // The row is laid out wider than the scroll viewport's clip rect, so pin the
+        // control to the visible (clipped) right edge, not the row's right edge.
+        let rx = row.right().min(ui.clip_rect().right() - 2.0);
+        ui.painter().text(
+            egui::pos2(row.left(), row.center().y),
+            egui::Align2::LEFT_CENTER,
+            tl(lang, "about.updates"),
+            egui::FontId::proportional(14.0),
+            p.fg,
+        );
+        if let Some(v) = self.update_available.clone() {
+            let text = format!("  {} {v}  ", tl(lang, "about.view_release"));
+            let galley = ui.painter().layout_no_wrap(
+                text.clone(),
+                egui::FontId::proportional(12.0),
+                p.accent,
+            );
+            let bw = galley.size().x + 8.0;
+            let br = egui::Rect::from_min_size(
+                egui::pos2(rx - bw, row.center().y - 14.0),
+                egui::vec2(bw, 28.0),
+            );
+            if ui
+                .put(
+                    br,
+                    egui::Button::new(RichText::new(text).small().color(p.accent))
+                        .fill(p.accent.gamma_multiply(0.16))
+                        .corner_radius(255),
+                )
+                .clicked()
+            {
+                open_url("https://github.com/ayozetr/yoink-app/releases/latest");
+            }
+        } else if self.update_checking {
+            ui.painter().text(
+                egui::pos2(rx, row.center().y),
+                egui::Align2::RIGHT_CENTER,
+                tl(lang, "about.checking"),
+                egui::FontId::proportional(12.0),
+                p.fg_dim,
+            );
+        } else if self.update_checked {
+            // "✓ al día", clickable to re-check.
+            let text = tl(lang, "about.uptodate");
+            let galley =
+                ui.painter()
+                    .layout_no_wrap(text.to_owned(), egui::FontId::proportional(12.0), p.ok);
+            let tw = galley.size().x;
+            let hit = egui::Rect::from_min_size(
+                egui::pos2(rx - tw - 20.0, row.top()),
+                egui::vec2(tw + 20.0, row_h),
+            );
+            let resp = ui.interact(hit, egui::Id::unique("recheck"), egui::Sense::click());
+            if resp.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            ui.painter().text(
+                egui::pos2(rx, row.center().y),
+                egui::Align2::RIGHT_CENTER,
+                text,
+                egui::FontId::proportional(12.0),
+                p.ok,
+            );
+            crate::icons::img("check", 14.0, p.ok).paint_at(
+                ui,
+                egui::Rect::from_min_size(
+                    egui::pos2(rx - tw - 18.0, row.center().y - 7.0),
+                    egui::vec2(14.0, 14.0),
+                ),
+            );
+            recheck = resp.clicked();
+        } else {
+            let text = format!("  {}  ", tl(lang, "about.check"));
+            let galley = ui.painter().layout_no_wrap(
+                text.clone(),
+                egui::FontId::proportional(12.0),
+                p.fg,
+            );
+            let bw = galley.size().x + 8.0;
+            let br = egui::Rect::from_min_size(
+                egui::pos2(rx - bw, row.center().y - 14.0),
+                egui::vec2(bw, 28.0),
+            );
+            recheck = ui
+                .put(
+                    br,
+                    egui::Button::new(RichText::new(text).small().color(p.fg))
+                        .stroke(egui::Stroke::new(1.0, p.line))
+                        .fill(egui::Color32::TRANSPARENT)
+                        .corner_radius(255),
+                )
+                .clicked();
+        }
+        if recheck {
+            self.update_checking = true;
+            self.backend.send(Cmd::CheckUpdate);
+        }
         ui.add_space(8.0);
         if about_link_row(
             ui,
             p,
             "sparkles",
             RichText::new(tl(lang, "whatsnew.title")),
+            None,
         ) {
             if self.whatsnew.is_empty() {
                 self.backend.send(Cmd::LoadWhatsNew {
@@ -3464,27 +3589,22 @@ impl App {
             ui,
             p,
             "github",
-            RichText::new(format!("{} ayozetr", tl(lang, "about.developed"))),
+            RichText::new(format!("{} ", tl(lang, "about.developed"))),
+            Some("ayozetr"),
         ) {
             open_url("https://github.com/ayozetr");
         }
-        if about_link_row(ui, p, "coffee", RichText::new(tl(lang, "about.donate"))) {
+        if about_link_row(ui, p, "coffee", RichText::new(tl(lang, "about.donate")), None) {
             open_url("https://ko-fi.com/ayozetr");
         }
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            if ui
-                .add(egui::Button::new(RichText::new(tl(lang, "about.licenses")).small().color(p.fg_dim)).frame(false))
-                .clicked()
-            {
-                open_url("https://github.com/ayozetr/yoink-app/blob/main/docs/THIRD_PARTY_LICENSES.md");
+            if small_link(ui, p, tl(lang, "about.licenses")) {
+                self.licenses_open = true;
             }
-            ui.add_space(10.0);
-            if ui
-                .add(egui::Button::new(RichText::new(tl(lang, "about.terms")).small().color(p.fg_dim)).frame(false))
-                .clicked()
-            {
-                open_url("https://github.com/ayozetr/yoink-app#readme");
+            ui.add_space(14.0);
+            if small_link(ui, p, tl(lang, "about.terms")) {
+                self.terms_open = true;
             }
         });
 
@@ -3511,6 +3631,7 @@ impl App {
             self.lang = lang_sel.unwrap_or_else(crate::i18n::detect);
             save_prefs(self.theme_mode, self.lang_mode);
         }
+        self.active_section = active.into_inner();
         // Keep edits in memory until saved.
         self.settings = Some(s);
     }
@@ -3720,7 +3841,13 @@ fn ext_row(ui: &mut egui::Ui, p: theme::Palette, lang: Lang, name: &str, store: 
 
 /// An "About" link row: an accent icon, a label, and a chevron that nudges right
 /// on hover. Returns true when clicked.
-fn about_link_row(ui: &mut egui::Ui, p: theme::Palette, icon: &str, text: RichText) -> bool {
+fn about_link_row(
+    ui: &mut egui::Ui,
+    p: theme::Palette,
+    icon: &str,
+    text: RichText,
+    bold_tail: Option<&str>,
+) -> bool {
     let w = ui.available_width();
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 40.0), egui::Sense::click());
     let hov = resp.hovered();
@@ -3733,13 +3860,23 @@ fn about_link_row(ui: &mut egui::Ui, p: theme::Palette, icon: &str, text: RichTe
         egui::vec2(16.0, 16.0),
     );
     crate::icons::img(icon, 16.0, p.accent).paint_at(ui, ir);
-    ui.painter().text(
+    let main = ui.painter().text(
         egui::pos2(rect.left() + 26.0, rect.center().y),
         egui::Align2::LEFT_CENTER,
         text.text(),
         egui::FontId::proportional(14.0),
         tcol,
     );
+    // An emphasized trailing word (e.g. the developer's handle), in semibold.
+    if let Some(tail) = bold_tail {
+        ui.painter().text(
+            egui::pos2(main.right() + 5.0, rect.center().y),
+            egui::Align2::LEFT_CENTER,
+            tail,
+            egui::FontId::new(14.0, crate::fonts::semibold()),
+            tcol,
+        );
+    }
     let chev = rect.right() - 14.0 + if hov { 2.0 } else { 0.0 };
     crate::icons::img("chevron", 14.0, p.fg_dim).paint_at(
         ui,
@@ -3752,6 +3889,71 @@ fn about_link_row(ui: &mut egui::Ui, p: theme::Palette, icon: &str, text: RichTe
         p.line.gamma_multiply(0.5),
     );
     resp.clicked()
+}
+
+/// A small inline text link that brightens from dim to full on hover.
+fn small_link(ui: &mut egui::Ui, p: theme::Palette, text: &str) -> bool {
+    let font = egui::FontId::proportional(12.0);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(text.to_owned(), font.clone(), p.fg_dim);
+    let (rect, resp) =
+        ui.allocate_exact_size(galley.size() + egui::vec2(2.0, 6.0), egui::Sense::click());
+    let hov = resp.hovered();
+    if hov {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    ui.painter().text(
+        rect.left_center() + egui::vec2(1.0, 0.0),
+        egui::Align2::LEFT_CENTER,
+        text,
+        font,
+        if hov { p.fg } else { p.fg_dim },
+    );
+    resp.clicked()
+}
+
+/// Render a small subset of Markdown (headings, bullets, paragraphs) as egui
+/// labels — enough for the release notes and the legal/licenses text.
+fn render_markdown(ui: &mut egui::Ui, p: theme::Palette, body: &str) {
+    // Strip the inline markers we don't render (bold/code) so they don't show raw.
+    let clean = |s: &str| s.replace("**", "").replace('`', "");
+    for line in body.lines() {
+        let t = line.trim();
+        if let Some(h) = t.strip_prefix("## ").or_else(|| t.strip_prefix("### ")) {
+            ui.add_space(6.0);
+            ui.label(
+                RichText::new(clean(h))
+                    .family(crate::fonts::semibold())
+                    .color(p.fg),
+            );
+            ui.add_space(2.0);
+        } else if let Some(h) = t.strip_prefix("# ") {
+            ui.add_space(6.0);
+            ui.label(
+                RichText::new(clean(h))
+                    .size(15.0)
+                    .family(crate::fonts::semibold())
+                    .color(p.fg),
+            );
+            ui.add_space(2.0);
+        } else if let Some(b) = t.strip_prefix("- ").or_else(|| t.strip_prefix("* ")) {
+            ui.label(RichText::new(format!("•  {}", clean(b))).color(p.fg_dim));
+        } else if !t.is_empty() {
+            // A line that is entirely bold reads as emphasis.
+            if t.len() > 4 && t.starts_with("**") && t.ends_with("**") {
+                ui.label(
+                    RichText::new(clean(t))
+                        .family(crate::fonts::semibold())
+                        .color(p.fg),
+                );
+            } else {
+                ui.label(RichText::new(clean(t)).color(p.fg_dim));
+            }
+        } else {
+            ui.add_space(4.0);
+        }
+    }
 }
 
 /// A big Gloock number with a small uppercase caption, as in the history header.
@@ -3874,6 +4076,11 @@ fn adv_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, content: impl FnOn
 /// A consistent width for Settings dropdowns, so the select column lines up
 /// (like the web's fixed-width control column) instead of hugging each label.
 const CTRL_COMBO_W: f32 = 168.0;
+
+/// Legal/attribution text shown in the About modals, bundled from the repo root
+/// (English is the canonical version, as on the web).
+const DISCLAIMER_MD: &str = include_str!("../../DISCLAIMER.md");
+const LICENSES_MD: &str = include_str!("../../OPEN_SOURCE_LICENSES.md");
 
 /// Filename-template presets as `(yt-dlp value, display label)`, mirroring the web.
 /// The `%(autotag...)s` sentinels are renamed to the tagged metadata by the backend.
