@@ -779,6 +779,9 @@ fn open_url(url: &str) {
 /// brand, tabs and content all line up — the web UI's `max-w` container.
 const CONTENT_W: f32 = 860.0;
 
+/// Width of the Settings right rail ("on this page" index) panel.
+const SETTINGS_RAIL_W: f32 = 210.0;
+
 /// The manually-verified sites shown in the "supported sites" dialog
 /// (slug for the bundled logo, display name, homepage).
 const SUPPORTED_SITES: &[(&str, &str, &str)] = &[
@@ -1157,20 +1160,31 @@ impl eframe::App for App {
             egui::Panel::right("settings-nav")
                 .resizable(false)
                 .show_separator_line(false)
-                .exact_size(210.0)
+                .exact_size(SETTINGS_RAIL_W)
                 .frame(
                     egui::Frame::new()
                         .fill(egui::Color32::TRANSPARENT)
                         .inner_margin(egui::Margin::symmetric(20, 24)),
                 )
                 .show(ui, |ui| {
-                    ui.set_width(170.0);
-                    ui.label(
-                        RichText::new(tl(lang, "set.onpage"))
-                            .small()
-                            .color(p.fg_dim),
+                    // A compact "on this page" index with a hairline on its left
+                    // that spans only the list (header + items), like the web rail.
+                    let full_w = ui.available_width();
+                    let origin = ui.cursor().min;
+                    let line_x = origin.x;
+                    let text_x = origin.x + 14.0;
+                    let mut y = origin.y;
+
+                    ui.painter().text(
+                        egui::pos2(text_x, y),
+                        egui::Align2::LEFT_TOP,
+                        tl(lang, "set.onpage"),
+                        egui::FontId::proportional(10.5),
+                        p.fg_dim.gamma_multiply(0.75),
                     );
-                    ui.add_space(10.0);
+                    y += 22.0;
+
+                    let item_h = 23.0;
                     for (key, label) in [
                         ("sec.general", "set.general"),
                         ("sec.downloads", "set.downloads"),
@@ -1183,26 +1197,39 @@ impl eframe::App for App {
                         ("sec.extension", "set.extension"),
                         ("sec.about", "set.about"),
                     ] {
-                        let txt = tl(lang, label).to_string();
-                        let w = ui.available_width();
-                        let (rect, resp) =
-                            ui.allocate_exact_size(egui::vec2(w, 30.0), egui::Sense::click());
+                        let rect = egui::Rect::from_min_size(
+                            egui::pos2(line_x, y),
+                            egui::vec2(full_w, item_h),
+                        );
+                        let resp = ui.interact(rect, egui::Id::unique(key), egui::Sense::click());
                         let hov = resp.hovered();
                         let col = if hov { p.fg } else { p.fg_dim };
                         if hov {
                             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                         }
                         ui.painter().text(
-                            rect.left_center(),
+                            egui::pos2(text_x, rect.center().y),
                             egui::Align2::LEFT_CENTER,
-                            &txt,
-                            egui::FontId::proportional(14.0),
+                            tl(lang, label),
+                            egui::FontId::proportional(13.0),
                             col,
                         );
                         if resp.clicked() {
                             self.settings_scroll_to = Some(key.to_string());
                         }
+                        y += item_h;
                     }
+
+                    // The hairline on the left, spanning header + items only.
+                    ui.painter().rect_filled(
+                        egui::Rect::from_min_max(
+                            egui::pos2(line_x, origin.y),
+                            egui::pos2(line_x + 1.0, y),
+                        ),
+                        0.0,
+                        p.line,
+                    );
+                    ui.allocate_space(egui::vec2(full_w, y - origin.y));
                 });
         }
 
@@ -1224,8 +1251,19 @@ impl eframe::App for App {
                         // A centered container (the same width the header uses), so
                         // the content lines up with the brand/tabs, like the web UI.
                         let avail = ui.available_width();
-                        let w = CONTENT_W.min(avail - 8.0);
-                        let pad = ((avail - w) / 2.0).max(0.0);
+                        let (pad, w) = if self.tab == Tab::Ajustes {
+                            // Settings has a right rail (a separate panel), which
+                            // shrinks this area. Align the left edge with the brand
+                            // anyway — the brand centers over the full width, rail
+                            // included — then run the column up to the rail.
+                            let full = avail + SETTINGS_RAIL_W;
+                            let container = CONTENT_W.min(full - 8.0);
+                            let pad = ((full - container) / 2.0).max(0.0);
+                            (pad, (avail - pad - 16.0).max(200.0))
+                        } else {
+                            let w = CONTENT_W.min(avail - 8.0);
+                            (((avail - w) / 2.0).max(0.0), w)
+                        };
                         ui.horizontal_top(|ui| {
                             ui.add_space(pad);
                             ui.vertical(|ui| {
