@@ -220,7 +220,6 @@ pub struct App {
     source: String, // "youtube" | "soundcloud" for the search selector
     search_results: Vec<SearchItem>,
     search_pending: Option<std::time::Instant>,
-    last_query: String,
     preview: Preview,
     status: Status,
     progress: f32,
@@ -349,7 +348,6 @@ impl App {
             source: "youtube".into(),
             search_results: Vec::new(),
             search_pending: None,
-            last_query: String::new(),
             preview: Preview::None,
             status: Status::Idle,
             progress: 0.0,
@@ -452,7 +450,6 @@ impl App {
                 if is_url(&u) {
                     app.analyze();
                 } else {
-                    app.last_query = u.clone();
                     app.backend.send(Cmd::Search {
                         query: u,
                         source: app.source.clone(),
@@ -603,10 +600,12 @@ impl App {
                     self.status = Status::Idle;
                     self.search_results.clear();
                 }
-                Evt::SearchResults { query, items } => {
-                    // Drop results for a stale query (a slower earlier request must
-                    // not overwrite the current one).
-                    if query == self.last_query {
+                Evt::SearchResults(items) => {
+                    // Show the results while a search query is still active. If the
+                    // field was cleared or turned into a URL while the request was
+                    // in flight, drop them (no dropdown over a URL/empty field).
+                    let q = self.url.trim();
+                    if !q.is_empty() && !is_url(q) {
                         self.search_results = items;
                     }
                 }
@@ -1220,7 +1219,6 @@ impl eframe::App for App {
                 self.search_pending = None;
                 let q = self.url.trim().to_string();
                 if !q.is_empty() && !is_url(&q) {
-                    self.last_query = q.clone();
                     self.backend.send(Cmd::Search {
                         query: q,
                         source: self.source.clone(),

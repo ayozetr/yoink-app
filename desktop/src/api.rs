@@ -92,10 +92,7 @@ pub enum Evt {
     },
     Analyzing,
     Info(VideoLite),
-    SearchResults {
-        query: String,
-        items: Vec<SearchItem>,
-    },
+    SearchResults(Vec<SearchItem>),
     Music(Box<MusicInfo>),
     Playlist {
         title: String,
@@ -1003,14 +1000,7 @@ async fn search(
         .await;
     if let Ok(r) = res {
         if let Ok(resp) = r.json::<Resp>().await {
-            emit(
-                &tx,
-                &ctx,
-                Evt::SearchResults {
-                    query,
-                    items: resp.results,
-                },
-            );
+            emit(&tx, &ctx, Evt::SearchResults(resp.results));
         }
     }
 }
