@@ -14,6 +14,16 @@ name: Release (egui)
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
 on:
   workflow_dispatch:
+  # Temporary: build on every push to egui-ui so the packaging can be iterated on
+  # CI before this replaces release.yml. Remove once validated.
+  push:
+    branches: [egui-ui]
+    paths:
+      - "desktop/**"
+      - "backend-rs/**"
+      - "scripts/build_egui_appimage.sh"
+      - "scripts/make_latest_json_egui.py"
+      - ".github/workflows/release-egui.yml"
 
 permissions:
   contents: read
