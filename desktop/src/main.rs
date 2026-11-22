@@ -74,6 +74,12 @@ fn main() -> eframe::Result {
     #[cfg(target_os = "linux")]
     ensure_desktop_entry();
 
+    // Clean up the previous binary left beside us by a Windows in-place update.
+    #[cfg(target_os = "windows")]
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = std::fs::remove_file(exe.with_extension("old"));
+    }
+
     // Deep link + single instance: if a yoink:// link was passed and another
     // instance is already running, hand it over and exit; otherwise we become the
     // owner and receive future links on `dl_rx`.

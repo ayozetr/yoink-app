@@ -183,6 +183,9 @@ pub struct App {
     preset_naming: bool,
     preset_name: String,
     update_available: Option<String>,
+    update_asset_url: Option<String>,
+    update_progress: Option<f32>,
+    update_error: Option<String>,
     update_dismissed: bool,
     whatsnew: Vec<(String, String)>,
     whatsnew_open: bool,
@@ -271,6 +274,9 @@ impl App {
             preset_naming: false,
             preset_name: String::new(),
             update_available: None,
+            update_asset_url: None,
+            update_progress: None,
+            update_error: None,
             update_dismissed: false,
             whatsnew: Vec::new(),
             whatsnew_open: false,
@@ -289,6 +295,10 @@ impl App {
         }
         if std::env::var("YOINK_FAKE_UPDATE").is_ok() {
             app.update_available = Some("4.5.0".into());
+            app.update_asset_url = Some("https://example.invalid/Yoink.AppImage".into());
+            if let Ok(p) = std::env::var("YOINK_FAKE_UPDATE_PROGRESS") {
+                app.update_progress = p.parse().ok();
+            }
         }
         // First launch after an update: fetch "what's new" since the last-seen version.
         let marker = whatsnew_marker();
@@ -410,7 +420,20 @@ impl App {
                     self.settings = Some(*s);
                 }
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
-                Evt::UpdateAvailable { version } => self.update_available = Some(version),
+                Evt::UpdateAvailable { version, asset_url } => {
+                    self.update_available = Some(version);
+                    self.update_asset_url = asset_url;
+                }
+                Evt::UpdateProgress(pct) => self.update_progress = Some(pct),
+                Evt::UpdateInstalled(path) => {
+                    // The binary is swapped — relaunch it and exit this process.
+                    let _ = std::process::Command::new(&path).spawn();
+                    std::process::exit(0);
+                }
+                Evt::UpdateError(e) => {
+                    self.update_progress = None;
+                    self.update_error = Some(e);
+                }
                 Evt::WhatsNew(entries) => {
                     if !entries.is_empty() {
                         self.whatsnew = entries;
@@ -1121,11 +1144,43 @@ impl eframe::App for App {
                     ui.horizontal(|ui| {
                         crate::icons::show(ui, "download", 15.0, p.accent);
                         ui.add_space(6.0);
-                        ui.label(
-                            RichText::new(format!("{} {version}", tl(lang, "update.available")))
+                        // While downloading, show progress; after a failure, show
+                        // the error. Otherwise the "new version" message.
+                        if let Some(pct) = self.update_progress {
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} {}%",
+                                    tl(lang, "update.downloading"),
+                                    (pct * 100.0) as u32
+                                ))
                                 .color(p.fg),
-                        );
+                            );
+                            ui.add_space(10.0);
+                            ui.add(
+                                egui::ProgressBar::new(pct)
+                                    .desired_width(160.0)
+                                    .desired_height(6.0)
+                                    .corner_radius(3),
+                            );
+                        } else if self.update_error.is_some() {
+                            ui.label(
+                                RichText::new(tl(lang, "update.failed")).color(p.fg),
+                            );
+                        } else {
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} {version}",
+                                    tl(lang, "update.available")
+                                ))
+                                .color(p.fg),
+                            );
+                        }
+
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if self.update_progress.is_some() {
+                                // Mid-download: no controls, just the bar.
+                                return;
+                            }
                             if ui
                                 .add(
                                     egui::Button::image(crate::icons::img("x", 14.0, p.fg_dim))
@@ -1136,19 +1191,36 @@ impl eframe::App for App {
                                 self.update_dismissed = true;
                             }
                             ui.add_space(8.0);
+                            // In-place update when we can replace the binary (an
+                            // AppImage or the Windows .exe) and the release has a
+                            // matching asset; otherwise fall back to the releases
+                            // page. A prior failure also falls back.
+                            let can_self_update = self.update_error.is_none()
+                                && crate::api::self_update_target().is_some()
+                                && self.update_asset_url.is_some();
+                            let label = if can_self_update {
+                                tl(lang, "update.install")
+                            } else {
+                                tl(lang, "update.view")
+                            };
                             if ui
                                 .add(
-                                    egui::Button::new(
-                                        RichText::new(tl(lang, "update.view")).color(p.accent_fg),
-                                    )
-                                    .fill(p.accent)
-                                    .corner_radius(8),
+                                    egui::Button::new(RichText::new(label).color(p.accent_fg))
+                                        .fill(p.accent)
+                                        .corner_radius(8),
                                 )
                                 .clicked()
                             {
-                                let _ = std::process::Command::new("xdg-open")
-                                    .arg("https://github.com/ayozetr/yoink-app/releases/latest")
-                                    .spawn();
+                                if can_self_update {
+                                    self.update_progress = Some(0.0);
+                                    self.backend.send(Cmd::SelfUpdate {
+                                        url: self.update_asset_url.clone().unwrap_or_default(),
+                                    });
+                                } else {
+                                    open_url(
+                                        "https://github.com/ayozetr/yoink-app/releases/latest",
+                                    );
+                                }
                             }
                         });
                     });

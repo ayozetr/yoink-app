@@ -38,6 +38,8 @@ pub enum Cmd {
     LoadLogs,
     LoadWhatsNew { since: String },
     Open(String),
+    /// Download the given release asset and replace this binary in place.
+    SelfUpdate { url: String },
 }
 
 /// A piece of news from the worker to the UI.
@@ -46,7 +48,15 @@ pub enum Evt {
     SettingsSaved,
     UpdateAvailable {
         version: String,
+        /// The download URL of the asset for this platform (AppImage/exe), if the
+        /// release has one — the in-place updater pulls from here.
+        asset_url: Option<String>,
     },
+    /// In-place update download progress, 0.0..=1.0.
+    UpdateProgress(f32),
+    /// The binary was replaced; the path to relaunch (the app then exits).
+    UpdateInstalled(std::path::PathBuf),
+    UpdateError(String),
     WhatsNew(Vec<(String, String)>),
     History(Vec<HistoryEntry>),
     Logs {
@@ -349,6 +359,9 @@ impl Backend {
                         Cmd::Open(path) => {
                             tokio::spawn(async move { open_path(path).await });
                         }
+                        Cmd::SelfUpdate { url } => {
+                            tokio::spawn(async move { do_self_update(url, evt_tx, ctx).await });
+                        }
                     }
                 }
             });
@@ -428,14 +441,136 @@ async fn check_update(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
     };
     let latest = tag.trim_start_matches('v');
     if is_newer(latest, env!("CARGO_PKG_VERSION")) {
+        let asset_url = v
+            .get("assets")
+            .and_then(Value::as_array)
+            .and_then(|assets| {
+                assets.iter().find_map(|a| {
+                    let name = a.get("name").and_then(Value::as_str)?;
+                    name.to_ascii_lowercase()
+                        .ends_with(UPDATE_ASSET_SUFFIX)
+                        .then(|| a.get("browser_download_url").and_then(Value::as_str))
+                        .flatten()
+                        .map(str::to_string)
+                })
+            });
         emit(
             &tx,
             &ctx,
             Evt::UpdateAvailable {
                 version: latest.to_string(),
+                asset_url,
             },
         );
     }
+}
+
+/// The release-asset filename suffix to pull for an in-place update on this OS.
+#[cfg(target_os = "windows")]
+const UPDATE_ASSET_SUFFIX: &str = ".exe";
+#[cfg(not(target_os = "windows"))]
+const UPDATE_ASSET_SUFFIX: &str = ".appimage";
+
+/// The file this running binary can replace in place, or `None` when in-place
+/// updates don't apply (a dev build, or a system-packaged .deb/.rpm): on Linux
+/// only an AppImage (its real path is in `$APPIMAGE`, since the running exe is
+/// the read-only mount); on Windows the executable itself.
+pub fn self_update_target() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        std::env::current_exe().ok()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::env::var_os("APPIMAGE").map(std::path::PathBuf::from)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        None
+    }
+}
+
+/// Download `url` to a temp file beside `target`, then atomically swap it in and
+/// tell the UI to relaunch. Everything is staged in a sibling temp file so a
+/// failed or partial download never touches the live binary.
+async fn do_self_update(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let Some(target) = self_update_target() else {
+        emit(&tx, &ctx, Evt::UpdateError("unsupported".into()));
+        return;
+    };
+    match download_and_install(&url, &target, &tx, &ctx).await {
+        Ok(()) => emit(&tx, &ctx, Evt::UpdateInstalled(target)),
+        Err(e) => emit(&tx, &ctx, Evt::UpdateError(e)),
+    }
+}
+
+async fn download_and_install(
+    url: &str,
+    target: &std::path::Path,
+    tx: &std::sync::mpsc::Sender<Evt>,
+    ctx: &egui::Context,
+) -> Result<(), String> {
+    let dir = target.parent().ok_or("no parent dir")?;
+    let tmp = dir.join(format!(".yoink-update-{}.tmp", std::process::id()));
+
+    let resp = reqwest::Client::new()
+        .get(url)
+        .header("User-Agent", "yoink-desktop")
+        .send()
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|e| e.to_string())?;
+    let total = resp.content_length().unwrap_or(0);
+
+    {
+        use std::io::Write;
+        let mut file = std::fs::File::create(&tmp).map_err(|e| e.to_string())?;
+        let mut done: u64 = 0;
+        let mut resp = resp;
+        let mut last = 0.0f32;
+        while let Some(chunk) = resp.chunk().await.map_err(|e| e.to_string())? {
+            file.write_all(&chunk).map_err(|e| e.to_string())?;
+            done += chunk.len() as u64;
+            if total > 0 {
+                let pct = done as f32 / total as f32;
+                if pct - last >= 0.01 {
+                    last = pct;
+                    emit(tx, ctx, Evt::UpdateProgress(pct));
+                }
+            }
+        }
+        file.flush().map_err(|e| e.to_string())?;
+    }
+
+    // The new binary must be executable (AppImage); harmless on Windows.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755));
+    }
+
+    install_over(&tmp, target).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })
+}
+
+/// Replace `target` with the freshly downloaded `tmp` (same directory).
+#[cfg(not(target_os = "windows"))]
+fn install_over(tmp: &std::path::Path, target: &std::path::Path) -> Result<(), String> {
+    // A rename within one directory is atomic; the running AppImage keeps its
+    // mount, so swapping the file underneath is safe.
+    std::fs::rename(tmp, target).map_err(|e| e.to_string())
+}
+
+/// Windows keeps a running .exe locked, but allows renaming it. Move it aside,
+/// then move the new one into place; the leftover is cleaned on next launch.
+#[cfg(target_os = "windows")]
+fn install_over(tmp: &std::path::Path, target: &std::path::Path) -> Result<(), String> {
+    let backup = target.with_extension("old");
+    let _ = std::fs::remove_file(&backup);
+    std::fs::rename(target, &backup).map_err(|e| e.to_string())?;
+    std::fs::rename(tmp, target).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// True if semver `a` is greater than `b` (numeric, dot-separated).
