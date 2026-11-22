@@ -289,6 +289,58 @@ pub fn tl(lang: Lang, key: &str) -> &str {
             "This audio can't be downloaded directly — each track is matched on YouTube, downloaded, and tagged with the source metadata."
         }
 
+        // Settings: Shortcuts / Extension / About sections.
+        ("set.shortcuts", Es) => "Atajos",
+        ("set.shortcuts", En) => "Shortcuts",
+        ("set.extension", Es) => "Extensión",
+        ("set.extension", En) => "Extension",
+        ("set.about", Es) => "Acerca de",
+        ("set.about", En) => "About",
+        ("sc.focus_url", Es) => "Enfocar el campo de URL",
+        ("sc.focus_url", En) => "Focus the URL field",
+        ("sc.settings", Es) => "Abrir o cerrar Ajustes",
+        ("sc.settings", En) => "Open or close Settings",
+        ("sc.analyze", Es) => "Analizar el enlace",
+        ("sc.analyze", En) => "Analyze the link",
+        ("sc.close", Es) => "Cerrar la ventana o el desplegable",
+        ("sc.close", En) => "Close the dialog or dropdown",
+        ("sc.note", Es) => "Las listas y menús también se manejan con ↑ ↓ y Enter.",
+        ("sc.note", En) => "Lists and menus are also operable with ↑ ↓ and Enter.",
+        ("ext.intro", Es) => {
+            "Agrega la extensión del navegador para enviar contenido a Yoink desde la propia web."
+        }
+        ("ext.intro", En) => {
+            "Add the browser extension to send content to Yoink straight from the web."
+        }
+        ("ext.get", Es) => "Instalar",
+        ("ext.get", En) => "Install",
+        ("ext.other", Es) => "Otros navegadores",
+        ("ext.other", En) => "Other browsers",
+        ("ext.manual", Es) => "O si lo prefieres, instálalo manualmente",
+        ("ext.manual", En) => "Or, if you prefer, install it manually",
+        ("ext.usage", Es) => {
+            "Una vez instalado, basta con clic derecho en la web → Download with Yoink y el contenido se envía a la app automáticamente para su descarga."
+        }
+        ("ext.usage", En) => {
+            "Once installed, just right-click on the web → Download with Yoink and the content is sent to the app automatically to be downloaded."
+        }
+        ("about.subtitle", Es) => "Descargador multimedia",
+        ("about.subtitle", En) => "Media Downloader",
+        ("about.updates", Es) => "Actualizaciones",
+        ("about.updates", En) => "Updates",
+        ("about.uptodate", Es) => "al día",
+        ("about.uptodate", En) => "up to date",
+        ("about.view_release", Es) => "Ver la versión",
+        ("about.view_release", En) => "View release",
+        ("about.developed", Es) => "Desarrollado por",
+        ("about.developed", En) => "Developed by",
+        ("about.donate", Es) => "Si lo consideras, puedes hacer una donación",
+        ("about.donate", En) => "If you'd like, you can make a donation",
+        ("about.licenses", Es) => "Licencias de código abierto",
+        ("about.licenses", En) => "Open-source licenses",
+        ("about.terms", Es) => "Términos y Condiciones de Uso",
+        ("about.terms", En) => "Terms & Conditions of Use",
+
         _ => key,
     }
 }

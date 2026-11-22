@@ -127,6 +127,7 @@ pub struct App {
     deeplink_rx: std::sync::mpsc::Receiver<String>,
     tray_rx: std::sync::mpsc::Receiver<crate::tray::TrayMsg>,
     shot: Option<(String, std::time::Instant)>, // (output path, started) for YOINK_SHOT
+    focus_url: bool, // a pending Ctrl+L: focus the URL field next frame
 }
 
 impl App {
@@ -205,6 +206,7 @@ impl App {
                 .ok()
                 .filter(|s| !s.is_empty())
                 .map(|p| (p, std::time::Instant::now())),
+            focus_url: false,
         };
         // A link the app was launched with (yoink://…) analyzes straight away.
         if let Some(url) = pending {
@@ -686,6 +688,23 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
         self.pump_queue();
+
+        // Keyboard shortcuts (documented in Ajustes → Atajos). COMMAND is Ctrl on
+        // Linux/Windows, ⌘ on macOS.
+        let sc_focus = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::L);
+        let sc_settings = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Comma);
+        if ctx.input_mut(|i| i.consume_shortcut(&sc_focus)) {
+            self.tab = Tab::Inicio;
+            self.focus_url = true;
+        }
+        if ctx.input_mut(|i| i.consume_shortcut(&sc_settings)) {
+            self.tab = if self.tab == Tab::Ajustes {
+                Tab::Inicio
+            } else {
+                Tab::Ajustes
+            };
+        }
+
         // Debounced search: fire once the typed query settles.
         if let Some(at) = self.search_pending {
             if at.elapsed().as_millis() > 350 {
@@ -863,6 +882,9 @@ impl eframe::App for App {
                         ("sec.options", "set.options"),
                         ("sec.sponsorblock", "set.sponsorblock"),
                         ("sec.network", "set.network"),
+                        ("sec.shortcuts", "set.shortcuts"),
+                        ("sec.extension", "set.extension"),
+                        ("sec.about", "set.about"),
                     ] {
                         let txt = tl(lang, label).to_string();
                         let w = ui.available_width();
@@ -1175,10 +1197,15 @@ impl App {
                         ui.add_space(8.0);
                         let resp = ui.add(
                             egui::TextEdit::singleline(&mut self.url)
+                                .id(egui::Id::unique("url_field"))
                                 .hint_text(tl(lang, "inicio.url_hint"))
                                 .frame(egui::Frame::NONE)
                                 .desired_width(ui.available_width() - 26.0),
                         );
+                        if self.focus_url {
+                            self.focus_url = false;
+                            resp.request_focus();
+                        }
                         if resp.changed() {
                             let q = self.url.trim();
                             if q.is_empty() || is_url(q) {
@@ -2452,6 +2479,155 @@ impl App {
             s.cookies_from_browser = (!v.is_empty()).then_some(v);
         });
 
+        // Shortcuts.
+        ui.add_space(20.0);
+        heading(ui, "sec.shortcuts", "set.shortcuts");
+        ui.add_space(8.0);
+        let shortcuts: [(&str, &[&str]); 4] = [
+            ("sc.focus_url", &["Ctrl", "L"]),
+            ("sc.settings", &["Ctrl", ","]),
+            ("sc.analyze", &["Enter"]),
+            ("sc.close", &["Esc"]),
+        ];
+        for (key, keys) in shortcuts {
+            ui.add_space(7.0);
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(tl(lang, key)).color(p.fg));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    for k in keys.iter().rev() {
+                        kbd_chip(ui, p, k);
+                    }
+                });
+            });
+        }
+        ui.add_space(10.0);
+        ui.label(RichText::new(tl(lang, "sc.note")).small().color(p.fg_dim));
+
+        // Extension.
+        ui.add_space(20.0);
+        heading(ui, "sec.extension", "set.extension");
+        ui.add_space(4.0);
+        ui.label(RichText::new(tl(lang, "ext.intro")).color(p.fg_dim));
+        if ext_row(ui, p, lang, "Firefox", "Mozilla Add-ons") {
+            open_url("https://addons.mozilla.org/firefox/addon/send-to-yoink/");
+        }
+        if ext_row(ui, p, lang, "Chrome", "Chrome Web Store") {
+            open_url("https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp");
+        }
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(tl(lang, "ext.other")).color(p.fg_dim));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui
+                    .add(egui::Button::new(RichText::new(tl(lang, "ext.manual")).small().color(p.accent)).frame(false))
+                    .clicked()
+                {
+                    open_url("https://github.com/ayozetr/yoink-app/releases/tag/ext-latest");
+                }
+            });
+        });
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            crate::icons::show(ui, "check", 15.0, p.accent);
+            ui.add_space(4.0);
+            ui.label(RichText::new(tl(lang, "ext.usage")).small().color(p.fg_dim));
+        });
+
+        // About.
+        ui.add_space(20.0);
+        heading(ui, "sec.about", "set.about");
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::Image::from_bytes(
+                    "bytes://app-icon.png",
+                    include_bytes!("../assets/icon.png") as &[u8],
+                )
+                .fit_to_exact_size(egui::vec2(54.0, 54.0))
+                .corner_radius(14),
+            );
+            ui.add_space(12.0);
+            ui.vertical(|ui| {
+                ui.label(RichText::new("Yoink").size(19.0).strong().color(p.fg));
+                ui.label(RichText::new(tl(lang, "about.subtitle")).small().color(p.fg_dim));
+                ui.label(
+                    RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                        .monospace()
+                        .size(11.0)
+                        .color(p.fg_dim),
+                );
+            });
+        });
+        ui.add_space(14.0);
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(tl(lang, "about.updates")).color(p.fg));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if let Some(v) = self.update_available.clone() {
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                RichText::new(format!("{} {v}", tl(lang, "about.view_release")))
+                                    .small()
+                                    .color(p.accent),
+                            )
+                            .fill(p.accent.gamma_multiply(0.16))
+                            .corner_radius(255)
+                            .min_size(egui::vec2(0.0, 28.0)),
+                        )
+                        .clicked()
+                    {
+                        open_url("https://github.com/ayozetr/yoink-app/releases/latest");
+                    }
+                } else {
+                    ui.label(RichText::new(tl(lang, "about.uptodate")).small().color(p.ok));
+                    ui.add_space(4.0);
+                    crate::icons::show(ui, "check", 14.0, p.ok);
+                }
+            });
+        });
+        ui.add_space(8.0);
+        if about_link_row(
+            ui,
+            p,
+            "sparkles",
+            RichText::new(tl(lang, "whatsnew.title")),
+        ) {
+            if self.whatsnew.is_empty() {
+                self.backend.send(Cmd::LoadWhatsNew {
+                    since: String::new(),
+                });
+            } else {
+                self.whatsnew_open = true;
+            }
+        }
+        if about_link_row(
+            ui,
+            p,
+            "github",
+            RichText::new(format!("{} ayozetr", tl(lang, "about.developed"))),
+        ) {
+            open_url("https://github.com/ayozetr");
+        }
+        if about_link_row(ui, p, "coffee", RichText::new(tl(lang, "about.donate"))) {
+            open_url("https://ko-fi.com/ayozetr");
+        }
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            if ui
+                .add(egui::Button::new(RichText::new(tl(lang, "about.licenses")).small().color(p.fg_dim)).frame(false))
+                .clicked()
+            {
+                open_url("https://github.com/ayozetr/yoink-app/blob/main/docs/THIRD_PARTY_LICENSES.md");
+            }
+            ui.add_space(10.0);
+            if ui
+                .add(egui::Button::new(RichText::new(tl(lang, "about.terms")).small().color(p.fg_dim)).frame(false))
+                .clicked()
+            {
+                open_url("https://github.com/ayozetr/yoink-app#readme");
+            }
+        });
+
         ui.add_space(22.0);
         ui.horizontal(|ui| {
             let label = format!("  {}  ", tl(lang, "action.save"));
@@ -2600,6 +2776,90 @@ fn setting_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, add: impl FnOn
         ui.label(RichText::new(label).color(p.fg));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), add);
     });
+}
+
+/// A small keycap chip (monospace key name on a rounded inset), as in the web's
+/// Shortcuts list. Laid out right-to-left, so callers add keys in reverse.
+fn kbd_chip(ui: &mut egui::Ui, p: theme::Palette, label: &str) {
+    let font = egui::FontId::new(11.0, egui::FontFamily::Monospace);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(label.to_string(), font.clone(), p.fg_dim);
+    let w = (galley.size().x + 14.0).max(22.0);
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(w, 22.0), egui::Sense::hover());
+    ui.painter().rect_filled(rect, 6.0, p.surface_hi);
+    ui.painter().rect_stroke(
+        rect,
+        6.0,
+        egui::Stroke::new(1.0, p.line),
+        egui::StrokeKind::Inside,
+    );
+    ui.painter()
+        .text(rect.center(), egui::Align2::CENTER_CENTER, label, font, p.fg);
+    ui.add_space(5.0);
+}
+
+/// An extension row: a browser name + store caption on the left, an "Install"
+/// pill on the right. Returns true when the pill is clicked.
+fn ext_row(ui: &mut egui::Ui, p: theme::Palette, lang: Lang, name: &str, store: &str) -> bool {
+    let mut clicked = false;
+    ui.add_space(10.0);
+    ui.horizontal(|ui| {
+        ui.vertical(|ui| {
+            ui.label(RichText::new(name).color(p.fg));
+            ui.label(RichText::new(store).small().color(p.fg_dim));
+        });
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let btn = egui::Button::image_and_text(
+                crate::icons::img("download", 13.0, p.accent),
+                RichText::new(tl(lang, "ext.get")).small().color(p.accent),
+            )
+            .fill(p.accent.gamma_multiply(0.16))
+            .corner_radius(255)
+            .min_size(egui::vec2(0.0, 28.0));
+            clicked = ui.add(btn).clicked();
+        });
+    });
+    ui.add_space(4.0);
+    let (sep, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
+    ui.painter().rect_filled(sep, 0.0, p.line.gamma_multiply(0.5));
+    clicked
+}
+
+/// An "About" link row: an accent icon, a label, and a chevron that nudges right
+/// on hover. Returns true when clicked.
+fn about_link_row(ui: &mut egui::Ui, p: theme::Palette, icon: &str, text: RichText) -> bool {
+    let w = ui.available_width();
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(w, 40.0), egui::Sense::click());
+    let hov = resp.hovered();
+    if hov {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    let tcol = if hov { p.accent } else { p.fg };
+    let ir = egui::Rect::from_min_size(
+        egui::pos2(rect.left(), rect.center().y - 8.0),
+        egui::vec2(16.0, 16.0),
+    );
+    crate::icons::img(icon, 16.0, p.accent).paint_at(ui, ir);
+    ui.painter().text(
+        egui::pos2(rect.left() + 26.0, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        text.text(),
+        egui::FontId::proportional(14.0),
+        tcol,
+    );
+    let chev = rect.right() - 14.0 + if hov { 2.0 } else { 0.0 };
+    crate::icons::img("chevron", 14.0, p.fg_dim).paint_at(
+        ui,
+        egui::Rect::from_min_size(egui::pos2(chev, rect.center().y - 7.0), egui::vec2(14.0, 14.0)),
+    );
+    // Hairline separator at the top.
+    ui.painter().rect_filled(
+        egui::Rect::from_min_size(rect.left_top(), egui::vec2(w, 1.0)),
+        0.0,
+        p.line.gamma_multiply(0.5),
+    );
+    resp.clicked()
 }
 
 /// A big Gloock number with a small uppercase caption, as in the history header.
