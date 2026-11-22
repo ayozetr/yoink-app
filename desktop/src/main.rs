@@ -94,6 +94,10 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Yoink")
             .with_app_id("yoink")
+            // Draw our own title bar (a flat AMOLED strip with the Yoink mark),
+            // so the window chrome matches the app instead of the compositor's
+            // gray decoration — and looks identical across Linux/Windows/macOS.
+            .with_decorations(false)
             .with_inner_size([1180.0, 840.0])
             .with_min_inner_size([560.0, 520.0])
             .with_icon(icon()),

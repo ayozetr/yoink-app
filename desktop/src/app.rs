@@ -660,6 +660,91 @@ fn icon_btn(ui: &mut egui::Ui, p: theme::Palette, icon: &str) -> bool {
     resp.clicked()
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum WinBtn {
+    Minimize,
+    Maximize,
+    Close,
+}
+
+/// A custom window-control button (minimize / maximize / close), painted to fill
+/// the title bar height. Close highlights red on hover; the glyphs are drawn
+/// directly so they stay crisp at the title-bar size.
+fn win_btn(ui: &mut egui::Ui, p: theme::Palette, kind: WinBtn) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(44.0, 34.0), egui::Sense::click());
+    let hov = resp.hovered();
+    if hov {
+        let bg = if kind == WinBtn::Close {
+            egui::Color32::from_rgb(196, 43, 43)
+        } else {
+            p.surface_hi
+        };
+        ui.painter().rect_filled(rect, 0.0, bg);
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    let col = if hov { egui::Color32::WHITE } else { p.fg_dim };
+    let c = rect.center();
+    let painter = ui.painter();
+    let stroke = egui::Stroke::new(1.3, col);
+    let h = 5.0; // half-extent of each glyph
+    match kind {
+        WinBtn::Minimize => {
+            painter.line_segment([egui::pos2(c.x - h, c.y), egui::pos2(c.x + h, c.y)], stroke);
+        }
+        WinBtn::Maximize => {
+            let r = egui::Rect::from_center_size(c, egui::vec2(h * 2.0, h * 2.0));
+            painter.rect_stroke(r, 1.0, stroke, egui::StrokeKind::Inside);
+        }
+        WinBtn::Close => {
+            painter.line_segment(
+                [egui::pos2(c.x - h, c.y - h), egui::pos2(c.x + h, c.y + h)],
+                stroke,
+            );
+            painter.line_segment(
+                [egui::pos2(c.x - h, c.y + h), egui::pos2(c.x + h, c.y - h)],
+                stroke,
+            );
+        }
+    }
+    resp
+}
+
+/// Edge/corner resize handles for the borderless window — thin interactive strips
+/// in a foreground layer that start a compositor resize on drag (elsewhere the
+/// pointer falls through to the UI below).
+fn resize_handles(ctx: &egui::Context) {
+    use egui::{CursorIcon as Cur, ResizeDirection as Dir};
+    let r = ctx.content_rect();
+    let b = 6.0;
+    let rect =
+        |x0: f32, y0: f32, x1: f32, y1: f32| egui::Rect::from_min_max(egui::pos2(x0, y0), egui::pos2(x1, y1));
+    let handles = [
+        // Edges first, then corners (corners are added later so they win overlap).
+        ("rz_n", rect(r.left() + b, r.top(), r.right() - b, r.top() + b), Dir::North, Cur::ResizeVertical),
+        ("rz_s", rect(r.left() + b, r.bottom() - b, r.right() - b, r.bottom()), Dir::South, Cur::ResizeVertical),
+        ("rz_w", rect(r.left(), r.top() + b, r.left() + b, r.bottom() - b), Dir::West, Cur::ResizeHorizontal),
+        ("rz_e", rect(r.right() - b, r.top() + b, r.right(), r.bottom() - b), Dir::East, Cur::ResizeHorizontal),
+        ("rz_nw", rect(r.left(), r.top(), r.left() + b, r.top() + b), Dir::NorthWest, Cur::ResizeNwSe),
+        ("rz_ne", rect(r.right() - b, r.top(), r.right(), r.top() + b), Dir::NorthEast, Cur::ResizeNeSw),
+        ("rz_sw", rect(r.left(), r.bottom() - b, r.left() + b, r.bottom()), Dir::SouthWest, Cur::ResizeNeSw),
+        ("rz_se", rect(r.right() - b, r.bottom() - b, r.right(), r.bottom()), Dir::SouthEast, Cur::ResizeNwSe),
+    ];
+    egui::Area::new(egui::Id::unique("resize-handles"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(r.min)
+        .show(ctx, |ui| {
+            for (id, hr, dir, cur) in handles {
+                let resp = ui.interact(hr, egui::Id::unique(id), egui::Sense::drag());
+                if resp.hovered() {
+                    ui.ctx().set_cursor_icon(cur);
+                }
+                if resp.drag_started() {
+                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::BeginResize(dir));
+                }
+            }
+        });
+}
+
 /// Open a URL in the user's default browser (fire-and-forget).
 fn open_url(url: &str) {
     #[cfg(target_os = "linux")]
@@ -852,6 +937,57 @@ impl eframe::App for App {
         }
         let p = theme::palette(self.dark);
         let lang = self.lang;
+
+        // Our own title bar (native decoration is off): a flat AMOLED strip with
+        // the Yoink mark on the left and window controls on the right. The empty
+        // area drags the window; a double-click toggles maximize.
+        egui::Panel::top("titlebar")
+            .show_separator_line(false)
+            .exact_size(34.0)
+            .frame(egui::Frame::new().fill(p.canvas).inner_margin(egui::Margin {
+                left: 12,
+                right: 4,
+                top: 0,
+                bottom: 0,
+            }))
+            .show(ui, |ui| {
+                let bar = ui.max_rect();
+                let drag = ui.interact(
+                    bar,
+                    egui::Id::unique("titlebar_drag"),
+                    egui::Sense::click_and_drag(),
+                );
+                if drag.double_clicked() {
+                    let maxed = ui.input(|i| i.viewport().maximized).unwrap_or(false);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maxed));
+                } else if drag.drag_started_by(egui::PointerButton::Primary) {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
+                }
+                ui.horizontal_centered(|ui| {
+                    ui.add(
+                        egui::Image::from_bytes(
+                            "bytes://titlebar-icon",
+                            include_bytes!("../assets/icon.png") as &[u8],
+                        )
+                        .fit_to_exact_size(egui::vec2(16.0, 16.0))
+                        .corner_radius(4),
+                    );
+                    ui.add_space(7.0);
+                    ui.label(RichText::new("Yoink").size(12.5).color(p.fg_dim));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if win_btn(ui, p, WinBtn::Close).clicked() {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        if win_btn(ui, p, WinBtn::Maximize).clicked() {
+                            let maxed = ui.input(|i| i.viewport().maximized).unwrap_or(false);
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maxed));
+                        }
+                        if win_btn(ui, p, WinBtn::Minimize).clicked() {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                        }
+                    });
+                });
+            });
 
         egui::Panel::top("topbar")
             .show_separator_line(false)
@@ -1241,6 +1377,9 @@ impl eframe::App for App {
             }
         }
 
+        // Borderless window: our own edge/corner resize handles.
+        resize_handles(&ctx);
+
         self.maybe_screenshot(&ctx);
     }
 }
@@ -1292,6 +1431,12 @@ impl App {
                 .show(ui, |ui| {
                     ui.set_width(total - 128.0);
                     ui.horizontal(|ui| {
+                        // Fix the row height up front so every item (glyph, combo,
+                        // divider, field) centers on the SAME height. Without this,
+                        // egui centers the first item (the glyph) on the row height
+                        // known so far, before the taller combo grows the row — so
+                        // the glyph ends up sitting too high.
+                        ui.set_min_height(26.0);
                         // A small, subtle brand glyph for the selected source,
                         // integrated with the picker, then a faint divider — like
                         // the web (not a big saturated logo).
@@ -1300,11 +1445,18 @@ impl App {
                         } else {
                             "youtube"
                         };
-                        // Center the small brand glyph on the picker row (match
-                        // the 22px divider height) so it lines up with the label.
-                        ui.add_sized(
-                            egui::vec2(14.0, 22.0),
-                            crate::icons::site_img(slug, 14.0, p.fg_dim),
+                        // Paint the glyph with a small downward nudge so its center
+                        // matches the combo label's optical center (text ink sits
+                        // below the geometric row center, so a centered glyph looks
+                        // high).
+                        let (grect, _) =
+                            ui.allocate_exact_size(egui::vec2(14.0, 26.0), egui::Sense::hover());
+                        crate::icons::site_img(slug, 14.0, p.fg_dim).paint_at(
+                            ui,
+                            egui::Rect::from_center_size(
+                                grect.center() + egui::vec2(0.0, 3.5),
+                                egui::vec2(14.0, 14.0),
+                            ),
                         );
                         ui.add_space(4.0);
                         egui::ComboBox::from_id_salt("source")
