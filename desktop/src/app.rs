@@ -552,6 +552,21 @@ fn close_button(ui: &mut egui::Ui, p: theme::Palette) -> egui::Response {
     resp
 }
 
+/// A small square icon button (26×26) that lights up on hover. Returns true when
+/// clicked. Used for the queue row's remove/reorder controls.
+fn icon_btn(ui: &mut egui::Ui, p: theme::Palette, icon: &str) -> bool {
+    let (rect, resp) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::click());
+    let hov = resp.hovered();
+    if hov {
+        ui.painter().rect_filled(rect, 7.0, p.surface_hi);
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    let col = if hov { p.fg } else { p.fg_dim };
+    let ir = egui::Rect::from_center_size(rect.center(), egui::vec2(14.0, 14.0));
+    crate::icons::img(icon, 14.0, col).paint_at(ui, ir);
+    resp.clicked()
+}
+
 /// Open a URL in the user's default browser (fire-and-forget).
 fn open_url(url: &str) {
     #[cfg(target_os = "linux")]
@@ -2051,7 +2066,9 @@ impl App {
         ui.add_space(8.0);
 
         let mut remove: Option<u64> = None;
-        for it in &self.queue {
+        let mut swap: Option<(usize, usize)> = None;
+        let n = self.queue.len();
+        for (idx, it) in self.queue.iter().enumerate() {
             let resp = egui::Frame::new()
                 .inner_margin(egui::Margin::symmetric(6, 9))
                 .show(ui, |ui| {
@@ -2088,23 +2105,16 @@ impl App {
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if !matches!(it.status, QStatus::Downloading) {
-                                let (xr, xresp) = ui.allocate_exact_size(
-                                    egui::vec2(26.0, 26.0),
-                                    egui::Sense::click(),
-                                );
-                                let hov = xresp.hovered();
-                                if hov {
-                                    ui.painter().rect_filled(xr, 7.0, p.surface_hi);
-                                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                                }
-                                let xc = if hov { p.fg } else { p.fg_dim };
-                                let ir = egui::Rect::from_center_size(
-                                    xr.center(),
-                                    egui::vec2(14.0, 14.0),
-                                );
-                                crate::icons::img("x", 14.0, xc).paint_at(ui, ir);
-                                if xresp.clicked() {
+                                // Remove, then the reorder arrows (right-to-left:
+                                // X rightmost, then ↓, then ↑).
+                                if icon_btn(ui, p, "x") {
                                     remove = Some(it.id);
+                                }
+                                if idx + 1 < n && icon_btn(ui, p, "chevron") {
+                                    swap = Some((idx, idx + 1));
+                                }
+                                if idx > 0 && icon_btn(ui, p, "chevron-up") {
+                                    swap = Some((idx, idx - 1));
                                 }
                             }
                         });
@@ -2112,6 +2122,9 @@ impl App {
                 })
                 .response;
             let _ = resp;
+        }
+        if let Some((a, b)) = swap {
+            self.queue.swap(a, b);
         }
         if let Some(id) = remove {
             self.queue.retain(|i| i.id != id);

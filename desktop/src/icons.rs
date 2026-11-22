@@ -33,6 +33,7 @@ fn bytes(name: &str) -> (&'static str, &'static [u8]) {
         "check" => ("check", svg!("circle-check-big")),
         "folder" => ("folder", svg!("folder-open")),
         "chevron" => ("chevron", svg!("chevron-down")),
+        "chevron-up" => ("chevron-up", svg!("chevron-up")),
         "chevron-right" => ("chevron-right", svg!("chevron-right")),
         "coffee" => ("coffee", svg!("coffee")),
         "github" => ("github", svg!("github")),
