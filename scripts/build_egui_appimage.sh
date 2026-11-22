@@ -46,7 +46,8 @@ dl() { # url dest
 }
 LD_VER="1-alpha-20240109-1"
 dl "https://github.com/linuxdeploy/linuxdeploy/releases/download/$LD_VER/linuxdeploy-x86_64.AppImage" linuxdeploy
-dl "https://github.com/linuxdeploy/linuxdeploy-plugin-gtk/releases/download/1-alpha-20240109-1/linuxdeploy-plugin-gtk-x86_64.AppImage" linuxdeploy-plugin-gtk
+# The GTK plugin ships only as a script (no release asset) from the repo.
+dl "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh" linuxdeploy-plugin-gtk.sh
 
 export PATH="$TOOLS:$PATH"
 export APPIMAGE_EXTRACT_AND_RUN=1   # no FUSE on CI
