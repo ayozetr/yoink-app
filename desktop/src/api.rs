@@ -546,14 +546,14 @@ async fn do_self_update(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui
 
 /// Ed25519 public key that release assets are signed with (the matching private
 /// key is the `YOINK_UPDATE_KEY` GitHub secret, used by the release workflow). An
-/// update is only installed if its `<asset>.sig` verifies against this key, so a
+/// update is only installed if its `<asset>.ysig` verifies against this key, so a
 /// tampered/compromised download can't lead to running an attacker's binary.
 const UPDATE_PUBKEY: [u8; 32] = [
     0x6b, 0x54, 0x4f, 0x16, 0x20, 0x0c, 0x97, 0x5b, 0x6c, 0xcb, 0x8b, 0x82, 0xdf, 0xc8, 0x9a, 0xe0,
     0x49, 0xbf, 0xf0, 0xfa, 0x10, 0x65, 0xac, 0x75, 0x43, 0xba, 0x2b, 0x97, 0x66, 0x8b, 0xda, 0x75,
 ];
 
-/// Download `<url>.sig` (a raw 64-byte ed25519 signature) and verify it over the
+/// Download `<url>.ysig` (a raw 64-byte ed25519 signature) and verify it over the
 /// downloaded file. Fail-closed: any problem (missing signature, bad length, bad
 /// signature) aborts the update.
 async fn verify_update_signature(
@@ -562,7 +562,9 @@ async fn verify_update_signature(
     client: &reqwest::Client,
 ) -> Result<(), String> {
     use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-    let sig_url = format!("{url}.sig");
+    // `.ysig`, not `.sig`, so our ed25519 signature can coexist with the Tauri
+    // updater's `.sig` on the same asset during the legacy→egui migration release.
+    let sig_url = format!("{url}.ysig");
     let parsed = reqwest::Url::parse(&sig_url).map_err(|e| e.to_string())?;
     if !is_trusted_release_url(&parsed) {
         return Err("untrusted signature URL".into());

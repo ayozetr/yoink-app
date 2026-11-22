@@ -4,7 +4,7 @@
 # The egui desktop app verifies every self-update against an embedded ed25519
 # public key (desktop/src/api.rs, UPDATE_PUBKEY). Each updatable asset (the Linux
 # AppImage and the Windows .exe) must be shipped alongside a detached signature
-# named "<asset>.sig" (a raw 64-byte ed25519 signature), or the app refuses the
+# named "<asset>.ysig" (a raw 64-byte ed25519 signature), or the app refuses the
 # update (fail-closed).
 #
 # Usage:
@@ -32,11 +32,11 @@ else
 fi
 
 for asset in "$@"; do
-  openssl pkeyutl -sign -inkey "$keyfile" -rawin -in "$asset" -out "$asset.sig"
+  openssl pkeyutl -sign -inkey "$keyfile" -rawin -in "$asset" -out "$asset.ysig"
   # Sanity-check the signature we just wrote.
   pub="$(mktemp)"
   openssl pkey -in "$keyfile" -pubout -out "$pub" >/dev/null 2>&1
-  openssl pkeyutl -verify -pubin -inkey "$pub" -rawin -in "$asset" -sigfile "$asset.sig" >/dev/null
+  openssl pkeyutl -verify -pubin -inkey "$pub" -rawin -in "$asset" -sigfile "$asset.ysig" >/dev/null
   rm -f "$pub"
-  echo "signed: $asset -> $asset.sig ($(wc -c < "$asset.sig") bytes)"
+  echo "signed: $asset -> $asset.ysig ($(wc -c < "$asset.ysig") bytes)"
 done
