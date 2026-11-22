@@ -2,21 +2,21 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ayoze Torres
 
-"""Build the Rust backend (`yoink-core`) and assemble the bundle resource.
+"""Build the Rust backend (`yoink-core`) and assemble the bundle folder.
 
     python scripts/build_core.py
 
-Compiles `backend-rs` in release mode and lays out
-`src-tauri/binaries/core/` with the three binaries the shipped app needs:
+Compiles `backend-rs` in release mode and lays out `desktop/target/core/` with
+the three binaries the shipped app needs:
 
   - `yoink-core`  — the Rust backend (axum; orchestrates the two below)
   - `yt-dlp`      — the official standalone binary, pinned to the same version as
                     `scripts/ytdlp-version.txt` (no Python runtime needed)
   - `ffmpeg` + `ffprobe` — from `backend/vendor/ffmpeg/` (run `build_ffmpeg.sh` once)
 
-`tauri.conf.json` bundles that folder as the `core` resource; `main.rs` launches
-`yoink-core` from it and points it at the sibling `yt-dlp`/`ffmpeg` via
-`YOINK_YTDLP`/`YOINK_FFMPEG`. This replaces the old PyInstaller backend build.
+`scripts/build_egui_appimage.sh` copies this folder beside the egui binary in the
+AppDir; `backend_proc.rs` launches `yoink-core` as a sibling and points it at the
+sibling `yt-dlp`/`ffmpeg` via `YOINK_YTDLP`/`YOINK_FFMPEG`.
 """
 
 from __future__ import annotations
@@ -33,7 +33,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CORE = ROOT / "backend-rs"
-DEST = ROOT / "src-tauri" / "binaries" / "core"
+# The backend bundle (yoink-core + yt-dlp + ffmpeg/ffprobe) the egui AppImage
+# packs beside its binary. Build output, gitignored.
+DEST = ROOT / "desktop" / "target" / "core"
 VENDOR_FFMPEG = ROOT / "backend" / "vendor" / "ffmpeg"
 
 
@@ -87,7 +89,7 @@ def main() -> int:
 
     # ffmpeg + ffprobe from the vendored LGPL builds.
     if not VENDOR_FFMPEG.is_dir():
-        print("  ! backend/vendor/ffmpeg not found — run scripts/fetch_ffmpeg.py first.")
+        print("  ! backend/vendor/ffmpeg not found — run scripts/build_ffmpeg.sh first.")
     for name in ("ffmpeg", "ffprobe", "ffmpeg.exe", "ffprobe.exe"):
         src = VENDOR_FFMPEG / name
         if src.exists():

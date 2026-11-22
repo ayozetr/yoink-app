@@ -1,23 +1,26 @@
 name: Release
 
-# Builds the signed desktop bundles for Linux + Windows and drafts the GitHub
-# release — replaces the hand-run build + the Windows VM (see docs/releasing.md).
+# Builds the native egui desktop app as a signed AppImage and assembles the
+# updater manifest.
 #
-#   Push a tag v<ver> (after bumping the version files)  -> build + draft release
-#   Run manually (workflow_dispatch)                     -> build only, artifacts, no release
+#   Push a tag v<ver> (after bumping the version)  -> build + draft release
+#   Run manually (workflow_dispatch)               -> build only, artifacts, no release
 #
-# The app ships the native Rust backend (yoink-core) plus a minimal, self-built
-# ffmpeg/ffprobe (~33 MB vs the old ~336 MB BtbN prebuilds) — see
-# scripts/build_ffmpeg.sh. The Windows ffmpeg is cross-compiled on a Linux runner
-# and handed to the Windows job.
-#
-# The updater signing key lives in two repo secrets (never in the repo):
-#   TAURI_SIGNING_PRIVATE_KEY           contents of ~/.tauri/yoink.key
+# The app ships the native Rust backend (yoink-core), the pinned standalone yt-dlp
+# and a minimal self-built ffmpeg/ffprobe, all packed into one AppImage (no WebKit,
+# so it's far smaller than the old Tauri bundle). The in-place updater verifies a
+# minisign signature made with the key in two repo secrets (never in the repo):
+#   TAURI_SIGNING_PRIVATE_KEY           the minisign private key
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
-# Fork pull requests never run this and never receive the secrets.
+# The same key the legacy app used, so one signed AppImage serves both the one-time
+# legacy→egui migration and the egui app's own updater. Fork PRs never get the secrets.
 on:
   push:
     tags: ["v*"]
+    # Temporary: egui-ui builds on CI while the branch is iterated, before it's
+    # merged to the default branch (which also enables workflow_dispatch). Remove
+    # this branch entry after the merge; the release job only runs for tags.
+    branches: [egui-ui]
   workflow_dispatch:
 
 permissions:
@@ -28,117 +31,72 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Gate: a broken tag must not produce (let alone publish) a release.
   test:
-    name: Test (lint · build · vitest · cargo)
+    name: Test (cargo build + clippy + test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: npm test
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: backend-rs
-      - name: Rust backend (build + test)
-        working-directory: backend-rs
+      - name: System build dependencies
         run: |
-          cargo build --release --locked
-          cargo test --locked
-
-  # Cross-compile the minimal Windows ffmpeg/ffprobe on Linux (fast + reproducible)
-  # and hand the .exe files to the Windows build job as an artifact.
-  ffmpeg-windows:
-    name: Cross-build Windows ffmpeg
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Toolchain (mingw-w64 + nasm + cmake)
-        run: sudo apt-get update && sudo apt-get install -y mingw-w64 nasm cmake
-      - name: Build minimal ffmpeg (windows cross)
-        run: bash scripts/build_ffmpeg.sh --windows
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ffmpeg-windows
-          path: |
-            backend/vendor/ffmpeg/ffmpeg.exe
-            backend/vendor/ffmpeg/ffprobe.exe
-            backend/vendor/ffmpeg/FFMPEG-LICENSE.txt
-          if-no-files-found: error
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libxdo-dev
+      - name: Backend (build + test)
+        working-directory: backend-rs
+        run: cargo build --release --locked && cargo test --locked
+      - name: Desktop (clippy + test)
+        working-directory: desktop
+        run: cargo clippy --release --locked -- -D warnings && cargo test --release --locked
 
   build-linux:
-    name: Build Linux (AppImage · deb · rpm)
+    name: Build Linux AppImage
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04 # oldest supported glibc for a portable AppImage
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: backend-rs
+          workspaces: "backend-rs -> target\ndesktop -> target"
+      # The minisign signer (reads the same Tauri key format); prebuilt, no compile.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
 
       - name: System build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
-            libayatana-appindicator3-dev patchelf rpm fakeroot file xz-utils \
-            nasm cmake pkg-config
+            libgtk-3-dev libayatana-appindicator3-dev libxdo-dev librsvg2-dev \
+            patchelf file xz-utils nasm cmake pkg-config
 
-      - name: npm install
-        run: npm ci
-
-      - name: Build minimal ffmpeg + ffprobe (native)
+      - name: Build minimal ffmpeg + ffprobe
         run: bash scripts/build_ffmpeg.sh
 
-      - name: Build + assemble the Rust backend (yoink-core + yt-dlp + ffmpeg)
-        run: python scripts/build_core.py
+      - name: Build the egui AppImage (yoink-desktop + yoink-core + yt-dlp + ffmpeg)
+        run: bash scripts/build_egui_appimage.sh
 
-      - name: Build bundles (deb + appimage), signed
+      - name: Sign the AppImage (minisign, legacy-compatible key)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPIMAGE_EXTRACT_AND_RUN: "1"
-          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
-          NO_STRIP: "1"
-        run: npx tauri build --bundles deb,appimage
+        run: cargo tauri signer sign desktop/target/appimage/Yoink_*_amd64.AppImage
 
-      - name: Strip the bundled WebKit from the AppImage (invalidates its .sig)
-        run: python scripts/strip_appimage_webkit.py
-
-      - name: Re-sign the stripped AppImage
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPIMAGE_EXTRACT_AND_RUN: "1"
-        run: npx tauri signer sign src-tauri/target/release/bundle/appimage/Yoink_*_amd64.AppImage
-
-      - name: Make the rpm from the deb
-        run: python scripts/build_rpm.py
+      - name: Assemble latest.json
+        run: python scripts/make_latest_json_egui.py desktop/target/appimage
 
       - name: Collect artifacts
         run: |
           mkdir -p out
-          cp src-tauri/target/release/bundle/appimage/Yoink_*_amd64.AppImage out/
-          cp src-tauri/target/release/bundle/appimage/Yoink_*_amd64.AppImage.sig out/
-          cp src-tauri/target/release/bundle/deb/Yoink_*_amd64.deb out/
-          cp src-tauri/target/release/bundle/rpm/Yoink-*-1.x86_64.rpm out/
+          cp desktop/target/appimage/Yoink_*_amd64.AppImage out/
+          cp desktop/target/appimage/Yoink_*_amd64.AppImage.sig out/
+          cp desktop/target/appimage/latest.json out/
           ls -la out/
 
       - uses: actions/upload-artifact@v7
@@ -147,96 +105,29 @@ jobs:
           path: out/
           if-no-files-found: error
 
-  build-windows:
-    name: Build Windows (msi · nsis)
-    needs: [test, ffmpeg-windows]
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: backend-rs
-
-      - name: npm install
-        run: npm ci
-
-      - name: Fetch the cross-built Windows ffmpeg
-        uses: actions/download-artifact@v8
-        with:
-          name: ffmpeg-windows
-          path: backend/vendor/ffmpeg
-
-      - name: Build + assemble the Rust backend (yoink-core + yt-dlp + ffmpeg)
-        run: python scripts/build_core.py
-
-      - name: Build installers (msi + nsis), signed
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --bundles nsis,msi
-
-      - name: Collect artifacts
-        run: |
-          mkdir -p out
-          cp src-tauri/target/release/bundle/nsis/Yoink_*_x64-setup.exe out/
-          cp src-tauri/target/release/bundle/nsis/Yoink_*_x64-setup.exe.sig out/
-          cp src-tauri/target/release/bundle/msi/Yoink_*_x64_en-US.msi out/
-          ls -la out/
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: windows
-          path: out/
-          if-no-files-found: error
-
   release:
     name: Draft GitHub release
-    needs: [build-linux, build-windows]
+    needs: build-linux
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-
       - uses: actions/download-artifact@v8
         with:
+          name: linux
           path: dist
-          pattern: "{linux,windows}"
-          merge-multiple: true
-
-      - name: List downloaded artifacts
-        run: ls -la dist/
-
-      - name: Assemble latest.json (and verify tag == package.json)
-        run: python scripts/make_latest_json.py "${GITHUB_REF_NAME}" dist
-
+      - run: ls -la dist/
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
             --draft \
             --title "Yoink ${GITHUB_REF_NAME}" \
-            --notes "Draft release built by CI. Replace this with the release notes (keep the \`<!-- /whatsnew -->\` marker before the Downloads table), then publish. Publishing makes latest.json live for the in-app updater." \
+            --notes "Draft release built by CI. Add the release notes (keep the \`<!-- /whatsnew -->\` marker), then publish — publishing makes latest.json live for the in-app updater and the legacy→egui migration." \
             dist/Yoink_*_amd64.AppImage \
-            dist/Yoink_*_amd64.deb \
-            dist/Yoink-*-1.x86_64.rpm \
-            dist/Yoink_*_x64-setup.exe \
-            dist/Yoink_*_x64_en-US.msi \
+            dist/Yoink_*_amd64.AppImage.sig \
             dist/latest.json
           echo "::notice::Draft release created for ${GITHUB_REF_NAME} — add notes and publish."

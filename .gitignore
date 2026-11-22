@@ -1,59 +1,36 @@
 # Logs
-logs
-# ...but not the frontend's Logs (Registro) feature source, which the broad
-# `logs` rule above would otherwise swallow.
-!src/features/logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+logs/
 
-node_modules
-dist
-dist-ssr
-*.local
+# Rust build output
+target/
 
-# Editor directories and files
+# Python caches (build scripts)
+__pycache__/
+*.py[cod]
+
+# Editor / OS
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
-
-# Python / backend
-__pycache__/
-*.py[cod]
 
 # Downloaded media
 downloads/
 
 # Env files
 .env
+*.local
 
-# Playwright
-test-results/
-playwright-report/
-blob-report/
-.playwright/
+# backend/ holds only the built ffmpeg/ffprobe (scripts/build_ffmpeg.sh); the
+# backend itself is backend-rs/. Any legacy Python leftovers here aren't tracked.
+backend/
 
-# Tauri / Rust
-src-tauri/target/
-src-tauri/gen/
-src-tauri/binaries/
+# ffmpeg minimal-build work dir (scripts/build_ffmpeg.sh)
+/build/
 
-# Bundled ffmpeg/ffprobe (fetched via scripts/fetch_ffmpeg.py)
-backend/vendor/
-
-# Generated OpenAPI types (reference only; the enforced guard is the contract test)
-
-# Browser-extension build output + packaged release zips (redundant with the bare
-# `dist` above, kept explicit for clarity)
+# Browser-extension build output + packaged release zips
 extension/dist/
 extension/web-ext-artifacts/
 # AMO / Web Store API credentials (never commit) — template is .env.example
@@ -62,5 +39,14 @@ extension/.env
 # Local scratch (personal URLs, never committed)
 URLs.txt
 
-# ffmpeg minimal-build work dir (scripts/build_ffmpeg.sh)
-/build/
+# ---- Legacy React/Tauri local leftovers (not part of the repo any more) ----
+node_modules/
+dist/
+dist-ssr/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Legacy Tauri local leftovers (deleted from the repo)
+src-tauri/

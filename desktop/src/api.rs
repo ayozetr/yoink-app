@@ -554,9 +554,9 @@ async fn do_self_update(
 }
 
 /// The minisign public key releases are signed with — the SAME key the legacy
-/// (Tauri) updater uses (from `src-tauri/tauri.conf.json`). One signature in
-/// `latest.json` serves both apps, and an update is installed only if it verifies
-/// against this key, so a tampered/compromised download can't run attacker code.
+/// (Tauri) app used, so one signature in `latest.json` serves both the one-time
+/// legacy→egui migration and the egui updater. An update is installed only if it
+/// verifies against this key, so a tampered/compromised download can't run code.
 const UPDATE_PUBKEY: &str = "RWR6dwLE3M1KiXJX7UfdVQtaQVSLUTrqF/K+Nvq9oLw+oJdvjbioh0p9";
 
 /// Verify `file` against `signature` (base64 of a minisign `.sig`, from

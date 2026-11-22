@@ -26,11 +26,11 @@ mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" \
 
 # 1) The egui binary + the backend bundle (yoink-core + yt-dlp + ffmpeg/ffprobe).
 cargo build --release --locked --manifest-path desktop/Cargo.toml
-python3 scripts/build_core.py   # fills src-tauri/binaries/core/
+python3 scripts/build_core.py   # fills desktop/target/core/
 
 install -m755 desktop/target/release/yoink-desktop "$APPDIR/usr/bin/yoink-desktop"
 for b in yoink-core yt-dlp ffmpeg ffprobe; do
-  install -m755 "src-tauri/binaries/core/$b" "$APPDIR/usr/bin/$b"
+  install -m755 "desktop/target/core/$b" "$APPDIR/usr/bin/$b"
 done
 
 # 2) Desktop entry + icon (AppImage needs both; names must match the icon).

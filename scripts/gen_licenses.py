@@ -5,15 +5,14 @@
 """Regenerate OPEN_SOURCE_LICENSES.md from Yoink's *direct* dependencies.
 
 Lists only the dependencies Yoink declares and uses directly (not the full
-transitive tree, which for a Tauri app is hundreds of crates), across the three
-ecosystems:
+transitive tree), across the three Rust crates it ships:
 
-  * Frontend  — npm         (`package.json` dependencies)
-  * Desktop   — Rust        (`src-tauri/Cargo.toml`, resolved for the desktop target)
-  * Backend & desktop — Rust (`backend-rs` + `src-tauri`, via cargo metadata)
+  * `desktop`        — the native egui desktop app
+  * `backend-rs`     — the native backend (yoink-core)
+  * `desktop-minter` — the PO-token minter
 
-plus the bundled media tools (ffmpeg / yt-dlp). The result is imported `?raw` by
-`src/features/settings/LicensesModal.tsx` and shown under Settings > About.
+plus the bundled media tools (ffmpeg / yt-dlp). The result is embedded by the
+desktop app (`desktop/src/api.rs`) and shown under Settings > About.
 
 Run from the repo root:  python scripts/gen_licenses.py
 """
@@ -21,17 +20,19 @@ Run from the repo root:  python scripts/gen_licenses.py
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# The desktop targets Yoink actually ships; direct deps resolve the same on both.
-CARGO_TARGETS = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
-# The two Rust crates whose direct deps are attributed: the Tauri desktop shell
-# and the native backend.
-CARGO_CRATES = [("src-tauri", "yoink"), ("backend-rs", "yoink-core")]
+# Yoink ships a Linux AppImage; direct deps resolve the same across targets.
+CARGO_TARGET = "x86_64-unknown-linux-gnu"
+# The Rust crates whose direct deps are attributed.
+CARGO_CRATES = [
+    ("desktop", "yoink-desktop"),
+    ("backend-rs", "yoink-core"),
+    ("desktop-minter", "yoink-minter"),
+]
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> str:
@@ -43,32 +44,13 @@ def _run(cmd: list[str], cwd: Path | None = None) -> str:
     return out.stdout
 
 
-def _npm() -> list[tuple[str, str, str]]:
-    """Direct npm dependencies (package.json `dependencies`), with their licenses."""
-    direct = set(json.loads((ROOT / "package.json").read_text())["dependencies"])
-    data = json.loads(
-        _run(["npx", "--yes", "license-checker", "--production", "--json"], ROOT)
-    )
-    by_name: dict[str, tuple[str, str]] = {}
-    for key, meta in data.items():
-        name, _, ver = key.rpartition("@")
-        if name in direct and name not in by_name:
-            lic = meta.get("licenses", "?")
-            if isinstance(lic, list):
-                lic = " / ".join(lic)
-            by_name[name] = (ver, lic)
-    return sorted(((n, v, l) for n, (v, l) in by_name.items()), key=lambda r: r[0].lower())
-
-
 def _cargo() -> list[tuple[str, str]]:
-    """Direct Rust dependencies of the desktop shell (`yoink`) and the native
-    backend (`yoink-core`), their normal deps only."""
+    """Direct (normal) Rust dependencies of each shipped crate, with licenses."""
     result: dict[tuple[str, str], bool] = {}
     for crate_dir, crate_name in CARGO_CRATES:
-      for triple in CARGO_TARGETS:
         data = json.loads(
             _run(
-                ["cargo", "metadata", "--format-version", "1", "--filter-platform", triple],
+                ["cargo", "metadata", "--format-version", "1", "--filter-platform", CARGO_TARGET],
                 ROOT / crate_dir,
             )
         )
@@ -90,10 +72,8 @@ def _cargo() -> list[tuple[str, str]]:
     return sorted(result, key=lambda r: r[0].lower())
 
 
-
-
 def main() -> None:
-    npm, cargo = _npm(), _cargo()
+    cargo = _cargo()
     out: list[str] = [
         "# Open-source licenses\n",
         "Yoink is built on open-source software. Listed below are Yoink's direct\n"
@@ -102,16 +82,13 @@ def main() -> None:
         "## Bundled media tools\n",
         "- **ffmpeg / ffprobe** — LGPL v3 (built minimal; see THIRD_PARTY_LICENSES.md)",
         "- **yt-dlp** — The Unlicense (public domain) — the download engine\n",
-        f"## Frontend — npm ({len(npm)})\n",
-        *[f"- **{n}** {('v' + v) if v else ''} — {l}" for n, v, l in npm],
-        "",
-        f"## Backend & desktop — Rust / cargo ({len(cargo)})\n",
+        f"## Rust / cargo ({len(cargo)})\n",
         *[f"- **{n}** — {l}" for n, l in cargo],
         "",
     ]
     dest = ROOT / "OPEN_SOURCE_LICENSES.md"
     dest.write_text("\n".join(out), encoding="utf-8")
-    print(f"wrote {dest} (npm {len(npm)}, cargo {len(cargo)})")
+    print(f"wrote {dest} (cargo {len(cargo)})")
 
 
 if __name__ == "__main__":

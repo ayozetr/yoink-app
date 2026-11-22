@@ -31,7 +31,7 @@ const fn rgb(r: u8, g: u8, b: u8) -> Color32 {
 }
 
 /// Dark is the default, as in the web UI. Values mirror the `--c-*` tokens in
-/// `src/index.css` (violet accent, near-neutral deep surfaces).
+/// the web design tokens (violet accent, near-neutral deep surfaces).
 pub const DARK: Palette = Palette {
     canvas: rgb(10, 10, 12),     // #0a0a0c
     surface: rgb(20, 20, 23),    // #141417

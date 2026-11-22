@@ -1,35 +1,31 @@
 version: 2
 
 # Dependabot only opens PRs on their own branches; nothing merges without review.
-# yt-dlp is intentionally included (pinned in backend/requirements.txt): its bump
-# PR is reviewed and tested like any other before merging to main.
+# yt-dlp stays owner-managed (pinned in scripts/ytdlp-version.txt), bumped by hand.
 updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
 
-  - package-ecosystem: npm
-    directory: "/"
+  - package-ecosystem: cargo
+    directory: "/desktop"
     schedule:
       interval: weekly
     groups:
-      npm-minor-patch:
+      cargo-minor-patch:
         update-types: ["minor", "patch"]
-    ignore:
-      # TypeScript 7.0 is the native (Go) compiler rewrite; typescript-eslint
-      # does not support it yet (tracking TS >=7.1). Adopting it breaks `npm run
-      # lint`. Hold the major until the linter catches up, then drop this ignore.
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: pip
-    directory: "/backend"
-    schedule:
-      interval: weekly
 
   - package-ecosystem: cargo
-    directory: "/src-tauri"
+    directory: "/backend-rs"
+    schedule:
+      interval: weekly
+    groups:
+      cargo-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: cargo
+    directory: "/desktop-minter"
     schedule:
       interval: weekly
     groups:
