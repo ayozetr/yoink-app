@@ -1,12 +1,19 @@
 # Zero-config PO tokens — minting in the WebView
 
+> **Note (egui port):** this document describes the original design, when the
+> token was minted inside the React app's WebView via `poTokenMinter.ts`. In the
+> egui app the minter is a **separate helper process** — the `desktop-minter`
+> crate (`yoink-minter`), a hidden WebView the desktop app spawns and supervises
+> (`desktop/src/minter.rs`) only while `po_token_mode` is `auto`. The backend
+> bridge, the SSRF-scoped proxy and the `bgutils-js` flow below are unchanged.
+
 **Status:** shipped **and validated live** (2026-09-15) — a real **session** GVS
 PO token was minted end-to-end (backend → WebView → `bgutils-js` → proxied Google
 attestation → token, ~1 s) and, crucially, **verified to work against live
 YouTube**: with the minted token + its `visitor_data`, the `mweb` client returned
 **26** downloadable GVS video formats (a range-GET of a picked format returned
 `206`), versus **1** without it. This also surfaced the binding fix below. The
-backend side was later ported to native Rust (`src/po_token.rs`) with the same
+backend side was later ported to native Rust (`backend-rs/src/po_token.rs`) with the same
 contract and the frontend minter unchanged.
 
 **Two things the live test corrected:**

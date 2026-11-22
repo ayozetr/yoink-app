@@ -1,8 +1,13 @@
 # Yoink — Roadmap
 
+> **Note (egui migration):** the desktop app is now a **native Rust + egui** app
+> (`desktop/`). The old React + Tauri stack was removed; some completed/historical
+> entries below still mention Tauri/React as the state at the time. Current
+> packaging is a signed Linux AppImage; a Windows build is being ported.
+>
 > Single source of truth for where Yoink is going. **Yoink** is a local,
 > high-fidelity media downloader — yt-dlp + bundled ffmpeg in a self-contained
-> Tauri desktop app. Philosophy: **local-first**, **honest about quality** (never
+> native desktop app. Philosophy: **local-first**, **honest about quality** (never
 > fake "lossless"), no fluff.
 >
 > Legend: ✅ shipped · 🚧 in progress · ⬜ planned · effort **S**/**M**/**L**.

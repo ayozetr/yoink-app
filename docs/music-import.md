@@ -4,7 +4,7 @@
 > Spotify to **Spotify / Deezer / Apple Music / Tidal / Amazon Music** behind one
 > keyless pipeline. The code lives in `backend-rs/src/music.rs` + `matching.rs`
 > (resolvers) + `matching.py` (the YouTube ranking) + `routers/music.py`, with the
-> `MusicImportCard` on the frontend. This document is the original design rationale.
+> the music-import card in the desktop app. This document is the original design rationale.
 
 Originally the **"Import from Spotify"** backlog item in
 [`ROADMAP.md`](ROADMAP.md). It captures how [spotDL](https://github.com/spotDL/spotify-downloader)
@@ -168,7 +168,7 @@ with nothing depending on spotDL itself.
 **Implemented** (Option A) and generalized to Spotify / Deezer / Apple Music /
 Tidal / Amazon Music — `music.rs` (keyless resolvers,
 fetches) + `matching.py` (the spotDL-ported ranking) + `routers/music.py`, with
-the `MusicImportCard` on the frontend and a music-group path in the download
+the the music-import card in the desktop app and a music-group path in the download
 queue. This file remains the design reference for *why* it works this way.
 
 ## Sources

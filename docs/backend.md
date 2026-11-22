@@ -3,7 +3,7 @@
 The backend is **`yoink-core`**, a native Rust service (lives in `backend-rs/`).
 It is an [axum](https://github.com/tokio-rs/axum) HTTP/WebSocket server that
 drives the bundled `yt-dlp` and `ffmpeg` binaries, manages the local filesystem,
-and streams download progress to the frontend. There is no Python runtime.
+and streams download progress to the desktop app. There is no Python runtime.
 
 The original Python/FastAPI backend (the one this replaced) is preserved on the
 `legacy` branch.
@@ -23,8 +23,8 @@ The backend shells out to external binaries:
 - `yt-dlp` — found on `PATH`, or at `YOINK_YTDLP`.
 - `ffmpeg` / `ffprobe` — found at `YOINK_FFMPEG` (a directory), or on `PATH`.
 
-In the packaged desktop app the Tauri shell sets both env vars to the bundled
-binaries next to `yoink-core` (see [`releasing.md`](releasing.md)).
+In the packaged app, `desktop/src/backend_proc.rs` sets both env vars to the
+bundled binaries next to `yoink-core` (see [`releasing.md`](releasing.md)).
 
 ## Module map (`backend-rs/src/`)
 
@@ -47,7 +47,7 @@ binaries next to `yoink-core` (see [`releasing.md`](releasing.md)).
   and enforced in CI.
 - OS-agnostic paths via `std::path` (Linux + Windows).
 - The Rust structs serialize (serde) to the JSON contract that the TypeScript
-  types in `src/types/` describe — keep both sides in sync. The endpoint
+  structs the desktop app consumes (`desktop/src/api.rs`) — keep both sides in sync. The endpoint
   behaviours are documented in [`architecture.md`](architecture.md); the
   high-level guide and the full repo layout are in
   [`../CLAUDE.md`](../CLAUDE.md).

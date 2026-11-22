@@ -1,10 +1,9 @@
 # Yoink Media Downloader
 
 [![Release](https://img.shields.io/github/v/release/ayozetr/yoink-app?label=release&color=7c3aed)](https://github.com/ayozetr/yoink-app/releases/latest)
-![Platforms](https://img.shields.io/badge/platforms-Linux%20%C2%B7%20Windows-2563eb)
-![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![Rust](https://img.shields.io/badge/Rust-backend-000000?logo=rust&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Linux%20(AppImage)-2563eb)
+![egui](https://img.shields.io/badge/UI-egui-000000)
+![Rust](https://img.shields.io/badge/Rust-native-000000?logo=rust&logoColor=white)
 ![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
 [![Downloads](https://img.shields.io/github/downloads/ayozetr/yoink-app/total.svg?color=2ea44f)](https://github.com/ayozetr/yoink-app/releases/latest)
 
@@ -50,8 +49,8 @@ telemetry, no cloud service.
 
 ### The application
 
-- A self-contained desktop app (Tauri, for Linux and Windows) that bundles the
-  backend and ffmpeg, so there is nothing else to install.
+- A self-contained native desktop app (egui, Linux AppImage) that bundles the
+  backend, yt-dlp and ffmpeg, so there is nothing else to install.
 - 14 interface languages, a dark theme, system tray with launch-at-startup,
   global shortcuts, desktop notifications, automatic updates, SponsorBlock, and
   cookie and proxy support.
@@ -62,62 +61,51 @@ telemetry, no cloud service.
 
 ## Installation
 
-Download the installer for your operating system from the
-[latest release](https://github.com/ayozetr/yoink-app/releases/latest) — Linux
-(AppImage, deb, rpm) or Windows (msi, NSIS). The application is self-contained
-(no Python, yt-dlp or ffmpeg to install separately) and updates itself.
+Download the AppImage from the
+[latest release](https://github.com/ayozetr/yoink-app/releases/latest), make it
+executable and run it. The application is self-contained (no Python, yt-dlp or
+ffmpeg to install separately) and updates itself in place. (A Windows build is
+being ported.)
 
 ## Running from source
 
 ```bash
-python scripts/setup.py    # one-time: cargo build (backend) + npm install (frontend)
-python scripts/dev.py      # run the backend (:8756) and frontend (:5173) together
+# Run the desktop app (it spawns the bundled backend automatically):
+cargo run --release --manifest-path desktop/Cargo.toml
 ```
 
-Then open <http://localhost:5173>. A command-line interface is also available:
-`scripts/yoink <url>` downloads from the terminal with the same engine — see
-[`docs/cli.md`](docs/cli.md). For development you need `yt-dlp` on your PATH and
-ffmpeg (the packaged app bundles both). See [`CLAUDE.md`](CLAUDE.md) for
-per-layer commands.
+For development you need the Rust toolchain, `yt-dlp` on your PATH and ffmpeg (the
+packaged app bundles both), plus — on Linux — `libgtk-3-dev`,
+`libayatana-appindicator3-dev` and `libxdo-dev`. A command-line interface is also
+available: `scripts/yoink <url>` downloads from the terminal with the same engine
+— see [`docs/cli.md`](docs/cli.md). See [`CLAUDE.md`](CLAUDE.md) for per-layer
+commands.
 
-### Desktop build (Tauri)
+### Building the AppImage
 
 ```bash
-bash scripts/build_ffmpeg.sh      # one-time: build a minimal ffmpeg + ffprobe (~33 MB)
-python scripts/build_core.py      # build yoink-core, fetch yt-dlp, assemble the bundle
-npm run tauri build               # installers in src-tauri/target/release/bundle
+bash scripts/build_ffmpeg.sh          # one-time: build a minimal ffmpeg + ffprobe (~33 MB)
+bash scripts/build_egui_appimage.sh   # -> desktop/target/appimage/Yoink_<ver>_amd64.AppImage
 ```
 
-Prerequisites: the Rust toolchain and, on Linux, `webkit2gtk` (4.1); on Windows,
-WebView2 and the MSVC build tools. The full process is documented in
-[`docs/releasing.md`](docs/releasing.md).
+The full release process is documented in [`docs/releasing.md`](docs/releasing.md).
 
 ## Architecture
 
-Yoink has two layers that communicate asynchronously: a React, TypeScript and
-Tailwind frontend, and a local native Rust backend (`yoink-core`, built on axum)
-that drives `yt-dlp` and `ffmpeg`. Metadata is fetched over REST
-(`POST /api/info`) and downloads are streamed live over a WebSocket
+Yoink has two native Rust layers that communicate asynchronously: the egui
+desktop app and a local backend (`yoink-core`, built on axum) that drives
+`yt-dlp` and `ffmpeg`. The app spawns the backend on startup; metadata is fetched
+over REST (`POST /api/info`) and downloads stream live over a WebSocket
 (`/api/ws/download`).
 
 ```
-src/                      # frontend (React, TypeScript, Tailwind)
-├── components/{layout,ui}
-├── features/
-│   ├── autotag/          # catalogue tagging cards (single and playlist batch)
-│   ├── music/            # music-service import card (Spotify/Deezer/Apple/Tidal/Amazon)
-│   ├── downloader/       # URL input and source selector, preview, playlist, progress
-│   ├── queue/            # download queue (format picker, groups, skip/reorder)
-│   ├── history/          # download history and statistics
-│   └── settings/         # settings (download dir, defaults, cookies, theme, updates)
-├── lib/                  # API client and download WebSocket
-└── types/                # shared domain types (the backend JSON contract)
-
+desktop/                  # the native egui desktop app (yoink-desktop)
+└── src/                  # app.rs (UI + state), api.rs (backend client + self-update),
+                          #   backend_proc.rs, deeplink.rs, theme.rs, i18n.rs, …
 backend-rs/               # native Rust backend (yoink-core); see CLAUDE.md
-src-tauri/                # Tauri desktop shell
+desktop-minter/           # yoink-minter: the hidden PO-token WebView helper
 extension/                # "Send to Yoink" (beta) browser extension (Firefox, Chromium)
-scripts/                  # setup.py, dev.py, build_ffmpeg.sh, build_core.py
-e2e/                      # Playwright end-to-end tests
+scripts/                  # build_ffmpeg.sh, build_core.py, build_egui_appimage.sh, …
 ```
 
 ## Contributing

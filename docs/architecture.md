@@ -1,28 +1,30 @@
 # Architecture
 
-Yoink is a **local microservice**: a reactive web UI talking to a local native
-Rust engine (`yoink-core`) that drives yt-dlp and ffmpeg.
+Yoink is **two native Rust layers**: an egui desktop app talking to a local
+engine (`yoink-core`) that drives yt-dlp and ffmpeg. The app spawns and
+supervises the backend on startup, so it's a single self-contained program.
 
 ```
 ┌────────────────────────┐         REST: POST /api/info          ┌──────────────────────────┐
-│      Frontend          │ ───────────────────────────────────▶ │        Backend            │
-│  React + TS + Tailwind │                                       │   yoink-core (Rust/axum)  │
-│      (Vite, :5173)     │ ◀─────────────────────────────────── │        (:8756)            │
+│     Desktop app        │ ───────────────────────────────────▶ │        Backend            │
+│   Rust + egui/eframe    │                                       │   yoink-core (Rust/axum)  │
+│                        │ ◀─────────────────────────────────── │        (:8756)            │
 │                        │     clean JSON (title, formats…)      │                           │
 │  - URL input           │                                       │  - yt-dlp wrapper         │
 │  - Preview card        │       WS: live download progress      │  - ffmpeg merge           │
 │  - Progress bar        │ ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ │  - filesystem (std::path) │
-│  - History tab         │       (percent, speed, ETA)           │                           │
+│  - History tab         │       (percent, speed, ETA)           │   (spawned by the app)    │
 └────────────────────────┘                                       └──────────────────────────┘
                                                                   (dashed = WS download stream)
 ```
 
 ## Why two layers
 
-- The browser cannot run yt-dlp or write to arbitrary local folders. A small
+- A GUI can't cleanly run yt-dlp or write to arbitrary local folders. A small
   local backend owns the system-level work (process spawning, filesystem,
-  ffmpeg) and exposes a clean API.
-- The frontend stays a pure view/interaction layer, easy to iterate on.
+  ffmpeg) and exposes a clean API, which the desktop app consumes as a client.
+- Keeping the engine behind an HTTP/WS API also powers the `yoink` CLI, which
+  drives the same `yoink-core` without any UI.
 
 ## Communication contract
 
@@ -59,7 +61,7 @@ playlist/position/tracking params), so the playlist card pre-selects only the ne
 ones and badges the rest as "Downloaded".
 
 The JSON shape is defined once by the Rust structs in `backend-rs/src/` (serde)
-and mirrored in `src/types/download.ts` (TypeScript).
+and consumed by the desktop app (`desktop/src/api.rs`).
 
 ### 2. Download & progress — WebSockets (implemented)
 
@@ -88,10 +90,10 @@ loudness-normalized to **-14 LUFS** (EBU R128) with a two-pass ffmpeg `loudnorm`
 auto-tagging — best-effort, so a failure leaves the original file untouched.
 
 Downloads run **one at a time** (concurrent downloads are a non-goal): the three
-frontend engines (main panel, queue, music import) share an in-memory lock
-(`src/lib/downloadLock.ts`) and so two jobs can't write the same `.part` in the shared download folder. In the desktop app the backend port is chosen at launch (8756, or an
-OS-assigned free port when it's taken) and handed to the frontend via the
-`backend_port` command.
+engines (main panel, queue, music import) share an in-memory lock (in
+`desktop/src/app.rs`) so two jobs can't write the same `.part` in the shared
+download folder. The desktop app spawns the backend on launch (port 8756) via
+`desktop/src/backend_proc.rs`.
 
 ### 3. Audio auto-tagging — REST (implemented)
 
@@ -118,36 +120,35 @@ apply**; nothing is written to the file until **Apply**.
    rewrites the `.nfo` from the tagged metadata (`nfo.rs`), and returns
    an `ApplyResponse`.
 
-All file paths are confined to the download directory (path guard). The Rust structs in `backend-rs/src/autotag.rs` mirror `src/types/autotag.ts`.
+All file paths are confined to the download directory (path guard). The autotag JSON is defined in `backend-rs/src/autotag.rs`.
 
-### 4. Update check & release notes — REST (implemented)
+### 4. Update check & release notes — implemented
 
 On launch — when the **check-for-updates** setting is on (`AppSettings.check_updates`,
-the default; togglable off, the *app only* — yt-dlp stays owner-managed) — the
-frontend calls `GET /api/version`, which compares the running version against the
-latest GitHub release. A newer one raises a dismissible bottom banner + a desktop
-notification. Installing (from the banner or Settings) **self-updates in place**
-via the Tauri updater behind a "Downloading…" progress popup (Windows always;
-Linux only as an AppImage — `.deb`/`.rpm` fall back to the release page).
+the default; togglable off, the *app only* — yt-dlp stays owner-managed) — the app
+reads the release's `latest.json` and compares its version against the running one.
+A newer one raises a dismissible banner + a desktop notification. Installing
+**self-updates in place** behind a "Downloading…" progress bar: on Linux the new
+AppImage (its real path is `$APPIMAGE`) replaces the running one. The download is
+**verified against an embedded minisign public key** before it's made executable
+and swapped in (fail-closed), and the host/scheme are pinned to GitHub —
+`desktop/src/api.rs`. The same signature also lets the legacy Tauri app install the
+egui build for the one-time migration.
 
-The **first launch after an update** shows a one-time **"What's new"** popup
-(remembered in localStorage, re-openable from Settings) that renders
-`GET /api/release-notes` — the current version's GitHub release `body`, trimmed to
-the part before a hidden `<!-- /whatsnew -->` marker (model `ReleaseNotes`) — with
-a tiny built-in Markdown renderer (`components/ui/Markdown.tsx`).
-`GET /api/ytdlp-version` reports the bundled yt-dlp version but is informational
-only (no in-app yt-dlp update).
+The **first launch after an update** shows a one-time **"What's new"** popup that
+renders `GET /api/release-notes` — the release `body`, trimmed to the part before a
+hidden `<!-- /whatsnew -->` marker — with a small built-in Markdown renderer
+(`render_markdown` in `desktop/src/app.rs`). The last-seen version is remembered in
+`<config>/yoink/`.
 
 ### 5. Deep link & browser extension — desktop (implemented)
 
 Besides pasting or dropping a URL, the running app can be fed one from outside via a
-`yoink://download?url=<encoded>` deep link the Tauri shell registers with the OS
-(`tauri-plugin-deep-link` + the single-instance `deep-link` feature, so a second
-launch forwards its URL to the live instance instead of starting a new one).
-`main.rs` reads the `url` param, ignores a malformed link, focuses the window, and
-emits a `deep-link` event; the frontend (`lib/desktop.ts` → `App.tsx`) analyzes it
-through the same path as drag-and-drop. A cold-start URL is stashed and drained via
-`take_pending_deep_link`.
+`yoink://download?url=<encoded>` deep link. `desktop/src/deeplink.rs` registers the
+scheme (via the AppImage's `.desktop` entry) and a per-user single-instance Unix
+socket, so a second launch forwards its URL to the live instance (and a cold-start
+URL from `argv`) instead of starting a new one. The URL is parsed (http(s) only),
+the window is focused, and it's analyzed through the same path as drag-and-drop.
 
 The **"Send to Yoink" browser extension (beta)** (`extension/`, Firefox + Chromium)
 is just a thin trigger: a context-menu item / toolbar button that fires that deep

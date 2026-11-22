@@ -8,7 +8,8 @@ settings and history as the app.
 Invoking it:
 
 - **From source:** `scripts/yoink <url> …` (forwards to the built `yoink-core`).
-- **Installed (.deb/.rpm):** `yoink-cli <url> …` (ships at `/usr/bin/yoink-cli`).
+- **From the AppImage:** the `yoink-core` binary beside the app (inside the mounted
+  AppImage, or extracted) runs the CLI directly: `yoink-core <url> …`.
 
 ```bash
 yoink https://youtu.be/… --audio -f flac -o ~/Music
