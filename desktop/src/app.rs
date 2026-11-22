@@ -328,6 +328,9 @@ impl App {
                 _ => Tab::Inicio,
             };
         }
+        if std::env::var("YOINK_SHOT_LIGHT").is_ok() {
+            app.theme_mode = ThemeMode::Light;
+        }
         if let Ok(u) = std::env::var("YOINK_SHOT_URL") {
             if !u.is_empty() {
                 app.url = u.clone();
@@ -703,7 +706,8 @@ fn win_btn(ui: &mut egui::Ui, p: theme::Palette, kind: WinBtn) -> egui::Response
         if kind == WinBtn::Close {
             egui::Color32::from_rgb(237, 80, 80)
         } else {
-            egui::Color32::WHITE
+            // Full-contrast foreground (works in both light and dark themes).
+            p.fg
         }
     } else {
         p.fg_dim
