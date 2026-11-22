@@ -106,6 +106,15 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     v.widgets.active.bg_stroke = Stroke::new(1.0, p.accent);
     v.widgets.active.fg_stroke = Stroke::new(1.0, p.accent_fg);
 
+    // No hover/active expansion: egui grows the widget rect but clips its paint to
+    // the original rect, so an expanded fill/stroke gets its corners clipped (a
+    // focused combo looked cut on the right). Keep every state the same size.
+    v.widgets.noninteractive.expansion = 0.0;
+    v.widgets.inactive.expansion = 0.0;
+    v.widgets.hovered.expansion = 0.0;
+    v.widgets.active.expansion = 0.0;
+    v.widgets.open.expansion = 0.0;
+
     ctx.set_visuals(v);
 
     ctx.global_style_mut(|style| {

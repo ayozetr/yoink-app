@@ -1634,20 +1634,34 @@ impl App {
                             ),
                         );
                         ui.add_space(4.0);
-                        egui::ComboBox::from_id_salt("source")
-                            .selected_text(if self.source == "soundcloud" {
-                                "SoundCloud"
-                            } else {
-                                "YouTube"
-                            })
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.source, "youtube".into(), "YouTube");
-                                ui.selectable_value(
-                                    &mut self.source,
-                                    "soundcloud".into(),
-                                    "SoundCloud",
-                                );
-                            });
+                        // egui strokes this combo's border with a 1px line. At a
+                        // fractional pixels_per_point (a 1.15 desktop scale × our 1.2
+                        // zoom ≈ 1.38) that stroke straddles the physical pixel grid and
+                        // the bottom edge renders blurry/thin — it looks "cut". So mute
+                        // egui's own border and paint our own, snapped to whole physical
+                        // pixels and drawn inside the rect, so all four edges are crisp.
+                        crisp_combo(ui, p, |ui| {
+                            egui::ComboBox::from_id_salt("source")
+                                .selected_text(if self.source == "soundcloud" {
+                                    "SoundCloud"
+                                } else {
+                                    "YouTube"
+                                })
+                                .show_ui(ui, |ui| {
+                                    style_combo_items(ui);
+                                    ui.selectable_value(
+                                        &mut self.source,
+                                        "youtube".into(),
+                                        "YouTube",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.source,
+                                        "soundcloud".into(),
+                                        "SoundCloud",
+                                    );
+                                })
+                                .response
+                        });
                         ui.add_space(8.0);
                         // Faint vertical divider between the source picker and input.
                         let (dr, _) =
@@ -2506,20 +2520,21 @@ impl App {
             );
             ui.add_space(6.0);
             combo_bare(ui, lang, "q.kind", &mut self.q_kind, &["video", "audio"]);
+            // Order: Type → Format → Quality, the same for video and audio.
             if self.q_kind == "video" {
-                combo_bare(
-                    ui,
-                    lang,
-                    "q.q",
-                    &mut self.q_quality,
-                    &["best", "2160", "1440", "1080", "720", "480"],
-                );
                 combo_bare(
                     ui,
                     lang,
                     "q.c",
                     &mut self.q_container,
                     &["mp4", "mov", "mkv", "webm"],
+                );
+                combo_bare(
+                    ui,
+                    lang,
+                    "q.q",
+                    &mut self.q_quality,
+                    &["best", "2160", "1440", "1080", "720", "480"],
                 );
             } else {
                 combo_bare(
@@ -2801,14 +2816,18 @@ impl App {
         // General.
         heading(ui, "sec.general", "set.general");
         setting_row(ui, p, tl(lang, "set.language"), |ui| {
-            egui::ComboBox::from_id_salt("lang")
-                .width(CTRL_COMBO_W)
-                .selected_text(self.lang.label())
-                .show_ui(ui, |ui| {
-                    for l in Lang::ALL {
-                        ui.selectable_value(&mut new_lang, l, l.label());
-                    }
-                });
+            crisp_combo(ui, p, |ui| {
+                egui::ComboBox::from_id_salt("lang")
+                    .width(CTRL_COMBO_W)
+                    .selected_text(self.lang.label())
+                    .show_ui(ui, |ui| {
+                        style_combo_items(ui);
+                        for l in Lang::ALL {
+                            ui.selectable_value(&mut new_lang, l, l.label());
+                        }
+                    })
+                    .response
+            });
         });
         let mut mode = self.theme_mode;
         let mode_label = |m: ThemeMode| match m {
@@ -2817,14 +2836,26 @@ impl App {
             ThemeMode::Light => tl(lang, "theme.light"),
         };
         setting_row(ui, p, tl(lang, "set.theme"), |ui| {
-            egui::ComboBox::from_id_salt("theme")
-                .width(CTRL_COMBO_W)
-                .selected_text(mode_label(mode))
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut mode, ThemeMode::System, mode_label(ThemeMode::System));
-                    ui.selectable_value(&mut mode, ThemeMode::Dark, mode_label(ThemeMode::Dark));
-                    ui.selectable_value(&mut mode, ThemeMode::Light, mode_label(ThemeMode::Light));
-                });
+            crisp_combo(ui, p, |ui| {
+                egui::ComboBox::from_id_salt("theme")
+                    .width(CTRL_COMBO_W)
+                    .selected_text(mode_label(mode))
+                    .show_ui(ui, |ui| {
+                        style_combo_items(ui);
+                        ui.selectable_value(
+                            &mut mode,
+                            ThemeMode::System,
+                            mode_label(ThemeMode::System),
+                        );
+                        ui.selectable_value(&mut mode, ThemeMode::Dark, mode_label(ThemeMode::Dark));
+                        ui.selectable_value(
+                            &mut mode,
+                            ThemeMode::Light,
+                            mode_label(ThemeMode::Light),
+                        );
+                    })
+                    .response
+            });
         });
         if mode != self.theme_mode {
             self.theme_mode = mode;
@@ -3398,6 +3429,10 @@ fn setting_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, add: impl FnOn
     }
     ui.add_space(12.0);
     ui.horizontal(|ui| {
+        // Give the row some height so a control (a combo) is centered with room
+        // above and below, instead of filling the row flush to the clip edge
+        // where its focused/hovered border would be cut.
+        ui.set_min_height(34.0);
         ui.label(RichText::new(label).color(p.fg));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), add);
     });
@@ -3608,13 +3643,74 @@ fn adv_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, content: impl FnOn
 /// (like the web's fixed-width control column) instead of hugging each label.
 const CTRL_COMBO_W: f32 = 168.0;
 
+/// Run a combo with egui's own 1px border muted, then paint our own border
+/// snapped to whole physical pixels and drawn inside the rect. egui's stroke
+/// straddles the pixel grid, so at a fractional pixels_per_point (e.g. a 1.15
+/// desktop scale × our 1.2 zoom ≈ 1.38) one edge renders blurry/thin and the
+/// border looks "cut"; a snapped inside-stroke keeps all four edges crisp.
+fn crisp_combo(
+    ui: &mut egui::Ui,
+    p: theme::Palette,
+    show: impl FnOnce(&mut egui::Ui) -> egui::Response,
+) {
+    ui.scope(|ui| {
+        let w = &mut ui.visuals_mut().widgets;
+        w.inactive.bg_stroke = egui::Stroke::NONE;
+        w.hovered.bg_stroke = egui::Stroke::NONE;
+        w.active.bg_stroke = egui::Stroke::NONE;
+        w.open.bg_stroke = egui::Stroke::NONE;
+        let r = show(ui);
+        let ppp = ui.ctx().pixels_per_point();
+        let snap = |v: f32| (v * ppp).round() / ppp;
+        let rect = egui::Rect::from_min_max(
+            egui::pos2(snap(r.rect.min.x), snap(r.rect.min.y)),
+            egui::pos2(snap(r.rect.max.x), snap(r.rect.max.y)),
+        );
+        let col = if r.hovered() || r.has_focus() {
+            p.accent
+        } else {
+            p.line
+        };
+        ui.painter().rect_stroke(
+            rect,
+            6.0,
+            egui::Stroke::new(1.0, col),
+            egui::StrokeKind::Inside,
+        );
+    });
+}
+
+/// Style a combo's open popup like the web's Select menu: each option highlights
+/// with a fill only (selected = accent tint, hovered = a lighter surface) and no
+/// 1px outline. An outline's stroke straddles the physical pixel grid at a
+/// fractional pixels_per_point and renders one edge thin, so some options looked
+/// "cut"; a fill has no edge to cut. Call at the top of a combo's `show_ui`.
+fn style_combo_items(ui: &mut egui::Ui) {
+    let p = theme::palette(ui.visuals().dark_mode);
+    ui.visuals_mut().selection.stroke = egui::Stroke::NONE;
+    ui.visuals_mut().selection.bg_fill = p.accent.gamma_multiply(0.15);
+    let w = &mut ui.visuals_mut().widgets;
+    w.inactive.bg_stroke = egui::Stroke::NONE;
+    w.hovered.bg_stroke = egui::Stroke::NONE;
+    w.hovered.bg_fill = p.surface_hi;
+    w.hovered.weak_bg_fill = p.surface_hi;
+    w.active.bg_stroke = egui::Stroke::NONE;
+    w.active.bg_fill = p.surface_hi;
+    w.active.weak_bg_fill = p.surface_hi;
+}
+
 fn combo_bare(ui: &mut egui::Ui, lang: Lang, id: &str, value: &mut String, options: &[&str]) {
-    egui::ComboBox::from_id_salt(id)
-        .width(CTRL_COMBO_W)
-        .selected_text(opt_label(lang, value))
-        .show_ui(ui, |ui| {
-            for opt in options {
-                ui.selectable_value(value, opt.to_string(), opt_label(lang, opt));
-            }
-        });
+    let p = theme::palette(ui.visuals().dark_mode);
+    crisp_combo(ui, p, |ui| {
+        egui::ComboBox::from_id_salt(id)
+            .width(CTRL_COMBO_W)
+            .selected_text(opt_label(lang, value))
+            .show_ui(ui, |ui| {
+                style_combo_items(ui);
+                for opt in options {
+                    ui.selectable_value(value, opt.to_string(), opt_label(lang, opt));
+                }
+            })
+            .response
+    });
 }
