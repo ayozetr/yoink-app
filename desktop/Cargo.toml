@@ -25,6 +25,7 @@ chrono = { version = "0.4.39", default-features = false, features = ["clock", "s
 # Detect the OS light/dark preference (winit's system_theme is unreliable on
 # Wayland); used to resolve the "System" theme. Reads the XDG desktop portal.
 dark-light = "1.1.1"
+rfd = { version = "0.18.0", default-features = false, features = ["xdg-portal"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tray-icon = "0.19.2"

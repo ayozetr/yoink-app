@@ -199,6 +199,7 @@ pub struct App {
     theme_probe: std::time::Instant,       // throttles re-probing the OS theme
     lang: Lang,                            // the resolved UI language
     lang_mode: Option<Lang>,               // None = follow the OS language
+    template_custom: bool,                 // filename template: custom (free-text) vs a preset
     tab: Tab,
     url: String,
     kind: String,
@@ -316,6 +317,7 @@ impl App {
             theme_probe: std::time::Instant::now(),
             lang: lang_mode.unwrap_or_else(crate::i18n::detect),
             lang_mode,
+            template_custom: false,
             tab: Tab::Inicio,
             url: String::new(),
             kind: "video".into(),
@@ -510,6 +512,8 @@ impl App {
             match evt {
                 Evt::Settings(s) => {
                     self.minter.set_auto(s.po_token_mode == "auto");
+                    // A loaded template that isn't one of the presets is a custom one.
+                    self.template_custom = !TEMPLATE_PRESETS.iter().any(|(v, _)| *v == s.filename_template);
                     self.settings = Some(*s);
                 }
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
@@ -3023,11 +3027,15 @@ impl App {
         ui.add_space(12.0);
         ui.label(RichText::new(tl(lang, "set.dir")).small().color(p.fg_dim));
         ui.add_space(3.0);
-        ui.add(
-            egui::TextEdit::singleline(&mut s.download_dir)
-                .desired_width(f32::INFINITY)
-                .margin(egui::Margin::symmetric(10, 7)),
-        );
+        if path_field(ui, p, &mut s.download_dir) {
+            let mut dlg = rfd::FileDialog::new();
+            if !s.download_dir.is_empty() {
+                dlg = dlg.set_directory(&s.download_dir);
+            }
+            if let Some(dir) = dlg.pick_folder() {
+                s.download_dir = dir.to_string_lossy().into_owned();
+            }
+        }
         settings_row_rendered();
         setting_row(ui, p, tl(lang, "field.kind"), |ui| {
             combo_bare(
@@ -3072,11 +3080,73 @@ impl App {
                 .color(p.fg_dim),
         );
         ui.add_space(3.0);
-        ui.add(
-            egui::TextEdit::singleline(&mut s.filename_template)
-                .desired_width(f32::INFINITY)
-                .margin(egui::Margin::symmetric(10, 7)),
-        );
+        // A preset picker (plus a "Custom…" entry) like the web — the raw templates
+        // were lost in the port. The selected text shows the preset's friendly label.
+        let cur_label = if self.template_custom {
+            tl(lang, "set.filename_custom").to_string()
+        } else {
+            TEMPLATE_PRESETS
+                .iter()
+                .find(|(v, _)| *v == s.filename_template)
+                .map(|(_, l)| l.to_string())
+                .unwrap_or_else(|| s.filename_template.clone())
+        };
+        let tpl_w = (ui.available_width() - 2.0).max(200.0);
+        crisp_combo(ui, p, |ui| {
+            egui::ComboBox::from_id_salt("filename_tpl")
+                .popup_style(hide_combo_scrollbar.into())
+                .width(tpl_w)
+                .selected_text(cur_label)
+                .show_ui(ui, |ui| {
+                    style_combo_items(ui);
+                    for (val, label) in TEMPLATE_PRESETS {
+                        if ui
+                            .selectable_label(
+                                !self.template_custom && s.filename_template == val,
+                                label,
+                            )
+                            .clicked()
+                        {
+                            self.template_custom = false;
+                            s.filename_template = val.to_string();
+                        }
+                    }
+                    if ui
+                        .selectable_label(self.template_custom, tl(lang, "set.filename_custom"))
+                        .clicked()
+                    {
+                        self.template_custom = true;
+                    }
+                })
+                .response
+        });
+        if self.template_custom {
+            ui.add_space(4.0);
+            ui.add(
+                egui::TextEdit::singleline(&mut s.filename_template)
+                    .hint_text("%(title)s")
+                    .font(egui::TextStyle::Monospace)
+                    .desired_width(f32::INFINITY)
+                    .margin(egui::Margin::symmetric(10, 7)),
+            );
+        }
+        // Live example of the resulting filename.
+        ui.add_space(4.0);
+        let ext = if s.default_kind == "audio" {
+            s.default_audio_format.clone()
+        } else {
+            s.default_container.clone()
+        };
+        ui.horizontal(|ui| {
+            crate::icons::show(ui, "chevron-right", 12.0, p.fg_dim);
+            ui.add_space(2.0);
+            ui.label(
+                RichText::new(template_example(&s.filename_template, &ext))
+                    .monospace()
+                    .small()
+                    .color(p.fg_dim),
+            );
+        });
         setting_row(ui, p, tl(lang, "set.embed_subs"), |ui| {
             toggle(ui, &mut s.default_embed_subs, p);
         });
@@ -3129,6 +3199,14 @@ impl App {
         });
         // Loudness target slider, shown only while normalization is on.
         if s.normalize_audio {
+            // The note names the well-known standard only when the value lands on it,
+            // instead of always reading "Spotify/YouTube".
+            let note = match s.normalize_lufs {
+                -23 => "EBU R128",
+                -16 => "Apple Music",
+                -14 => "Spotify/YouTube",
+                _ => "",
+            };
             egui::Frame::new()
                 .fill(p.surface)
                 .corner_radius(10)
@@ -3137,19 +3215,39 @@ impl App {
                     ui.horizontal(|ui| {
                         ui.label(RichText::new(tl(lang, "set.loudness")).small().color(p.fg));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label(RichText::new("Spotify/YouTube").small().color(p.fg_dim));
-                            ui.add_space(6.0);
                             ui.label(
                                 RichText::new(format!("{} LUFS", s.normalize_lufs))
                                     .small()
                                     .strong()
                                     .color(p.accent),
                             );
+                            if !note.is_empty() {
+                                ui.add_space(6.0);
+                                ui.label(RichText::new(format!("· {note}")).small().color(p.fg_dim));
+                            }
                         });
                     });
-                    ui.add_space(4.0);
-                    ui.spacing_mut().slider_width = ui.available_width() - 16.0;
-                    ui.add(egui::Slider::new(&mut s.normalize_lufs, -23..=-9).show_value(false));
+                    ui.add_space(8.0);
+                    // A cleaner handle: a filled accent track up to a solid accent dot,
+                    // on a slim rail (instead of egui's grey default).
+                    ui.scope(|ui| {
+                        let v = ui.visuals_mut();
+                        v.widgets.inactive.bg_fill = p.accent;
+                        v.widgets.inactive.bg_stroke = egui::Stroke::NONE;
+                        v.widgets.hovered.bg_fill = p.accent;
+                        v.widgets.hovered.bg_stroke = egui::Stroke::new(3.0, p.accent.gamma_multiply(0.3));
+                        v.widgets.active.bg_fill = p.accent;
+                        v.widgets.active.bg_stroke = egui::Stroke::new(3.0, p.accent.gamma_multiply(0.4));
+                        v.selection.bg_fill = p.accent;
+                        v.handle_shape = egui::style::HandleShape::Circle;
+                        ui.spacing_mut().slider_width = ui.available_width() - 6.0;
+                        ui.spacing_mut().slider_rail_height = 5.0;
+                        ui.add(
+                            egui::Slider::new(&mut s.normalize_lufs, -23..=-9)
+                                .trailing_fill(true)
+                                .show_value(false),
+                        );
+                    });
                 });
             ui.add_space(6.0);
         }
@@ -3776,6 +3874,86 @@ fn adv_row(ui: &mut egui::Ui, p: theme::Palette, label: &str, content: impl FnOn
 /// A consistent width for Settings dropdowns, so the select column lines up
 /// (like the web's fixed-width control column) instead of hugging each label.
 const CTRL_COMBO_W: f32 = 168.0;
+
+/// Filename-template presets as `(yt-dlp value, display label)`, mirroring the web.
+/// The `%(autotag...)s` sentinels are renamed to the tagged metadata by the backend.
+const TEMPLATE_PRESETS: [(&str, &str); 6] = [
+    ("%(title)s", "%(title)s"),
+    ("%(uploader)s - %(title)s", "%(uploader)s - %(title)s"),
+    ("%(upload_date)s - %(title)s", "%(upload_date)s - %(title)s"),
+    ("%(title)s [%(id)s]", "%(title)s [%(id)s]"),
+    ("%(autotag)s", "%(artist)s - %(title)s (auto-tag)"),
+    ("%(autotag_ta)s", "%(title)s - %(artist)s (auto-tag)"),
+];
+
+/// Render a yt-dlp output template as a concrete sample filename for a live preview.
+fn template_example(tpl: &str, ext: &str) -> String {
+    match tpl {
+        "%(autotag)s" => "The Notorious B.I.G. - Big Poppa.mp3".to_string(),
+        "%(autotag_ta)s" => "Big Poppa - The Notorious B.I.G..mp3".to_string(),
+        _ => {
+            let sample = |k: &str| match k {
+                "title" => "Big Poppa (Official Music Video)",
+                "uploader" => "The Notorious B.I.G.",
+                "upload_date" => "20110906",
+                "id" => "phaJXp_zMYM",
+                "playlist_index" => "01",
+                "ext" => "mp3",
+                _ => "",
+            };
+            // Replace each %(key)s token; leave unknown keys as-is.
+            let mut out = String::new();
+            let mut rest = if tpl.is_empty() { "%(title)s" } else { tpl };
+            while let Some(start) = rest.find("%(") {
+                out.push_str(&rest[..start]);
+                rest = &rest[start..];
+                if let Some(end) = rest.find(")s") {
+                    let key = &rest[2..end];
+                    let v = sample(key);
+                    if v.is_empty() {
+                        out.push_str(&rest[..end + 2]);
+                    } else {
+                        out.push_str(v);
+                    }
+                    rest = &rest[end + 2..];
+                } else {
+                    break;
+                }
+            }
+            out.push_str(rest);
+            format!("{out}.{ext}")
+        }
+    }
+}
+
+/// A text field for a filesystem path with a folder-picker button inside it (right
+/// edge), opening the OS directory chooser. Returns true when the button is clicked.
+fn path_field(ui: &mut egui::Ui, p: theme::Palette, value: &mut String) -> bool {
+    let mut pick = false;
+    egui::Frame::new()
+        .fill(p.surface_hi)
+        .stroke(egui::Stroke::new(1.0, p.line))
+        .corner_radius(8)
+        .inner_margin(egui::Margin::symmetric(10, 7))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.set_min_height(22.0);
+                let avail = ui.available_width();
+                ui.add_sized(
+                    [avail - 26.0, 22.0],
+                    egui::TextEdit::singleline(value).frame(egui::Frame::NONE),
+                );
+                let r = ui.add(
+                    crate::icons::img("folder", 18.0, p.fg_dim).sense(egui::Sense::click()),
+                );
+                if r.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                pick = r.clicked();
+            });
+        });
+    pick
+}
 
 /// Make a combo popup's scrollbar invisible (the list still scrolls by wheel),
 /// matching the web's borderless selects. Applied per-combo via `popup_style`, so
