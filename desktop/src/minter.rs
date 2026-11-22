@@ -33,6 +33,12 @@ impl Minter {
             let _ = c.wait();
         }
     }
+
+    /// Kill the child before a hard `process::exit` (which skips `Drop`), so the
+    /// hidden WebView isn't orphaned.
+    pub fn shutdown(&mut self) {
+        self.kill();
+    }
 }
 
 impl Drop for Minter {
@@ -52,6 +58,12 @@ fn binary() -> std::path::PathBuf {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             let sibling = dir.join("yoink-minter");
+            // Release builds run only the sibling (or $YOINK_MINTER) — never a
+            // binary found on PATH, which another user could plant. Dev builds
+            // keep the PATH fallback below for convenience.
+            #[cfg(not(debug_assertions))]
+            return sibling;
+            #[cfg(debug_assertions)]
             if sibling.exists() {
                 return sibling;
             }

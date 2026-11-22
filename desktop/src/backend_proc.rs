@@ -28,9 +28,15 @@ fn locate() -> PathBuf {
             if sibling.exists() {
                 return sibling;
             }
-            // Dev convenience: a released app ships yoink-core beside it, but a
-            // `cargo build` of the desktop crate doesn't — find the workspace's
-            // backend build by walking up to `backend-rs/target/{release,debug}`.
+            // Release builds run ONLY the sibling (or $YOINK_CORE) — never a binary
+            // found by walking ancestor dirs or on PATH, which another user could
+            // plant. The ancestor walk / PATH fallback is a dev-only convenience.
+            #[cfg(not(debug_assertions))]
+            return sibling;
+            // Dev convenience: a `cargo build` of the desktop crate doesn't ship
+            // yoink-core beside it — find the workspace's backend build by walking
+            // up to `backend-rs/target/{release,debug}`.
+            #[cfg(debug_assertions)]
             for anc in dir.ancestors() {
                 for sub in [
                     "backend-rs/target/release/yoink-core",

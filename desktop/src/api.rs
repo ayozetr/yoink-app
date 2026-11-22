@@ -34,6 +34,7 @@ pub enum Cmd {
     Download(DownloadReq),
     ImportTrack(Box<MusicTrack>),
     SaveSettings(Box<Settings>),
+    ReloadSettings,
     LoadHistory,
     LoadLogs,
     LoadWhatsNew { since: String },
@@ -47,6 +48,8 @@ pub enum Cmd {
 /// A piece of news from the worker to the UI.
 pub enum Evt {
     Settings(Box<Settings>),
+    /// The backend never answered the settings request (its retry budget ran out).
+    SettingsLoadFailed,
     SettingsSaved,
     UpdateAvailable {
         version: String,
@@ -69,7 +72,7 @@ pub enum Evt {
     },
     Analyzing,
     Info(VideoLite),
-    SearchResults(Vec<SearchItem>),
+    SearchResults { query: String, items: Vec<SearchItem> },
     Music(Box<MusicInfo>),
     Playlist {
         title: String,
@@ -326,10 +329,9 @@ impl Backend {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     tokio::spawn(async move { fetch_settings(evt_tx, ctx).await });
                 }
-                {
-                    let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
-                    tokio::spawn(async move { check_update(evt_tx, ctx).await });
-                }
+                // The startup update check is triggered by the UI once settings
+                // load, so it honours the "check for updates" setting instead of
+                // hitting GitHub unconditionally.
                 // Prefetch the History and Logs tabs so switching to them is
                 // instant instead of waiting for a request on first open.
                 {
@@ -360,6 +362,9 @@ impl Backend {
                         }
                         Cmd::SaveSettings(s) => {
                             tokio::spawn(async move { save_settings(s, evt_tx, ctx).await });
+                        }
+                        Cmd::ReloadSettings => {
+                            tokio::spawn(async move { fetch_settings(evt_tx, ctx).await });
                         }
                         Cmd::LoadHistory => {
                             tokio::spawn(async move { load_history(evt_tx, ctx).await });
@@ -416,6 +421,9 @@ async fn fetch_settings(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
         }
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
+    // The backend never came up — tell the UI so it can show a retry instead of
+    // spinning forever.
+    emit(&tx, &ctx, Evt::SettingsLoadFailed);
 }
 
 async fn save_settings(s: Box<Settings>, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
@@ -455,11 +463,18 @@ async fn check_update(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
         .header("Accept", "application/vnd.github+json")
         .send()
         .await;
-    let Ok(r) = res else { return };
+    // On any failure (offline, rate-limited, unexpected JSON) still emit a
+    // terminal event so the UI's "checking…" state clears and the user can retry.
+    let Ok(r) = res else {
+        emit(&tx, &ctx, Evt::UpToDate);
+        return;
+    };
     let Ok(v) = r.json::<Value>().await else {
+        emit(&tx, &ctx, Evt::UpToDate);
         return;
     };
     let Some(tag) = v.get("tag_name").and_then(Value::as_str) else {
+        emit(&tx, &ctx, Evt::UpToDate);
         return;
     };
     let latest = tag.trim_start_matches('v');
@@ -529,16 +544,90 @@ async fn do_self_update(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui
     }
 }
 
+/// Ed25519 public key that release assets are signed with (the matching private
+/// key is the `YOINK_UPDATE_KEY` GitHub secret, used by the release workflow). An
+/// update is only installed if its `<asset>.sig` verifies against this key, so a
+/// tampered/compromised download can't lead to running an attacker's binary.
+const UPDATE_PUBKEY: [u8; 32] = [
+    0x6b, 0x54, 0x4f, 0x16, 0x20, 0x0c, 0x97, 0x5b, 0x6c, 0xcb, 0x8b, 0x82, 0xdf, 0xc8, 0x9a, 0xe0,
+    0x49, 0xbf, 0xf0, 0xfa, 0x10, 0x65, 0xac, 0x75, 0x43, 0xba, 0x2b, 0x97, 0x66, 0x8b, 0xda, 0x75,
+];
+
+/// Download `<url>.sig` (a raw 64-byte ed25519 signature) and verify it over the
+/// downloaded file. Fail-closed: any problem (missing signature, bad length, bad
+/// signature) aborts the update.
+async fn verify_update_signature(
+    url: &str,
+    file: &std::path::Path,
+    client: &reqwest::Client,
+) -> Result<(), String> {
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+    let sig_url = format!("{url}.sig");
+    let parsed = reqwest::Url::parse(&sig_url).map_err(|e| e.to_string())?;
+    if !is_trusted_release_url(&parsed) {
+        return Err("untrusted signature URL".into());
+    }
+    let sig_bytes = client
+        .get(&sig_url)
+        .header("User-Agent", "yoink-desktop")
+        .send()
+        .await
+        .and_then(reqwest::Response::error_for_status)
+        .map_err(|_| "update signature missing".to_string())?
+        .bytes()
+        .await
+        .map_err(|e| e.to_string())?;
+    let vk = VerifyingKey::from_bytes(&UPDATE_PUBKEY).map_err(|e| e.to_string())?;
+    let sig = Signature::from_slice(&sig_bytes).map_err(|_| "malformed signature".to_string())?;
+    let data = std::fs::read(file).map_err(|e| e.to_string())?;
+    vk.verify(&data, &sig)
+        .map_err(|_| "signature verification failed".to_string())
+}
+
+/// Only `https` URLs on GitHub's own release/asset hosts are accepted for the
+/// self-update download — no plaintext, no arbitrary hosts, no scheme downgrade.
+fn is_trusted_release_url(url: &reqwest::Url) -> bool {
+    url.scheme() == "https"
+        && matches!(
+            url.host_str(),
+            Some(h) if h == "github.com" || h == "objects.githubusercontent.com"
+                || h.ends_with(".githubusercontent.com")
+        )
+}
+
 async fn download_and_install(
     url: &str,
     target: &std::path::Path,
     tx: &std::sync::mpsc::Sender<Evt>,
     ctx: &egui::Context,
 ) -> Result<(), String> {
+    let parsed = reqwest::Url::parse(url).map_err(|e| e.to_string())?;
+    if !is_trusted_release_url(&parsed) {
+        return Err("untrusted update URL".into());
+    }
     let dir = target.parent().ok_or("no parent dir")?;
-    let tmp = dir.join(format!(".yoink-update-{}.tmp", std::process::id()));
+    // A random, O_EXCL temp name so a pre-planted file/symlink can't be followed.
+    let tmp = dir.join(format!(
+        ".yoink-update-{}-{}.tmp",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
 
-    let resp = reqwest::Client::new()
+    // Enforce the host/scheme allowlist across every redirect hop, too.
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if is_trusted_release_url(attempt.url()) {
+                attempt.follow()
+            } else {
+                attempt.error(std::io::Error::other("untrusted redirect"))
+            }
+        }))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
         .get(url)
         .header("User-Agent", "yoink-desktop")
         .send()
@@ -549,10 +638,18 @@ async fn download_and_install(
 
     {
         use std::io::Write;
-        let mut file = std::fs::File::create(&tmp).map_err(|e| e.to_string())?;
+        // create_new (O_EXCL) refuses to open through a pre-existing file/symlink.
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)
+            .map_err(|e| e.to_string())?;
         let mut done: u64 = 0;
         let mut resp = resp;
         let mut last = 0.0f32;
+        // Enter the "downloading" state immediately (also the only feedback when
+        // the server sends no Content-Length).
+        emit(tx, ctx, Evt::UpdateProgress(0.0));
         while let Some(chunk) = resp.chunk().await.map_err(|e| e.to_string())? {
             file.write_all(&chunk).map_err(|e| e.to_string())?;
             done += chunk.len() as u64;
@@ -565,6 +662,13 @@ async fn download_and_install(
             }
         }
         file.flush().map_err(|e| e.to_string())?;
+    }
+
+    // Verify the ed25519 signature BEFORE the binary is made executable or swapped
+    // in — a tampered or wrong-host download never gets run.
+    if let Err(e) = verify_update_signature(url, &tmp, &client).await {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
     }
 
     // The new binary must be executable (AppImage); harmless on Windows.
@@ -594,7 +698,12 @@ fn install_over(tmp: &std::path::Path, target: &std::path::Path) -> Result<(), S
     let backup = target.with_extension("old");
     let _ = std::fs::remove_file(&backup);
     std::fs::rename(target, &backup).map_err(|e| e.to_string())?;
-    std::fs::rename(tmp, target).map_err(|e| e.to_string())?;
+    if let Err(e) = std::fs::rename(tmp, target) {
+        // Putting the new binary in place failed — restore the moved-aside
+        // original so the app isn't left with no executable.
+        let _ = std::fs::rename(&backup, target);
+        return Err(e.to_string());
+    }
     Ok(())
 }
 
@@ -788,6 +897,10 @@ async fn run_ws_download(
             _ => {}
         }
     }
+    // The socket closed (backend crashed/restarted, or a mid-download drop)
+    // without a terminal `completed`/`error`. Surface it so the UI clears the
+    // active download instead of wedging the whole queue forever.
+    emit(tx, ctx, Evt::DownloadErr("connection closed".into()));
     None
 }
 
@@ -809,7 +922,14 @@ async fn search(
         .await;
     if let Ok(r) = res {
         if let Ok(resp) = r.json::<Resp>().await {
-            emit(&tx, &ctx, Evt::SearchResults(resp.results));
+            emit(
+                &tx,
+                &ctx,
+                Evt::SearchResults {
+                    query,
+                    items: resp.results,
+                },
+            );
         }
     }
 }
@@ -901,4 +1021,29 @@ async fn import_track(track: MusicTrack, tx: std::sync::mpsc::Sender<Evt>, ctx: 
         .send()
         .await;
     emit(&tx, &ctx, Evt::Done(path));
+}
+
+#[cfg(test)]
+mod update_sig_tests {
+    use super::UPDATE_PUBKEY;
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+
+    // A signature produced by `openssl pkeyutl -sign -rawin` with the matching
+    // private key must verify against the embedded public key — i.e. the release
+    // workflow's signing format and the client's verification agree.
+    #[test]
+    fn openssl_signature_verifies() {
+        let msg = b"hello yoink update payload\n";
+        let sig_hex = "caca535f221bc0fa18db421a6ce0fd96257abd85dbebd89f36341878f44ac70608cda7a3139a89cc9723ecbbb45e8d74ece2e03e1cd00753d3f33941de95ce02";
+        let sig_bytes: Vec<u8> = (0..sig_hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&sig_hex[i..i + 2], 16).unwrap())
+            .collect();
+        let vk = VerifyingKey::from_bytes(&UPDATE_PUBKEY).unwrap();
+        let sig = Signature::from_slice(&sig_bytes).unwrap();
+        assert!(vk.verify(msg, &sig).is_ok(), "valid signature should verify");
+
+        // A tampered message must NOT verify.
+        assert!(vk.verify(b"tampered", &sig).is_err());
+    }
 }

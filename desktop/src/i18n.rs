@@ -258,6 +258,10 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("state.saved", En) => "Saved",
         ("state.loading", Es) => "Cargando…",
         ("state.loading", En) => "Loading…",
+        ("state.load_failed", Es) => "No se pudo cargar. ¿El backend está en marcha?",
+        ("state.load_failed", En) => "Couldn't load. Is the backend running?",
+        ("action.retry", Es) => "Reintentar",
+        ("action.retry", En) => "Retry",
 
         ("cola.add_hint", Es) => "Pega enlaces (uno por línea)…",
         ("cola.add_hint", En) => "Paste links (one per line)…",

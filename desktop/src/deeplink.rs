@@ -19,8 +19,20 @@ fn sock_path() -> std::path::PathBuf {
             return p.into();
         }
     }
-    let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
-    std::path::PathBuf::from(dir).join("yoink-desktop.sock")
+    // Prefer the per-user runtime dir (mode 0700). If it's unset, fall back to a
+    // per-uid directory we create 0700 under the system temp dir — never a shared,
+    // world-writable path like plain /tmp, so no other local user can reach it.
+    if let Ok(dir) = std::env::var("XDG_RUNTIME_DIR") {
+        if !dir.is_empty() {
+            return std::path::PathBuf::from(dir).join("yoink-desktop.sock");
+        }
+    }
+    use std::os::unix::fs::PermissionsExt;
+    let uid = unsafe { libc::getuid() };
+    let dir = std::env::temp_dir().join(format!("yoink-{uid}"));
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
+    dir.join("yoink-desktop.sock")
 }
 
 /// Percent-decode (and `+` → space), enough for a URL carried in a deep link.
@@ -78,13 +90,18 @@ pub fn single_instance(pending: Option<String>, tx: Sender<String>) -> bool {
         }
         return true; // a live instance took it
     }
-    let _ = std::fs::remove_file(&path); // clear a stale socket
+    let _ = std::fs::remove_file(&path); // clear a stale socket (the dir is ours, 0700)
     if let Ok(listener) = UnixListener::bind(&path) {
+        // Only the owner may talk to the socket.
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
         std::thread::spawn(move || {
             for stream in listener.incoming().flatten() {
                 let mut buf = String::new();
-                let mut s = stream;
-                if s.read_to_string(&mut buf).is_ok() {
+                let s = stream;
+                // A deep-link URL is tiny; cap the read so a local peer can't stream
+                // unbounded data into memory / hang this thread.
+                if s.take(8192).read_to_string(&mut buf).is_ok() {
                     if let Some(url) = parse(buf.trim()).or_else(|| {
                         buf.trim()
                             .starts_with("http")

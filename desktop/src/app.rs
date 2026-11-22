@@ -197,6 +197,9 @@ pub struct App {
     theme_mode: ThemeMode,
     os_dark: Option<bool>,                 // last probed OS light/dark preference
     theme_probe: std::time::Instant,       // throttles re-probing the OS theme
+    os_dark_tx: std::sync::mpsc::Sender<Option<bool>>, // background OS-theme probe result
+    os_dark_rx: std::sync::mpsc::Receiver<Option<bool>>,
+    os_probe_inflight: bool,               // a background OS-theme probe is running
     lang: Lang,                            // the resolved UI language
     lang_mode: Option<Lang>,               // None = follow the OS language
     template_custom: bool,                 // filename template: custom (free-text) vs a preset
@@ -226,6 +229,7 @@ pub struct App {
     settings: Option<Settings>,
     settings_note: Option<String>,
     settings_scroll_to: Option<String>,
+    settings_failed: bool, // the backend never answered the settings request
     active_section: String, // settings section currently in view (for the nav scrollspy)
     history: Vec<HistoryEntry>,
     history_loaded: bool,
@@ -255,6 +259,7 @@ pub struct App {
     update_dismissed: bool,
     update_checking: bool, // a manual "check for updates" is in flight
     update_checked: bool,  // a check has completed (so we can show "up to date")
+    startup_update_checked: bool, // the one-time startup check has been triggered
     whatsnew: Vec<(String, String)>,
     whatsnew_open: bool,
     terms_open: bool,
@@ -297,6 +302,7 @@ impl App {
         };
         let lang_mode = prefs.lang.as_deref().and_then(crate::i18n::Lang::from_code);
         let os_dark = detect_os_dark(&cc.egui_ctx);
+        let (os_dark_tx, os_dark_rx) = std::sync::mpsc::channel::<Option<bool>>();
         let dark = match theme_mode {
             ThemeMode::System => os_dark.unwrap_or(true),
             ThemeMode::Dark => true,
@@ -320,6 +326,9 @@ impl App {
             theme_mode,
             os_dark,
             theme_probe: std::time::Instant::now(),
+            os_dark_tx,
+            os_dark_rx,
+            os_probe_inflight: false,
             lang: lang_mode.unwrap_or_else(crate::i18n::detect),
             lang_mode,
             template_custom: false,
@@ -348,6 +357,7 @@ impl App {
             settings: None,
             settings_note: None,
             settings_scroll_to: None,
+            settings_failed: false,
             active_section: "sec.general".into(),
             history: Vec::new(),
             history_loaded: false,
@@ -377,6 +387,7 @@ impl App {
             update_dismissed: false,
             update_checking: false,
             update_checked: false,
+            startup_update_checked: false,
             whatsnew: Vec::new(),
             whatsnew_open: false,
             terms_open: false,
@@ -524,8 +535,18 @@ impl App {
                     self.minter.set_auto(s.po_token_mode == "auto");
                     // A loaded template that isn't one of the presets is a custom one.
                     self.template_custom = !TEMPLATE_PRESETS.iter().any(|(v, _)| *v == s.filename_template);
+                    // Run the one-time startup update check now that we know the
+                    // user's preference (honouring the "check for updates" setting).
+                    if !self.startup_update_checked {
+                        self.startup_update_checked = true;
+                        if s.check_updates {
+                            self.backend.send(Cmd::CheckUpdate);
+                        }
+                    }
+                    self.settings_failed = false;
                     self.settings = Some(*s);
                 }
+                Evt::SettingsLoadFailed => self.settings_failed = true,
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
                 Evt::UpdateAvailable { version, asset_url } => {
                     self.update_available = Some(version);
@@ -540,6 +561,7 @@ impl App {
                 Evt::UpdateProgress(pct) => self.update_progress = Some(pct),
                 Evt::UpdateInstalled(path) => {
                     // The binary is swapped — relaunch it and exit this process.
+                    self.minter.shutdown();
                     let _ = std::process::Command::new(&path).spawn();
                     std::process::exit(0);
                 }
@@ -571,7 +593,13 @@ impl App {
                     self.status = Status::Idle;
                     self.search_results.clear();
                 }
-                Evt::SearchResults(r) => self.search_results = r,
+                Evt::SearchResults { query, items } => {
+                    // Drop results for a stale query (a slower earlier request must
+                    // not overwrite the current one).
+                    if query == self.last_query {
+                        self.search_results = items;
+                    }
+                }
                 Evt::Playlist { title, count } => {
                     self.preview = Preview::Playlist { title, count };
                     self.status = Status::Idle;
@@ -1033,7 +1061,10 @@ impl eframe::App for App {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
                 }
-                crate::tray::TrayMsg::Quit => std::process::exit(0),
+                crate::tray::TrayMsg::Quit => {
+                    self.minter.shutdown();
+                    std::process::exit(0);
+                }
             }
         }
         // Close-to-tray when the setting is on: hide instead of quitting.
@@ -1075,13 +1106,33 @@ impl eframe::App for App {
         }
 
         // Resolve the effective theme (System follows the OS) and re-apply on change.
-        // Re-probe the OS at most every ~2s so a live theme switch is picked up
-        // without a blocking portal call every frame.
-        if self.theme_mode == ThemeMode::System
-            && self.theme_probe.elapsed().as_secs_f32() > 2.0
-        {
-            self.os_dark = detect_os_dark(&ctx);
-            self.theme_probe = std::time::Instant::now();
+        if self.theme_mode == ThemeMode::System {
+            // winit's system_theme is cheap and on-thread; use it when available.
+            if let Some(t) = ctx.system_theme() {
+                self.os_dark = Some(t == egui::Theme::Dark);
+            } else {
+                // Otherwise probe the XDG portal — but OFF the UI thread (the DBus
+                // call can block). Poll the last result, and re-probe every ~2s.
+                while let Ok(v) = self.os_dark_rx.try_recv() {
+                    self.os_dark = v;
+                    self.os_probe_inflight = false;
+                }
+                if !self.os_probe_inflight && self.theme_probe.elapsed().as_secs_f32() > 2.0 {
+                    self.os_probe_inflight = true;
+                    self.theme_probe = std::time::Instant::now();
+                    let tx = self.os_dark_tx.clone();
+                    let ctx2 = ctx.clone();
+                    std::thread::spawn(move || {
+                        let v = match dark_light::detect() {
+                            dark_light::Mode::Dark => Some(true),
+                            dark_light::Mode::Light => Some(false),
+                            dark_light::Mode::Default => None,
+                        };
+                        let _ = tx.send(v);
+                        ctx2.request_repaint();
+                    });
+                }
+            }
         }
         let want_dark = match self.theme_mode {
             ThemeMode::System => self.os_dark.unwrap_or(self.dark),
@@ -2282,6 +2333,7 @@ impl App {
                 self.q_quality = self.quality.clone();
                 self.q_container = self.container.clone();
                 self.q_audio = self.audio_format.clone();
+                self.q_bitrate = self.bitrate.clone();
                 self.queue_url = self.url.clone();
                 self.queue_add();
             }
@@ -2578,10 +2630,10 @@ impl App {
                 .color(p.fg_dim),
         );
 
+        let mut open_path: Option<String> = None;
         for e in self
             .history
-            .clone()
-            .into_iter()
+            .iter()
             .filter(|e| q.is_empty() || e.title.to_lowercase().contains(&q))
         {
             // The whole row is a hover-highlighted click target that opens the file.
@@ -2590,7 +2642,7 @@ impl App {
                 .corner_radius(8)
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        fmt_badge(ui, p, &badge_label(&e));
+                        fmt_badge(ui, p, &badge_label(e));
                         ui.add_space(12.0);
                         ui.vertical(|ui| {
                             ui.set_width(ui.available_width() - 90.0);
@@ -2627,9 +2679,12 @@ impl App {
                 .interact(egui::Sense::click());
             if resp.clicked() {
                 if let Some(path) = e.filepath.clone().filter(|_| e.status == "completed") {
-                    self.backend.send(Cmd::Open(path));
+                    open_path = Some(path);
                 }
             }
+        }
+        if let Some(path) = open_path {
+            self.backend.send(Cmd::Open(path));
         }
     }
 
@@ -2962,10 +3017,30 @@ impl App {
 
         let Some(mut s) = self.settings.clone() else {
             ui.add_space(24.0);
-            ui.horizontal(|ui| {
-                ui.spinner();
-                ui.label(RichText::new(tl(lang, "state.loading")).color(p.fg_dim));
-            });
+            if self.settings_failed {
+                ui.label(RichText::new(tl(lang, "state.load_failed")).color(p.err));
+                ui.add_space(8.0);
+                if ui
+                    .add(
+                        egui::Button::new(
+                            RichText::new(format!("  {}  ", tl(lang, "action.retry")))
+                                .color(p.accent),
+                        )
+                        .fill(p.accent.gamma_multiply(0.16))
+                        .corner_radius(9)
+                        .min_size(egui::vec2(0.0, 32.0)),
+                    )
+                    .clicked()
+                {
+                    self.settings_failed = false;
+                    self.backend.send(Cmd::ReloadSettings);
+                }
+            } else {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(RichText::new(tl(lang, "state.loading")).color(p.fg_dim));
+                });
+            }
             return;
         };
         let mut lang_sel = self.lang_mode; // None = follow the OS
