@@ -963,17 +963,9 @@ impl eframe::App for App {
                 } else if drag.drag_started_by(egui::PointerButton::Primary) {
                     ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
                 }
+                // Just the window controls on the right — no icon or wordmark here
+                // (the brand sits right below); the rest of the strip drags.
                 ui.horizontal_centered(|ui| {
-                    ui.add(
-                        egui::Image::from_bytes(
-                            "bytes://titlebar-icon",
-                            include_bytes!("../assets/icon.png") as &[u8],
-                        )
-                        .fit_to_exact_size(egui::vec2(16.0, 16.0))
-                        .corner_radius(4),
-                    );
-                    ui.add_space(7.0);
-                    ui.label(RichText::new("Yoink").size(12.5).color(p.fg_dim));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if win_btn(ui, p, WinBtn::Close).clicked() {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
