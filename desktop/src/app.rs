@@ -667,22 +667,24 @@ enum WinBtn {
     Close,
 }
 
-/// A custom window-control button (minimize / maximize / close), painted to fill
-/// the title bar height. Close highlights red on hover; the glyphs are drawn
-/// directly so they stay crisp at the title-bar size.
+/// A custom window-control button (minimize / maximize / close). On hover the
+/// glyph lights up instead of drawing a background: brighter for minimize and
+/// maximize, red for close. The glyphs are drawn directly so they stay crisp.
 fn win_btn(ui: &mut egui::Ui, p: theme::Palette, kind: WinBtn) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(egui::vec2(44.0, 34.0), egui::Sense::click());
     let hov = resp.hovered();
     if hov {
-        let bg = if kind == WinBtn::Close {
-            egui::Color32::from_rgb(196, 43, 43)
-        } else {
-            p.surface_hi
-        };
-        ui.painter().rect_filled(rect, 0.0, bg);
         ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
     }
-    let col = if hov { egui::Color32::WHITE } else { p.fg_dim };
+    let col = if hov {
+        if kind == WinBtn::Close {
+            egui::Color32::from_rgb(237, 80, 80)
+        } else {
+            egui::Color32::WHITE
+        }
+    } else {
+        p.fg_dim
+    };
     let c = rect.center();
     let painter = ui.painter();
     let stroke = egui::Stroke::new(1.3, col);
@@ -1573,17 +1575,23 @@ impl App {
             egui::Layout::right_to_left(egui::Align::Center),
             |ui| {
                 ui.add_space(112.0);
-                if ui
-                    .add(
-                        egui::Button::new(
-                            RichText::new(tl(lang, "inicio.supported"))
-                                .small()
-                                .color(p.fg_dim),
-                        )
-                        .frame(false),
-                    )
-                    .clicked()
-                {
+                // Clickable hint that lights up on hover (dim → full foreground).
+                let txt = tl(lang, "inicio.supported").to_string();
+                let font = egui::TextStyle::Small.resolve(ui.style());
+                let galley =
+                    ui.painter()
+                        .layout_no_wrap(txt.clone(), font.clone(), p.fg_dim);
+                let (rect, resp) =
+                    ui.allocate_exact_size(galley.size(), egui::Sense::click());
+                let col = if resp.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    p.fg
+                } else {
+                    p.fg_dim
+                };
+                ui.painter()
+                    .text(rect.min, egui::Align2::LEFT_TOP, &txt, font, col);
+                if resp.clicked() {
                     self.supported_open = true;
                 }
             },
