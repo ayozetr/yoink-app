@@ -98,6 +98,9 @@ fn main() -> eframe::Result {
             // so the window chrome matches the app instead of the compositor's
             // gray decoration — and looks identical across Linux/Windows/macOS.
             .with_decorations(false)
+            // Transparent so we can round the window corners ourselves (the app
+            // paints a rounded background; the corners outside it stay clear).
+            .with_transparent(true)
             .with_inner_size([1180.0, 840.0])
             .with_min_inner_size([560.0, 520.0])
             .with_icon(icon()),

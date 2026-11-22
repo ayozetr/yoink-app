@@ -843,7 +843,15 @@ fn parse_timecode(s: &str) -> Option<f64> {
     Some(secs)
 }
 
+/// Corner radius of the (borderless, transparent) window.
+const WINDOW_RADIUS: f32 = 11.0;
+
 impl eframe::App for App {
+    // Transparent framebuffer so the window corners we don't paint stay clear.
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        [0.0, 0.0, 0.0, 0.0]
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         // Poll a little even when idle, so deep links handed over by another launch
@@ -938,15 +946,26 @@ impl eframe::App for App {
         let p = theme::palette(self.dark);
         let lang = self.lang;
 
+        // The window is borderless and transparent: paint a single rounded
+        // background behind everything, and keep every panel's fill transparent,
+        // so the four corners outside this rounded rect stay clear — rounded
+        // window corners that we control, consistent across platforms.
+        ui.painter().rect_filled(
+            ctx.content_rect(),
+            WINDOW_RADIUS,
+            p.canvas,
+        );
+
         // Our own title bar (native decoration is off): a flat AMOLED strip with
-        // the Yoink mark on the left and window controls on the right. The empty
-        // area drags the window; a double-click toggles maximize.
+        // the window controls on the right. The empty area drags the window; a
+        // double-click toggles maximize. No right margin, so the close button's
+        // hover fill reaches the window edge.
         egui::Panel::top("titlebar")
             .show_separator_line(false)
             .exact_size(34.0)
-            .frame(egui::Frame::new().fill(p.canvas).inner_margin(egui::Margin {
+            .frame(egui::Frame::new().fill(egui::Color32::TRANSPARENT).inner_margin(egui::Margin {
                 left: 12,
-                right: 4,
+                right: 0,
                 top: 0,
                 bottom: 0,
             }))
@@ -987,7 +1006,7 @@ impl eframe::App for App {
                 // Same AMOLED canvas as the body — a seamless header, no gray band
                 // or dividing line (matches the flat web UI).
                 egui::Frame::new()
-                    .fill(p.canvas)
+                    .fill(egui::Color32::TRANSPARENT)
                     .inner_margin(egui::Margin {
                         left: 20,
                         right: 20,
@@ -1123,7 +1142,7 @@ impl eframe::App for App {
                 .exact_size(210.0)
                 .frame(
                     egui::Frame::new()
-                        .fill(p.canvas)
+                        .fill(egui::Color32::TRANSPARENT)
                         .inner_margin(egui::Margin::symmetric(20, 24)),
                 )
                 .show(ui, |ui| {
@@ -1172,7 +1191,7 @@ impl eframe::App for App {
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::new()
-                    .fill(p.canvas)
+                    .fill(egui::Color32::TRANSPARENT)
                     .inner_margin(egui::Margin {
                         left: 20,
                         right: 20,
