@@ -125,6 +125,7 @@ struct QueueItem {
     quality: String,
     container: String,
     audio: String,
+    bitrate: String,
     source: QSource,
     status: QStatus,
     progress: f32,
@@ -177,6 +178,7 @@ pub struct App {
     q_quality: String,
     q_container: String,
     q_audio: String,
+    q_bitrate: String,
     advanced_open: bool,
     supported_open: bool,
     presets: Vec<Preset>,
@@ -268,6 +270,7 @@ impl App {
             q_quality: "best".into(),
             q_container: "mp4".into(),
             q_audio: "mp3".into(),
+            q_bitrate: "best".into(),
             advanced_open: false,
             supported_open: false,
             presets: load_presets(),
@@ -383,6 +386,7 @@ impl App {
                 quality: "best".into(),
                 container: "mp4".into(),
                 audio: "mp3".into(),
+                bitrate: "best".into(),
                 source: QSource::Url("https://www.youtube.com/watch?v=x".into()),
                 status: st,
                 progress: pr,
@@ -542,12 +546,15 @@ impl App {
         match &it.source {
             QSource::Url(url) => {
                 let kind = it.kind.clone();
+                let is_audio = kind == "audio";
                 self.backend.send(Cmd::Download(DownloadReq {
                     url: url.clone(),
-                    quality: (kind == "video").then(|| it.quality.clone()),
+                    quality: (!is_audio).then(|| it.quality.clone()),
                     kind,
                     container: it.container.clone(),
                     audio_format: it.audio.clone(),
+                    audio_bitrate: (is_audio && it.bitrate != "best")
+                        .then(|| it.bitrate.clone()),
                     ..Default::default()
                 }));
             }
@@ -569,6 +576,7 @@ impl App {
             quality: self.q_quality.clone(),
             container: self.q_container.clone(),
             audio: self.q_audio.clone(),
+            bitrate: self.q_bitrate.clone(),
             source: QSource::Url(url),
             status: QStatus::Pending,
             progress: 0.0,
@@ -587,6 +595,7 @@ impl App {
                 quality: "best".into(),
                 container: "mp4".into(),
                 audio: "mp3".into(),
+                bitrate: "best".into(),
                 source: QSource::Music(Box::new(t.clone())),
                 status: QStatus::Pending,
                 progress: 0.0,
@@ -2519,6 +2528,14 @@ impl App {
                     "q.a",
                     &mut self.q_audio,
                     &["mp3", "m4a", "opus", "flac", "wav"],
+                );
+                // Audio quality (bitrate), the counterpart to video resolution.
+                combo_bare(
+                    ui,
+                    lang,
+                    "q.br",
+                    &mut self.q_bitrate,
+                    &["best", "320", "256", "192", "128"],
                 );
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
