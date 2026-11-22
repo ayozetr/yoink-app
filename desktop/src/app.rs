@@ -1766,7 +1766,7 @@ impl App {
         let analyzing = matches!(self.status, Status::Analyzing);
         ui.horizontal(|ui| {
             let total = ui.available_width();
-            egui::Frame::new()
+            let pill = egui::Frame::new()
                 .fill(p.surface_hi)
                 .stroke(egui::Stroke::new(1.0, p.line))
                 .corner_radius(10)
@@ -1867,13 +1867,14 @@ impl App {
                     });
                 });
             ui.add_space(8.0);
+            // Match the Analyze button's height to the input pill beside it.
             let btn = egui::Button::image_and_text(
                 crate::icons::img("search", 15.0, p.accent),
                 RichText::new(tl(lang, "inicio.analyze")).color(p.accent),
             )
             .fill(p.accent.gamma_multiply(0.18))
             .corner_radius(10)
-            .min_size(egui::vec2(104.0, 38.0));
+            .min_size(egui::vec2(104.0, pill.response.rect.height()));
             if ui.add_enabled(!analyzing, btn).clicked() {
                 self.analyze();
             }
@@ -2682,6 +2683,9 @@ impl App {
         // FORMAT row: the pickers used for new URL items + a Start button.
         ui.add_space(10.0);
         ui.horizontal(|ui| {
+            // Fix the row height first so the label centers on the full (combo)
+            // height instead of being laid out high before the combo grows the row.
+            ui.set_min_height(34.0);
             ui.label(
                 RichText::new(tl(lang, "cola.format"))
                     .small()
@@ -3882,9 +3886,11 @@ fn about_link_row(
         ui,
         egui::Rect::from_min_size(egui::pos2(chev, rect.center().y - 7.0), egui::vec2(14.0, 14.0)),
     );
-    // Hairline separator at the top.
+    // Hairline separator, centered in the inter-row gap (egui adds item_spacing
+    // above this rect) so the row's text sits centered between two separators.
+    let sep_y = rect.top() - ui.spacing().item_spacing.y / 2.0;
     ui.painter().rect_filled(
-        egui::Rect::from_min_size(rect.left_top(), egui::vec2(w, 1.0)),
+        egui::Rect::from_min_size(egui::pos2(rect.left(), sep_y), egui::vec2(w, 1.0)),
         0.0,
         p.line.gamma_multiply(0.5),
     );
