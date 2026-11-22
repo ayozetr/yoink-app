@@ -289,6 +289,9 @@ pub fn tl(lang: Lang, key: &str) -> &str {
             "This audio can't be downloaded directly — each track is matched on YouTube, downloaded, and tagged with the source metadata."
         }
 
+        ("theme.system", Es) => "Sistema",
+        ("theme.system", En) => "System",
+
         // Settings: Shortcuts / Extension / About sections.
         ("set.shortcuts", Es) => "Atajos",
         ("set.shortcuts", En) => "Shortcuts",

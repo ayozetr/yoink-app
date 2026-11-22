@@ -53,6 +53,14 @@ enum QStatus {
     Error(String),
 }
 
+/// How the UI theme is chosen: follow the OS, or a fixed dark/light.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ThemeMode {
+    System,
+    Dark,
+    Light,
+}
+
 /// What a queue item downloads: a plain URL (yt-dlp) or a resolved music track
 /// (match → download → tag).
 enum QSource {
@@ -76,6 +84,7 @@ pub struct App {
     backend: Backend,
     minter: crate::minter::Minter,
     dark: bool,
+    theme_mode: ThemeMode,
     lang: Lang,
     tab: Tab,
     url: String,
@@ -137,7 +146,15 @@ impl App {
         deeplink_rx: std::sync::mpsc::Receiver<String>,
         tray_rx: std::sync::mpsc::Receiver<crate::tray::TrayMsg>,
     ) -> App {
-        let dark = true;
+        // Default to following the OS; resolve the initial value from it (dark if
+        // the system theme isn't known yet). The per-frame check in `ui` keeps it
+        // in sync afterwards.
+        let theme_mode = ThemeMode::System;
+        let dark = cc
+            .egui_ctx
+            .system_theme()
+            .map(|t| t == egui::Theme::Dark)
+            .unwrap_or(true);
         crate::fonts::install(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, dark);
         // The web UI renders at a more generous scale; match it so controls and
@@ -153,6 +170,7 @@ impl App {
             backend: Backend::spawn(cc.egui_ctx.clone()),
             minter: crate::minter::Minter::new(crate::api::port()),
             dark,
+            theme_mode,
             lang: crate::i18n::detect(),
             tab: Tab::Inicio,
             url: String::new(),
@@ -718,6 +736,20 @@ impl eframe::App for App {
             } else {
                 Tab::Ajustes
             };
+        }
+
+        // Resolve the effective theme (System follows the OS) and re-apply on change.
+        let want_dark = match self.theme_mode {
+            ThemeMode::System => ctx
+                .system_theme()
+                .map(|t| t == egui::Theme::Dark)
+                .unwrap_or(self.dark),
+            ThemeMode::Dark => true,
+            ThemeMode::Light => false,
+        };
+        if want_dark != self.dark {
+            self.dark = want_dark;
+            theme::apply(&ctx, want_dark);
         }
 
         // Debounced search: fire once the typed query settles.
@@ -2240,16 +2272,33 @@ impl App {
                     }
                 });
         });
-        let mut dark = self.dark;
+        let mut mode = self.theme_mode;
+        let mode_label = |m: ThemeMode| match m {
+            ThemeMode::System => tl(lang, "theme.system"),
+            ThemeMode::Dark => tl(lang, "theme.dark"),
+            ThemeMode::Light => tl(lang, "theme.light"),
+        };
         setting_row(ui, p, tl(lang, "set.theme"), |ui| {
             egui::ComboBox::from_id_salt("theme")
-                .selected_text(tl(lang, if dark { "theme.dark" } else { "theme.light" }))
+                .selected_text(mode_label(mode))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut dark, true, tl(lang, "theme.dark"));
-                    ui.selectable_value(&mut dark, false, tl(lang, "theme.light"));
+                    ui.selectable_value(&mut mode, ThemeMode::System, mode_label(ThemeMode::System));
+                    ui.selectable_value(&mut mode, ThemeMode::Dark, mode_label(ThemeMode::Dark));
+                    ui.selectable_value(&mut mode, ThemeMode::Light, mode_label(ThemeMode::Light));
                 });
         });
-        if dark != self.dark {
+        if mode != self.theme_mode {
+            self.theme_mode = mode;
+            // Apply immediately; the per-frame resolver keeps System in sync.
+            let dark = match mode {
+                ThemeMode::System => ui
+                    .ctx()
+                    .system_theme()
+                    .map(|t| t == egui::Theme::Dark)
+                    .unwrap_or(self.dark),
+                ThemeMode::Dark => true,
+                ThemeMode::Light => false,
+            };
             self.dark = dark;
             theme::apply(&ui.ctx().clone(), dark);
         }
