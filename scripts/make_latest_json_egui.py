@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -26,11 +27,19 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = "ayozetr/yoink-app"
 
 
+def _version() -> str:
+    cargo = (ROOT / "desktop" / "Cargo.toml").read_text()
+    m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', cargo)
+    if not m:
+        raise SystemExit("! could not read version from desktop/Cargo.toml")
+    return m.group(1)
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         raise SystemExit("usage: make_latest_json_egui.py <artifacts-dir>")
     art = Path(sys.argv[1])
-    version = json.loads((ROOT / "package.json").read_text())["version"]
+    version = _version()
     tag = f"v{version}"
 
     sigs = sorted(art.glob("Yoink_*_amd64.AppImage.sig"))

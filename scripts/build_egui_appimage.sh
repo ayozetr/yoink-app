@@ -13,7 +13,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-VERSION="$(python3 -c "import json,sys; print(json.load(open('package.json'))['version'])")"
+VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' desktop/Cargo.toml | head -1)"
 WORK="$ROOT/desktop/target/appimage"
 APPDIR="$WORK/AppDir"
 TOOLS="$WORK/tools"
