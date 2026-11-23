@@ -281,6 +281,21 @@ pub struct FmtLite {
     pub resolution: Option<String>,
     #[serde(default)]
     pub filesize: Option<i64>,
+    #[serde(default)]
+    pub has_audio: bool,
+}
+
+impl FmtLite {
+    /// The video height this format carries (e.g. 2160 for "2160p"/"3840x2160"),
+    /// or None for an audio-only format.
+    fn height(&self) -> Option<u32> {
+        let r = self.resolution.as_deref()?;
+        let h = match r.split_once('x') {
+            Some((_, h)) => h,
+            None => r.trim_end_matches('p'),
+        };
+        h.trim().parse::<u32>().ok()
+    }
 }
 
 impl VideoLite {
@@ -302,9 +317,48 @@ impl VideoLite {
             .max()
     }
 
-    /// The largest known format filesize — a rough "download size" estimate.
-    pub fn best_filesize(&self) -> Option<i64> {
-        self.formats.iter().filter_map(|f| f.filesize).max()
+    /// Best audio-only format size (what gets merged into a video, or downloaded
+    /// on its own for an audio job).
+    fn best_audio_filesize(&self) -> Option<i64> {
+        self.formats
+            .iter()
+            .filter(|f| f.has_audio && f.height().is_none())
+            .filter_map(|f| f.filesize)
+            .max()
+    }
+
+    /// Estimated download size for the current selection, mirroring the web:
+    /// an audio job is just the audio track; a video job is the video format at
+    /// the chosen height plus the audio it will be merged with (video-only DASH
+    /// formats carry no audio, so it's added — matching yt-dlp's bestvideo+bestaudio).
+    pub fn estimated_size(&self, kind: &str, quality: &str) -> Option<i64> {
+        if kind == "audio" {
+            return self.best_audio_filesize();
+        }
+        let target = if quality == "best" {
+            self.best_height()
+        } else {
+            quality.trim_end_matches('p').parse::<u32>().ok()
+        };
+        // The largest-filesize format at the target height (fall back to any
+        // video format when the exact height has no size), and whether it already
+        // bundles audio.
+        let pick = |want: Option<u32>| {
+            self.formats
+                .iter()
+                .filter(|f| f.height().is_some() && want.is_none_or(|h| f.height() == Some(h)))
+                .filter_map(|f| f.filesize.map(|sz| (sz, f.has_audio)))
+                .max_by_key(|(sz, _)| *sz)
+        };
+        let (video, bundled_audio) = match pick(target).or_else(|| pick(None)) {
+            Some(v) => v,
+            None => return self.best_audio_filesize(),
+        };
+        // Add the audio track only if the video format doesn't already include it.
+        match (bundled_audio, self.best_audio_filesize()) {
+            (false, Some(a)) => Some(video + a),
+            _ => Some(video),
+        }
     }
 }
 

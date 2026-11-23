@@ -481,6 +481,7 @@ impl App {
                 formats: vec![crate::api::FmtLite {
                     resolution: Some("2160p".into()),
                     filesize: Some(734_003_200),
+                    has_audio: false,
                 }],
             });
             app.status = Status::Idle;
@@ -2190,7 +2191,11 @@ impl App {
                     });
                 });
                 ui.add_space(16.0);
-                let (ha, bh, bs) = (v.has_audio, v.best_height(), v.best_filesize());
+                let (ha, bh, bs) = (
+                    v.has_audio,
+                    v.best_height(),
+                    v.estimated_size(&self.kind, &self.quality),
+                );
                 let (hs, hc) = (!v.subtitle_langs.is_empty(), v.has_chapters);
                 self.ui_download_controls(ui, p, ha, bh, bs, hs, hc);
                 self.ui_progress(ui, p);
@@ -2392,7 +2397,11 @@ impl App {
                 }
                 s
             } else {
-                opt_label(lang, &self.audio_format)
+                let mut s = opt_label(lang, &self.audio_format);
+                if let Some(sz) = best_size {
+                    s.push_str(&format!(" · ≈ {}", human_bytes(sz)));
+                }
+                s
             };
             let busy = self.active.is_some();
             let label = format!("{}   ·  {summary}", tl(lang, "action.download"));
@@ -4457,6 +4466,9 @@ fn combo_bare(ui: &mut egui::Ui, lang: Lang, id: &str, value: &mut String, optio
     crisp_combo(ui, p, |ui| {
         egui::ComboBox::from_id_salt(id)
             .popup_style(hide_combo_scrollbar.into())
+            // Tall enough for every option, so these short lists never scroll
+            // (egui's default popup caps at ~200px, which a 6-item list overflows).
+            .height((options.len() as f32).mul_add(40.0, 16.0))
             .width(CTRL_COMBO_W)
             .selected_text(opt_label(lang, value))
             .show_ui(ui, |ui| {
