@@ -1240,7 +1240,7 @@ impl eframe::App for App {
         }
         // Debounced search: fire once the typed query settles.
         if let Some(at) = self.search_pending {
-            if at.elapsed().as_millis() > 350 {
+            if at.elapsed().as_millis() > 200 {
                 self.search_pending = None;
                 let q = self.url.trim().to_string();
                 if !q.is_empty() && !is_url(&q) {
@@ -2079,7 +2079,7 @@ impl App {
                         }
                         let mut inner = ui.new_child(
                             egui::UiBuilder::new()
-                                .max_rect(resp.rect.shrink2(egui::vec2(8.0, 6.0)))
+                                .max_rect(resp.rect.shrink2(egui::vec2(14.0, 6.0)))
                                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
                         );
                         if let Some(t) = r.thumbnail_url.as_deref().filter(|s| !s.is_empty()) {

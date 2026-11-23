@@ -604,7 +604,9 @@ async fn search(
         Some("soundcloud") => "scsearch",
         _ => "ytsearch",
     };
-    let query = format!("{prefix}20:{}", p.q);
+    // 10 is plenty for the dropdown (it shows 8) and noticeably faster to fetch
+    // than 20 — fewer entries for yt-dlp to resolve.
+    let query = format!("{prefix}10:{}", p.q);
     let settings = load_settings();
     let stdout = run_ytdlp_json(
         &["-J", "--flat-playlist", "--no-warnings", &query],
