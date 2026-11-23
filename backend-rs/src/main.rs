@@ -1157,6 +1157,12 @@ struct AppSettings {
     notify_on_complete: bool,
     minimize_to_tray: bool,
     launch_at_startup: bool,
+    #[serde(default = "default_true")]
+    rounded_corners: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for AppSettings {
@@ -1191,6 +1197,7 @@ impl Default for AppSettings {
             notify_on_complete: true,
             minimize_to_tray: false,
             launch_at_startup: false,
+            rounded_corners: true,
         }
     }
 }
@@ -1403,6 +1410,12 @@ fn log_line(msg: &str) {
     {
         let _ = f.write_all(line.as_bytes());
     }
+}
+
+/// Clear the log file (truncate to empty).
+async fn clear_logs() -> StatusCode {
+    let _ = std::fs::write(log_file(), "");
+    StatusCode::NO_CONTENT
 }
 
 async fn get_logs() -> Json<Value> {
@@ -2066,7 +2079,7 @@ async fn main() {
         .route("/api/history/stats", get(get_history_stats))
         .route("/api/ytdlp-version", get(ytdlp_version))
         .route("/api/release-notes", get(release_notes))
-        .route("/api/logs", get(get_logs))
+        .route("/api/logs", get(get_logs).delete(clear_logs))
         .route("/api/open", post(open_path))
         .route("/api/music/match", post(music_match))
         .route("/api/music/resolve", post(music_resolve))

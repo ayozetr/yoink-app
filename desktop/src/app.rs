@@ -1014,14 +1014,14 @@ fn resize_handles(ctx: &egui::Context) {
 /// the UI but below the modal. A modal's own backdrop is a full rectangle that
 /// would paint over (and square off) the window's transparent rounded corners,
 /// so modals set their backdrop transparent and call this instead.
-fn rounded_backdrop(ctx: &egui::Context) {
+fn rounded_backdrop(ctx: &egui::Context, radius: f32) {
     ctx.layer_painter(egui::LayerId::new(
         egui::Order::Middle,
         egui::Id::unique("modal-backdrop"),
     ))
     .rect_filled(
         ctx.content_rect(),
-        WINDOW_RADIUS,
+        radius,
         egui::Color32::from_black_alpha(170),
     );
 }
@@ -1292,8 +1292,9 @@ impl eframe::App for App {
         // background behind everything, and keep every panel's fill transparent,
         // so the four corners outside this rounded rect stay clear — rounded
         // window corners that we control, consistent across platforms.
+        let radius = self.win_radius(&ctx);
         ui.painter()
-            .rect_filled(ctx.content_rect(), WINDOW_RADIUS, p.canvas);
+            .rect_filled(ctx.content_rect(), radius, p.canvas);
 
         // Our own title bar (native decoration is off): a flat AMOLED strip with
         // the window controls on the right. The empty area drags the window; a
@@ -1664,7 +1665,7 @@ impl eframe::App for App {
         // Supported-sites dialog — an egui Modal (it dims only the background and
         // closes on backdrop click / Escape), with a custom title-bar-less panel.
         if self.supported_open {
-            rounded_backdrop(&ctx);
+            rounded_backdrop(&ctx, self.win_radius(&ctx));
             // Cap the dialog to the window so a short window never clips it; the
             // grid scrolls inside if it doesn't fit.
             let grid_max_h = (ctx.content_rect().height() - 210.0).max(200.0);
@@ -1769,7 +1770,7 @@ impl eframe::App for App {
         // "What's new" popup after an update — same custom modal look as the
         // supported-sites dialog (dimmed backdrop + title-bar-less panel).
         if self.whatsnew_open {
-            rounded_backdrop(&ctx);
+            rounded_backdrop(&ctx, self.win_radius(&ctx));
             let resp = egui::Modal::new(egui::Id::unique("whatsnew_modal"))
                 .frame(modal_frame(p))
                 .backdrop_color(egui::Color32::TRANSPARENT)
@@ -1841,6 +1842,7 @@ impl eframe::App for App {
 
         // Terms of Use and Open-source licenses — scrollable text modals, same
         // look as the other dialogs, filled from the bundled Markdown.
+        let radius = self.win_radius(&ctx);
         for (open, title_key, body) in [
             (&mut self.terms_open, "about.terms", DISCLAIMER_MD),
             (&mut self.licenses_open, "about.licenses", LICENSES_MD),
@@ -1848,7 +1850,7 @@ impl eframe::App for App {
             if !*open {
                 continue;
             }
-            rounded_backdrop(&ctx);
+            rounded_backdrop(&ctx, radius);
             let mut close = false;
             let resp = egui::Modal::new(egui::Id::unique(title_key))
                 .frame(modal_frame(p))
@@ -1894,6 +1896,23 @@ impl eframe::App for App {
 }
 
 impl App {
+    /// The window corner radius right now: squared off when maximized (so it
+    /// fills the screen edge-to-edge) or when the user turned rounded corners off,
+    /// otherwise the rounded default.
+    fn win_radius(&self, ctx: &egui::Context) -> f32 {
+        let maxed = ctx.input(|i| i.viewport().maximized).unwrap_or(false);
+        let rounded = self
+            .settings
+            .as_ref()
+            .map(|s| s.rounded_corners)
+            .unwrap_or(true);
+        if maxed || !rounded {
+            0.0
+        } else {
+            WINDOW_RADIUS
+        }
+    }
+
     /// YOINK_SHOT mode: after a few frames (so fonts/SVGs/thumbnails have loaded),
     /// capture the framebuffer to a PNG and exit — a way to see the UI headlessly.
     fn maybe_screenshot(&mut self, ctx: &egui::Context) {
@@ -3223,8 +3242,8 @@ impl App {
                     ui.ctx().copy_text(self.logs_text.clone());
                 }
                 ui.add_space(12.0);
-                if txt_btn(ui, "history", tl(lang, "action.refresh")) {
-                    self.backend.send(Cmd::LoadLogs);
+                if txt_btn(ui, "trash", tl(lang, "action.clear")) {
+                    self.backend.send(Cmd::ClearLogs);
                 }
             });
         });
@@ -3397,6 +3416,9 @@ impl App {
         });
         setting_row(ui, p, tl(lang, "set.autostart"), |ui| {
             toggle(ui, &mut s.launch_at_startup, p);
+        });
+        setting_row(ui, p, tl(lang, "set.rounded"), |ui| {
+            toggle(ui, &mut s.rounded_corners, p);
         });
 
         // Downloads.

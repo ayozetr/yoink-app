@@ -349,6 +349,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("set.tray", En) => "Minimize to tray on close",
         ("set.autostart", Es) => "Iniciar con el sistema",
         ("set.autostart", En) => "Launch at startup",
+        ("set.rounded", Es) => "Bordes redondeados",
+        ("set.rounded", En) => "Rounded corners",
         ("set.quality", Es) => "Calidad",
         ("set.quality", En) => "Quality",
         ("set.bitrate", Es) => "Bitrate de audio",

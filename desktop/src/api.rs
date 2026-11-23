@@ -47,6 +47,8 @@ pub enum Cmd {
     /// Clear the download history (records only), then reload it.
     ClearHistory,
     LoadLogs,
+    /// Clear the log file, then reload it.
+    ClearLogs,
     LoadWhatsNew {
         since: String,
     },
@@ -157,6 +159,12 @@ pub struct Settings {
     pub notify_on_complete: bool,
     pub minimize_to_tray: bool,
     pub launch_at_startup: bool,
+    #[serde(default = "default_true")]
+    pub rounded_corners: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// A row of the download history (`GET /api/history`).
@@ -463,6 +471,9 @@ impl Backend {
                         }
                         Cmd::LoadLogs => {
                             tokio::spawn(async move { load_logs(evt_tx, ctx).await });
+                        }
+                        Cmd::ClearLogs => {
+                            tokio::spawn(async move { clear_logs(evt_tx, ctx).await });
                         }
                         Cmd::CheckUpdate => {
                             tokio::spawn(async move { check_update(evt_tx, ctx).await });
@@ -846,6 +857,15 @@ async fn load_whatsnew(since: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egu
             emit(&tx, &ctx, Evt::WhatsNew(entries));
         }
     }
+}
+
+/// Clear the log file, then reload (so the view empties).
+async fn clear_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let _ = reqwest::Client::new()
+        .delete(format!("{}/api/logs", http_base()))
+        .send()
+        .await;
+    load_logs(tx, ctx).await;
 }
 
 async fn load_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
