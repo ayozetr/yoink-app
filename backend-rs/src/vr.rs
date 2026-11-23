@@ -862,3 +862,50 @@ pub fn apply_vr(path: &Path, layout: &str) -> PathBuf {
     }
     final_path
 }
+
+#[cfg(test)]
+mod vr_tests {
+    use super::{filename_suffix, fisheye_layout, is_vr_text, normalize_layout, DEFAULT_LAYOUT};
+
+    #[test]
+    fn normalize_layout_keeps_known_else_default() {
+        assert_eq!(normalize_layout("360_tb"), "360_tb");
+        assert_eq!(normalize_layout("mkx200"), "mkx200");
+        assert_eq!(normalize_layout("not-a-layout"), DEFAULT_LAYOUT);
+        assert_eq!(normalize_layout(""), DEFAULT_LAYOUT);
+    }
+
+    #[test]
+    fn filename_suffix_per_layout() {
+        assert_eq!(filename_suffix("180_sbs"), "_180x180_3dh");
+        assert_eq!(filename_suffix("360_tb"), "_360_3dv");
+        assert_eq!(filename_suffix("mkx200"), "_MKX200");
+        assert_eq!(filename_suffix("360_mono"), "_360");
+        // Unknown falls back to the default (180_sbs) suffix.
+        assert_eq!(filename_suffix("garbage"), "_180x180_3dh");
+    }
+
+    #[test]
+    fn is_vr_text_strong_and_cue_based() {
+        // Strong keywords match in both modes.
+        assert!(is_vr_text("Amazing VR180 experience", false));
+        assert!(is_vr_text("Amazing VR180 experience", true));
+        assert!(is_vr_text("shot on MKX200 fisheye", true));
+        // Degree + cue combo (no strong keyword).
+        assert!(is_vr_text("180 side-by-side clip", false));
+        // A bare "VR" counts only in the lenient mode.
+        assert!(is_vr_text("cool VR stuff", false));
+        assert!(!is_vr_text("cool VR stuff", true));
+        // Plain content is not VR.
+        assert!(!is_vr_text("just a normal music video", false));
+    }
+
+    #[test]
+    fn fisheye_layout_detection() {
+        assert_eq!(fisheye_layout("recorded with MKX220"), "mkx220");
+        assert_eq!(fisheye_layout("MKX200 lens"), "mkx200");
+        assert_eq!(fisheye_layout("Canon RF52 dual"), "rf52");
+        assert_eq!(fisheye_layout("fisheye 200 degrees"), "fisheye200");
+        assert_eq!(fisheye_layout("some fisheye footage"), "fisheye190");
+    }
+}

@@ -699,3 +699,37 @@ mod autotag_tests {
         assert_eq!(clean_album(None), None);
     }
 }
+
+#[cfg(test)]
+mod lyrics_tests {
+    use super::to_lyrics;
+    use serde_json::json;
+
+    #[test]
+    fn plain_and_synced_present() {
+        let (plain, has_synced, instrumental) = to_lyrics(
+            &json!({"plainLyrics":"la la la","syncedLyrics":"[00:01.00] la","instrumental":false}),
+        )
+        .expect("some");
+        assert_eq!(plain.as_deref(), Some("la la la"));
+        assert!(has_synced);
+        assert!(!instrumental);
+    }
+
+    #[test]
+    fn instrumental_has_no_plain() {
+        let (plain, has_synced, instrumental) =
+            to_lyrics(&json!({"instrumental":true,"plainLyrics":null})).expect("some");
+        assert!(instrumental);
+        assert!(plain.is_none());
+        assert!(!has_synced);
+    }
+
+    #[test]
+    fn none_when_nothing_found() {
+        assert!(
+            to_lyrics(&json!({"instrumental":false,"plainLyrics":"","syncedLyrics":""})).is_none()
+        );
+        assert!(to_lyrics(&json!({})).is_none());
+    }
+}

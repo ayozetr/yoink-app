@@ -202,3 +202,32 @@ fn write_folder_nfo(
         nfo::build_artist(artist, thumb),
     );
 }
+
+#[cfg(test)]
+mod library_tests {
+    use super::sanitize_filename;
+
+    #[test]
+    fn folds_reserved_chars_to_fullwidth() {
+        let out = sanitize_filename(r#"a/b\c:d|e?f*g"h<i>j"#);
+        for bad in ['/', '\\', ':', '|', '?', '*', '"', '<', '>'] {
+            assert!(!out.contains(bad), "{bad:?} should be folded, got {out:?}");
+        }
+        assert_eq!(sanitize_filename("A/B"), "A⧸B");
+    }
+
+    #[test]
+    fn drops_control_chars_and_trims_trailing() {
+        assert_eq!(sanitize_filename("na\u{0007}me"), "name");
+        assert_eq!(sanitize_filename("Title...  "), "Title");
+        assert_eq!(sanitize_filename("  Plain Title  "), "Plain Title");
+    }
+
+    #[test]
+    fn keeps_a_normal_name() {
+        assert_eq!(
+            sanitize_filename("Don Omar - Danza Kuduro"),
+            "Don Omar - Danza Kuduro"
+        );
+    }
+}
