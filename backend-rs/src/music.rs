@@ -1562,11 +1562,11 @@ mod music_tests {
     #[test]
     fn join_artists_joins_names_skipping_empty() {
         let arr = vec![
-            json!({"name":"Don Omar"}),
-            json!({"name":"Lucenzo"}),
+            json!({"name":"Dr. Dre"}),
+            json!({"name":"Snoop Dogg"}),
             json!({"name":""}),
         ];
-        assert_eq!(join_artists(Some(&arr)), "Don Omar, Lucenzo");
+        assert_eq!(join_artists(Some(&arr)), "Dr. Dre, Snoop Dogg");
         assert_eq!(join_artists(None), "");
     }
 

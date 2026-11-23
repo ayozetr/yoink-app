@@ -197,19 +197,19 @@ mod tests {
     fn build_audio_uses_tagged_fields() {
         let xml = build(&NfoFields {
             kind: "audio",
-            title: "Danza Kuduro",
-            artist: "Don Omar",
-            album: "Meet the Orphans",
-            genre: "Reggaeton",
-            year: "2010",
+            title: "Ambitionz Az A Ridah",
+            artist: "2Pac",
+            album: "All Eyez on Me",
+            genre: "Hip-Hop/Rap",
+            year: "1996",
             thumb: "http://x/cover.jpg",
             ..Default::default()
         });
         assert!(xml.contains("<musicvideo>"));
-        assert!(xml.contains("<artist>Don Omar</artist>"));
-        assert!(xml.contains("<album>Meet the Orphans</album>"));
-        assert!(xml.contains("<genre>Reggaeton</genre>"));
-        assert!(xml.contains("<year>2010</year>"));
+        assert!(xml.contains("<artist>2Pac</artist>"));
+        assert!(xml.contains("<album>All Eyez on Me</album>"));
+        assert!(xml.contains("<genre>Hip-Hop/Rap</genre>"));
+        assert!(xml.contains("<year>1996</year>"));
         assert!(xml.contains("<thumb>http://x/cover.jpg</thumb>"));
     }
 
@@ -238,11 +238,11 @@ mod tests {
 
     #[test]
     fn build_album_folder_nfo() {
-        let xml = build_album("Meet the Orphans", "Don Omar", "2010", "http://x/c.jpg");
+        let xml = build_album("All Eyez on Me", "2Pac", "1996", "http://x/c.jpg");
         assert!(xml.contains("<album>") && xml.contains("</album>"));
-        assert!(xml.contains("<title>Meet the Orphans</title>"));
-        assert!(xml.contains("<artist>Don Omar</artist>"));
-        assert!(xml.contains("<year>2010</year>"));
+        assert!(xml.contains("<title>All Eyez on Me</title>"));
+        assert!(xml.contains("<artist>2Pac</artist>"));
+        assert!(xml.contains("<year>1996</year>"));
     }
 
     #[test]

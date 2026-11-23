@@ -668,19 +668,19 @@ mod autotag_tests {
 
     #[test]
     fn norm_for_match_deaccents_and_strips_parens() {
-        assert_eq!(norm_for_match("MESÓN MASÓN"), "meson mason");
-        assert_eq!(norm_for_match("Columbia (Vídeo Oficial)"), "columbia");
+        assert_eq!(norm_for_match("Corazón Partío"), "corazon partio");
+        assert_eq!(norm_for_match("California Love (Remix)"), "california love");
     }
 
     #[test]
     fn rank_prefers_exact_then_penalises_versions() {
         let cands = vec![
-            cand("Columbia (Remix)", "Quevedo"),
-            cand("Columbia", "Quevedo"),
-            cand("Columbia (Live)", "Other Artist"),
+            cand("Ambitionz Az A Ridah (Remix)", "2Pac"),
+            cand("Ambitionz Az A Ridah", "2Pac"),
+            cand("Ambitionz Az A Ridah (Live)", "Other Artist"),
         ];
-        let ranked = rank(cands, "Quevedo", "Columbia");
-        assert_eq!(ranked[0].title, "Columbia"); // exact title + artist match wins
+        let ranked = rank(cands, "2Pac", "Ambitionz Az A Ridah");
+        assert_eq!(ranked[0].title, "Ambitionz Az A Ridah"); // exact title + artist wins
         assert!(
             ranked.last().unwrap().title.contains("Remix")
                 || ranked.last().unwrap().title.contains("Live")
@@ -691,61 +691,61 @@ mod autotag_tests {
     fn relevant_drops_unrelated_titles() {
         let out = relevant(
             vec![
-                cand("Columbia", "Quevedo"),
+                cand("Ambitionz Az A Ridah", "2Pac"),
                 cand("Totally Different Thing", "X"),
             ],
-            "Columbia",
+            "Ambitionz Az A Ridah",
         );
-        assert!(out.iter().any(|c| c.title == "Columbia"));
+        assert!(out.iter().any(|c| c.title == "Ambitionz Az A Ridah"));
         assert!(!out.iter().any(|c| c.title == "Totally Different Thing"));
     }
 
     #[test]
     fn map_itunes_maps_fields_and_upscales_cover() {
         let data = json!({"results":[{
-            "trackName":"Hood Films","artistName":"Las Ninyas del Corro",
-            "collectionName":"#SKIT2025 - EP","releaseDate":"2025-12-10T12:00:00Z",
-            "trackNumber":2,"primaryGenreName":"Hip-Hop/Rap",
+            "trackName":"Ambitionz Az A Ridah","artistName":"2Pac",
+            "collectionName":"All Eyez on Me","releaseDate":"1996-02-13T12:00:00Z",
+            "trackNumber":1,"primaryGenreName":"Hip-Hop/Rap",
             "artworkUrl100":"https://is1.example/abc/100x100bb.jpg"}]});
         let c = map_itunes(&data);
         assert_eq!(c.len(), 1);
-        assert_eq!(c[0].title, "Hood Films");
-        assert_eq!(c[0].artist, "Las Ninyas del Corro");
-        assert_eq!(c[0].album.as_deref(), Some("#SKIT2025")); // "- EP" cleaned off
-        assert_eq!(c[0].year.as_deref(), Some("2025"));
+        assert_eq!(c[0].title, "Ambitionz Az A Ridah");
+        assert_eq!(c[0].artist, "2Pac");
+        assert_eq!(c[0].album.as_deref(), Some("All Eyez on Me"));
+        assert_eq!(c[0].year.as_deref(), Some("1996"));
         assert_eq!(c[0].genre.as_deref(), Some("Hip-Hop/Rap"));
-        assert_eq!(c[0].track_number, Some(2));
+        assert_eq!(c[0].track_number, Some(1));
         assert_eq!(
             c[0].cover_url.as_deref(),
-            Some("https://is1.example/abc/1000x1000bb.jpg")
+            Some("https://is1.example/abc/1000x1000bb.jpg") // 100x100 → 1000x1000
         );
     }
 
     #[test]
     fn map_deezer_maps_nested_artist_and_album_cover() {
         let data = json!({"data":[{
-            "title":"DISOCIANDO","artist":{"name":"Los Diozes"},
-            "album":{"title":"MESÓN MASÓN","cover_xl":"https://cdn/xl.jpg","cover_big":"https://cdn/big.jpg"}}]});
+            "title":"Juicy","artist":{"name":"The Notorious B.I.G."},
+            "album":{"title":"Ready to Die","cover_xl":"https://cdn/xl.jpg","cover_big":"https://cdn/big.jpg"}}]});
         let c = map_deezer(&data);
         assert_eq!(c.len(), 1);
-        assert_eq!(c[0].title, "DISOCIANDO");
-        assert_eq!(c[0].artist, "Los Diozes");
-        assert_eq!(c[0].album.as_deref(), Some("MESÓN MASÓN"));
+        assert_eq!(c[0].title, "Juicy");
+        assert_eq!(c[0].artist, "The Notorious B.I.G.");
+        assert_eq!(c[0].album.as_deref(), Some("Ready to Die"));
         assert_eq!(c[0].cover_url.as_deref(), Some("https://cdn/xl.jpg")); // xl preferred
     }
 
     #[test]
     fn map_musicbrainz_joins_artist_credit_and_builds_cover_url() {
         let data = json!({"recordings":[{
-            "title":"Danza Kuduro",
-            "artist-credit":[{"name":"Don Omar","joinphrase":" & "},{"name":"Lucenzo","joinphrase":""}],
-            "releases":[{"id":"mbid-123","title":"Meet the Orphans","date":"2010-08-31"}]}]});
+            "title":"Nuthin' But A \"G\" Thang",
+            "artist-credit":[{"name":"Dr. Dre","joinphrase":" feat. "},{"name":"Snoop Dogg","joinphrase":""}],
+            "releases":[{"id":"mbid-123","title":"The Chronic","date":"1992-12-15"}]}]});
         let c = map_musicbrainz(&data);
         assert_eq!(c.len(), 1);
-        assert_eq!(c[0].title, "Danza Kuduro");
-        assert_eq!(c[0].artist, "Don Omar & Lucenzo"); // joinphrase applied
-        assert_eq!(c[0].album.as_deref(), Some("Meet the Orphans"));
-        assert_eq!(c[0].year.as_deref(), Some("2010"));
+        assert_eq!(c[0].title, "Nuthin' But A \"G\" Thang");
+        assert_eq!(c[0].artist, "Dr. Dre feat. Snoop Dogg"); // joinphrase applied
+        assert_eq!(c[0].album.as_deref(), Some("The Chronic"));
+        assert_eq!(c[0].year.as_deref(), Some("1992"));
         assert!(c[0]
             .cover_url
             .as_deref()
@@ -756,39 +756,42 @@ mod autotag_tests {
     #[test]
     fn guess_from_filename_cases() {
         let cases: &[(&str, &str, &str)] = &[
+            // Real YouTube titles (Spanish), with the bracketed "Videoclip …" noise.
             (
-                "Las Ninyas del Corro - Hood Films.m4a",
-                "Las Ninyas del Corro",
-                "Hood Films",
-            ),
-            ("Artist - Title (prod. X) [4K].opus", "Artist", "Title"),
-            ("JustATitle.flac", "", "JustATitle"),
-            ("Soft Cell - Tainted Love.mp3", "Soft Cell", "Tainted Love"),
-            (
-                "Drake - Hotline Bling (Music Video) [4K].mp3",
-                "Drake",
-                "Hotline Bling",
+                "Fito & Fitipaldis - Me equivocaría otra vez (Videoclip oficial).mp3",
+                "Fito & Fitipaldis",
+                "Me equivocaría otra vez",
             ),
             (
-                "Quevedo - Columbia (Vídeo Oficial).m4a",
-                "Quevedo",
-                "Columbia",
+                "Estopa - Como Camaron (Videoclip).mp3",
+                "Estopa",
+                "Como Camaron",
             ),
             (
-                "Aitana - Mariposas (Audio Oficial).mp3",
-                "Aitana",
-                "Mariposas",
+                "Melendi - Un Violinista En Tu Tejado (Videoclip Oficial 4K).mp3",
+                "Melendi",
+                "Un Violinista En Tu Tejado",
             ),
-            ("Morad - Pelele (Letra).mp3", "Morad", "Pelele"),
-            // Un-bracketed trailing noise (English + Spanish word order).
-            ("Artist - Song - Official Audio.mp3", "Artist", "Song"),
+            // Clean — nothing to strip.
             (
-                "Quevedo - Columbia Vídeo Oficial.mp3",
-                "Quevedo",
-                "Columbia",
+                "El Canto del Loco - Besos.mp3",
+                "El Canto del Loco",
+                "Besos",
+            ),
+            // No " - " separator → all title.
+            ("Intro.flac", "", "Intro"),
+            // Un-bracketed trailing noise, Spanish word order (no brackets).
+            (
+                "Estopa - Como Camaron Vídeo Oficial.mp3",
+                "Estopa",
+                "Como Camaron",
             ),
             // Fullwidth colon yt-dlp leaves on disk, folded back to ASCII.
-            ("Artist - Title： Part 2.mp3", "Artist", "Title: Part 2"),
+            (
+                "Melendi - Tocado y Hundido： Parte 2.mp3",
+                "Melendi",
+                "Tocado y Hundido: Parte 2",
+            ),
         ];
         for (name, artist, title) in cases {
             assert_eq!(
@@ -802,16 +805,17 @@ mod autotag_tests {
     #[test]
     fn clean_album_strips_single_and_ep_suffix() {
         assert_eq!(
-            clean_album(Some("Hood Films - Single".into())),
-            Some("Hood Films".into())
+            clean_album(Some("California Love - Single".into())),
+            Some("California Love".into())
         );
         assert_eq!(
-            clean_album(Some("#SKIT2025 - EP".into())),
-            Some("#SKIT2025".into())
+            clean_album(Some("Hit 'Em Up - EP".into())),
+            Some("Hit 'Em Up".into())
         );
+        // A real album title is left untouched.
         assert_eq!(
-            clean_album(Some("Whenever You Need Somebody".into())),
-            Some("Whenever You Need Somebody".into())
+            clean_album(Some("All Eyez on Me".into())),
+            Some("All Eyez on Me".into())
         );
         assert_eq!(clean_album(None), None);
     }

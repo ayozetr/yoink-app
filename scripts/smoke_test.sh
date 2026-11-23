@@ -18,7 +18,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-URL="${1:-https://www.youtube.com/watch?v=baieKyREmJQ}"   # a real song (for autotag), 2160p + several formats
+URL="${1:-https://www.youtube.com/watch?v=_JZom_gVfuw}"   # Notorious B.I.G. - Juicy: 2160p, in the catalogue
 CORE="${YOINK_CORE:-$ROOT/backend-rs/target/release/yoink-core}"
 FF_DIR="${YOINK_FFMPEG:-$ROOT/backend/vendor/ffmpeg}"
 FFPROBE="$FF_DIR/ffprobe"
@@ -73,10 +73,11 @@ fi
 sleep "$PAUSE"
 
 echo "[autotag]  (a mainstream track, so the catalogue matches)"
-# A different, well-known track so the catalogue (iTunes/Deezer) reliably matches.
+# A different, well-known track so the catalogue (iTunes/Deezer) reliably matches:
+# Dr. Dre - Nuthin' But A "G" Thang.
 d="$TMP/tag"; mkdir -p "$d"
 timeout 240 "$CORE" --audio -f mp3 --tag -o "$d" --quiet --no-progress \
-  "https://www.youtube.com/watch?v=YQHsXMglC9A" >/dev/null 2>&1
+  "https://www.youtube.com/watch?v=8GliyDgAGQI" >/dev/null 2>&1
 f="$(only "$d" mp3)"
 check "autotag wrote a title tag" bash -c "[ -n '$f' ] && probe format_tags=title '$f' | grep -q ."
 sleep "$PAUSE"
