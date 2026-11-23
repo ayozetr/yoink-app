@@ -293,7 +293,6 @@ fn build_request(
         audio_multistreams: false,
         trim_start: args.trim_start.as_deref().and_then(parse_timestamp),
         trim_end: args.trim_end.as_deref().and_then(parse_timestamp),
-        is_hls: false,
         is_vr: is_video && args.vr_layout.is_some(),
         vr_layout: args.vr_layout.clone().or_else(|| Some("180_sbs".into())),
         auto_vr: is_video && args.vr && args.vr_layout.is_none(),

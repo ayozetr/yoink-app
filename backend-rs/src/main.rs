@@ -166,8 +166,6 @@ struct DownloadRequest {
     #[serde(default)]
     trim_end: Option<f64>,
     #[serde(default)]
-    is_hls: bool,
-    #[serde(default)]
     is_vr: bool,
     #[serde(default)]
     vr_layout: Option<String>,
@@ -713,16 +711,10 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         a.push("all".into());
     }
 
-    // Clip a range (non-HLS; HLS needs a full fetch + ffmpeg clip, a later slice).
-    if (req.trim_start.is_some() || req.trim_end.is_some()) && !req.is_hls {
-        let start = req.trim_start.unwrap_or(0.0);
-        let end = req
-            .trim_end
-            .map(|e| e.to_string())
-            .unwrap_or_else(|| "inf".into());
-        a.push("--download-sections".into());
-        a.push(format!("*{start}-{end}"));
-    }
+    // Trimming is NOT done here with `--download-sections`: yt-dlp delegates that
+    // range fetch to ffmpeg over HTTPS, and the bundled minimal ffmpeg's TLS fails
+    // at runtime. Instead the full stream is fetched (by yt-dlp's own downloader)
+    // and clipped locally in the post-processing step below.
 
     if req.kind == "audio" {
         a.push("-x".into());
@@ -951,9 +943,10 @@ async fn execute_download(
     // audio; VR-tag video (which renames the file, so this updates final_path).
     if ok {
         if let Some(path) = final_path.clone() {
-            // HLS trim: the range download was skipped for an HLS source (it can't
-            // be trimmed that way), so the full stream was fetched — clip it now.
-            if req.is_hls && (req.trim_start.is_some() || req.trim_end.is_some()) {
+            // Trim: the full stream was fetched (the bundled ffmpeg can't fetch an
+            // HTTPS byte range itself), so clip the finished local file now — for
+            // every source, not just HLS.
+            if req.trim_start.is_some() || req.trim_end.is_some() {
                 let start = req.trim_start.unwrap_or(0.0);
                 let end = req.trim_end;
                 let pp = path.clone();
