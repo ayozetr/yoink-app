@@ -205,6 +205,8 @@ pub struct App {
     template_custom: bool,   // filename template: custom (free-text) vs a preset
     tab: Tab,
     url: String,
+    prev_url: String, // last-seen url, to detect edits without relying on changed()
+    prev_source: String, // last-seen search source, to re-search when it changes
     kind: String,
     quality: String,
     container: String,
@@ -334,6 +336,8 @@ impl App {
             template_custom: false,
             tab: Tab::Inicio,
             url: String::new(),
+            prev_url: String::new(),
+            prev_source: "youtube".into(),
             kind: "video".into(),
             quality: "best".into(),
             container: "mp4".into(),
@@ -1213,6 +1217,22 @@ impl eframe::App for App {
             }
         }
 
+        // React to any change of the URL/search field (typing, paste, clearing) or
+        // a flip of the search source. Tracked by value rather than
+        // TextEdit::changed(), which didn't fire reliably for this field, so the
+        // live search dropdown stayed empty.
+        let source_changed = self.source != self.prev_source;
+        if self.url != self.prev_url || source_changed {
+            self.prev_url = self.url.clone();
+            self.prev_source = self.source.clone();
+            let q = self.url.trim();
+            if q.is_empty() || is_url(q) {
+                self.search_results.clear();
+                self.search_pending = None;
+            } else {
+                self.search_pending = Some(std::time::Instant::now());
+            }
+        }
         // Debounced search: fire once the typed query settles.
         if let Some(at) = self.search_pending {
             if at.elapsed().as_millis() > 350 {
@@ -1963,15 +1983,6 @@ impl App {
                         if self.focus_url {
                             self.focus_url = false;
                             resp.request_focus();
-                        }
-                        if resp.changed() {
-                            let q = self.url.trim();
-                            if q.is_empty() || is_url(q) {
-                                self.search_results.clear();
-                                self.search_pending = None;
-                            } else {
-                                self.search_pending = Some(std::time::Instant::now());
-                            }
                         }
                         if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                             self.analyze();
