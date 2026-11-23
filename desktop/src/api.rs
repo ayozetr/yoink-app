@@ -92,7 +92,10 @@ pub enum Evt {
     },
     Analyzing,
     Info(VideoLite),
-    SearchResults(Vec<SearchItem>),
+    SearchResults {
+        query: String,
+        items: Vec<SearchItem>,
+    },
     Music(Box<MusicInfo>),
     Playlist {
         title: String,
@@ -998,11 +1001,16 @@ async fn search(
         .query(&[("q", query.as_str()), ("source", source.as_str())])
         .send()
         .await;
-    if let Ok(r) = res {
-        if let Ok(resp) = r.json::<Resp>().await {
-            emit(&tx, &ctx, Evt::SearchResults(resp.results));
-        }
-    }
+    // Always emit (empty on failure), so the UI's search spinner never hangs.
+    let items = match res {
+        Ok(r) => r
+            .json::<Resp>()
+            .await
+            .map(|r| r.results)
+            .unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    emit(&tx, &ctx, Evt::SearchResults { query, items });
 }
 
 async fn resolve_music(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {

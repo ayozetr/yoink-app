@@ -177,6 +177,8 @@ pub fn tl(lang: Lang, key: &str) -> &str {
         ("inicio.heading", En) => "Paste a link to begin",
         ("inicio.url_hint", Es) => "Pega aquí la URL del contenido, o busca",
         ("inicio.url_hint", En) => "Paste the content URL here, or search directly",
+        ("inicio.searching", Es) => "Buscando…",
+        ("inicio.searching", En) => "Searching…",
         ("inicio.preview", Es) => "PREVISUALIZACIÓN",
         ("inicio.preview", En) => "PREVIEW",
         ("inicio.empty_title", Es) => "Listo para descargar",

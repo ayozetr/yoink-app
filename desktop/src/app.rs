@@ -207,6 +207,7 @@ pub struct App {
     url: String,
     prev_url: String, // last-seen url, to detect edits without relying on changed()
     prev_source: String, // last-seen search source, to re-search when it changes
+    searching: bool,  // a search query is debouncing or in flight (shows a spinner)
     kind: String,
     quality: String,
     container: String,
@@ -338,6 +339,7 @@ impl App {
             url: String::new(),
             prev_url: String::new(),
             prev_source: "youtube".into(),
+            searching: false,
             kind: "video".into(),
             quality: "best".into(),
             container: "mp4".into(),
@@ -604,13 +606,14 @@ impl App {
                     self.status = Status::Idle;
                     self.search_results.clear();
                 }
-                Evt::SearchResults(items) => {
-                    // Show the results while a search query is still active. If the
-                    // field was cleared or turned into a URL while the request was
-                    // in flight, drop them (no dropdown over a URL/empty field).
-                    let q = self.url.trim();
-                    if !q.is_empty() && !is_url(q) {
+                Evt::SearchResults { query, items } => {
+                    // Only accept the response for exactly what's typed now. A
+                    // response for an earlier keystroke (the field has moved on, or
+                    // was cleared / turned into a URL) is a stale result and would
+                    // otherwise clobber the current ones with unrelated hits.
+                    if query == self.url.trim() && !query.is_empty() {
                         self.search_results = items;
+                        self.searching = false;
                     }
                 }
                 Evt::Playlist { title, count } => {
@@ -1229,8 +1232,10 @@ impl eframe::App for App {
             if q.is_empty() || is_url(q) {
                 self.search_results.clear();
                 self.search_pending = None;
+                self.searching = false;
             } else {
                 self.search_pending = Some(std::time::Instant::now());
+                self.searching = true; // show the spinner until results land
             }
         }
         // Debounced search: fire once the typed query settles.
@@ -2035,8 +2040,11 @@ impl App {
             },
         );
 
-        // Search results dropdown (when typing a query, not a URL).
-        if !self.search_results.is_empty() && matches!(self.preview, Preview::None) {
+        // Search results dropdown (when typing a query, not a URL). Shows a spinner
+        // while a search is debouncing / in flight, then the results.
+        if (self.searching || !self.search_results.is_empty())
+            && matches!(self.preview, Preview::None)
+        {
             ui.add_space(8.0);
             let mut picked: Option<String> = None;
             egui::Frame::new()
@@ -2044,6 +2052,17 @@ impl App {
                 .corner_radius(10)
                 .inner_margin(egui::Margin::same(6))
                 .show(ui, |ui| {
+                    if self.searching {
+                        ui.horizontal(|ui| {
+                            ui.add_space(2.0);
+                            ui.add(egui::Spinner::new().size(15.0).color(p.accent));
+                            ui.add_space(6.0);
+                            ui.label(RichText::new(tl(lang, "inicio.searching")).color(p.fg_dim));
+                        });
+                        if !self.search_results.is_empty() {
+                            ui.add_space(2.0);
+                        }
+                    }
                     for r in self.search_results.iter().take(8) {
                         let mut sub = r.uploader.clone().unwrap_or_default();
                         if let Some(d) = r.duration_string.as_deref().filter(|d| !d.is_empty()) {
