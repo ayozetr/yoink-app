@@ -2096,3 +2096,93 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
+
+#[cfg(test)]
+mod download_args_tests {
+    use super::{download_args, AppSettings, DownloadRequest};
+    use serde_json::json;
+
+    fn req(v: serde_json::Value) -> DownloadRequest {
+        serde_json::from_value(v).expect("valid DownloadRequest")
+    }
+    fn has_pair(a: &[String], k: &str, v: &str) -> bool {
+        a.windows(2).any(|w| w[0] == k && w[1] == v)
+    }
+
+    #[test]
+    fn audio_sets_extract_format_and_bitrate() {
+        let s = AppSettings::default();
+        let r = req(
+            json!({"url":"https://x/v","kind":"audio","audio_format":"mp3","audio_bitrate":"192"}),
+        );
+        let a = download_args(&r, &s, "out.%(ext)s");
+        assert!(a.iter().any(|x| x == "-x"));
+        assert!(has_pair(&a, "--audio-format", "mp3"));
+        assert!(has_pair(&a, "--audio-quality", "192K"));
+    }
+
+    #[test]
+    fn audio_best_bitrate_maps_to_zero() {
+        let s = AppSettings::default();
+        let r = req(
+            json!({"url":"https://x/v","kind":"audio","audio_format":"flac","audio_bitrate":"best"}),
+        );
+        let a = download_args(&r, &s, "o");
+        assert!(has_pair(&a, "--audio-quality", "0"));
+    }
+
+    #[test]
+    fn video_quality_builds_height_filter_and_container() {
+        let s = AppSettings::default();
+        let r = req(json!({"url":"https://x/v","kind":"video","quality":"720","container":"mp4"}));
+        let a = download_args(&r, &s, "o");
+        assert!(has_pair(&a, "-f", "bv*[height<=720]+ba/b"));
+        assert!(has_pair(&a, "--merge-output-format", "mp4"));
+    }
+
+    #[test]
+    fn video_best_quality_has_no_height_filter() {
+        let s = AppSettings::default();
+        let r = req(json!({"url":"https://x/v","kind":"video","quality":"best","container":"mkv"}));
+        let a = download_args(&r, &s, "o");
+        assert!(has_pair(&a, "-f", "bv*+ba/b"));
+    }
+
+    /// Regression guard for the trim bug: trimming must NOT be delegated to yt-dlp's
+    /// `--download-sections` (the bundled minimal ffmpeg can't fetch an HTTPS range,
+    /// which failed at runtime). It is clipped from the finished local file instead.
+    #[test]
+    fn trim_never_uses_download_sections() {
+        let s = AppSettings::default();
+        for kind in ["audio", "video"] {
+            let r = req(json!({"url":"https://x/v","kind":kind,"audio_format":"mp3",
+                               "quality":"720","container":"mp4","trim_start":5.0,"trim_end":8.0}));
+            let a = download_args(&r, &s, "o");
+            assert!(
+                !a.iter().any(|x| x == "--download-sections"),
+                "{kind}: trim must be post-download, not --download-sections"
+            );
+        }
+    }
+
+    #[test]
+    fn sponsorblock_toggles_the_right_flag() {
+        let r = req(json!({"url":"https://x/v","kind":"video","quality":"best","container":"mp4"}));
+        let remove = AppSettings {
+            sponsorblock_enabled: true,
+            sponsorblock_action: "remove".into(),
+            ..Default::default()
+        };
+        assert!(download_args(&r, &remove, "o")
+            .iter()
+            .any(|x| x == "--sponsorblock-remove"));
+        let mark = AppSettings {
+            sponsorblock_enabled: true,
+            sponsorblock_action: "mark".into(),
+            ..Default::default()
+        };
+        assert!(download_args(&r, &mark, "o")
+            .iter()
+            .any(|x| x == "--sponsorblock-mark"));
+    }
+}

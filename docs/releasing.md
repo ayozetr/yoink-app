@@ -6,12 +6,16 @@ being ported.
 
 ## Cut a release
 
-1. **Bump the version** in `desktop/Cargo.toml`, `backend-rs/Cargo.toml` and
+1. **Smoke-test the engine** (catches runtime breakage the unit tests can't —
+   trimming, formats, VR metadata, tag writing, through the real yt-dlp + bundled
+   ffmpeg): `bash scripts/smoke_test.sh`. It downloads short clips to a temp dir
+   and verifies each with ffprobe; needs the network and a built `yoink-core`.
+2. **Bump the version** in `desktop/Cargo.toml`, `backend-rs/Cargo.toml` and
    `desktop-minter/Cargo.toml` (keep them in sync). The updater manifest reads the
    version from `desktop/Cargo.toml` (`make_latest_json_egui.py`).
-2. **Tag and push:** `git tag v<ver> && git push origin v<ver>`.
-3. CI builds + signs the AppImage and **drafts** the release with `latest.json`.
-4. **Edit the draft's notes** (keep the hidden `<!-- /whatsnew -->` marker before
+3. **Tag and push:** `git tag v<ver> && git push origin v<ver>`.
+4. CI builds + signs the AppImage and **drafts** the release with `latest.json`.
+5. **Edit the draft's notes** (keep the hidden `<!-- /whatsnew -->` marker before
    the Downloads section — the "What's new" popup trims to the part before it) and
    **publish**. Publishing makes `latest.json` live for the in-app updater and for
    the legacy→egui migration.
