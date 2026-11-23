@@ -954,7 +954,8 @@ pub async fn run(argv: Vec<String>) -> i32 {
 
 #[cfg(test)]
 mod cli_tests {
-    use super::parse_timestamp;
+    use super::{apply_cli_overrides, parse_timestamp, Cli};
+    use clap::Parser;
 
     #[test]
     fn parse_timestamp_formats() {
@@ -964,5 +965,29 @@ mod cli_tests {
         assert_eq!(parse_timestamp("0"), Some(0.0));
         assert_eq!(parse_timestamp("x"), None);
         assert_eq!(parse_timestamp("1:2:3:4"), None); // >3 parts
+    }
+
+    #[test]
+    fn overrides_map_flags_onto_settings() {
+        let args = Cli::parse_from([
+            "yoink",
+            "--sponsorblock=remove",
+            "--normalize-lufs=-20",
+            "https://x/v",
+        ]);
+        let mut s = crate::AppSettings::default();
+        apply_cli_overrides(&args, &mut s);
+        assert!(s.sponsorblock_enabled);
+        assert_eq!(s.sponsorblock_action, "remove");
+        assert!(s.normalize_audio);
+        assert_eq!(s.normalize_lufs, -20);
+    }
+
+    #[test]
+    fn overrides_clamp_lufs_into_range() {
+        let args = Cli::parse_from(["yoink", "--normalize-lufs=-100", "https://x/v"]);
+        let mut s = crate::AppSettings::default();
+        apply_cli_overrides(&args, &mut s);
+        assert_eq!(s.normalize_lufs, -70); // clamped to [-70, -5]
     }
 }

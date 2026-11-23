@@ -1526,3 +1526,62 @@ pub async fn deezer_isrc(title: &str, artists: &str, duration_ms: Option<i64>) -
     }
     None
 }
+
+#[cfg(test)]
+mod music_tests {
+    use super::{apple_art_url, detect_source, join_artists, unescape_html};
+    use serde_json::json;
+
+    #[test]
+    fn detect_source_maps_known_hosts() {
+        assert_eq!(
+            detect_source("https://open.spotify.com/track/x"),
+            Some("spotify")
+        );
+        assert_eq!(detect_source("spotify:track:x"), Some("spotify"));
+        assert_eq!(
+            detect_source("https://www.deezer.com/track/1"),
+            Some("deezer")
+        );
+        assert_eq!(detect_source("https://dzr.page.link/abc"), Some("deezer"));
+        assert_eq!(
+            detect_source("https://music.apple.com/us/album/x"),
+            Some("apple")
+        );
+        assert_eq!(
+            detect_source("https://tidal.com/browse/track/1"),
+            Some("tidal")
+        );
+        assert_eq!(
+            detect_source("https://music.amazon.com/albums/x"),
+            Some("amazon")
+        );
+        assert_eq!(detect_source("https://www.youtube.com/watch?v=x"), None);
+    }
+
+    #[test]
+    fn join_artists_joins_names_skipping_empty() {
+        let arr = vec![
+            json!({"name":"Don Omar"}),
+            json!({"name":"Lucenzo"}),
+            json!({"name":""}),
+        ];
+        assert_eq!(join_artists(Some(&arr)), "Don Omar, Lucenzo");
+        assert_eq!(join_artists(None), "");
+    }
+
+    #[test]
+    fn apple_art_url_fills_template() {
+        let art = json!({"url":"https://is/a/{w}x{h}{c}.{f}"});
+        assert_eq!(
+            apple_art_url(&art, 1000).as_deref(),
+            Some("https://is/a/1000x1000bb.jpg")
+        );
+    }
+
+    #[test]
+    fn unescape_html_decodes_entities() {
+        assert_eq!(unescape_html("Rock &amp; Roll"), "Rock & Roll");
+        assert_eq!(unescape_html("it&#39;s &quot;good&quot;"), "it's \"good\"");
+    }
+}
