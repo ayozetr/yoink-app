@@ -1,13 +1,40 @@
+# Rust build output (Cargo.lock IS committed — these are apps, not libraries).
+target/
+
 # Logs
 *.log
 logs/
 
-# Rust build output
-target/
-
-# Python caches (build scripts)
+# Python caches (build scripts + any tooling)
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Bundled binaries, built locally and never committed:
+#   backend/  → the minimal ffmpeg/ffprobe (scripts/build_ffmpeg.sh)
+#   /build/   → the ffmpeg minimal-build work dir
+backend/
+/build/
+
+# JS tooling output for desktop-minter/web and extension/ (both use vite/npm).
+# NOTE: desktop-minter/web/dist/minter.js is committed on purpose (include_str!),
+# so it is re-included below — only the other build artifacts are ignored.
+node_modules/
+dist/
+!desktop-minter/web/dist/
+!desktop-minter/web/dist/minter.js
+extension/web-ext-artifacts/
+# AMO / Web Store API credentials (never commit) — template is .env.example
+extension/.env
+
+# Env / secrets
+.env
+*.local
+
+# Downloaded media / local scratch (personal, never committed)
+downloads/
+URLs.txt
 
 # Editor / OS
 .vscode/*
@@ -16,41 +43,11 @@ __pycache__/
 .DS_Store
 *.sw?
 
-# Downloaded media
-downloads/
-
-# Env files
-.env
-*.local
-
-# backend/ holds only the built ffmpeg/ffprobe (scripts/build_ffmpeg.sh); the
-# backend itself is backend-rs/. Any legacy Python leftovers here aren't tracked.
-backend/
-
-# ffmpeg minimal-build work dir (scripts/build_ffmpeg.sh)
-/build/
-
-# Browser-extension build output + packaged release zips
-extension/dist/
-extension/web-ext-artifacts/
-# AMO / Web Store API credentials (never commit) — template is .env.example
-extension/.env
-
-# Local scratch (personal URLs, never committed)
-URLs.txt
-
-# ---- Legacy React/Tauri local leftovers (not part of the repo any more) ----
-node_modules/
-dist/
+# Local leftovers from the old React + Tauri stack (deleted from the repo, may
+# still sit on an old working copy — never commit them).
+src-tauri/
 dist-ssr/
 test-results/
 playwright-report/
 blob-report/
 .playwright/
-
-# Legacy Tauri local leftovers (deleted from the repo)
-src-tauri/
-
-# Python tooling caches
-.pytest_cache/
-.ruff_cache/
