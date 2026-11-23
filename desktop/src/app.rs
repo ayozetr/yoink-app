@@ -2073,7 +2073,7 @@ impl App {
                         }
                         let full = ui.available_width();
                         let resp =
-                            ui.allocate_response(egui::vec2(full, 44.0), egui::Sense::click());
+                            ui.allocate_response(egui::vec2(full, 56.0), egui::Sense::click());
                         if resp.hovered() {
                             ui.painter().rect_filled(resp.rect, 6.0, p.surface_hi);
                         }
