@@ -188,6 +188,7 @@ struct QueueItem {
     source: QSource,
     status: QStatus,
     progress: f32,
+    expanded: bool, // per-item format options panel open
 }
 
 pub struct App {
@@ -235,6 +236,7 @@ pub struct App {
     active_section: String, // settings section currently in view (for the nav scrollspy)
     history: Vec<HistoryEntry>,
     history_loaded: bool,
+    hist_confirm: bool, // "Clear history" awaiting the confirm click
     hist_query: String,
     logs_text: String,
     logs_path: String,
@@ -244,6 +246,7 @@ pub struct App {
     queue_url: String,
     next_qid: u64,
     queue_started: bool,
+    q_drag: Option<u64>, // id of the queue item being dragged to reorder
     q_kind: String,
     q_quality: String,
     q_container: String,
@@ -366,6 +369,7 @@ impl App {
             active_section: "sec.general".into(),
             history: Vec::new(),
             history_loaded: false,
+            hist_confirm: false,
             hist_query: String::new(),
             logs_text: String::new(),
             logs_path: String::new(),
@@ -375,6 +379,7 @@ impl App {
             queue_url: String::new(),
             next_qid: 0,
             queue_started: false,
+            q_drag: None,
             q_kind: "video".into(),
             q_quality: "best".into(),
             q_container: "mp4".into(),
@@ -506,6 +511,7 @@ impl App {
                 source: QSource::Url("https://www.youtube.com/watch?v=x".into()),
                 status: st,
                 progress: pr,
+                expanded: false,
             };
             app.queue = vec![
                 mk(
@@ -606,6 +612,11 @@ impl App {
                     self.preview = Preview::Video(v);
                     self.status = Status::Idle;
                     self.search_results.clear();
+                }
+                Evt::QueueTitle { id, title } => {
+                    if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
+                        it.label = title;
+                    }
                 }
                 Evt::SearchResults { query, items } => {
                     // Only accept the response for exactly what's typed now. A
@@ -725,20 +736,27 @@ impl App {
         if url.is_empty() {
             return;
         }
+        let id = self.next_qid;
         self.queue.push(QueueItem {
-            id: self.next_qid,
+            id,
             label: url.clone(),
             kind: self.q_kind.clone(),
             quality: self.q_quality.clone(),
             container: self.q_container.clone(),
             audio: self.q_audio.clone(),
             bitrate: self.q_bitrate.clone(),
-            source: QSource::Url(url),
+            source: QSource::Url(url.clone()),
             status: QStatus::Pending,
             progress: 0.0,
+            expanded: false,
         });
         self.next_qid += 1;
         self.queue_url.clear();
+        // Resolve the content title in the background so the row shows the name,
+        // not the raw link (if it's not already a URL, skip — nothing to resolve).
+        if is_url(&url) {
+            self.backend.send(Cmd::ResolveTitle { id, url });
+        }
     }
 
     /// Enqueue every track of a resolved music import (match → download → tag).
@@ -755,6 +773,7 @@ impl App {
                 source: QSource::Music(Box::new(t.clone())),
                 status: QStatus::Pending,
                 progress: 0.0,
+                expanded: false,
             });
             self.next_qid += 1;
         }
@@ -2685,25 +2704,36 @@ impl App {
                 });
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                // "Clear history" (records only; files stay). Two-click confirm so a
+                // misclick doesn't wipe everything.
+                let (text, col) = if self.hist_confirm {
+                    (tl(lang, "hist.clear_confirm"), p.err)
+                } else {
+                    (tl(lang, "action.clear"), p.fg_dim)
+                };
                 if ui
                     .add(
                         egui::Button::image_and_text(
-                            crate::icons::img("history", 14.0, p.fg_dim),
-                            RichText::new(tl(lang, "action.refresh"))
-                                .small()
-                                .color(p.fg_dim),
+                            crate::icons::img("trash", 14.0, col),
+                            RichText::new(text).small().color(col),
                         )
                         .frame(false),
                     )
                     .clicked()
                 {
-                    self.backend.send(Cmd::LoadHistory);
+                    if self.hist_confirm {
+                        self.backend.send(Cmd::ClearHistory);
+                        self.hist_confirm = false;
+                    } else {
+                        self.hist_confirm = true;
+                    }
                 }
             });
         });
         ui.add_space(12.0);
 
         if self.history.is_empty() {
+            self.hist_confirm = false; // nothing to clear
             ui.add_space(24.0);
             ui.label(RichText::new(tl(lang, "hist.empty")).color(p.fg_dim));
             return;
@@ -2984,13 +3014,50 @@ impl App {
         ui.add_space(8.0);
 
         let mut remove: Option<u64> = None;
-        let mut swap: Option<(usize, usize)> = None;
-        let n = self.queue.len();
-        for (idx, it) in self.queue.iter().enumerate() {
-            let resp = egui::Frame::new()
+        let mut drag_start: Option<u64> = None;
+        let mut row_rects: Vec<(u64, egui::Rect)> = Vec::new();
+        let dragging = self.q_drag;
+        for it in self.queue.iter_mut() {
+            let is_dragged = dragging == Some(it.id);
+            let frame = egui::Frame::new()
                 .inner_margin(egui::Margin::symmetric(6, 9))
+                .corner_radius(8)
+                .fill(if is_dragged {
+                    p.surface_hi
+                } else {
+                    egui::Color32::TRANSPARENT
+                });
+            let resp = frame
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
+                        // Drag handle (reorder). Pending/queued items only.
+                        let reorderable = !matches!(it.status, QStatus::Downloading);
+                        let (hr, hresp) = ui.allocate_exact_size(
+                            egui::vec2(16.0, 24.0),
+                            if reorderable {
+                                egui::Sense::drag()
+                            } else {
+                                egui::Sense::hover()
+                            },
+                        );
+                        if reorderable {
+                            let gc = if hresp.hovered() || is_dragged {
+                                p.fg
+                            } else {
+                                p.fg_dim.gamma_multiply(0.6)
+                            };
+                            let c = hr.center();
+                            for dy in [-5.0, 0.0, 5.0] {
+                                for dx in [-2.5, 2.5] {
+                                    ui.painter().circle_filled(c + egui::vec2(dx, dy), 1.1, gc);
+                                }
+                            }
+                            if hresp.drag_started() {
+                                drag_start = Some(it.id);
+                            }
+                            hresp.on_hover_cursor(egui::CursorIcon::Grab);
+                        }
+                        ui.add_space(4.0);
                         // Status dot.
                         let dot = match &it.status {
                             QStatus::Pending => p.fg_dim,
@@ -2999,11 +3066,12 @@ impl App {
                             QStatus::Error(_) => p.err,
                         };
                         let (r, _) =
-                            ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                            ui.allocate_exact_size(egui::vec2(12.0, 14.0), egui::Sense::hover());
                         ui.painter().circle_filled(r.center(), 4.0, dot);
                         ui.add_space(6.0);
+                        let is_url = matches!(it.source, QSource::Url(_));
                         ui.vertical(|ui| {
-                            ui.set_width(ui.available_width() - 44.0);
+                            ui.set_width(ui.available_width() - 64.0);
                             let label: String = it.label.chars().take(72).collect();
                             ui.label(RichText::new(label).color(p.fg));
                             ui.add_space(2.0);
@@ -3023,29 +3091,98 @@ impl App {
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if !matches!(it.status, QStatus::Downloading) {
-                                // Remove, then the reorder arrows (right-to-left:
-                                // X rightmost, then ↓, then ↑).
+                                // X (remove) rightmost, then the per-item options
+                                // toggle (URL items only — music has a fixed format).
                                 if icon_btn(ui, p, "x") {
                                     remove = Some(it.id);
                                 }
-                                if idx + 1 < n && icon_btn(ui, p, "chevron") {
-                                    swap = Some((idx, idx + 1));
-                                }
-                                if idx > 0 && icon_btn(ui, p, "chevron-up") {
-                                    swap = Some((idx, idx - 1));
+                                if is_url && icon_btn(ui, p, "options") {
+                                    it.expanded = !it.expanded;
                                 }
                             }
                         });
                     });
+                    // Per-item format options, like the web's per-row settings.
+                    if it.expanded
+                        && matches!(it.source, QSource::Url(_))
+                        && !matches!(it.status, QStatus::Downloading)
+                    {
+                        ui.add_space(8.0);
+                        ui.horizontal(|ui| {
+                            ui.add_space(26.0);
+                            combo_bare(
+                                ui,
+                                lang,
+                                &format!("qi.k{}", it.id),
+                                &mut it.kind,
+                                &["video", "audio"],
+                            );
+                            if it.kind == "video" {
+                                combo_bare(
+                                    ui,
+                                    lang,
+                                    &format!("qi.c{}", it.id),
+                                    &mut it.container,
+                                    &["mp4", "mov", "mkv", "webm"],
+                                );
+                                combo_bare(
+                                    ui,
+                                    lang,
+                                    &format!("qi.q{}", it.id),
+                                    &mut it.quality,
+                                    &["best", "2160", "1440", "1080", "720", "480"],
+                                );
+                            } else {
+                                combo_bare(
+                                    ui,
+                                    lang,
+                                    &format!("qi.a{}", it.id),
+                                    &mut it.audio,
+                                    &["mp3", "m4a", "opus", "flac", "wav"],
+                                );
+                                combo_bare(
+                                    ui,
+                                    lang,
+                                    &format!("qi.b{}", it.id),
+                                    &mut it.bitrate,
+                                    &["best", "320", "256", "192", "128"],
+                                );
+                            }
+                        });
+                    }
                 })
                 .response;
-            let _ = resp;
-        }
-        if let Some((a, b)) = swap {
-            self.queue.swap(a, b);
+            row_rects.push((it.id, resp.rect));
         }
         if let Some(id) = remove {
             self.queue.retain(|i| i.id != id);
+        }
+        // Drag-to-reorder: live-move the dragged item to the row under the pointer,
+        // and drop when the button is released.
+        if let Some(id) = drag_start {
+            self.q_drag = Some(id);
+        }
+        if let Some(d) = self.q_drag {
+            let (down, py) =
+                ui.input(|i| (i.pointer.any_down(), i.pointer.interact_pos().map(|p| p.y)));
+            if !down {
+                self.q_drag = None;
+            } else if let Some(py) = py {
+                if let Some((target, _)) = row_rects
+                    .iter()
+                    .find(|(_, r)| py >= r.min.y && py <= r.max.y)
+                {
+                    let from = self.queue.iter().position(|i| i.id == d);
+                    let to = self.queue.iter().position(|i| i.id == *target);
+                    if let (Some(from), Some(to)) = (from, to) {
+                        if from != to && !matches!(self.queue[to].status, QStatus::Downloading) {
+                            let item = self.queue.remove(from);
+                            self.queue.insert(to, item);
+                        }
+                    }
+                }
+            }
+            ui.ctx().request_repaint();
         }
     }
 
@@ -4218,17 +4355,30 @@ fn badge_label(e: &HistoryEntry) -> String {
         .unwrap_or_else(|| e.kind.to_uppercase())
 }
 
-/// A small violet rounded badge with the format label (e.g. MP3), as in history.
+/// A small violet rounded badge: a media-type icon (video camera / music note)
+/// above the format label (e.g. MP4 / MP3), as in the history list.
 fn fmt_badge(ui: &mut egui::Ui, p: theme::Palette, label: &str) {
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(42.0, 42.0), egui::Sense::hover());
-    ui.painter()
-        .rect_filled(rect, 9.0, p.accent.gamma_multiply(0.85));
-    ui.painter().text(
-        rect.center(),
-        egui::Align2::CENTER_CENTER,
+    let is_video = matches!(
         label,
-        egui::FontId::new(10.0, egui::FontFamily::Proportional),
-        p.accent_fg,
+        "MP4" | "MOV" | "MKV" | "WEBM" | "M4V" | "AVI" | "FLV"
+    );
+    let icon = if is_video { "video" } else { "music" };
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(44.0, 44.0), egui::Sense::hover());
+    ui.painter()
+        .rect_filled(rect, 10.0, p.accent.gamma_multiply(0.9));
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(rect.shrink(4.0))
+            .layout(egui::Layout::top_down(egui::Align::Center)),
+    );
+    child.add_space(3.0);
+    child.add(crate::icons::img(icon, 15.0, p.accent_fg));
+    child.add_space(2.0);
+    child.label(
+        RichText::new(label)
+            .size(9.0)
+            .color(p.accent_fg)
+            .family(crate::fonts::semibold()),
     );
 }
 

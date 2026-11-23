@@ -30,6 +30,7 @@ fn bytes(name: &str) -> (&'static str, &'static [u8]) {
         "add" => ("list-plus", svg!("list-plus")),
         "options" => ("sliders", svg!("sliders-horizontal")),
         "music" => ("music", svg!("music")),
+        "video" => ("video", svg!("video")),
         "check" => ("check", svg!("circle-check-big")),
         "folder" => ("folder", svg!("folder-open")),
         "chevron" => ("chevron", svg!("chevron-down")),

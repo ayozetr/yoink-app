@@ -34,11 +34,18 @@ pub enum Cmd {
         source: String,
     },
     ResolveMusic(String),
+    /// Resolve a queued URL's display title in the background (POST /api/info).
+    ResolveTitle {
+        id: u64,
+        url: String,
+    },
     Download(DownloadReq, AutotagOpts),
     ImportTrack(Box<MusicTrack>),
     SaveSettings(Box<Settings>),
     ReloadSettings,
     LoadHistory,
+    /// Clear the download history (records only), then reload it.
+    ClearHistory,
     LoadLogs,
     LoadWhatsNew {
         since: String,
@@ -95,6 +102,11 @@ pub enum Evt {
     SearchResults {
         query: String,
         items: Vec<SearchItem>,
+    },
+    /// A queued URL's resolved display title.
+    QueueTitle {
+        id: u64,
+        title: String,
     },
     Music(Box<MusicInfo>),
     Playlist {
@@ -428,6 +440,9 @@ impl Backend {
                         Cmd::ResolveMusic(url) => {
                             tokio::spawn(async move { resolve_music(url, evt_tx, ctx).await });
                         }
+                        Cmd::ResolveTitle { id, url } => {
+                            tokio::spawn(async move { resolve_title(id, url, evt_tx, ctx).await });
+                        }
                         Cmd::Download(req, autotag) => {
                             tokio::spawn(async move { download(req, autotag, evt_tx, ctx).await });
                         }
@@ -442,6 +457,9 @@ impl Backend {
                         }
                         Cmd::LoadHistory => {
                             tokio::spawn(async move { load_history(evt_tx, ctx).await });
+                        }
+                        Cmd::ClearHistory => {
+                            tokio::spawn(async move { clear_history(evt_tx, ctx).await });
                         }
                         Cmd::LoadLogs => {
                             tokio::spawn(async move { load_logs(evt_tx, ctx).await });
@@ -529,6 +547,15 @@ async fn load_history(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
             emit(&tx, &ctx, Evt::History(h));
         }
     }
+}
+
+/// Clear the history records, then reload (so the list empties).
+async fn clear_history(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let _ = reqwest::Client::new()
+        .delete(format!("{}/api/history", http_base()))
+        .send()
+        .await;
+    load_history(tx, ctx).await;
 }
 
 /// The platform key in `latest.json` for this OS.
@@ -854,6 +881,30 @@ async fn open_path(path: String) {
         .json(&serde_json::json!({ "path": path, "open_file": true }))
         .send()
         .await;
+}
+
+/// Resolve a queued URL's title in the background so the row shows the content
+/// name instead of the raw link. Best-effort: on any failure the row keeps the URL.
+async fn resolve_title(id: u64, url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let res = reqwest::Client::new()
+        .post(format!("{}/api/info", http_base()))
+        .json(&serde_json::json!({ "url": url }))
+        .send()
+        .await;
+    if let Ok(r) = res {
+        if r.status().is_success() {
+            if let Ok(info) = r.json::<InfoResp>().await {
+                let title = info
+                    .video
+                    .map(|v| v.title)
+                    .or_else(|| info.playlist.map(|p| p.title))
+                    .filter(|t| !t.trim().is_empty());
+                if let Some(title) = title {
+                    emit(&tx, &ctx, Evt::QueueTitle { id, title });
+                }
+            }
+        }
+    }
 }
 
 async fn analyze(url: String, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {

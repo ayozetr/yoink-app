@@ -1303,6 +1303,14 @@ async fn get_history() -> Json<Vec<HistoryEntry>> {
     )
 }
 
+/// Clear the download history (the records only — files on disk are untouched).
+async fn clear_history() -> StatusCode {
+    if let Ok(conn) = rusqlite::Connection::open(history_db()) {
+        let _ = conn.execute("DELETE FROM downloads", []);
+    }
+    StatusCode::NO_CONTENT
+}
+
 async fn get_history_stats() -> Json<HistoryStats> {
     let (count, total) = rusqlite::Connection::open(history_db())
         .ok()
@@ -2054,7 +2062,7 @@ async fn main() {
         .route("/api/search", get(search))
         .route("/api/ws/download", get(ws_download))
         .route("/api/settings", get(get_settings).put(put_settings))
-        .route("/api/history", get(get_history))
+        .route("/api/history", get(get_history).delete(clear_history))
         .route("/api/history/stats", get(get_history_stats))
         .route("/api/ytdlp-version", get(ytdlp_version))
         .route("/api/release-notes", get(release_notes))
