@@ -203,35 +203,40 @@ async fn itunes_search(artist: &str, title: &str) -> Vec<TagCandidate> {
         let Some(data) = get_json("https://itunes.apple.com/search", &params).await else {
             continue;
         };
-        for item in data
-            .get("results")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-        {
-            let artist = sget(item, "artistName").unwrap_or_default();
-            let title = sget(item, "trackName").unwrap_or_default();
-            let key = (artist.to_lowercase(), title.to_lowercase());
-            if !seen.insert(key) {
-                continue;
+        // Dedup an identical hit returned by more than one storefront.
+        for cand in map_itunes(&data) {
+            let key = (cand.artist.to_lowercase(), cand.title.to_lowercase());
+            if seen.insert(key) {
+                out.push(cand);
             }
+        }
+    }
+    out
+}
+
+/// Map one iTunes Search API response to candidates (no network).
+fn map_itunes(data: &Value) -> Vec<TagCandidate> {
+    data.get("results")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|item| {
             let date = item
                 .get("releaseDate")
                 .and_then(Value::as_str)
                 .unwrap_or("");
-            out.push(TagCandidate {
-                title,
-                artist,
+            TagCandidate {
+                title: sget(item, "trackName").unwrap_or_default(),
+                artist: sget(item, "artistName").unwrap_or_default(),
                 album: clean_album(sget(item, "collectionName")),
                 year: (date.len() >= 4).then(|| date[..4].to_string()),
                 genre: sget(item, "primaryGenreName"),
                 track_number: item.get("trackNumber").and_then(Value::as_i64),
                 cover_url: sget(item, "artworkUrl100")
                     .map(|a| a.replace("100x100bb", "1000x1000bb")),
-            });
-        }
-    }
-    out
+            }
+        })
+        .collect()
 }
 
 async fn deezer_search(artist: &str, title: &str) -> Vec<TagCandidate> {
@@ -248,6 +253,11 @@ async fn deezer_search(artist: &str, title: &str) -> Vec<TagCandidate> {
     else {
         return vec![];
     };
+    map_deezer(&data)
+}
+
+/// Map one Deezer search response to candidates (no network).
+fn map_deezer(data: &Value) -> Vec<TagCandidate> {
     data.get("data")
         .and_then(Value::as_array)
         .into_iter()
@@ -588,53 +598,160 @@ async fn musicbrainz_search(artist: &str, title: &str) -> Vec<TagCandidate> {
         Err(_) => None,
     };
     let Some(data) = data else { return vec![] };
-    let mut out = Vec::new();
-    for rec in data
-        .get("recordings")
+    map_musicbrainz(&data)
+}
+
+/// Map one MusicBrainz recording-search response to candidates (no network).
+fn map_musicbrainz(data: &Value) -> Vec<TagCandidate> {
+    data.get("recordings")
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-    {
-        let name = rec
-            .get("artist-credit")
-            .and_then(Value::as_array)
-            .map(|cs| {
-                cs.iter()
-                    .map(|c| {
-                        c.get("name")
-                            .and_then(Value::as_str)
-                            .unwrap_or("")
-                            .to_string()
-                            + c.get("joinphrase").and_then(Value::as_str).unwrap_or("")
-                    })
-                    .collect::<String>()
-            })
-            .unwrap_or_default();
-        let release = rec
-            .get("releases")
-            .and_then(Value::as_array)
-            .and_then(|r| r.first());
-        let mbid = release.and_then(|r| sget(r, "id"));
-        let date = release
-            .and_then(|r| r.get("date").and_then(Value::as_str))
-            .unwrap_or("");
-        out.push(TagCandidate {
-            title: sget(rec, "title").unwrap_or_default(),
-            artist: name,
-            album: release.and_then(|r| sget(r, "title")),
-            year: (date.len() >= 4).then(|| date[..4].to_string()),
-            genre: None,
-            track_number: None,
-            // Cover Art Archive serves the front cover by release MBID (307 → image, else 404).
-            cover_url: mbid.map(|id| format!("https://coverartarchive.org/release/{id}/front-500")),
-        });
-    }
-    out
+        .map(|rec| {
+            let name = rec
+                .get("artist-credit")
+                .and_then(Value::as_array)
+                .map(|cs| {
+                    cs.iter()
+                        .map(|c| {
+                            c.get("name")
+                                .and_then(Value::as_str)
+                                .unwrap_or("")
+                                .to_string()
+                                + c.get("joinphrase").and_then(Value::as_str).unwrap_or("")
+                        })
+                        .collect::<String>()
+                })
+                .unwrap_or_default();
+            let release = rec
+                .get("releases")
+                .and_then(Value::as_array)
+                .and_then(|r| r.first());
+            let mbid = release.and_then(|r| sget(r, "id"));
+            let date = release
+                .and_then(|r| r.get("date").and_then(Value::as_str))
+                .unwrap_or("");
+            TagCandidate {
+                title: sget(rec, "title").unwrap_or_default(),
+                artist: name,
+                album: release.and_then(|r| sget(r, "title")),
+                year: (date.len() >= 4).then(|| date[..4].to_string()),
+                genre: None,
+                track_number: None,
+                // Cover Art Archive serves the front cover by release MBID (307 → image, else 404).
+                cover_url: mbid
+                    .map(|id| format!("https://coverartarchive.org/release/{id}/front-500")),
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
 mod autotag_tests {
-    use super::{clean_album, guess_from_filename};
+    use super::{
+        clean_album, guess_from_filename, map_deezer, map_itunes, map_musicbrainz, norm_for_match,
+        rank, relevant, TagCandidate,
+    };
+    use serde_json::json;
+
+    fn cand(title: &str, artist: &str) -> TagCandidate {
+        TagCandidate {
+            title: title.into(),
+            artist: artist.into(),
+            album: None,
+            year: None,
+            genre: None,
+            track_number: None,
+            cover_url: None,
+        }
+    }
+
+    #[test]
+    fn norm_for_match_deaccents_and_strips_parens() {
+        assert_eq!(norm_for_match("MESÓN MASÓN"), "meson mason");
+        assert_eq!(norm_for_match("Columbia (Vídeo Oficial)"), "columbia");
+    }
+
+    #[test]
+    fn rank_prefers_exact_then_penalises_versions() {
+        let cands = vec![
+            cand("Columbia (Remix)", "Quevedo"),
+            cand("Columbia", "Quevedo"),
+            cand("Columbia (Live)", "Other Artist"),
+        ];
+        let ranked = rank(cands, "Quevedo", "Columbia");
+        assert_eq!(ranked[0].title, "Columbia"); // exact title + artist match wins
+        assert!(
+            ranked.last().unwrap().title.contains("Remix")
+                || ranked.last().unwrap().title.contains("Live")
+        );
+    }
+
+    #[test]
+    fn relevant_drops_unrelated_titles() {
+        let out = relevant(
+            vec![
+                cand("Columbia", "Quevedo"),
+                cand("Totally Different Thing", "X"),
+            ],
+            "Columbia",
+        );
+        assert!(out.iter().any(|c| c.title == "Columbia"));
+        assert!(!out.iter().any(|c| c.title == "Totally Different Thing"));
+    }
+
+    #[test]
+    fn map_itunes_maps_fields_and_upscales_cover() {
+        let data = json!({"results":[{
+            "trackName":"Hood Films","artistName":"Las Ninyas del Corro",
+            "collectionName":"#SKIT2025 - EP","releaseDate":"2025-12-10T12:00:00Z",
+            "trackNumber":2,"primaryGenreName":"Hip-Hop/Rap",
+            "artworkUrl100":"https://is1.example/abc/100x100bb.jpg"}]});
+        let c = map_itunes(&data);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[0].title, "Hood Films");
+        assert_eq!(c[0].artist, "Las Ninyas del Corro");
+        assert_eq!(c[0].album.as_deref(), Some("#SKIT2025")); // "- EP" cleaned off
+        assert_eq!(c[0].year.as_deref(), Some("2025"));
+        assert_eq!(c[0].genre.as_deref(), Some("Hip-Hop/Rap"));
+        assert_eq!(c[0].track_number, Some(2));
+        assert_eq!(
+            c[0].cover_url.as_deref(),
+            Some("https://is1.example/abc/1000x1000bb.jpg")
+        );
+    }
+
+    #[test]
+    fn map_deezer_maps_nested_artist_and_album_cover() {
+        let data = json!({"data":[{
+            "title":"DISOCIANDO","artist":{"name":"Los Diozes"},
+            "album":{"title":"MESÓN MASÓN","cover_xl":"https://cdn/xl.jpg","cover_big":"https://cdn/big.jpg"}}]});
+        let c = map_deezer(&data);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[0].title, "DISOCIANDO");
+        assert_eq!(c[0].artist, "Los Diozes");
+        assert_eq!(c[0].album.as_deref(), Some("MESÓN MASÓN"));
+        assert_eq!(c[0].cover_url.as_deref(), Some("https://cdn/xl.jpg")); // xl preferred
+    }
+
+    #[test]
+    fn map_musicbrainz_joins_artist_credit_and_builds_cover_url() {
+        let data = json!({"recordings":[{
+            "title":"Danza Kuduro",
+            "artist-credit":[{"name":"Don Omar","joinphrase":" & "},{"name":"Lucenzo","joinphrase":""}],
+            "releases":[{"id":"mbid-123","title":"Meet the Orphans","date":"2010-08-31"}]}]});
+        let c = map_musicbrainz(&data);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[0].title, "Danza Kuduro");
+        assert_eq!(c[0].artist, "Don Omar & Lucenzo"); // joinphrase applied
+        assert_eq!(c[0].album.as_deref(), Some("Meet the Orphans"));
+        assert_eq!(c[0].year.as_deref(), Some("2010"));
+        assert!(c[0]
+            .cover_url
+            .as_deref()
+            .unwrap()
+            .contains("mbid-123/front-500"));
+    }
 
     #[test]
     fn guess_from_filename_cases() {
