@@ -389,23 +389,71 @@ fn strip_noise(s: &str) -> String {
 pub fn guess_from_filename(name: &str) -> (String, String) {
     static TAGS: OnceLock<Regex> = OnceLock::new();
     static DASH: OnceLock<Regex> = OnceLock::new();
-    static PIPE: OnceLock<Regex> = OnceLock::new();
+    // Bracketed noise tags, English + Spanish + French, incl. accented "vídeo".
     let tags = TAGS.get_or_init(|| {
-        Regex::new(r"(?i)\s*[\(\[][^\)\]]*(?:official|lyric|audio|video|visuali[sz]er|prod|hd|4k|mv|remaster)[^\)\]]*[\)\]]|\s*\b(?:feat\.?|ft\.?|featuring)\s.+$").unwrap()
+        Regex::new(r"(?i)\s*[\(\[][^\)\]]*?\b(?:official|oficial|officiel|video|v[ií]deo|videoclip|clip|audio|lyrics?|letras?|visualizer|visualiser|hd|4k|mv|prod|explicit|remaster)\b[^\)\]]*[\)\]]").unwrap()
     });
     let dash = DASH.get_or_init(|| Regex::new(r"^(.+?)\s[-\x{2013}\x{2014}]\s(.+)$").unwrap());
-    let pipe = PIPE.get_or_init(|| Regex::new(r"\s*[|\x{FF5C}].*$").unwrap());
 
-    let base = name.rsplit_once('.').map(|(b, _)| b).unwrap_or(name);
+    // Fold fullwidth / CJK punctuation yt-dlp leaves in filenames to ASCII, so the
+    // noise strippers catch "（Official MV）", "Song ｜ VIDEO", "Title： Part 2".
+    let folded: String = name
+        .chars()
+        .map(|c| match c {
+            '：' => ':',
+            '｜' => '|',
+            '（' => '(',
+            '）' => ')',
+            '【' => '[',
+            '】' => ']',
+            other => other,
+        })
+        .collect();
+    let base = folded.rsplit_once('.').map(|(b, _)| b).unwrap_or(&folded);
     let base = tags.replace_all(base, "");
-    let base = strip_noise(&base);
+    let base = strip_title_noise(&base);
     if let Some(caps) = dash.captures(&base) {
-        let artist = strip_noise(&caps[1]);
-        let raw_title = strip_noise(&caps[2]);
-        let title = strip_noise(&pipe.replace(&raw_title, ""));
-        return (artist, if title.is_empty() { raw_title } else { title });
+        let artist = strip_title_noise(&caps[1]);
+        let title = strip_title_noise(&caps[2]);
+        return (artist, title);
     }
     (String::new(), base)
+}
+
+/// Strip trailing un-bracketed YouTube noise, a trailing "feat …", and wrapping
+/// quotes — what muddies the catalogue query. Mirrors legacy `_strip_noise`:
+/// handles "- Official Video", "｜ MV", and the Spanish "… Vídeo/Audio Oficial".
+fn strip_title_noise(text: &str) -> String {
+    static FEAT: OnceLock<Regex> = OnceLock::new();
+    static TRAILING: OnceLock<Regex> = OnceLock::new();
+    static TRAILING_ES: OnceLock<Regex> = OnceLock::new();
+    let feat = FEAT.get_or_init(|| {
+        Regex::new(r"(?i)\s*[\(\[]?\s*\b(?:feat|ft|featuring)\b\.?\s+[^\)\]]+[\)\]]?\s*$").unwrap()
+    });
+    let trailing = TRAILING.get_or_init(|| {
+        Regex::new(r"(?i)\s*(?:[|\x{FF5C}\-\x{2013}\x{2014}]\s*(?:official\s+|oficial\s+|full\s+|music\s+|lyrics?\s+)*|(?:official\s+|oficial\s+|full\s+|music\s+|lyrics?\s+)+)(?:video|v[ií]deo|videoclip|audio|visualizer|visualiser|mv|hd|4k|hq)(?:\s+oficial)?\s*$").unwrap()
+    });
+    // Spanish word order "… Vídeo/Videoclip/Audio Oficial" with no leading
+    // separator — unambiguous noise (requires the trailing "oficial" to stay safe).
+    let trailing_es = TRAILING_ES
+        .get_or_init(|| Regex::new(r"(?i)\s+(?:v[ií]deo|videoclip|audio)\s+oficial\s*$").unwrap());
+
+    let mut s = feat.replace(text, "").into_owned();
+    loop {
+        let stripped = trailing.replace(&s, "");
+        let stripped = trailing_es.replace(&stripped, "");
+        let next = strip_noise(stripped.trim());
+        if next == s {
+            break;
+        }
+        s = next;
+    }
+    s.trim()
+        .trim_matches([
+            '"', '\'', '`', '\u{2018}', '\u{2019}', '\u{201C}', '\u{201D}',
+        ])
+        .trim()
+        .to_string()
 }
 
 // --- lyrics (LRCLIB) -------------------------------------------------------
@@ -582,4 +630,72 @@ async fn musicbrainz_search(artist: &str, title: &str) -> Vec<TagCandidate> {
         });
     }
     out
+}
+
+#[cfg(test)]
+mod autotag_tests {
+    use super::{clean_album, guess_from_filename};
+
+    #[test]
+    fn guess_from_filename_cases() {
+        let cases: &[(&str, &str, &str)] = &[
+            (
+                "Las Ninyas del Corro - Hood Films.m4a",
+                "Las Ninyas del Corro",
+                "Hood Films",
+            ),
+            ("Artist - Title (prod. X) [4K].opus", "Artist", "Title"),
+            ("JustATitle.flac", "", "JustATitle"),
+            ("Soft Cell - Tainted Love.mp3", "Soft Cell", "Tainted Love"),
+            (
+                "Drake - Hotline Bling (Music Video) [4K].mp3",
+                "Drake",
+                "Hotline Bling",
+            ),
+            (
+                "Quevedo - Columbia (Vídeo Oficial).m4a",
+                "Quevedo",
+                "Columbia",
+            ),
+            (
+                "Aitana - Mariposas (Audio Oficial).mp3",
+                "Aitana",
+                "Mariposas",
+            ),
+            ("Morad - Pelele (Letra).mp3", "Morad", "Pelele"),
+            // Un-bracketed trailing noise (English + Spanish word order).
+            ("Artist - Song - Official Audio.mp3", "Artist", "Song"),
+            (
+                "Quevedo - Columbia Vídeo Oficial.mp3",
+                "Quevedo",
+                "Columbia",
+            ),
+            // Fullwidth colon yt-dlp leaves on disk, folded back to ASCII.
+            ("Artist - Title： Part 2.mp3", "Artist", "Title: Part 2"),
+        ];
+        for (name, artist, title) in cases {
+            assert_eq!(
+                guess_from_filename(name),
+                (artist.to_string(), title.to_string()),
+                "guess_from_filename({name:?})"
+            );
+        }
+    }
+
+    #[test]
+    fn clean_album_strips_single_and_ep_suffix() {
+        assert_eq!(
+            clean_album(Some("Hood Films - Single".into())),
+            Some("Hood Films".into())
+        );
+        assert_eq!(
+            clean_album(Some("#SKIT2025 - EP".into())),
+            Some("#SKIT2025".into())
+        );
+        assert_eq!(
+            clean_album(Some("Whenever You Need Somebody".into())),
+            Some("Whenever You Need Somebody".into())
+        );
+        assert_eq!(clean_album(None), None);
+    }
 }

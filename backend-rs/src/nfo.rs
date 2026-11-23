@@ -157,3 +157,98 @@ pub fn from_info(info: &Value, kind: &str) -> String {
 pub fn write(media_path: &Path, body: &str) {
     let _ = std::fs::write(media_path.with_extension("nfo"), body);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn from_info_video_is_movie_and_escapes() {
+        let info = json!({
+            "title": "Cool & Clip", "uploader": "Chan", "description": "Plot <here>",
+            "upload_date": "20240115", "id": "abc", "duration": 245,
+            "webpage_url": "http://x/v", "thumbnail": "http://x/t.jpg",
+        });
+        let xml = from_info(&info, "video");
+        assert!(xml.starts_with("<?xml"));
+        assert!(xml.contains("<movie>") && xml.contains("</movie>"));
+        assert!(xml.contains("<title>Cool &amp; Clip</title>"));
+        assert!(xml.contains("<studio>Chan</studio>"));
+        assert!(xml.contains("<plot>Plot &lt;here&gt;</plot>"));
+        assert!(xml.contains("<year>2024</year>"));
+        assert!(xml.contains("<premiered>2024-01-15</premiered>"));
+        assert!(xml.contains("<runtime>4</runtime>")); // 245s -> 4 min
+        assert!(xml.contains("<uniqueid type=\"yoink\">abc</uniqueid>"));
+    }
+
+    #[test]
+    fn from_info_audio_is_musicvideo_without_empty_tags() {
+        let xml = from_info(
+            &json!({"title": "Song", "uploader": "Artist", "id": "x"}),
+            "audio",
+        );
+        assert!(xml.contains("<musicvideo>"));
+        assert!(xml.contains("<artist>Artist</artist>"));
+        assert!(!xml.contains("<plot>") && !xml.contains("<year>"));
+    }
+
+    #[test]
+    fn build_audio_uses_tagged_fields() {
+        let xml = build(&NfoFields {
+            kind: "audio",
+            title: "Danza Kuduro",
+            artist: "Don Omar",
+            album: "Meet the Orphans",
+            genre: "Reggaeton",
+            year: "2010",
+            thumb: "http://x/cover.jpg",
+            ..Default::default()
+        });
+        assert!(xml.contains("<musicvideo>"));
+        assert!(xml.contains("<artist>Don Omar</artist>"));
+        assert!(xml.contains("<album>Meet the Orphans</album>"));
+        assert!(xml.contains("<genre>Reggaeton</genre>"));
+        assert!(xml.contains("<year>2010</year>"));
+        assert!(xml.contains("<thumb>http://x/cover.jpg</thumb>"));
+    }
+
+    #[test]
+    fn write_creates_sidecar() {
+        let dir = std::env::temp_dir().join(format!("yoink-nfo-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let media = dir.join("Song.mp3");
+        std::fs::write(&media, b"x").unwrap();
+        write(
+            &media,
+            &build(&NfoFields {
+                kind: "audio",
+                title: "Song",
+                artist: "A",
+                ..Default::default()
+            }),
+        );
+        let out = dir.join("Song.nfo");
+        assert!(out.exists());
+        assert!(std::fs::read_to_string(&out)
+            .unwrap()
+            .contains("<title>Song</title>"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn build_album_folder_nfo() {
+        let xml = build_album("Meet the Orphans", "Don Omar", "2010", "http://x/c.jpg");
+        assert!(xml.contains("<album>") && xml.contains("</album>"));
+        assert!(xml.contains("<title>Meet the Orphans</title>"));
+        assert!(xml.contains("<artist>Don Omar</artist>"));
+        assert!(xml.contains("<year>2010</year>"));
+    }
+
+    #[test]
+    fn build_artist_folder_nfo_escapes_name() {
+        let xml = build_artist("Don & Omar", "");
+        assert!(xml.contains("<artist>") && xml.contains("</artist>"));
+        assert!(xml.contains("<name>Don &amp; Omar</name>"));
+    }
+}
