@@ -2079,7 +2079,7 @@ impl App {
                         }
                         let mut inner = ui.new_child(
                             egui::UiBuilder::new()
-                                .max_rect(resp.rect.shrink2(egui::vec2(14.0, 6.0)))
+                                .max_rect(resp.rect.shrink2(egui::vec2(22.0, 6.0)))
                                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
                         );
                         if let Some(t) = r.thumbnail_url.as_deref().filter(|s| !s.is_empty()) {
