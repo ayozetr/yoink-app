@@ -1256,6 +1256,11 @@ impl eframe::App for App {
             } else {
                 self.search_pending = Some(std::time::Instant::now());
                 self.searching = true; // show the spinner until results land
+                                       // Typing a new query clears a leftover preview from a previous
+                                       // analyze, so the search dropdown is visible again (it only shows
+                                       // when there's no preview card).
+                self.preview = Preview::None;
+                self.status = Status::Idle;
             }
         }
         // Debounced search: fire once the typed query settles.
