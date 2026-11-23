@@ -2186,3 +2186,30 @@ mod download_args_tests {
             .any(|x| x == "--sponsorblock-mark"));
     }
 }
+
+#[cfg(test)]
+mod helper_tests {
+    use super::{humanize_bytes, parse_progress};
+
+    #[test]
+    fn humanize_bytes_scales_units() {
+        assert_eq!(humanize_bytes(0), "0 B");
+        assert_eq!(humanize_bytes(512), "512 B");
+        assert_eq!(humanize_bytes(1536), "1.5 KB");
+        assert_eq!(humanize_bytes(5 * 1024 * 1024), "5.0 MB");
+    }
+
+    #[test]
+    fn parse_progress_reads_fields_and_skips_na() {
+        let p = parse_progress("42.0%|1.20MiB/s|00:10|123|456").expect("some");
+        assert!((p.percent - 42.0).abs() < 1e-9);
+        assert_eq!(p.speed.as_deref(), Some("1.20MiB/s"));
+        assert_eq!(p.eta.as_deref(), Some("00:10"));
+        assert_eq!(p.downloaded, Some(123));
+        assert_eq!(p.total, Some(456));
+        // "NA" fields come back as None; a non-numeric percent is rejected.
+        let p = parse_progress("5%|NA|NA||").expect("some");
+        assert!(p.speed.is_none() && p.eta.is_none());
+        assert!(parse_progress("notapercent|x|y|z|w").is_none());
+    }
+}

@@ -951,3 +951,18 @@ pub async fn run(argv: Vec<String>) -> i32 {
         0
     }
 }
+
+#[cfg(test)]
+mod cli_tests {
+    use super::parse_timestamp;
+
+    #[test]
+    fn parse_timestamp_formats() {
+        assert_eq!(parse_timestamp("90"), Some(90.0));
+        assert_eq!(parse_timestamp("1:30"), Some(90.0));
+        assert_eq!(parse_timestamp("1:02:03"), Some(3723.0));
+        assert_eq!(parse_timestamp("0"), Some(0.0));
+        assert_eq!(parse_timestamp("x"), None);
+        assert_eq!(parse_timestamp("1:2:3:4"), None); // >3 parts
+    }
+}
