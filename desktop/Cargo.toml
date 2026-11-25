@@ -46,6 +46,10 @@ windows-sys = { version = "0.59.0", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+[build-dependencies]
+# Embeds the app icon into the Windows .exe (see build.rs); harmless elsewhere.
+winresource = "0.1.17"
+
 [profile.release]
 opt-level = 3
 lto = "thin"
