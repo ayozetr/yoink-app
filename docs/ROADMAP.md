@@ -1,720 +1,163 @@
-# Yoink — Roadmap
+# Roadmap and release history
 
-> **Note (egui migration):** the desktop app is now a **native Rust + egui** app
-> (`desktop/`). The old React + Tauri stack was removed; some completed/historical
-> entries below still mention Tauri/React as the state at the time. Current
-> packaging is a signed Linux AppImage; a Windows build is being ported.
->
-> Single source of truth for where Yoink is going. **Yoink** is a local,
-> high-fidelity media downloader — yt-dlp + bundled ffmpeg in a self-contained
-> native desktop app. Philosophy: **local-first**, **honest about quality** (never
-> fake "lossless"), no fluff.
->
-> Legend: ✅ shipped · 🚧 in progress · ⬜ planned · effort **S**/**M**/**L**.
-> Per-feature shipped detail lives in the [GitHub releases](https://github.com/ayozetr/yoink-app/releases)
-> and git history — this file stays forward-looking.
+Yoink is a local, high-fidelity media downloader built on yt-dlp with a bundled
+ffmpeg. This document records what each release delivered and what is planned.
 
-## 📍 Status
+The latest published release is **4.4.0** (all 1.x–4.4.0 releases are the
+React + Tauri / Python app). The project is currently being rebuilt as a native
+Rust application — see **Unreleased** below.
 
-- **In progress:** **native Rust backend** (branch `rust-core`) — the Python/FastAPI
-  backend is replaced by `yoink-core`, a single native Rust (axum) binary that shells
-  out to the bundled yt-dlp + ffmpeg, dropping the Python runtime and PyInstaller
-  entirely. Same API contract and UI; feature parity reached (downloads, music import
-  for all 5 services, auto-tag, VR, HLS trim, loudness). Also ships a **minimal
-  self-built ffmpeg** (~33 MB vs ~336 MB) and builds releases on GitHub Actions
-  (Linux + Windows, the Windows ffmpeg cross-compiled on Linux). The original Python
-  backend is preserved on the `legacy` branch.
-- **Current release:** **v3.9.0** — **more sources & faster pulls**: an opt-in
-  **aria2c multi-connection** downloader (wired as yt-dlp's external downloader when a
-  binary is found, to beat per-connection speed caps), and **Instagram photo** support —
-  photo stories/posts and photos inside a carousel now download as a new `image` kind
-  (a dedicated one-click `ImagePreviewCard`), staying visible inside a mixed highlight.
-- **Previously:** **v3.8.0** — **zero-config PO token & hardening**: YouTube's "confirm
-  you're not a bot" **GVS token is minted automatically in the app's WebView** (opt-in
-  `auto`; `bgutils-js` with its network proxied through the backend, bound to the session
-  `visitor_data`, handed to the `mweb` client), an **ok.ru** extractor fix (and extractor
-  errors stop 500ing), a **"backend unreachable" banner** instead of a silent empty UI,
-  and a broad **audit-hardening** pass (a11y, queue/download correctness, media proxy,
-  WS teardown, SSRF, loudness).
-- **Previously:** **v3.7.0** — **tagging, loudness & lists**: the audio auto-tag now
-  brings in the **genre** from Apple Music (editable in the card, written to the file +
-  `.nfo`); loudness normalization gets a **configurable target** — pick the LUFS on a
-  slider with marks at the common standards (-14 streaming, -16 Apple Music, -23 R128) or
-  set any value from the CLI (`--normalize-lufs`); GitHub responses (the update check +
-  "What's new") are now **cached**, so a busy IP's rate-limit no longer breaks the version
-  banner or the notes. Plus: **SoundCloud playlists show track names** (a title guessed
-  from the URL slug when a flat entry carries none), the **history fills in live** during a
-  playlist/queue batch instead of only at the end, and the startup splash unmounts cleanly.
-- **Previously:** **v3.6.0** — **reliability & polish**: a download (or analyze) could
-  sit at **"Preparing…"** at 0% forever with no error when a socket connected but then
-  delivered no data — a `socket_timeout` now aborts a dead read so the retries fire or it
-  fails with a clear message. And a **SponsorBlock outage no longer blocks the download**:
-  the app probes the (volunteer-run) SponsorBlock API first and, if it's unreachable,
-  skips SponsorBlock and downloads the video anyway instead of failing with "Unable to
-  communicate with SponsorBlock". Also: the **"Supported sites" brand logos are bundled**
-  (Simple Icons) instead of pulled from a CDN, so they stop vanishing under the CDN's
-  rate-limit and work offline.
-- **Previously:** **v3.5.0** — **library, CLI & access**: the **command line now
-  ships in the `.deb`/`.rpm`** as `yoink-cli` — the bundled backend binary does double
-  duty (serve the app with no args, run the CLI with them), so an installed package gives
-  a real command line with **no second install**; auto-tagged music can be **organized
-  into `Artist/Album/` folders** (the shared Jellyfin/Plex/Navidrome layout, with
-  folder-level `album.nfo`/`artist.nfo`); the after-update **"What's new" popup is now
-  cumulative** — it shows **every version you skipped**, newest first, not just the one
-  you landed on; and an **opt-in YouTube PO token** (Settings) can pass the "confirm
-  you're not a bot" wall **without cookies**.
-- **Previously:** **v3.4.0** — **resilience & control**: downloads that fail for a
-  **transient** reason (a network blip, a momentary 403/429/5xx, a dropped socket)
-  now **auto-retry with exponential backoff** instead of going straight to the failed
-  pile; a **stale-backend banner** (with a one-click **Restart**) warns when a
-  self-update left an older backend running; the **login/cookies hint** now also covers
-  a locked browser cookie store; and the **CLI** gains `--video-codec` / `--audio-bitrate`,
-  `--list-formats`, and a **`config`** sub-command to read/edit the saved settings.
-- **Previously:** **v3.3.0** — a **quality & reliability** pass: **trims no
-  longer re-encode** (a forced-keyframe cut fell back to ffmpeg's low-bitrate mpeg4
-  on the bundled LGPL build — pixelated; now a stream copy keeps the source
-  AV1/VP9/H.264, sharp + fast), **yt-dlp bumped to 2026.08.19** (drops the blocked
-  `android_vr` YouTube client that stalled downloads), MP3 tags written as **ID3v2.3**
-  so **Windows** shows the embedded cover, a **responsive-layout** hardening pass
-  (cover cards, toggles, Settings grids + icon-rail nav), and UX touches — **trim-input
-  validation** (accepts `m.ss`, flags bad values), a **"Preparing…"** state before the
-  first byte, and an **actionable login/cookies hint** on gated content.
-- **Previously:** **v3.2.0** — a **command-line interface** (`scripts/yoink <url>`)
-  driving the same engine in-process: single URLs, **batch input** (many URLs / a file /
-  stdin, taking only the links), **playlists**, **music-service imports**, **VR**, **trim**,
-  **subtitles**, **chapters**, catalogue **auto-tagging**, per-run **overrides**
-  (rate limit / proxy / cookies / SponsorBlock / normalize / filename), and **shell
-  completion**. Plus UI polish for **single wrapped items**
-  (an Instagram **story/post** is labelled as such, drops the batch chapters toggle, and
-  saves under its container title instead of "Video by …").
-- **Previously:** **v3.1.0** — the **"Send to Yoink" browser extension (beta)** is
-  **live on both stores**
-  ([Firefox](https://addons.mozilla.org/firefox/addon/send-to-yoink/) ·
-  [Chrome](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp)),
-  installable from a new **Settings ▸ Extension** tab — with a manual-install channel
-  and a right-click usage tip — plus **Open-source licenses** under **Settings ▸ About**
-  listing Yoink's direct dependencies and their licenses.
-- **Previously:** **v3.0.0** — **desktop integration**: a **system tray** with
-  close-to-tray, **launch-at-startup**, and six opt-in **global shortcuts**
-  (paste-and-analyze, quick-download, cancel, open folder, …), each with its Settings
-  toggle; a **`yoink://` deep link** so the browser — or anything — can hand a URL to
-  the running app; a **Terms of Use & disclaimer**; a batch of **quality work**
-  (memoized main-column panels, a deferred playlist lossless probe,
-  cancel-a-queued-download-on-disconnect, re-tag dialog focus a11y, more tests); and an
-  **audio-detection fix** for Twitter/X clips whose HLS audio track carries a null
-  `acodec`.
-- **Previously:** **v2.9.0** — **loudness normalization** (opt-in −14 LUFS),
-  a **whole-queue progress bar** ("N of M downloaded"), a **redesigned Settings
-  modal** (sidebar + content panel, a branded **About**, brand icons + **language
-  flags**, "?" help on the format/subtitles/proxy fields, a read-only **Shortcuts**
-  section), a **"notify on complete"** toggle, a thumbnail **`hqdefault` fallback**
-  for YouTube's grey placeholder, and a smarter **auto-tag title swap** ("Song –
-  Artist").
-- **Previously:** **v2.8.0** — an **"Artist – Title (auto-tag)" filename
-  template**: pick it in Settings and a downloaded track is renamed to its *tagged*
-  name (the one already shown in history), carrying its `.nfo`/`.lrc` sidecars along
-  and never clobbering an existing file. Bundles **yt-dlp 2026.07.04** (verified
-  across the full URL spread — video, playlists, music imports, Threads, VR), and the
-  **preview + playlist format selectors reflow** so they stay readable in a narrow
-  (non-maximized) window.
-- **Previously (v2.7.0):** **automatic in-app updates**: an *on-by-default*
-  (togglable) launch check floats a dismissible banner + a desktop notification when
-  a newer release exists, and either the banner or Settings **self-updates in place**
-  behind a live-progress "Downloading…" popup (Windows installs passively — no
-  click-through). The **first launch after an update shows a "What's new" popup**
-  (once; re-openable from Settings) rendering that release's notes. Plus small
-  hardening (the proxy setting now requires a host; one shared progress bar).
-- **Previously (v2.6.0):** a **reworked download queue** — its own **format** picker,
-  and a pasted **album/playlist** becomes one collapsible row whose **tracks you pick
-  individually** (music routed through the importer instead of failing on DRM, each
-  row labelled with its source); plus **playlist sync**, a **responsive preview card**,
-  and a **Skip-current vs Stop** queue control with **live drag-reorder**.
-- **Previously (v2.5.1):** **per-track playlist cover art** (each track's own album
-  art, not the playlist's — Deezer lookups paced so big lists keep them, streamed
-  in progressively), a **unified music-import / playlist card**, **YouTube Music
-  playlists as audio-only**, and polish (undraggable covers, a persistent
-  "0 selected" summary).
-- **Previously (v2.5.0):** **Amazon Music cover art from Amazon**
-  (playlist/album + per-track, incl. Amazon-exclusive tracks), **auto-tagging**
-  via your **regional Apple Music store** with **fewer irrelevant matches**,
-  **lyrics** looked up only when the Setting is on + a **title+duration** fallback
-  for renamed acts, a **handier history** (re-analyze a past download,
-  **drag-and-drop** a link, tidier same-height rows), **correct YouTube quality
-  labels** for non-16:9 videos, and a **faster start** (one-folder backend — no
-  per-launch extraction).
-- **(v2.4.0):** **broader source support** (resolves videos whose
-  media is served through the page's own player config), **immersive (VR) clips:
-  trimming fixed** + an **audio-less source warning**, **steadier downloads**
-  (auto-retry of a transient ffmpeg hiccup; cancelling mid-merge no longer wedges
-  the next download), **complete Amazon playlist import**, and a **fully localized
-  interface**.
-- **(v2.3.1):** Windows reliability — **certifi** TLS for every
-  non-yt-dlp HTTPS call (cover art / music import / lyrics), a sturdier **cookie
-  fallback**, and **playlist de-duplication**.
-- **(v2.3.0):** **lyrics in auto-tagging** (LRCLIB plain + an optional synced
-  **`.lrc`**), a **cookies browser→file fallback**, the **`.nfo` rewritten from
-  the tagged metadata**, a **localized default download dir**, **music-import
-  parity** (filter / range / duration summary) + history-as-it-downloads, and
-  quick wins (copy-error, paste-and-analyze, low-disk-space guard).
-- **(v2.2.0):** **resumable playlist downloads**, playlist filter / shift-click
-  range / lazy thumbnails / retry-failed, VR follow-ups, **friendlier yt-dlp
-  error messages**, **download presets**, and optional **`.nfo` sidecars**.
-- **Earlier (v2.1.0 / v2.0.0):** a **single-download lock**, a **dynamic backend
-  port**, the **Advanced options** panel, SSRF-hardened keyless **music import
-  from five services**, SoundCloud search, **14 UI languages**. (v1.9.x:
-  immersive VR, the queue, hardening.)
-- **Platforms:** Linux (AppImage · deb · rpm) + Windows (msi · NSIS), self-updating.
-- **Stack:** React 19 / TS / Tailwind · native Rust backend (`yoink-core`, axum) /
-  yt-dlp · minimal ffmpeg, both shipped as a Tauri resource.
-- **Health:** backend `cargo fmt`/`clippy -D warnings`/`test` green · frontend build + e2e (21) + vitest (56) green · `npm audit` 0 · strict TS.
+Per-feature detail for each release is in the
+[GitHub releases](https://github.com/ayozetr/yoink-app/releases); this file is
+the summary.
 
----
+## Unreleased
 
-## ✅ Shipped (by area)
+A ground-up rewrite to a self-contained native-Rust stack, replacing the
+React + Tauri desktop shell and the Python/FastAPI backend:
 
-A condensed map of what already works.
+- **Desktop app** — rebuilt in native Rust + egui (`desktop/`). Owns its window
+  chrome, spawns and supervises the backend, and ships as a WebKit-free AppImage
+  (far smaller than the Tauri bundle).
+- **Backend** — ported from Python/FastAPI to native Rust (`yoink-core`, axum).
+  No Python runtime; it shells out to the bundled yt-dlp and a custom minimal
+  ffmpeg (~33 MB vs ~336 MB).
 
-**Core engine**
-- URL analysis (`POST /api/info`) → preview with the real available formats;
-  **YouTube search** from the URL field; flat **playlists**.
-- **Anti-bot**: yt-dlp + `curl_cffi` browser impersonation (default) gets past most
-  Cloudflare/TLS-fingerprint blocks; custom **Threads (Meta)** extractor; optional
-  **YouTube PO token** (Settings) passed as the native `youtube:po_token` extractor
-  arg to clear the "confirm you're not a bot" wall without cookies.
-- **Live downloads** over WebSocket (percent/speed/ETA), **cancel + retry**, off-thread.
+Full feature parity with 4.4.0, plus:
 
-**Output & quality**
-- Video: **MP4 / MOV / MKV** merge, embedded **subtitles + chapters**, **multi-audio**
-  (MKV), **codec** preference (H.264/VP9/AV1).
-- Audio: **MP3 / M4A** + honest **FLAC / WAV** (gated to lossless sources), **bitrate**
-  picker, M4A by stream-copy.
-- **Trim/clip** a time range · **SponsorBlock** (remove/mark).
+- Live type-to-search with a loading indicator and stale-result protection.
+- Queue: per-item format overrides, drag-to-reorder, and resolved content titles
+  instead of raw links.
+- An interactive audio tag panel (review the catalogue match, edit fields, embed
+  cover and lyrics) after a manual download, and per-row history actions (play,
+  open folder, redownload, retag).
+- Accurate download-size estimates; optional rounded window corners (squared when
+  maximized); clear-history and clear-logs actions.
+- Trimming reworked to clip the finished local file (the bundled ffmpeg has no
+  working TLS, so it cannot fetch ranges itself).
+- An expanded unit-test suite and an end-to-end smoke test.
+- A one-time migration path for existing users: the AppImage is signed with the
+  same minisign key the Tauri app used, so the legacy updater accepts it.
 
-**🥽 Immersive VR** *(v1.9.0)* — heuristic detection (studios/markers/aspect ratio),
-**11 stereo/projection layouts**, projection **name suffix** + injected **Spherical
-Video V2** (`st3d`/`sv3d`) into MP4/MOV, **per-channel** layout memory, batch on playlists.
+**Before it replaces the published app:** Windows packaging (the in-app updater
+and `latest.json` are currently Linux-only).
 
-**Library & tagging**
-- **Audio auto-tagging** (Apple Music + Deezer + MusicBrainz) with a review step,
-  cover art, single + batch, **re-tag from history**.
-- **History + stats** (SQLite): rich rows (time/format/size/quality), cover art,
-  open file/folder, clear.
+## Released
 
-**📋 Queue** *(v1.9.0)* — persistent, sequential, **resumes** interrupted items;
-honors your **default container / audio format** and **auto-detects + tags VR**
-per item *(v1.9.1)*.
+### 4.x
 
-**🛡️ Hardening** *(v1.9.1)* — SSRF-safe auto-tag cover fetch (shared guard),
-resilient `/api/info` (transient-aware retry → 503 vs 422 vs a permanent error),
-**WAL** history under the concurrent queue, trim-range guards, and much sharper
-auto-tag title parsing (ES/FR/JP + CJK/K-pop noise, validated on ~600 real
-playlist titles).
+- **4.4.0** (2026-11-21) — Per-item format in the queue; audio bitrate for queued
+  audio; AppImage application icon and desktop/AppStream metadata.
+- **4.3.0** (2026-10-28) — ISRC-exact YouTube-Music matches; optional SoundCloud
+  lossless; updated download engine.
+- **4.2.0** (2026-10-24) — Clear the yt-dlp cache from the app; engine update;
+  trimming on more sites.
+- **4.1.0** (2026-10-22) — Per-download video codec and audio bitrate; new output
+  formats; safer downloads.
+- **4.0.0** (2026-10-16) — Redesigned interface; Logs tab; theme preference
+  (dark / light / system); accessibility work.
 
-**Settings** — download dir, defaults, filename template, bandwidth limit, proxy
-(http/socks), cookies (browser + icons / `cookies.txt`), SponsorBlock, language,
-app + yt-dlp version.
+### 3.x
 
-**Platform & polish** — Tauri desktop (Linux + Windows), **signed self-update**,
-desktop notifications, taskbar/title progress, global shortcuts, **14-language** i18n,
-**WCAG-AA** pass (contrast, reduced-motion, ARIA incl. the search combobox),
-security-hardened (path guards, SSRF-safe thumbnail proxy w/ pinned DNS, settings
-validation), strict TS + tests.
+- **3.9.0** (2026-10-14) — Instagram photos; multi-connection downloads (aria2c,
+  opt-in); sturdier packaging.
+- **3.8.0** (2026-09-15) — OK.ru support; automatic YouTube PO token; Instagram
+  highlights with multiple stories; "backend unreachable" banner.
+- **3.7.0** (2026-09-09) — Genre in the auto-tag; configurable loudness target;
+  GitHub response caching; SoundCloud playlist track names; live history updates.
+- **3.6.0** (2026-09-01) — Fix for the stuck "Preparing…" state; SponsorBlock-
+  outage resilience; bundled supported-site logos.
+- **3.5.0** (2026-08-30) — CLI shipped in the `.deb`/`.rpm`; music filed into an
+  Artist/Album library; cumulative "What's new"; opt-in YouTube PO token.
+- **3.4.0** (2026-08-30) — Self-healing downloads; "restart to finish updating";
+  expanded CLI.
+- **3.3.0** (2026-08-20) — Sharper, faster trims; steadier YouTube; cover art on
+  Windows; layout polish.
+- **3.2.0** (2026-08-16) — Command-line interface; Instagram stories and posts;
+  sharper music matches.
+- **3.1.0** (2026-07-21) — Browser extension ("Send to Yoink"); open-source
+  license listing.
+- **3.0.0** (2026-07-17) — Send to Yoink from the browser; desktop integration
+  (deep links).
 
----
+### 2.x
 
-## 🎯 The v2.0.0 / v2.1.0 push — ✅ shipped
+- **2.9.0** (2026-07-06) — Settings redesign.
+- **2.8.0** (2026-07-05) — Tag-based filenames ("Artist – Title").
+- **2.7.0** (2026-07-04) — In-app automatic updates; post-update "What's new".
+- **2.6.0** (2026-07-03) — Per-format queue; albums and playlists with per-track
+  selection; playlist sync.
+- **2.5.1** (2026-07-03) — Playlist covers; unified preview card; YouTube Music as
+  audio.
+- **2.5.0** (2026-07-02) — Amazon Music covers; better auto-tagging; opt-in lyrics;
+  improved history; correct YouTube quality labels; faster startup.
+- **2.4.0** (2026-06-29) — More video sources; VR trimming and silent-source
+  warnings; steadier downloads.
+- **2.3.1** (2026-06-27) — Windows fixes (covers, music import, lyrics); sturdier
+  cookie fallback.
+- **2.3.0** (2026-06-25) — Embedded and synced lyrics; cookie handling that doesn't
+  break search; `.nfo` metadata sidecars.
+- **2.2.0** (2026-06-22) — Resumable playlist downloads; download presets; broader
+  VR tagging.
+- **2.1.0** (2026-06-18) — One download at a time (lock); starts even when the port
+  is taken; full progress reporting; advanced-options grouping.
+- **2.0.0** (2026-06-13) — Music-service import (Spotify / Deezer / Apple Music /
+  Tidal / Amazon Music); SoundCloud search; 14 interface languages; resumable
+  downloads.
 
-The highest value/effort work from the v1.9.0 audit — all shipped in v2.0.0/v2.1.0
-(kept here as the record). *(Music import, SoundCloud search, 14 languages, logging,
-resume and the release polish shipped in v2.0.0.)*
+### 1.x — foundation
 
-1. ✅ **Backend logging & observability** (M · **high**) *(v2.0.0)* — a
-   structured `app`-namespace logger writes to a rotating `~/.yoink/logs/yoink.log`
-   + console; extraction/download failures log the real yt-dlp text, the error
-   string is persisted on the history row (new `error_message` column) and shown
-   under failed items in the sidebar. *(Still open: surfacing live logs in-app.)*
-2. ✅ **Sidecar readiness gate + dynamic port** (M · **high**) *(v2.1.0)* — the
-   desktop shell now picks the backend port at launch (**8756** when free, else an
-   OS-assigned free port), hands it to the sidecar via `YOINK_PORT`, and exposes it
-   to the frontend (`backend_port` command) so a busy 8756 no longer breaks
-   startup. The splash already gates the UI until the backend answers (settings
-   retry), so a busy-port cold start is now handled end-to-end.
-3. ✅ **First-run empty state** (S · medium) *(v2.0.0)* — the main column shows a
-   download icon + "ready to download" hint until a URL is analyzed.
-4. ✅ **Resume partial downloads** (M · medium) *(v2.0.0)* — yt-dlp
-   `continuedl` is on, so a retry of an interrupted download continues the `.part`
-   instead of restarting (both the in-panel batch and the persistent queue).
-   *(Cross-restart playlist resume — routing batches through the persistent queue
-   — is the separate Playlists item below.)*
-5. ✅ **Persist the remaining download defaults** (S · medium) *(v2.1.0)* — container
-   + audio format persisted in v1.9.1; subtitles + chapters now persist too
-   (`default_embed_subs` / `default_embed_chapters`), seeding the preview's
-   subtitle picker and chapter toggle.
+- **1.9.1** (2026-06-11) — Auto-tag sharpening; queue parity; i18n and accessibility.
+- **1.9.0** (2026-06-08) — Immersive / VR video; download queue; robustness and
+  security.
+- **1.8.1** (2026-06-08) — Auto-tag merges Apple Music + Deezer with better ranking;
+  retag from history.
+- **1.8.0** (2026-06-07) — Filename templates; per-download video codec and audio
+  bitrate.
+- **1.7.0** (2026-06-07) — Trim to a start/end range (video and audio).
+- **1.6.0** (2026-06-07) — Type-to-search (YouTube search from the URL field).
+- **1.5.1** (2026-06-05) — SponsorBlock and chapters fixes.
+- **1.5.0** (2026-06-05) — SponsorBlock: cut or mark sponsor / intro / outro
+  segments.
+- **1.4.0** (2026-06-04) — Multi-catalogue auto-tag (Apple Music / Deezer /
+  MusicBrainz / Automatic); queue resilience.
+- **1.3.0** (2026-06-04) — Audio auto-tag card with review and edit (Apple Music);
+  playlist lossless detection; cookie file picker.
+- **1.2.0** (2026-06-02) — Threads, Kick and Reddit sources; `curl_cffi`
+  impersonation past TLS-fingerprint blocks.
+- **1.1.0** (2026-06-02) — In-app signed self-update (Windows + AppImage); multiple
+  audio tracks (MKV).
+- **1.0.0** (2026-06-02) — Initial release: local downloader (yt-dlp + bundled
+  ffmpeg); MP4 / MOV / MKV containers; embedded subtitles and chapters.
 
----
+## Planned
 
-## 🧰 Backlog (vetted, by theme)
+Not committed to a release; picked up as capacity allows. Desktop (Linux and
+Windows) is the focus.
 
-Not committed and not release-ordered — picked from as capacity allows.
+- **VR studio list as versioned data** — move the hardcoded studio list out of
+  source into data.
+- **Subscriptions and scheduled downloads** — follow a channel or playlist and
+  auto-grab new items (PVR-style), with OPML import/export. Needs tray/autostart
+  and a download archive.
+- **macOS build** — `yoink-core` and the ffmpeg build port cleanly; needs a Mac to
+  build, sign and notarize. Would unblock re-adding Safari to the cookie sources.
+- **Android** — `yoink-core` compiles to Android natively; the work is a native
+  shell plus an ffmpeg/yt-dlp integration.
+- **Windows on ARM64 (native)** — the x64 build already runs on Snapdragon Win11
+  via emulation; a native `aarch64-pc-windows-msvc` build is feasible and mostly
+  needs an ARM64 runner and a `latest.json` entry.
 
-### 🎬 Download & conversion
-- ✅ **Import from music services** *(v2.0.0)* —
-  paste a track/album/playlist URL from **Spotify, Deezer, Apple Music, Tidal or
-  Amazon Music** → resolve it **keyless** (public APIs / embed scrapes, like the
-  Threads extractor) → rank a YouTube match with a **spotDL-ported** scorer →
-  download + auto-tag with the *exact* source metadata. One source-agnostic
-  pipeline (`/api/music/{resolve,match}` + `MusicImportCard`); only the resolver
-  differs per service. A single track shows a square-cover preview;
-  albums/playlists a track-picker. The spotDL-ported matcher hits **~99.5%** of
-  tracks on **2,300+ real songs** across all five sources (token-set title ratio,
-  glyph folding, name+artist-aware duration gate, primary-artist + branded-channel
-  matching, and a top-5→top-10 second-chance search on a miss). Resolution also
-  handles **Deezer share/short links** and **single-track** URLs on every source,
-  and download→tag→cover was validated **end-to-end on all five** (Amazon-playlist
-  covers, which the embed omits, are backfilled from Deezer at tag time).
-  - **Deezer** ⭐ — public API `api.deezer.com` (no key) · full JSON, **no track
-    cap** · the standout (we already use its keyless API for auto-tagging).
-  - **Apple Music** — iTunes Lookup API for albums/tracks; **playlists** scrape
-    the web page's `serialized-server-data` blob (title/artist/duration/artwork).
-  - **Spotify** — public embed `__NEXT_DATA__` + anonymous web-player token paging
-    · ~**100-track cap** on big playlists (anonymous API rate-limits the full
-    fetch); a bring-your-own-credentials Settings field would lift it.
-  - **Tidal** — embed `<list-item>` scrape + the regular page's og tags.
-  - **Amazon Music** — `music.amazon.*/embed/{asin}` HTML scrape; the embed carries
-    no cover/durations, so those are **backfilled from Deezer's keyless API**
-    (matched by a loosened title key).
-  API-based (Deezer/Apple) are sturdier; the embed scrapes (Spotify/Tidal/Amazon)
-  are more fragile — a page change needs an extractor tweak, like Threads.
-- ✅ **Search beyond YouTube** *(v2.0.0)* — a
-  **YouTube ↔ SoundCloud** selector inside the URL field (persisted) drives the
-  typeahead, flipping the yt-dlp search prefix (`ytsearch`→`scsearch`). More
-  platforms drop in by adding a prefix.
-- ✅ **Multi-connection download accelerator (aria2c)** (M) — opt-in
-  (`use_aria2c`, off by default). When on *and* an aria2c binary is found, it's
-  wired as yt-dlp's `external_downloader` with `-x16 -s16 -k1M` (parallel
-  byte-range connections), which can bypass a **per-connection** speed cap on
-  hosts that allow range requests. Resolution is hybrid: a bundled `aria2c` in
-  `backend/vendor/aria2/` (zero-config) if a future build ships one, else the
-  system `aria2c` on PATH, else a safe no-op (the setting can't break a download).
-  Nothing is bundled today — aria2 has no official static Linux binary, and the
-  win is niche (it buys nothing against a hard *total*-bandwidth cap like ok.ru's,
-  measured ~250 KB/s) — so it uses a system aria2c for now; dropping a binary into
-  the vendor dir later makes it zero-config with no code change.
-- ⬜ **Split by chapters** (M) — one file per chapter (`--split-chapters`).
-- ✅ **Playlist sync** — re-analyzing a playlist flags each entry already in your
-  download history (matched by a context-free URL key that ignores playlist/
-  tracking params) and pre-selects only the new ones; already-downloaded rows show
-  a "Downloaded" badge and stay re-selectable.
-- ⬜ **Sidecar exports** (S) — `.info.json` / thumbnail / loose `.srt`/`.vtt`.
-- ⬜ **Subtitles as separate files + auto-translate** (M).
-- ✅ **Loudness normalization** *(post-v2.8.0, in `main`)* — an optional (off by
-  default) leveling of every audio download to **-14 LUFS** (EBU R128, the
-  Spotify/YouTube target) via a **two-pass ffmpeg `loudnorm`** (measure → re-encode
-  with the measured values, preserving the source sample rate); runs before
-  auto-tagging and is best-effort, so a failure leaves the original untouched.
-- ✅ **Download presets/profiles** *(next)* — save the preview's format selection
-  as a named preset (`lib/presets`, localStorage) and apply it in one click; chips
-  to apply/delete and an inline "save current" in the preview card.
-- ✅ **Library subfolders** — the **Filename template** setting already accepts path
-  separators, so `%(uploader)s/%(title)s` writes into subfolders. The download service
-  keeps interior `/` while neutralising traversal (`..`, absolute paths) and confirms
-  the resolved path stays inside the download dir, so a template can nest folders
-  safely. (A curated preset picker is the only thing left, tracked under the
-  media-server layout above.)
+## Non-goals
 
-### 📋 Playlists
-*Surfaced testing real YouTube Music "Hits" mixes (`RD…`) and curated `PL` lists —
-extraction is solid (49–144 tracks, both URL forms, capped at 200 with a
-`truncated` flag); these are curation/scale/persistence gaps.*
-- ✅ **Persistent playlist downloads** *(next)* — the in-panel batch
-  (`DownloaderPanel` `startQueue`/`runJob`) now persists to `localStorage`
-  (`lib/batchStore`: jobs + a done count), so a close / refresh / crash no longer
-  loses a multi-item playlist. On the next launch a banner offers to resume the
-  pending items through the same flow (keeping the rich preview + batch
-  auto-tagging that routing into the queue would have lost).
-- ✅ **Filter/search within the entry list** *(next)* — a "filter tracks…" input
-  (shown for lists > 8) narrows the entries; selection persists across it and
-  select-all acts on the filtered view.
-- ✅ **Range + smarter selection** *(next)* — Shift+click a row to extend/clear the
-  selection range from the last click (rows are keyboard-operable too).
-- ✅ **Batch totals** *(v2.0.0)* — the playlist card
-  shows the current selection's count + **total duration** ("23 selected · 1h 18m").
-  A rough **size** estimate is still pending (flat entries carry no per-item
-  formats, so it needs a probe/heuristic).
-- ✅ **Audio-first for music playlists** *(v2.0.0)* — YT Music mixes (`RD…`)
-  and album lists (`OLAK…`) are music-intent, so the playlist card now defaults
-  `kind` to **audio** for them (detected from the playlist id) instead of video.
-- ✅ **Lazy-load the entry thumbnails** *(next)* — `Thumbnail` gained a `loading`
-  prop and the playlist list uses `loading="lazy"`, so a 200-item playlist no
-  longer fires ~200 proxy requests at once on render.
-- ✅ **Per-item retry in the batch summary** *(next)* — the panel keeps the jobs
-  that failed (results are in job order) and the summary offers "Retry failed (N)".
-- ✅ **Auto-retry with backoff** — a failed job now re-runs itself automatically (up
-  to 2 retries, exponential backoff 2s→4s, "Retrying…" on the bar) — but only for
-  **transient** failures (a network blip, a momentary 403/429/5xx, a dropped socket),
-  never permanent ones (private/removed/unsupported/no-format). Complements yt-dlp's
-  fragment-level retries; the manual "Retry failed" stays for what still doesn't land.
-- ✅ **Non-addressable sets (Instagram story-sets / highlights)** *(verified live,
-  2026-09-09)* — some sources return a container that yt-dlp resolves into several
-  **fully-embedded** items with **no per-item URL** (`InstagramStoryIE` yields items with
-  a unique `id` but no `url`/`webpage_url`, so yt-dlp stamps them all with the
-  **container's** `webpage_url` and an identical `title`). Three bugs cascaded from that:
-  the card selected by `url`, so the items **collapsed to one selection** (couldn't
-  check/uncheck individually); Download then fired **one request per item to the same
-  container URL** (each pulling the whole set); and the identical title collided the
-  output filename → most landed as "output file is missing". Fixed generically: the
-  backend detects entries that **share a URL** (Counter over the built list) and keeps a
-  `playlist_index` only on those non-addressable ones (cleared on normally-addressable
-  entries, so a normal URL is untouched); the card now selects by a **unique key**
-  (`entry.id || url`); and a flagged item downloads via the **container URL +
-  `playlist_items=<index>`** with `noplaylist` off (fetches just that clip) under a
-  **unique `output_title`** (`"<title> <index>"`, so shared titles no longer collide).
-  A single story is fine via its own `stories/<user>/<id>/` URL — only the highlight/
-  all-stories container was affected. **Verified live** against a real highlight (14
-  videos sharing one container URL, identical titles, `playlist_index` 1–14): 3 picks
-  downloaded to 3 distinct files of distinct sizes (different clips), no collision, no
-  "output file is missing". Live-testing also surfaced the deeper root cause below.
-- ✅ **Output file inside a playlist-wrapper result** *(root cause of the "output file
-  is missing" symptom)* — Instagram stories/highlights (and any single item wrapped in a
-  playlist) return a `_type: playlist` dict from yt-dlp with the file under
-  `entries[].requested_downloads` and nothing at the top level. `_final_path` only read
-  the top level → returned None → the caller fell back to `prepare_filename` on the
-  playlist dict (a bogus `<title>.NA`) and reported the file missing though it downloaded
-  fine. Fixed by descending into the entries; verified live (the single-video highlight
-  that previously errored now completes to the correct file).
-- ✅ **Download Instagram photo stories / image posts** (M) — yt-dlp's Instagram
-  extractors build `formats` **only from `video_versions`**; a photo item's image
-  (`image_versions2.candidates`) was kept as a **thumbnail**, not a format, so
-  `InstagramStoryIE` dropped photo stories entirely. **Done:**
-  `instagram_image_extractor.py` subclasses `InstagramIE`/`InstagramStoryIE` and
-  overrides `_extract_product_media` to promote the best image candidate to a real
-  `.jpg` format when a media item has no video — so photo posts, photos inside a
-  carousel, and photo stories/highlights all download (and photo items stay in a
-  highlight listing instead of vanishing). Images are a new output **kind**
-  (`image`): `is_image` on `VideoInfo`/`PlaylistEntry`, a dedicated
-  `ImagePreviewCard` (one-click download, no quality/container picker), a
-  minimal download path (fetch the single format — no merge/container/ffmpeg/
-  nfo), a history image icon, and per-entry `kind: "image"` in a mixed highlight.
-  The full card treatment lands with the v4.0.0 redesign.
-- ✅ **Zero-config PO token — mint in the WebView** (L) — *validated live
-  2026-09-15; backend ported to native Rust (`backend-rs/src/po_token.rs`), same
-  contract, frontend minter unchanged.* **Done:** the `po_token_mode`
-  setting (`off` / `manual` / `auto`, default `manual`) end-to-end (14 locales); a
-  backend broker + `/api/po-token/*` bridge (long-poll `pending`, `result`, and a
-  Google-host-scoped `proxy` for bgutils' network); **session** minting wired into
-  the download path (`auto` YouTube downloads mint one GVS token bound to the
-  session `visitor_data`, hand it to the web-based clients — `mweb`, `web`,
-  `web_safari`, `web_embedded` — add `mweb` to `player_client`, and pass the bound
-  `visitor_data` alongside); and the WebView minter loop
-  (`src/lib/poTokenMinter.ts`) running `bgutils-js` with its network proxied
-  through the backend — so the WebView never leaves `127.0.0.1`. The headless CLI
-  (nothing polls) skips minting and falls back to the manual token. Live testing
-  confirmed the minted token is **accepted by YouTube** — `mweb` returned 26
-  downloadable GVS formats with it vs 1 without (a range-GET of a picked format
-  returned `206`) — and fixed two things: the token binds to `visitor_data` (not
-  the video id, when logged out) and the working client is `mweb` (the default
-  `web` degrades to images-only logged out). It also needs one CSP relaxation —
-  `script-src 'unsafe-eval'`, since BotGuard's interpreter runs via `new Function`
-  (a sandboxed iframe can't regain eval; see the doc). `auto` stays opt-in as the
-  flow depends on YouTube-internal details that change. Context below. — the opt-in
-  `youtube:po_token` setting makes the user mint a token by hand, and (per the yt-dlp PO
-  Token Guide) a web GVS token is **bound to the session `visitor_data`**, which also has
-  to be passed to yt-dlp — fiddly by hand, and it must be re-minted when the session
-  rotates. Auto-mint it instead, reusing the app's **existing WebView** (webkit2gtk /
-  WebView2) as the JS runtime so **nothing extra is bundled** (~0 MB vs ~100 MB for a
-  Deno/Node runtime).
+Decisions kept here so they are not re-proposed.
 
-  *Spike done (2026-08-30) — feasible.* Confirmed in a real browser that `new Function`
-  (the BotGuard VM's mechanism) runs, the challenge (`interpreterUrl`/`globalName`/
-  `program`) is embedded in the youtube.com HTML (`window.ytAtN`), and `VISITOR_DATA` is
-  readable from `ytcfg`. The official [`bgutils-js`](https://github.com/LuanRT/BgUtils)
-  example already runs the *full* mint under **jsdom** (a fake DOM in Node), so a real
-  WebView (real DOM) runs it at least as well.
-
-  **Design** (from the bgutils-js v4.0.3 flow): a hidden Tauri WebView with web security
-  relaxed + `bgutils-js` bundled locally (a few KB) → fetch youtube HTML → extract the
-  challenge + `visitor_data` → load the interpreter VM (`new Function`) →
-  `BotGuardClient.snapshot()` → POST `GenerateIT` → **integrity token** (cache it, TTL
-  ~hours) → `WebPoMinter` → `mintAsWebsafeString(visitorData)` **once per session, local,
-  no network**. The backend blocks on a broker that the WebView loop services by
-  long-polling `/api/po-token/*`; a new `po_token_mode` setting (`auto` / `manual` / `off`)
-  picks the source, keeping the manual field as a fallback.
-
-  **Caveat:** minting needs the JS runtime, so auto-PO is a **GUI feature** — the headless
-  CLI (no WebView) can't mint on its own; it falls back to a manual token / cookies.
-  CSP/CORS seen when testing *on* youtube.com don't apply to our own security-relaxed
-  WebView.
-  Gate behind real-world testing before it becomes the default.
-
-### 🎵 Audio library
-- ⬜ **Recalibrate the YouTube-match duration weight** (M · needs a test set) — the
-  `matching.score` fold `((nm+am)/2 + tm)/2` weights duration **50%** of the final
-  score, and `time_match`'s `exp(-0.1·Δ)` decay is steep (a 10 s intro on an official
-  video → tm 37 → score 68). That can misrank an exact-length lyric video above the
-  official-with-intro cut. *Already fixed (v3.1.0-ish): a no-duration source no longer
-  folds in the neutral `tm=100`, so Amazon-style scores aren't inflated by a flat +50 —
-  and it's provably pick-neutral.* The **weight/decay** itself is the open part: lowering
-  it (e.g. `0.4·nm + 0.4·am + 0.2·tm`, or duration as a tiebreaker) or softening the
-  decay must be **measured against a bench of real songs** (the matcher hit ~99.5% on
-  2,300+ tracks) before shipping — a naive change risks regressing that. Also note there
-  is **no ISRC** to match on: keyless sources mostly don't expose it, and `ytsearch`
-  results carry none, so the match is inherently fuzzy.
-- ✅ **Auto-tag title parsing for non-Western formats** *(next)* — on top of the
-  noise stripper (~93% of titles), the no-dash path now reads two more shapes:
-  K-pop `ARTIST 'TITLE'` / `ARTIST "TITLE"` (quoted run = title, preceded text =
-  artist; a possessive apostrophe isn't mistaken for a quote) and Bollywood
-  `Title | Movie | Cast | …` (≥3 pipe segments → take the leading song). The
-  manual edit/search in the tag card still covers the rest; fingerprint-based
-  identify remains a possible future upgrade.
-- ✅ **Embed source thumbnail as cover** on audio *(next)* — a *fallback* cover
-  (yt-dlp `EmbedThumbnail` for mp3/m4a/flac); auto-tagging overrides it with real
-  album art when found and preserves an existing cover when it has none.
-- ✅ **Lyrics in auto-tagging** *(next)* — LRCLIB (free, keyless): embeds the plain
-  lyrics (USLT / ©lyr / LYRICS), an optional synced **`.lrc` sidecar**, and an
-  in-card **indicator + preview + per-track toggle**, with a fuzzy free-text
-  fallback so multi-artist / accented titles still match.
-- ✅ **Media-server music layout** — an opt-in Settings toggle (*Organize music into
-  Artist/Album folders*) moves each **auto-tagged** track into
-  `<download dir>/<Artist>/<Album>/Artist - Title.ext` — the shared
-  Jellyfin/Plex/Navidrome music convention — using the reliable *tagged* metadata
-  (not yt-dlp's raw fields), at auto-tag time. Reuses the existing rename +
-  history-update plumbing, moves the `.nfo`/`.lrc` sidecars along, and is
-  collision-safe (never clobbers a different file). *(Generic per-field library
-  templates for **video** stay out — YouTube lacks the clean movie/year metadata a
-  Plex movie layout needs; the win is the music library.)*
-- ✅ **NFO sidecars** *(next)* — an optional Settings toggle writes a Kodi/Jellyfin
-  `.nfo` (`<movie>`/`<musicvideo>`) next to each download with the source metadata;
-  audio auto-tagging **rewrites** it from the tagged title/artist/album/cover.
-- ✅ **Folder-level music `.nfo` (`album.nfo` / `artist.nfo`)** — Jellyfin/Kodi read a
-  song from its **embedded tags** (which we already write), not a per-track `.nfo`; a
-  music sidecar is only useful at the **album** and **artist** *folder* level. Now that
-  the media-server music layout organises tracks into `Artist/Album/` folders, enabling
-  it **with** NFO sidecars on writes `album.nfo` (title/artist/year/cover) in the album
-  folder and `artist.nfo` (name/cover) in the artist folder, per the Jellyfin/Kodi music
-  convention. The per-track `<musicvideo>` `.nfo` still travels with the file, since Kodi
-  music-video libraries and other tools read it.
-
-### 🖥️ UX / UI
-- ✅ **Drag-and-drop a link** onto the window — dropping a link anywhere analyzes
-  it (drops onto editable fields are left alone); `dragDropEnabled: false` lets
-  the webview deliver DOM drops in the packaged app.
-- ✅ **Responsive PreviewCard** — the single-video preview stacks the thumbnail
-  (16:9, full-width) above the info/controls on narrow widths.
-- ✅ **Unify PlaylistCard checkboxes** onto `Toggle` (chapters/multi-audio switches).
-- ✅ **Re-download / re-analyze from history** — a re-analyze button on each
-  history row reloads its URL into the analyzer.
-- ✅ **Skip-current vs cancel-all** in the queue — a *Skip* button drops the
-  current download and moves on; *Stop* still cancels the whole run.
-- ✅ **Reorder the queue** — drag a row by its grip handle to change the order.
-- ✅ **Queue: format picker + music/playlist groups** — pick video/audio + format
-  for the whole queue; a pasted album/playlist resolves into one collapsible row
-  whose tracks/videos you select individually (music routed through the importer:
-  match on YouTube → download audio → tag), instead of failing on DRM.
-- ⬜ **Auto-fill a clipboard URL on window focus** (M) — when the field is empty and
-  the clipboard holds a link, pre-fill it (non-destructive) so a paste→analyze is one step.
-  *(Tried in v2.3.0 but skipped: a gesture-less clipboard read is blocked by browsers.)*
-- ✅ **Update experience** — an **on-by-default** "check for updates automatically"
-  setting (togglable off; the app only; yt-dlp stays owner-managed) raises an in-app
-  banner + a desktop notification when a newer release exists, and either (banner or
-  Settings) **installs it in place** with a live-progress "Downloading…" popup. The
-  **first launch after an update shows a "What's new" popup** (once, then remembered;
-  re-openable from Settings) rendering that release's notes, trimmed to the part
-  before a hidden `<!-- /whatsnew -->` marker (`GET /api/release-notes` + a small
-  markdown renderer).
-- ✅ **Cumulative "What's new"** — when several releases were skipped (e.g. 3.0.0 →
-  3.4.0) the popup now shows the notes for **every version in between**, newest first,
-  each under its version heading — not just the one landed on. The previously-run version
-  is captured from `yoink-last-seen-version` before it's overwritten and passed as
-  `GET /api/release-notes?since=<v>`, which returns a `WhatsNew` list for the range
-  `(since, current]` (each release's pre-`<!-- /whatsnew -->` section). Falls back to the
-  single current release when the range can't be resolved.
-- ✅ **Paste-and-analyze keyboard gesture** *(v2.3.0)* — `Ctrl/Cmd+Shift+V` pastes a
-  link from the clipboard and analyzes it in one shot, from anywhere in the window.
-- ✅ **"Copy error" button** *(v2.3.0)* — on a failed download and on history error
-  rows, so the raw failure text is one click away.
-
-### 🔌 OS & integrations
-- ✅ **`yoink://` deep link** *(next)* — a `yoink://download?url=<encoded>` scheme
-  (tauri-plugin-deep-link + the single-instance `deep-link` feature) lets the browser
-  or anything hand a URL to the running app, sidestepping the local-CORS lock. Only
-  the `url` param is read and a malformed link is ignored; a cold-start URL is drained
-  by the frontend and routed through the same analyze path as drag-and-drop.
-- ✅ **System tray + close-to-tray + autostart** *(next)* — an always-on manager: a
-  tray (open / quit), close-to-tray, and launch-at-startup, each a Settings toggle.
-- ✅ **Global hotkey (Tauri `globalShortcut`)** *(next)* — six opt-in system-wide
-  shortcuts (all Ctrl/⌘+Shift+…): paste-and-analyze, quick-download, show/hide,
-  paste-only, cancel, open-folder — firing with Yoink in the background, toggleable.
-- ✅ **Browser extension** "Send to Yoink" — **(beta)** *(next)* — a MV3 companion
-  (Firefox + Chromium) with a context-menu item + toolbar button that fire the
-  `yoink://` deep link; strips YouTube's auto Radio mix so a single video isn't sent
-  as a playlist. **Published on both stores** *(v3.1.0)* —
-  [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/send-to-yoink/) and the
-  [Chrome Web Store](https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp)
-  — with the rolling [`ext-latest`](https://github.com/ayozetr/yoink-app/releases/tag/ext-latest)
-  pre-release as the manual-install channel. Both listings link from **Settings ▸
-  Extension** in the app. Still labelled **(beta)** on purpose until it has had real
-  use; dropping the label is a follow-up.
-- ⬜ **Extension → auto-send cookies to the app** (L · **eyed for 4.0.0**) — let the
-  "Send to Yoink" extension grab the current site's cookies (like *Get cookies.txt
-  LOCALLY*) and hand them to the desktop app automatically, so gated/age-restricted
-  content works without the fragile `cookies_from_browser` DB read (locked DB / DPAPI /
-  per-OS decryption). **Feasible.** Two halves:
-  - *Read + format (extension):* add the `cookies` permission + host permissions; on the
-    download gesture, `chrome.cookies.getAll({domain})` for the **target domain only**
-    (plus its auth domain, e.g. `.google.com` for YouTube — not every cookie), format as
-    a Netscape **cookies.txt** (exactly what yt-dlp's `--cookies` wants). The app already
-    supports `cookies_file`, so the engine side is essentially free.
-  - *Transport (the new part):* **recommended — local HTTP.** A new `POST /api/cookies`
-    writes `~/.yoink/cookies.txt` and points `cookies_file` at it; the extension declares
-    `host_permissions: ["http://127.0.0.1:<port>/*"]` (extensions bypass CORS for
-    permitted hosts). Gate it with a **pairing token** (app shows a code, pasted into the
-    extension once, sent as a header) so no other local process/page can inject or
-    exfiltrate cookies; the backend stays bound to 127.0.0.1. One gesture then sends
-    **both** the `yoink://` URL (launches/focuses the app) and the cookies. *Alternative —
-    **native messaging*** (`nativeMessaging` + a host manifest the installer drops, pinned
-    to the extension ID): more OS-level trust and no port/CORS, but needs a per-OS manifest
-    install (registry on Windows, dirs on Linux/macOS) the AppImage can't easily do. *Not*
-    the `yoink://` deep link — cookies are large + secret and would leak via URL/args.
-  - *Caveats:* cookies are account-level secrets → **opt-in, explicit consent**, send only
-    the relevant domain, treat `cookies.txt` as sensitive (tight perms, easy "clear"),
-    update the extension's `PRIVACY.md`. The `cookies` + broad host permissions draw
-    **heavy Chrome Web Store / AMO review**, so budget for a slower listing update.
-- ⬜ **Configurable keyboard shortcuts** (M) — the Settings › Shortcuts section is
-  read-only today (it lists the fixed bindings, now split into local + global); let
-  the user **rebind** them (persisted).
-- ✅ **Thin CLI** — `yoink <url>...` drives the same engine in-process (built into
-  `yoink-core`: no args serves the API, args run the CLI; ships as `yoink-cli` in
-  the .deb/.rpm). See [`cli.md`](cli.md)
-  (no server): reuses saved settings, writes to the same history DB. Handles single URLs,
-  **batch input** (several URLs, `-a`/`--batch-file`, or stdin `-` — only the links are
-  taken from arbitrary text), **playlists** (`--items 1,3-5` / `--filter` /
-  `--skip-existing` / `--list`) and **music-service imports** (Spotify/Deezer/Apple/
-  Tidal/Amazon — matched on YouTube and tagged with the exact source metadata), plus
-  **VR** (`--vr`/`--vr-layout`), **trim** (`--trim-start`/`--trim-end`), **subtitles**
-  (`--subs LANG`), **chapters** (`--chapters`/`--no-chapters`), catalogue **auto-tagging**
-  (`--tag`), and per-run **overrides** (`-o`, `-t`, `--rate-limit`, `--proxy`,
-  `--cookies-*`, `--sponsorblock`, `--normalize`, `--video-codec`, `--audio-bitrate`).
-  Also **format inspection** (`--list-formats`), a **`config`** sub-command that
-  reads/edits the saved settings (`yoink config [get|set KEY [VALUE]]`),
-  `--info`/`--json`/`--quiet`, `--version` and **shell completion**
-  (`--print-completion bash|zsh|fish`).
-- ⬜ **More distribution channels** — AUR (S) / Flatpak (M) / winget + Chocolatey (M).
-
----
-
-## 🛠️ Quality & hardening
-
-Engineering work that keeps the app fast, debuggable and reproducible. (Items
-also in *Next up* are the urgent ones.)
-
-- ✅ **WebSocket open timeout** *(next)* — the download socket fails fast (15s)
-  with a clear error if the handshake never opens, instead of hanging on 0%.
-- ✅ **SQLite schema versioning** *(next)* — `PRAGMA user_version` + an ordered,
-  idempotent migration list; legacy (v0) DBs migrate cleanly on startup.
-- ✅ **Kill `download.ts` ↔ `media.py` drift** *(next)* — a contract test asserts
-  the hand-written TS types in `src/types/` are the JSON contract and the Rust
-  structs serialize (serde) to match them.
-- ✅ **Pin yt-dlp exactly per release** — already pinned
-  (`yt-dlp[default,curl-cffi]==2026.06.09` in `requirements.txt`).
-- ✅ **Rust lint/format in CI** — `cargo fmt --check` + `clippy -D warnings` gate every push (see `ci.yml`).
-- ✅ **More tests** *(next)* — `_host_is_blocked` cases, queue/VR integration in the
-  WS, and the frontend `estimatedSizeBytes`/`formatBytes` size helpers.
-- ✅ **Render perf: memoize the main-column panels** *(next)* — `DownloaderPanel` /
-  `PreviewCard` / `PlaylistCard` / `UrlInput` (+ header, music card) are now wrapped
-  in `React.memo` with `useEventCallback`-stabilized props, so a progress tick no
-  longer reconciles the whole column. *(Carried over from the v1.9.0 audit — the last
-  real perf item.)*
-- ✅ **Defer the playlist lossless probe** *(next)* — analyzing a playlist returns the
-  flat listing immediately; `source_lossless`/`best_audio_abr` are computed lazily
-  (only when the user picks audio) instead of a second full `extract_info` up front,
-  halving playlist-analysis latency. *(Carried over from the v1.9.0 audit.)*
-- ✅ **PyInstaller `--onedir`** (M) — *(historical; superseded by the Rust
-  backend — see Status.)* The Python backend shipped as a one-folder Tauri
-  resource spawned by `main.rs`; the Rust `yoink-core` is now a single native
-  binary spawned the same way, with no per-launch extraction.
-- ✅ **Slow `.rpm` bundling at release time** (M · build) — Tauri 2.11's rpm
-  bundler took ~10–12 min to package the ~170 MB PyInstaller sidecar, while the
-  `.deb`/AppImage of the same payload bundle in seconds. **Root-caused** (measured
-  on the real sidecar): *not* compression — the binary is incompressible, so even
-  `xz -9` is ~45 s, and SHA256/cpio are <1 s — the cost is inside the `rpm` Rust
-  crate itself. **Fixed** by building only deb+appimage with Tauri
-  (`--bundles deb,appimage`) and repackaging the deb → rpm with
-  `scripts/build_rpm.py` (`rpmbuild` under `fakeroot`; its autoreq re-derives the
-  same soname `Requires` from the ELF binaries). **~40 s** instead of minutes,
-  verified installing cleanly in a Fedora container; the rpm plays no part in
-  self-update, so it can't affect existing users. See
-  [`releasing.md`](releasing.md) §3/§3b.
-- ✅ **Friendlier download/extraction error messages** *(next)* —
-  `friendly_download_error()` strips the `ERROR:`/`[extractor]`/"report this issue"
-  noise and maps the common cases (bot-check/403/429 → cookies hint, private/
-  members-only, unavailable, geo-block, unsupported URL, bad format) before the
-  message reaches the WS / history (the full text is still logged).
-- ✅ **Pre-flight free-disk-space check** *(v2.3.0)* — `shutil.disk_usage` before a
-  download starts; fails early with a clear message (under ~500 MB free) instead of
-  mid-write.
-- ✅ **Route music-import fetches through `safe_http`** *(v2.1.0)* — `_get`/`_get_json`/
-  `_final_url` now use `core/safe_http` (`fetch_public` + the pinned `OPENER`): the
-  resolved public IP is pinned and every redirect hop re-validated, on top of the
-  host-anchored URL detection.
-- ✅ **Cancel a queued download blocked on the download lock when the client disconnects**
-  *(next)* — a second concurrent job now races the lock acquire against the disconnect
-  signal (`_acquire_or_disconnect`), so it aborts cleanly instead of hanging on a
-  disconnect it never noticed.
-- ✅ **Re-tag dialog initial focus with a cold lazy chunk** *(next · a11y)* — when
-  `AutoTagPanel`'s lazy chunk isn't loaded yet, `useFocusTrap` re-runs the focus pass
-  (via a `MutationObserver`) once the panel mounts, so the first field gets focus
-  instead of the container.
-
-## 🥽 VR follow-ups
-
-- ✅ **Spherical Video V1** (uuid XML) *(next)* — injected into the video trak for
-  360° equirect layouts (alongside the V2 boxes), for older players + YouTube
-  re-upload. Scoped to 360° because V1 predates 180° VR and would mislabel it.
-- ✅ **MKV `StereoMode` tag** *(next)* — set via a stream-copy ffmpeg remux
-  (left_right / top_bottom); MKV has no Spherical V2 boxes.
-- ✅ **Post-tag ffprobe validation** *(next)* — after tagging an MP4, confirm
-  ffprobe reads the spherical / stereo-3D side data; log a warning if not.
-- 🚫 **Fisheye/EAC projection box** — *not feasible as a projection box.* Spherical
-  V2 has no fisheye projection type (only equirect / cubemap / mesh); the fisheye
-  layouts are signalled by the filename suffix players already parse. Emitting an
-  equirect box for a fisheye file would distort it, so it stays suffix + `st3d`.
-- ⬜ **VR-studio list as versioned data** (S · low) — not a hardcoded tuple.
-
----
-
-## 🔮 Big bets (future — separate mini-projects)
-
-Bigger, standalone efforts. Desktop (Linux/Windows) stays the focus.
-
-- ⬜ **Subscriptions + scheduled downloads** (L) — follow a channel/playlist and
-  auto-grab new items (PVR-style), OPML import/export. Needs tray/autostart + archive.
-- ⬜ **macOS build** (L) — `yoink-core` + the ffmpeg build port cleanly; needs a Mac to
-  build/sign/notarize. Unblocks re-adding **Safari** to the cookies selector.
-- ⬜ **Android** (L) — now simpler with the Rust backend: `yoink-core` compiles to
-  Android natively, so the main work is a native shell + ffmpeg-kit / a native
-  yt-dlp lib (Seal-style). Proven feasible (cf. Seal).
-- ⬜ **Windows on ARM — native ARM64** (L) — the x64 build already runs on
-  Snapdragon Win11 via the Prism emulator (fine for download + stream-copy mux,
-  slower only for re-encode), so nobody's blocked. A native
-  `aarch64-pc-windows-msvc` build is feasible — Tauri + WebView2 are ready, ffmpeg
-  ships `winarm64` (BtbN) and Rust cross-compiles to `aarch64-pc-windows-msvc`
-  cleanly (no PyInstaller/wheel blockers now). Mostly needs an ARM64 runner +
-  a `windows-aarch64` entry + signed builds in `latest.json`.
-
----
-
-## 🚫 Deliberately deferred / non-goals
-
-Decisions kept here so they aren't re-proposed.
-
-- **Concurrent downloads** — the queue is **sequential by design**, and a
-  frontend **single-download lock** now enforces it across every engine (panel / queue / music import) so two jobs
-  can't collide on the same `.part`. Parallelising means redesigning the whole
-  progress/history UI for a modest gain and real regression risk; revisit only with
-  a dedicated multi-progress UI.
-- **In-app yt-dlp update** — **not happening, by design.** Yoink only *reports* the
-  bundled yt-dlp version; it's updated with the next Yoink release (owner's decision).
-- **Local media conversion / editing** — dropping a local file to transcode/remux,
-  clip to GIF/WebP, or grab a frame is **out of scope.** Yoink *downloads*
-  audio/video; it isn't a converter, editor or frame grabber — those act on files
-  you already have, which is a different tool.
+- **Concurrent downloads** — the queue is sequential by design, enforced by a
+  single-download lock so two jobs can't collide on the same partial file.
+  Parallelising would mean redesigning the progress and history UI for a modest
+  gain; revisit only with a dedicated multi-progress UI.
+- **In-app yt-dlp update** — Yoink reports the bundled yt-dlp version only; it is
+  updated with each Yoink release.
+- **Local media conversion / editing** — transcoding, remuxing, clipping to
+  GIF/WebP or grabbing a frame from a local file is out of scope. Yoink downloads
+  audio and video; it is not a converter, editor or frame grabber.
