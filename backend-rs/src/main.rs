@@ -264,17 +264,23 @@ fn cookie_args(settings: &AppSettings, use_browser: bool) -> Vec<String> {
 }
 
 async fn ytdlp_once(base: &[&str], cookies: &[String]) -> Result<Vec<u8>, (bool, String)> {
+    // Metadata/search is normally quick; cap it so a hung extraction can't block
+    // forever (e.g. a stuck `--cookies-from-browser` read — a locked Firefox
+    // profile or Chrome's app-bound decryption on Windows — or a network stall).
+    const METADATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
     let mut cmd = tokio::process::Command::new(ytdlp_bin());
     hide_console_tokio(&mut cmd);
     cmd.args(base);
     cmd.args(cookies);
-    match cmd.output().await {
-        Ok(o) if o.status.success() => Ok(o.stdout),
-        Ok(o) => {
+    cmd.kill_on_drop(true); // on timeout the future drops — kill the child with it
+    match tokio::time::timeout(METADATA_TIMEOUT, cmd.output()).await {
+        Ok(Ok(o)) if o.status.success() => Ok(o.stdout),
+        Ok(Ok(o)) => {
             let err = String::from_utf8_lossy(&o.stderr).trim().to_string();
             Err((is_transient(&err), err))
         }
-        Err(e) => Err((true, format!("could not run yt-dlp: {e}"))),
+        Ok(Err(e)) => Err((true, format!("could not run yt-dlp: {e}"))),
+        Err(_) => Err((true, "yt-dlp timed out".to_string())),
     }
 }
 
@@ -1127,7 +1133,12 @@ fn data_dir() -> std::path::PathBuf {
     if let Ok(d) = std::env::var("YOINK_DATA_DIR") {
         return std::path::PathBuf::from(d);
     }
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    // HOME is the norm on Unix; Windows uses USERPROFILE (HOME is usually unset),
+    // so fall back to it — otherwise settings/history/logs would land in a
+    // working-directory-relative ".yoink" that moves with how the app is launched.
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into());
     std::path::Path::new(&home).join(".yoink")
 }
 
