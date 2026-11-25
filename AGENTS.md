@@ -141,24 +141,31 @@ The backend finds `yt-dlp` on PATH (or `YOINK_YTDLP`) and ffmpeg at `YOINK_FFMPE
 arguments → the **CLI** (`src/cli.rs`). `scripts/yoink` is the dev wrapper. See
 [`docs/cli.md`](docs/cli.md).
 
-### Packaging (Linux AppImage)
+### Packaging (Linux AppImage + Windows installer)
 
 ```bash
-bash scripts/build_ffmpeg.sh          # once: build a minimal ffmpeg+ffprobe
+bash scripts/build_ffmpeg.sh          # once: build a minimal ffmpeg+ffprobe (Linux)
 bash scripts/build_egui_appimage.sh   # -> desktop/target/appimage/Yoink_<ver>_amd64.AppImage
+python scripts/build_windows.py       # on Windows -> desktop/target/windows/Yoink_<ver>_x64-setup.exe
 ```
 
 `build_egui_appimage.sh` lays out an AppDir with the egui binary and, beside it,
 `yoink-core` + the pinned standalone `yt-dlp` + the minimal `ffmpeg`/`ffprobe`
 (`backend_proc.rs` finds them as siblings), then linuxdeploy (+ gtk plugin)
 bundles the runtime libs and appimagetool packs it. No WebKit, so it's far
-smaller than the old Tauri bundle.
+smaller than the old Tauri bundle. `build_windows.py` is the Windows counterpart:
+it vendors a prebuilt LGPL **shared** ffmpeg (`scripts/ffmpeg-windows.txt`), runs
+`build_core.py`, builds the egui `.exe` (GUI subsystem, with an embedded icon via
+`build.rs`), and packs a per-user NSIS installer
+(`desktop/packaging/windows/yoink.nsi`) to `%LOCALAPPDATA%\Yoink` that rounds the
+window corners via DWM and registers the `yoink://` scheme.
 
 Releases build on GitHub Actions (`.github/workflows/release.yml`): a tag `v*`
-builds + signs the AppImage (minisign, via `cargo tauri signer sign` with the key
-in repo secrets) and drafts the release with `latest.json`. The **same minisign
-key the legacy Tauri app used** signs it, so one signed AppImage serves both the
-one-time legacy→egui migration and the egui app's own updater. See
+builds + signs the AppImage **and the Windows installer** (minisign, via
+`cargo tauri signer sign` with the key in repo secrets) and drafts the release
+with a combined `latest.json`. The **same minisign key the legacy Tauri app
+used** signs each asset, so it serves both the one-time legacy→egui migration
+(AppImage on Linux, installer on Windows) and the egui app's own updater. See
 [`docs/releasing.md`](docs/releasing.md).
 
 ## Conventions

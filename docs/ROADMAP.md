@@ -36,11 +36,15 @@ Full feature parity with 4.4.0, plus:
 - Trimming reworked to clip the finished local file (the bundled ffmpeg has no
   working TLS, so it cannot fetch ranges itself).
 - An expanded unit-test suite and an end-to-end smoke test.
-- A one-time migration path for existing users: the AppImage is signed with the
-  same minisign key the Tauri app used, so the legacy updater accepts it.
+- Cross-platform packaging: a signed Linux AppImage and a signed Windows NSIS
+  installer, both built on CI, with native rounded window corners (DWM) and an
+  embedded icon on Windows.
+- A one-time migration path for existing users: each asset is signed with the
+  same minisign key the Tauri app used, so the legacy updater accepts it and
+  updates in place (AppImage on Linux, installer on Windows).
 
-**Before it replaces the published app:** Windows packaging (the in-app updater
-and `latest.json` are currently Linux-only).
+**Before it replaces the published app:** a test release to validate the real
+legacy→egui update end to end on both platforms.
 
 ## Released
 
