@@ -7,6 +7,9 @@
 //! the app runs fine without a tray.
 
 /// What the tray asks the UI to do.
+// The tray is GTK-based (Linux only); on other platforms `spawn` is a no-op and
+// these variants are never constructed.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub enum TrayMsg {
     Show,
     Quit,

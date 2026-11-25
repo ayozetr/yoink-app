@@ -609,9 +609,15 @@ impl App {
                 }
                 Evt::UpdateProgress(pct) => self.update_progress = Some(pct),
                 Evt::UpdateInstalled(path) => {
-                    // The binary is swapped — relaunch it and exit this process.
                     self.minter.shutdown();
+                    // Linux: the AppImage was swapped in place — relaunch it.
+                    // Windows: the NSIS installer is already running; it replaces
+                    // the (locked) files once we exit and relaunches the app, so
+                    // here we just quit to release the locks.
+                    #[cfg(not(target_os = "windows"))]
                     let _ = std::process::Command::new(&path).spawn();
+                    #[cfg(target_os = "windows")]
+                    let _ = &path;
                     std::process::exit(0);
                 }
                 Evt::UpdateError(e) => {

@@ -837,23 +837,42 @@ async fn download_and_install(
         file.flush().map_err(|e| e.to_string())?;
     }
 
-    // Verify the minisign signature BEFORE the binary is made executable or
-    // swapped in — a tampered or wrong-host download never gets run.
+    // Verify the minisign signature BEFORE the binary is made executable, run,
+    // or swapped in — a tampered or wrong-host download never gets that far.
     if let Err(e) = verify_update_signature(&tmp, signature) {
         let _ = std::fs::remove_file(&tmp);
         return Err(e);
     }
 
-    // The new binary must be executable (AppImage); harmless on Windows.
-    #[cfg(unix)]
+    // Windows ships an NSIS installer, not a drop-in binary: a running .exe is
+    // locked and can't be swapped underneath itself, and the app is several files
+    // (desktop + core + yt-dlp + ffmpeg). Launch the verified installer silently
+    // and let it replace everything once this process exits; the installer
+    // relaunches the app when it's done.
+    #[cfg(target_os = "windows")]
+    {
+        let installer = tmp.with_extension("exe");
+        std::fs::rename(&tmp, &installer).map_err(|e| {
+            let _ = std::fs::remove_file(&tmp);
+            e.to_string()
+        })?;
+        std::process::Command::new(&installer)
+            .arg("/S") // NSIS silent install (per-user; no UAC prompt)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    // Linux: the AppImage is a single file. Make it executable and swap it in
+    // atomically beside the running read-only mount.
+    #[cfg(not(target_os = "windows"))]
     {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755));
+        install_over(&tmp, target).inspect_err(|_| {
+            let _ = std::fs::remove_file(&tmp);
+        })
     }
-
-    install_over(&tmp, target).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })
 }
 
 /// Replace `target` with the freshly downloaded `tmp` (same directory).
@@ -862,22 +881,6 @@ fn install_over(tmp: &std::path::Path, target: &std::path::Path) -> Result<(), S
     // A rename within one directory is atomic; the running AppImage keeps its
     // mount, so swapping the file underneath is safe.
     std::fs::rename(tmp, target).map_err(|e| e.to_string())
-}
-
-/// Windows keeps a running .exe locked, but allows renaming it. Move it aside,
-/// then move the new one into place; the leftover is cleaned on next launch.
-#[cfg(target_os = "windows")]
-fn install_over(tmp: &std::path::Path, target: &std::path::Path) -> Result<(), String> {
-    let backup = target.with_extension("old");
-    let _ = std::fs::remove_file(&backup);
-    std::fs::rename(target, &backup).map_err(|e| e.to_string())?;
-    if let Err(e) = std::fs::rename(tmp, target) {
-        // Putting the new binary in place failed — restore the moved-aside
-        // original so the app isn't left with no executable.
-        let _ = std::fs::rename(&backup, target);
-        return Err(e.to_string());
-    }
-    Ok(())
 }
 
 /// True if semver `a` is greater than `b` (numeric, dot-separated).
