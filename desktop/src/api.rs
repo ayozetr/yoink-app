@@ -40,6 +40,15 @@ pub enum Cmd {
         url: String,
     },
     Download(DownloadReq, AutotagOpts),
+    /// Tag-panel lookups + write.
+    AutotagIdentify {
+        path: String,
+    },
+    AutotagSearch {
+        artist: String,
+        title: String,
+    },
+    AutotagApply(Box<ApplyArgs>),
     ImportTrack(Box<MusicTrack>),
     SaveSettings(Box<Settings>),
     ReloadSettings,
@@ -69,6 +78,42 @@ pub enum Cmd {
 #[derive(Clone, Copy, Default)]
 pub struct AutotagOpts {
     pub fetch_lyrics: bool,
+    /// A manual (Home) download shows the interactive tag panel instead of
+    /// silently auto-tagging; a queue download tags silently.
+    pub interactive: bool,
+}
+
+/// One catalogue match for the tag panel (from identify/search).
+#[derive(Clone, Default, Deserialize)]
+pub struct TagCandidate {
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub artist: String,
+    #[serde(default)]
+    pub album: Option<String>,
+    #[serde(default)]
+    pub year: Option<String>,
+    #[serde(default)]
+    pub genre: Option<String>,
+    #[serde(default)]
+    pub track_number: Option<i64>,
+    #[serde(default)]
+    pub cover_url: Option<String>,
+}
+
+/// Fields the tag panel sends to apply the chosen tags.
+#[derive(Clone, Default)]
+pub struct ApplyArgs {
+    pub path: String,
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub year: String,
+    pub genre: String,
+    pub track_number: Option<i64>,
+    pub cover_url: Option<String>,
+    pub embed_lyrics: bool,
 }
 
 /// A piece of news from the worker to the UI.
@@ -109,6 +154,14 @@ pub enum Evt {
     QueueTitle {
         id: u64,
         title: String,
+    },
+    /// Tag-panel catalogue matches (identify or manual search).
+    AutotagResults {
+        candidates: Vec<TagCandidate>,
+    },
+    /// The tag write finished (ok flag).
+    AutotagApplied {
+        ok: bool,
     },
     Music(Box<MusicInfo>),
     Playlist {
@@ -455,6 +508,21 @@ impl Backend {
                         }
                         Cmd::Download(req, autotag) => {
                             tokio::spawn(async move { download(req, autotag, evt_tx, ctx).await });
+                        }
+                        Cmd::AutotagIdentify { path } => {
+                            tokio::spawn(async move {
+                                let c = identify_tags(&path).await;
+                                emit(&evt_tx, &ctx, Evt::AutotagResults { candidates: c });
+                            });
+                        }
+                        Cmd::AutotagSearch { artist, title } => {
+                            tokio::spawn(async move {
+                                let c = search_tags(&artist, &title).await;
+                                emit(&evt_tx, &ctx, Evt::AutotagResults { candidates: c });
+                            });
+                        }
+                        Cmd::AutotagApply(args) => {
+                            tokio::spawn(async move { apply_tags(*args, evt_tx, ctx).await });
                         }
                         Cmd::ImportTrack(t) => {
                             tokio::spawn(async move { import_track(*t, evt_tx, ctx).await });
@@ -981,7 +1049,9 @@ async fn download(
         // + .nfo / music-folder relocation server-side), mirroring the CLI. A file
         // with no catalogue match is left untouched. Best-effort: a tagging hiccup
         // never fails the download.
-        if req.kind == "audio" {
+        // Queue audio is tagged silently here; a manual (interactive) audio
+        // download is tagged through the tag panel the UI opens on Done.
+        if req.kind == "audio" && !autotag.interactive {
             autotag_file(&path, autotag.fetch_lyrics).await;
         }
         emit(&tx, &ctx, Evt::Done(path));
@@ -1044,6 +1114,75 @@ async fn autotag_file(path: &str, fetch_lyrics: bool) {
                 .await;
         }
     }
+}
+
+/// Parse a `{ "results": [TagCandidate] }` autotag response body.
+async fn tag_results(res: reqwest::Result<reqwest::Response>) -> Vec<TagCandidate> {
+    if let Ok(r) = res {
+        if let Ok(v) = r.json::<Value>().await {
+            if let Some(arr) = v.get("results").and_then(Value::as_array) {
+                return arr
+                    .iter()
+                    .filter_map(|c| serde_json::from_value(c.clone()).ok())
+                    .collect();
+            }
+        }
+    }
+    Vec::new()
+}
+
+/// Identify catalogue matches for a downloaded audio file (filename-based).
+async fn identify_tags(path: &str) -> Vec<TagCandidate> {
+    let res = reqwest::Client::new()
+        .post(format!("{}/api/autotag/identify", http_base()))
+        .json(&serde_json::json!({ "path": path }))
+        .send()
+        .await;
+    tag_results(res).await
+}
+
+/// Manual catalogue search for the tag panel.
+async fn search_tags(artist: &str, title: &str) -> Vec<TagCandidate> {
+    let res = reqwest::Client::new()
+        .post(format!("{}/api/autotag/search", http_base()))
+        .json(&serde_json::json!({ "artist": artist, "title": title }))
+        .send()
+        .await;
+    tag_results(res).await
+}
+
+/// Write the chosen tags (+ cover, + lyrics when asked) to the file.
+async fn apply_tags(a: ApplyArgs, tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let client = reqwest::Client::new();
+    let ok = client
+        .post(format!("{}/api/autotag/apply", http_base()))
+        .json(&serde_json::json!({
+            "path": a.path,
+            "title": a.title,
+            "artist": a.artist,
+            "album": a.album,
+            "year": a.year,
+            "genre": a.genre,
+            "track_number": a.track_number,
+            "cover_url": a.cover_url,
+        }))
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false);
+    if a.embed_lyrics && !a.title.is_empty() {
+        let _ = client
+            .post(format!("{}/api/autotag/lyrics", http_base()))
+            .json(&serde_json::json!({
+                "title": a.title,
+                "artist": a.artist,
+                "album": a.album,
+                "path": a.path,
+            }))
+            .send()
+            .await;
+    }
+    emit(&tx, &ctx, Evt::AutotagApplied { ok });
 }
 
 /// Open the download WebSocket, stream `Progress` events, and return the final

@@ -191,6 +191,33 @@ struct QueueItem {
     expanded: bool, // per-item format options panel open
 }
 
+/// Stage of the interactive audio tag panel.
+#[derive(PartialEq)]
+enum TagStage {
+    Loading,
+    Review,
+    Applying,
+}
+
+/// State of the slide-in audio tag panel (auto-tag after a manual audio download,
+/// or re-tagging from history).
+struct Autotag {
+    path: String,
+    filename: String,
+    stage: TagStage,
+    candidates: Vec<crate::api::TagCandidate>,
+    selected: i32, // -1 = manual edit / no catalogue match
+    title: String,
+    artist: String,
+    album: String,
+    year: String,
+    genre: String,
+    track_number: Option<i64>,
+    cover_url: Option<String>,
+    embed_lyrics: bool,
+    anim: f32, // slide-in progress 0..1
+}
+
 pub struct App {
     backend: Backend,
     minter: crate::minter::Minter,
@@ -236,7 +263,8 @@ pub struct App {
     active_section: String, // settings section currently in view (for the nav scrollspy)
     history: Vec<HistoryEntry>,
     history_loaded: bool,
-    hist_confirm: bool, // "Clear history" awaiting the confirm click
+    hist_confirm: bool,       // "Clear history" awaiting the confirm click
+    autotag: Option<Autotag>, // the open audio tag panel, if any
     hist_query: String,
     logs_text: String,
     logs_path: String,
@@ -370,6 +398,7 @@ impl App {
             history: Vec::new(),
             history_loaded: false,
             hist_confirm: false,
+            autotag: None,
             hist_query: String::new(),
             logs_text: String::new(),
             logs_path: String::new(),
@@ -618,6 +647,25 @@ impl App {
                         it.label = title;
                     }
                 }
+                Evt::AutotagResults { candidates } => {
+                    if let Some(tag) = self.autotag.as_mut() {
+                        tag.candidates = candidates;
+                        if !tag.candidates.is_empty() {
+                            tag_fill(tag, 0);
+                        } else {
+                            tag.selected = -1; // no match → manual edit
+                        }
+                        tag.stage = TagStage::Review;
+                    }
+                }
+                Evt::AutotagApplied { ok } => {
+                    if ok {
+                        self.autotag = None; // tags written → close + refresh history
+                        self.backend.send(Cmd::LoadHistory);
+                    } else if let Some(tag) = self.autotag.as_mut() {
+                        tag.stage = TagStage::Review;
+                    }
+                }
                 Evt::SearchResults { query, items } => {
                     // Only accept the response for exactly what's typed now. A
                     // response for an earlier keystroke (the field has moved on, or
@@ -673,7 +721,17 @@ impl App {
                         }
                         _ => {
                             self.progress = 1.0;
-                            self.status = Status::Done(path);
+                            self.status = Status::Done(path.clone());
+                            // A manual audio download opens the interactive tag
+                            // panel (the queue tags silently instead).
+                            if self.kind == "audio" {
+                                let filename = std::path::Path::new(&path)
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("")
+                                    .to_string();
+                                self.open_autotag(path, filename);
+                            }
                         }
                     }
                 }
@@ -722,6 +780,7 @@ impl App {
                     },
                     crate::api::AutotagOpts {
                         fetch_lyrics: self.settings.as_ref().is_some_and(|s| s.fetch_lyrics),
+                        interactive: false, // queue tags silently
                     },
                 ));
             }
@@ -830,6 +889,7 @@ impl App {
             },
             crate::api::AutotagOpts {
                 fetch_lyrics: self.settings.as_ref().is_some_and(|s| s.fetch_lyrics),
+                interactive: true, // manual download → open the tag panel
             },
         ));
     }
@@ -1888,6 +1948,9 @@ impl eframe::App for App {
             }
         }
 
+        // The slide-in audio tag panel (on top of everything).
+        self.ui_autotag_panel(&ctx, p);
+
         // Borderless window: our own edge/corner resize handles.
         resize_handles(&ctx);
 
@@ -1897,8 +1960,239 @@ impl eframe::App for App {
 
 impl App {
     /// Open the auto-tag panel for a downloaded audio file (identify on open).
-    /// TODO(phase2): the interactive tag panel.
-    fn open_autotag(&mut self, _path: String, _filename: String) {}
+    fn open_autotag(&mut self, path: String, filename: String) {
+        let embed = self.settings.as_ref().is_some_and(|s| s.fetch_lyrics);
+        self.autotag = Some(Autotag {
+            path: path.clone(),
+            filename,
+            stage: TagStage::Loading,
+            candidates: Vec::new(),
+            selected: -1,
+            title: String::new(),
+            artist: String::new(),
+            album: String::new(),
+            year: String::new(),
+            genre: String::new(),
+            track_number: None,
+            cover_url: None,
+            embed_lyrics: embed,
+            anim: 0.0,
+        });
+        self.backend.send(Cmd::AutotagIdentify { path });
+    }
+
+    /// The slide-in audio tag panel (review the catalogue match, edit fields,
+    /// apply tags + cover + lyrics), docked on the right with an open animation.
+    fn ui_autotag_panel(&mut self, ctx: &egui::Context, p: theme::Palette) {
+        if self.autotag.is_none() {
+            return;
+        }
+        let lang = self.lang;
+        let (mut dismiss, mut apply, mut do_search) = (false, false, false);
+        let mut pick: Option<usize> = None;
+        {
+            let tag = self.autotag.as_mut().unwrap();
+            let dt = ctx.input(|i| i.stable_dt).min(0.05);
+            tag.anim = (tag.anim + dt * 6.0).min(1.0);
+            if tag.anim < 1.0 {
+                ctx.request_repaint();
+            }
+            let w = 340.0;
+            let screen = ctx.content_rect();
+            let x = screen.right() - w * tag.anim;
+            egui::Area::new(egui::Id::unique("autotag-panel"))
+                .order(egui::Order::Foreground)
+                .fixed_pos(egui::pos2(x, screen.top()))
+                .show(ctx, |ui| {
+                    egui::Frame::new()
+                        .fill(p.surface_hi)
+                        .inner_margin(egui::Margin::same(16))
+                        .show(ui, |ui| {
+                            ui.set_width(w - 32.0);
+                            ui.set_min_height(screen.height() - 2.0);
+                            ui.horizontal(|ui| {
+                                crate::icons::show(ui, "tag", 16.0, p.accent);
+                                ui.add_space(6.0);
+                                ui.label(RichText::new(tl(lang, "tag.title")).strong().color(p.fg));
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if icon_btn(ui, p, "x") {
+                                            dismiss = true;
+                                        }
+                                    },
+                                );
+                            });
+                            ui.add_space(2.0);
+                            ui.label(RichText::new(&tag.filename).small().color(p.fg_dim));
+                            ui.add_space(14.0);
+                            match tag.stage {
+                                TagStage::Loading | TagStage::Applying => {
+                                    ui.add_space(24.0);
+                                    ui.vertical_centered(|ui| {
+                                        ui.add(egui::Spinner::new().size(22.0).color(p.accent));
+                                        ui.add_space(8.0);
+                                        let k = if tag.stage == TagStage::Loading {
+                                            "tag.searching"
+                                        } else {
+                                            "tag.applying"
+                                        };
+                                        ui.label(RichText::new(tl(lang, k)).color(p.fg_dim));
+                                    });
+                                }
+                                TagStage::Review => {
+                                    // Cover preview.
+                                    if let Some(c) =
+                                        tag.cover_url.as_deref().filter(|s| !s.is_empty())
+                                    {
+                                        ui.vertical_centered(|ui| {
+                                            ui.add(
+                                                egui::Image::from_uri(c.to_string())
+                                                    .fit_to_exact_size(egui::vec2(104.0, 104.0))
+                                                    .corner_radius(10),
+                                            );
+                                        });
+                                        ui.add_space(12.0);
+                                    }
+                                    // Version picker (when several catalogue matches).
+                                    if tag.candidates.len() > 1 {
+                                        ui.label(
+                                            RichText::new(tl(lang, "tag.version"))
+                                                .small()
+                                                .color(p.fg_dim),
+                                        );
+                                        let sel = tag.selected.max(0) as usize;
+                                        let cur = tag
+                                            .candidates
+                                            .get(sel)
+                                            .map(|c| format!("{} · {}", c.artist, c.title))
+                                            .unwrap_or_default();
+                                        egui::ComboBox::from_id_salt("tag-version")
+                                            .width(w - 48.0)
+                                            .selected_text(cur)
+                                            .show_ui(ui, |ui| {
+                                                for (i, c) in tag.candidates.iter().enumerate() {
+                                                    let lbl = format!("{} · {}", c.artist, c.title);
+                                                    if ui
+                                                        .selectable_label(
+                                                            i as i32 == tag.selected,
+                                                            lbl,
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        pick = Some(i);
+                                                    }
+                                                }
+                                            });
+                                        ui.add_space(10.0);
+                                    }
+                                    // Editable fields.
+                                    let field = |ui: &mut egui::Ui, lab: &str, v: &mut String| {
+                                        ui.label(RichText::new(lab).small().color(p.fg_dim));
+                                        ui.add_space(2.0);
+                                        ui.add(
+                                            egui::TextEdit::singleline(v)
+                                                .desired_width(f32::INFINITY),
+                                        );
+                                        ui.add_space(8.0);
+                                    };
+                                    field(ui, tl(lang, "tag.f_title"), &mut tag.title);
+                                    field(ui, tl(lang, "tag.f_artist"), &mut tag.artist);
+                                    field(ui, tl(lang, "tag.f_album"), &mut tag.album);
+                                    ui.horizontal(|ui| {
+                                        ui.vertical(|ui| {
+                                            ui.set_width((w - 48.0) / 2.0);
+                                            field(ui, tl(lang, "tag.f_year"), &mut tag.year);
+                                        });
+                                        ui.vertical(|ui| {
+                                            field(ui, tl(lang, "tag.f_genre"), &mut tag.genre);
+                                        });
+                                    });
+                                    // Re-search by the current title/artist.
+                                    if ui
+                                        .add(
+                                            egui::Button::image_and_text(
+                                                crate::icons::img("search", 13.0, p.fg_dim),
+                                                RichText::new(tl(lang, "tag.research"))
+                                                    .small()
+                                                    .color(p.fg_dim),
+                                            )
+                                            .frame(false),
+                                        )
+                                        .clicked()
+                                    {
+                                        do_search = true;
+                                    }
+                                    ui.add_space(10.0);
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            RichText::new(tl(lang, "set.lyrics"))
+                                                .small()
+                                                .color(p.fg_dim),
+                                        );
+                                        ui.with_layout(
+                                            egui::Layout::right_to_left(egui::Align::Center),
+                                            |ui| {
+                                                toggle(ui, &mut tag.embed_lyrics, p);
+                                            },
+                                        );
+                                    });
+                                    ui.add_space(14.0);
+                                    if ui
+                                        .add(
+                                            egui::Button::image_and_text(
+                                                crate::icons::img("check", 15.0, p.accent_fg),
+                                                RichText::new(tl(lang, "tag.apply"))
+                                                    .color(p.accent_fg),
+                                            )
+                                            .fill(p.accent)
+                                            .corner_radius(9)
+                                            .min_size(egui::vec2(ui.available_width(), 36.0)),
+                                        )
+                                        .clicked()
+                                    {
+                                        apply = true;
+                                    }
+                                }
+                            }
+                        });
+                });
+        }
+        if dismiss {
+            self.autotag = None;
+            return;
+        }
+        if let Some(i) = pick {
+            if let Some(t) = self.autotag.as_mut() {
+                tag_fill(t, i);
+            }
+        }
+        if do_search {
+            if let Some(t) = self.autotag.as_ref() {
+                self.backend.send(Cmd::AutotagSearch {
+                    artist: t.artist.clone(),
+                    title: t.title.clone(),
+                });
+            }
+        }
+        if apply {
+            if let Some(t) = self.autotag.as_mut() {
+                t.stage = TagStage::Applying;
+                let args = crate::api::ApplyArgs {
+                    path: t.path.clone(),
+                    title: t.title.clone(),
+                    artist: t.artist.clone(),
+                    album: t.album.clone(),
+                    year: t.year.clone(),
+                    genre: t.genre.clone(),
+                    track_number: t.track_number,
+                    cover_url: t.cover_url.clone(),
+                    embed_lyrics: t.embed_lyrics,
+                };
+                self.backend.send(Cmd::AutotagApply(Box::new(args)));
+            }
+        }
+    }
 
     /// The window corner radius right now: squared off when maximized (so it
     /// fills the screen edge-to-edge) or when the user turned rounded corners off,
@@ -4419,6 +4713,20 @@ fn badge_label(e: &HistoryEntry) -> String {
         .and_then(|x| x.to_str())
         .map(str::to_uppercase)
         .unwrap_or_else(|| e.kind.to_uppercase())
+}
+
+/// Copy a catalogue candidate's fields into the tag panel's editable inputs.
+fn tag_fill(tag: &mut Autotag, i: usize) {
+    if let Some(c) = tag.candidates.get(i) {
+        tag.selected = i as i32;
+        tag.title = c.title.clone();
+        tag.artist = c.artist.clone();
+        tag.album = c.album.clone().unwrap_or_default();
+        tag.year = c.year.clone().unwrap_or_default();
+        tag.genre = c.genre.clone().unwrap_or_default();
+        tag.track_number = c.track_number;
+        tag.cover_url = c.cover_url.clone();
+    }
 }
 
 /// A small violet rounded badge: a media-type icon (video camera / music note)
