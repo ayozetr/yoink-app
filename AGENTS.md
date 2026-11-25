@@ -186,8 +186,10 @@ one-time legacy→egui migration and the egui app's own updater. See
 
 - Remote: `git@github.com:ayozetr/yoink-app.git` (SSH).
 - Commit messages in **English**, with a subject **and a body**.
-- **No `Co-Authored-By` trailer.**
-- Author identity: **Ayoze Torres** `<ayozetr@users.noreply.github.com>`.
+- Commit under **your own git identity** (the repo/user's configured
+  `user.name` / `user.email`) — don't impersonate another contributor.
+- **Never credit an AI/assistant as a `Co-Authored-By`** (or mention the AI in the
+  trailer at all). A `Co-Authored-By` for a **human** collaborator is fine.
 - License: **AGPL-3.0-or-later**. New source files start with the two-line SPDX
   header (`SPDX-License-Identifier: AGPL-3.0-or-later` + copyright) — see
   `docs/CONTRIBUTING.md`.
