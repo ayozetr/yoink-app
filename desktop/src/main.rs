@@ -23,6 +23,7 @@ mod icons;
 mod minter;
 mod theme;
 mod tray;
+mod win_chrome;
 
 /// The window/taskbar icon, decoded from the bundled PNG.
 fn icon() -> egui::IconData {
@@ -119,7 +120,10 @@ fn main() -> eframe::Result {
             .with_decorations(false)
             // Transparent so we can round the window corners ourselves (the app
             // paints a rounded background; the corners outside it stay clear).
-            .with_transparent(true)
+            // Not on Windows: its window surface is opaque (the "transparent"
+            // corners would fill black), so there we keep the window opaque and
+            // let DWM round the corners natively (see win_chrome::set_rounding).
+            .with_transparent(cfg!(not(target_os = "windows")))
             .with_inner_size([1180.0, 840.0])
             .with_min_inner_size([560.0, 520.0])
             .with_icon(icon()),

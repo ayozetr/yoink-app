@@ -37,6 +37,15 @@ glib = "0.18.5"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.169"
 
+[target.'cfg(target_os = "windows")'.dependencies]
+# Round the borderless window's corners via DWM (Windows doesn't honor the
+# transparent-framebuffer rounding the way a Wayland compositor does).
+windows-sys = { version = "0.59.0", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
 [profile.release]
 opt-level = 3
 lto = "thin"

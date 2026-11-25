@@ -198,6 +198,26 @@ fn ytdlp_bin() -> String {
     std::env::var("YOINK_YTDLP").unwrap_or_else(|_| "yt-dlp".to_string())
 }
 
+/// Apply CREATE_NO_WINDOW on Windows so a spawned console child (yt-dlp/ffmpeg)
+/// doesn't flash a console window; a no-op on other platforms.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+#[cfg_attr(not(windows), allow(clippy::needless_pass_by_ref_mut, unused_variables))]
+pub fn hide_console_std(cmd: &mut std::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+}
+
+#[cfg_attr(not(windows), allow(clippy::needless_pass_by_ref_mut, unused_variables))]
+pub fn hide_console_tokio(cmd: &mut tokio::process::Command) {
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+}
+
 /// yt-dlp stderr markers that mark a likely-temporary failure (network blip,
 /// 5xx/429, or an anti-bot 403) worth retrying — as opposed to a permanent
 /// unsupported/private/deleted URL. Mirrors _TRANSIENT_MARKERS.
@@ -245,6 +265,7 @@ fn cookie_args(settings: &AppSettings, use_browser: bool) -> Vec<String> {
 
 async fn ytdlp_once(base: &[&str], cookies: &[String]) -> Result<Vec<u8>, (bool, String)> {
     let mut cmd = tokio::process::Command::new(ytdlp_bin());
+    hide_console_tokio(&mut cmd);
     cmd.args(base);
     cmd.args(cookies);
     match cmd.output().await {
@@ -904,7 +925,9 @@ async fn execute_download(
         args.push(v);
     }
 
-    let mut child = match tokio::process::Command::new(ytdlp_bin())
+    let mut dl_cmd = tokio::process::Command::new(ytdlp_bin());
+    hide_console_tokio(&mut dl_cmd);
+    let mut child = match dl_cmd
         .args(&args)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -1440,7 +1463,9 @@ async fn get_logs() -> Json<Value> {
 // ---- misc endpoints ----------------------------------------------------------
 
 async fn ytdlp_version() -> Json<VersionInfo> {
-    let current = tokio::process::Command::new(ytdlp_bin())
+    let mut ver_cmd = tokio::process::Command::new(ytdlp_bin());
+    hide_console_tokio(&mut ver_cmd);
+    let current = ver_cmd
         .arg("--version")
         .output()
         .await

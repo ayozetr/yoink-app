@@ -228,6 +228,7 @@ pub struct App {
     os_dark_tx: std::sync::mpsc::Sender<Option<bool>>, // background OS-theme probe result
     os_dark_rx: std::sync::mpsc::Receiver<Option<bool>>,
     os_probe_inflight: bool, // a background OS-theme probe is running
+    win_round_applied: Option<bool>, // last native window-rounding state pushed to DWM (Windows)
     lang: Lang,              // the resolved UI language
     lang_mode: Option<Lang>, // None = follow the OS language
     template_custom: bool,   // filename template: custom (free-text) vs a preset
@@ -363,6 +364,7 @@ impl App {
             os_dark_tx,
             os_dark_rx,
             os_probe_inflight: false,
+            win_round_applied: None,
             lang: lang_mode.unwrap_or_else(crate::i18n::detect),
             lang_mode,
             template_custom: false,
@@ -1194,6 +1196,8 @@ fn parse_timecode(s: &str) -> Option<f64> {
 }
 
 /// Corner radius of the (borderless, transparent) window.
+// Unused on Windows, where DWM rounds the corners instead of win_radius.
+#[cfg_attr(target_os = "windows", allow(dead_code))]
 const WINDOW_RADIUS: f32 = 11.0;
 
 impl eframe::App for App {
@@ -1207,6 +1211,19 @@ impl eframe::App for App {
         // Poll a little even when idle, so deep links handed over by another launch
         // are picked up promptly (and progress bars stay smooth).
         ctx.request_repaint_after(std::time::Duration::from_millis(400));
+
+        // Keep the native window-corner rounding in sync with the setting (on
+        // Windows this drives DWM; a no-op elsewhere). Runs on the first frame
+        // (None) and whenever the user toggles the setting.
+        let want_round = self
+            .settings
+            .as_ref()
+            .map(|s| s.rounded_corners)
+            .unwrap_or(true);
+        if self.win_round_applied != Some(want_round) {
+            self.win_round_applied = Some(want_round);
+            crate::win_chrome::set_rounding(want_round);
+        }
 
         // Tray menu clicks.
         while let Ok(msg) = self.tray_rx.try_recv() {
@@ -2204,16 +2221,27 @@ impl App {
     /// fills the screen edge-to-edge) or when the user turned rounded corners off,
     /// otherwise the rounded default.
     fn win_radius(&self, ctx: &egui::Context) -> f32 {
-        let maxed = ctx.input(|i| i.viewport().maximized).unwrap_or(false);
-        let rounded = self
-            .settings
-            .as_ref()
-            .map(|s| s.rounded_corners)
-            .unwrap_or(true);
-        if maxed || !rounded {
-            0.0
-        } else {
-            WINDOW_RADIUS
+        // On Windows the window is opaque and DWM rounds its corners natively
+        // (see win_chrome), so the app must paint a square background — any
+        // self-rounding here would show the opaque surface in the corner gap.
+        #[cfg(target_os = "windows")]
+        {
+            let _ = ctx;
+            return 0.0;
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let maxed = ctx.input(|i| i.viewport().maximized).unwrap_or(false);
+            let rounded = self
+                .settings
+                .as_ref()
+                .map(|s| s.rounded_corners)
+                .unwrap_or(true);
+            if maxed || !rounded {
+                0.0
+            } else {
+                WINDOW_RADIUS
+            }
         }
     }
 

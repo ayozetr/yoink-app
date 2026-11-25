@@ -792,7 +792,9 @@ pub fn set_mkv_stereo_mode(path: &Path, layout: &str) -> bool {
             .into_owned(),
         _ => "ffmpeg".to_string(),
     };
-    let out = std::process::Command::new(ffmpeg)
+    let mut remux = std::process::Command::new(ffmpeg);
+    crate::hide_console_std(&mut remux);
+    let out = remux
         .args([
             "-y",
             "-loglevel",

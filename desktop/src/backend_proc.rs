@@ -65,17 +65,27 @@ impl Backend {
         }
         let bin = locate();
         let mut cmd = Command::new(&bin);
+        // On Windows yoink-core is a console binary; without this it would pop a
+        // console window behind the app. CREATE_NO_WINDOW keeps it hidden (and the
+        // yt-dlp/ffmpeg children it spawns inherit no console either).
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        }
         // Hold the backend's stdin open: its watchdog exits the moment this pipe
         // closes, so the backend dies with us even on a hard kill (when Drop can't
         // run) — the same trick the Tauri shell used.
         cmd.env("YOINK_STDIN_WATCHDOG", "1").stdin(Stdio::piped());
-        // Point it at the bundled yt-dlp/ffmpeg if they sit beside the binary.
+        // Point it at the bundled yt-dlp/ffmpeg if they sit beside the binary
+        // (`.exe` on Windows), so it never depends on PATH or the search order.
         if let Some(dir) = bin.parent().filter(|d| !d.as_os_str().is_empty()) {
-            let ytdlp = dir.join("yt-dlp");
+            let exe = std::env::consts::EXE_SUFFIX; // "" on unix, ".exe" on Windows
+            let ytdlp = dir.join(format!("yt-dlp{exe}"));
             if ytdlp.exists() {
                 cmd.env("YOINK_YTDLP", ytdlp);
             }
-            if dir.join("ffmpeg").exists() {
+            if dir.join(format!("ffmpeg{exe}")).exists() {
                 cmd.env("YOINK_FFMPEG", dir);
             }
         }
