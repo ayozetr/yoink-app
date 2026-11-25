@@ -4838,8 +4838,8 @@ const CTRL_COMBO_W: f32 = 168.0;
 
 /// Legal/attribution text shown in the About modals, bundled from the repo root
 /// (English is the canonical version, as on the web).
-const DISCLAIMER_MD: &str = include_str!("../../DISCLAIMER.md");
-const LICENSES_MD: &str = include_str!("../../OPEN_SOURCE_LICENSES.md");
+const DISCLAIMER_MD: &str = include_str!("../../docs/DISCLAIMER.md");
+const LICENSES_MD: &str = include_str!("../../docs/OPEN_SOURCE_LICENSES.md");
 
 /// Filename-template presets as `(yt-dlp value, display label)`, mirroring the web.
 /// The `%(autotag...)s` sentinels are renamed to the tagged metadata by the backend.

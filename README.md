@@ -131,7 +131,7 @@ content you own, that is in the public domain, that is openly licensed, or that
 you have the rights holder's permission to download. It is not intended for
 piracy or copyright infringement. By using it, you accept that you alone are
 responsible for how you use it and for complying with all applicable laws and
-platform terms. The full text is in [`DISCLAIMER.md`](DISCLAIMER.md).
+platform terms. The full text is in [`docs/DISCLAIMER.md`](docs/DISCLAIMER.md).
 
 ## Documentation
 

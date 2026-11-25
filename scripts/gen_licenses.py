@@ -86,7 +86,7 @@ def main() -> None:
         *[f"- **{n}** — {l}" for n, l in cargo],
         "",
     ]
-    dest = ROOT / "OPEN_SOURCE_LICENSES.md"
+    dest = ROOT / "docs" / "OPEN_SOURCE_LICENSES.md"
     dest.write_text("\n".join(out), encoding="utf-8")
     print(f"wrote {dest} (cargo {len(cargo)})")
 
