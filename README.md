@@ -122,7 +122,7 @@ derivative works remain under the AGPL and their source remains available —
 including to anyone who interacts with a modified version over a network.
 Copyright © 2026 Ayoze Torres. Bundled third-party components retain their own
 licenses (ffmpeg under the LGPL, yt-dlp under the Unlicense); see
-[`docs/THIRD_PARTY_LICENSES.md`](docs/THIRD_PARTY_LICENSES.md).
+[`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md).
 
 ## Disclaimer
 
@@ -139,4 +139,4 @@ platform terms. The full text is in [`docs/DISCLAIMER.md`](docs/DISCLAIMER.md).
 - [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — how to contribute
 - [`docs/`](docs/) — architecture, per-layer guides, the
   [roadmap](docs/ROADMAP.md), the [release process](docs/releasing.md) and
-  the [third-party licenses](docs/THIRD_PARTY_LICENSES.md)
+  the [third-party licenses](docs/THIRD_PARTY_NOTICES.md)

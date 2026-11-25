@@ -6,7 +6,7 @@ pulls in further open-source libraries under the same permissive licenses.
 
 ## Bundled media tools
 
-- **ffmpeg / ffprobe** — LGPL v3 (built minimal; see THIRD_PARTY_LICENSES.md)
+- **ffmpeg / ffprobe** — LGPL v3 (built minimal; see THIRD_PARTY_NOTICES.md)
 - **yt-dlp** — The Unlicense (public domain) — the download engine
 
 ## Rust / cargo (31)

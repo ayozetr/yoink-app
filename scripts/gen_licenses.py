@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ayoze Torres
 
-"""Regenerate docs/OPEN_SOURCE_LICENSES.md from Yoink's *direct* dependencies.
+"""Regenerate docs/DEPENDENCIES.md from Yoink's *direct* dependencies.
 
 Lists only the dependencies Yoink declares and uses directly (not the full
 transitive tree), across the three Rust crates it ships:
@@ -80,13 +80,13 @@ def main() -> None:
         "dependencies and their licenses — the libraries it uses directly; each in turn\n"
         "pulls in further open-source libraries under the same permissive licenses.\n",
         "## Bundled media tools\n",
-        "- **ffmpeg / ffprobe** — LGPL v3 (built minimal; see THIRD_PARTY_LICENSES.md)",
+        "- **ffmpeg / ffprobe** — LGPL v3 (built minimal; see THIRD_PARTY_NOTICES.md)",
         "- **yt-dlp** — The Unlicense (public domain) — the download engine\n",
         f"## Rust / cargo ({len(cargo)})\n",
         *[f"- **{n}** — {l}" for n, l in cargo],
         "",
     ]
-    dest = ROOT / "docs" / "OPEN_SOURCE_LICENSES.md"
+    dest = ROOT / "docs" / "DEPENDENCIES.md"
     dest.write_text("\n".join(out), encoding="utf-8")
     print(f"wrote {dest} (cargo {len(cargo)})")
 
