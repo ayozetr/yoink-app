@@ -50,4 +50,4 @@ bundled binaries next to `yoink-core` (see [`releasing.md`](releasing.md)).
   structs the desktop app consumes (`desktop/src/api.rs`) — keep both sides in sync. The endpoint
   behaviours are documented in [`architecture.md`](architecture.md); the
   high-level guide and the full repo layout are in
-  [`../CLAUDE.md`](../CLAUDE.md).
+  [`../AGENTS.md`](../AGENTS.md).

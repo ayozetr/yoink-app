@@ -1,6 +1,6 @@
 <!--
 Thanks for contributing to Yoink! Keep the subject of your commits in English
-with a body explaining the why (see CLAUDE.md → Git conventions).
+with a body explaining the why (see AGENTS.md → Git conventions).
 -->
 
 ## What this changes

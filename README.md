@@ -78,7 +78,7 @@ For development you need the Rust toolchain, `yt-dlp` on your PATH and ffmpeg (t
 packaged app bundles both), plus — on Linux — `libgtk-3-dev`,
 `libayatana-appindicator3-dev` and `libxdo-dev`. A command-line interface is also
 available: `scripts/yoink <url>` downloads from the terminal with the same engine
-— see [`docs/cli.md`](docs/cli.md). See [`CLAUDE.md`](CLAUDE.md) for per-layer
+— see [`docs/cli.md`](docs/cli.md). See [`AGENTS.md`](AGENTS.md) for per-layer
 commands.
 
 ### Building the AppImage
@@ -102,7 +102,7 @@ over REST (`POST /api/info`) and downloads stream live over a WebSocket
 desktop/                  # the native egui desktop app (yoink-desktop)
 └── src/                  # app.rs (UI + state), api.rs (backend client + self-update),
                           #   backend_proc.rs, deeplink.rs, theme.rs, i18n.rs, …
-backend-rs/               # native Rust backend (yoink-core); see CLAUDE.md
+backend-rs/               # native Rust backend (yoink-core); see AGENTS.md
 desktop-minter/           # yoink-minter: the hidden PO-token WebView helper
 extension/                # "Send to Yoink" (beta) browser extension (Firefox, Chromium)
 scripts/                  # build_ffmpeg.sh, build_core.py, build_egui_appimage.sh, …
@@ -135,7 +135,7 @@ platform terms. The full text is in [`docs/DISCLAIMER.md`](docs/DISCLAIMER.md).
 
 ## Documentation
 
-- [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions
+- [`AGENTS.md`](AGENTS.md) — high-level guide and conventions
 - [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — how to contribute
 - [`docs/`](docs/) — architecture, per-layer guides, the
   [roadmap](docs/ROADMAP.md), the [release process](docs/releasing.md) and

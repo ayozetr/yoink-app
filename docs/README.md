@@ -17,6 +17,6 @@ This folder holds the project's design docs and explanations.
 | [DISCLAIMER.md](DISCLAIMER.md) | Terms of use / disclaimer (shown in-app under Settings) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute (GitHub still recognises it here) |
 
-See also [`../CLAUDE.md`](../CLAUDE.md) for a high-level guide and conventions.
+See also [`../AGENTS.md`](../AGENTS.md) for a high-level guide and conventions.
 
 > The project's own license is [`../LICENSE`](../LICENSE) (AGPL-3.0-or-later) — kept at the repo root so GitHub detects it; the files above are references, not the project license.

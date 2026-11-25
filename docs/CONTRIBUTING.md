@@ -38,5 +38,5 @@ Do **not** open a public issue for vulnerabilities. Use GitHub's private
 Security Advisories:
 <https://github.com/ayozetr/yoink-app/security/advisories/new>.
 
-See [`CLAUDE.md`](CLAUDE.md) for the architecture and per-layer commands, and
+See [`../AGENTS.md`](../AGENTS.md) for the architecture and per-layer commands, and
 [`docs/`](docs/) for the deeper guides.

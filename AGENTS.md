@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance for Claude Code (and humans) working in this repository.
+Guidance for coding agents (Claude Code and others) and humans working in this repository.
 
 ## What is Yoink
 
@@ -60,8 +60,9 @@ keep both sides in sync.
   finalized and auto-tagged.
 - **Audio auto-tagging (REST):** after an audio download the app looks the file up
   in Apple Music / Deezer / MusicBrainz (or `auto` cascade) and writes tags +
-  cover via `POST /api/autotag/{identify,search,apply}`. With `fetch_lyrics` on,
-  `POST /api/autotag/lyrics` embeds LRCLIB lyrics (+ optional `.lrc`). With
+  cover via `POST /api/autotag/{identify,search,apply}` — a manual download shows
+  an interactive tag panel to review/apply, the queue tags silently. With
+  `fetch_lyrics` on, `POST /api/autotag/lyrics` embeds LRCLIB lyrics. With
   `music_folders` on, `apply` relocates the track into an `Artist/Album` layout.
 - **Update check (REST):** with *"check for updates"* on (`AppSettings.check_updates`,
   on by default; the app only — yt-dlp stays owner-managed), the app reads the
@@ -80,7 +81,7 @@ keep both sides in sync.
 
 ```
 .
-├── CLAUDE.md                 # this file
+├── AGENTS.md                 # this file
 ├── README.md                 # project overview + quick start
 ├── docs/                     # architecture, roadmap, per-layer guides
 ├── desktop/                  # the native egui desktop app (yoink-desktop)
@@ -100,7 +101,8 @@ keep both sides in sync.
 │                             #   library.rs, vr.rs, audio_normalize.rs,
 │                             #   po_token.rs, cli.rs
 └── scripts/                  # build_ffmpeg.sh, build_core.py, build_egui_appimage.sh,
-                              #   make_latest_json_egui.py, gen_licenses.py, yoink (CLI)
+                              #   make_latest_json_egui.py, gen_licenses.py, smoke_test.sh,
+                              #   yoink (CLI)
 ```
 
 ## Common commands
@@ -125,8 +127,14 @@ cd backend-rs
 cargo run                 # serve the API on :8756 (set YOINK_PORT to change)
 cargo build --release     # optimized binary at target/release/yoink-core
 cargo fmt && cargo clippy  # CI gates on both
-cargo test                # unit tests (e.g. the spotDL matcher parity test)
+cargo test                # unit tests: download args, autotag/nfo/vr/matching, helpers, …
 ```
+
+Unit tests cover the pure logic and run offline. For runtime behaviour the unit
+tests can't reach (real yt-dlp + the bundled ffmpeg: formats, trimming, VR
+metadata, tag writing), run the end-to-end **`bash scripts/smoke_test.sh`** —
+real downloads of short clips to a temp dir, verified with ffprobe. It needs the
+network, so it runs before a release, not in per-PR CI.
 
 The backend finds `yt-dlp` on PATH (or `YOINK_YTDLP`) and ffmpeg at `YOINK_FFMPEG`
 (or PATH). `yoink-core` does double duty: no arguments → serve the API; with
@@ -169,6 +177,10 @@ one-time legacy→egui migration and the egui app's own updater. See
 - **Security:** the self-update verifies a minisign signature before installing
   (fail-closed); the IPC socket lives in a per-user dir with 0600 perms. Never
   suggest updating yt-dlp from the app — it's owner-managed in a release.
+- **Bundled ffmpeg has no working TLS at runtime** (minimal build, mbedTLS fails
+  on https), so never rely on it fetching a URL — e.g. yt-dlp `--download-sections`
+  is avoided; trimming fetches the full stream, then clips the **local** file.
+  Merge/extract/loudnorm/VR all operate on local files.
 
 ## Git conventions
 
