@@ -131,17 +131,18 @@ def main() -> int:
     # 5: NSIS installer
     makensis = _find_makensis()
     print(f"> makensis: {makensis}")
+    setup = OUT_DIR / f"Yoink_{version}_x64-setup.exe"
     subprocess.run(
         [
             makensis,
             f"-DVERSION={version}",
             f"-DSRCDIR={DIST}",
+            f"-DOUTFILE={setup}",
             str(NSI),
         ],
         cwd=OUT_DIR,
         check=True,
     )
-    setup = OUT_DIR / f"Yoink_{version}_x64-setup.exe"
     if not setup.exists():
         raise SystemExit(f"! installer not produced: {setup}")
     print(f"[OK] {setup.relative_to(ROOT)}  ({setup.stat().st_size // 1024} KiB)")

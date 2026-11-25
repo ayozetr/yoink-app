@@ -19,6 +19,11 @@ ManifestDPIAware true
 !ifndef SRCDIR
   !define SRCDIR "dist"
 !endif
+; OutFile is resolved relative to this script's directory unless it's absolute,
+; so the build passes an absolute -DOUTFILE to land it in target/windows.
+!ifndef OUTFILE
+  !define OUTFILE "Yoink_${VERSION}_x64-setup.exe"
+!endif
 
 !define PRODUCT "Yoink"
 !define PUBLISHER "Ayoze Torres"
@@ -26,7 +31,7 @@ ManifestDPIAware true
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT}"
 
 Name "${PRODUCT}"
-OutFile "Yoink_${VERSION}_x64-setup.exe"
+OutFile "${OUTFILE}"
 ; Fixed per-user location (the same one the legacy Tauri app used), so an update
 ; or migration overwrites it in place and never needs admin rights.
 InstallDir "$LOCALAPPDATA\${PRODUCT}"
