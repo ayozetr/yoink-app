@@ -107,6 +107,13 @@ Section "Install"
   IntFmt $0 "0x%08X" $0
   WriteRegDWORD HKCU "${UNINST_KEY}" "EstimatedSize" "$0"
 
+  ; Register the yoink:// URL scheme (per-user) so the browser and the
+  ; "Send to Yoink" extension can hand links to the app.
+  WriteRegStr HKCU "Software\Classes\yoink" "" "URL:Yoink Protocol"
+  WriteRegStr HKCU "Software\Classes\yoink" "URL Protocol" ""
+  WriteRegStr HKCU "Software\Classes\yoink\DefaultIcon" "" "$INSTDIR\${MAINEXE},0"
+  WriteRegStr HKCU "Software\Classes\yoink\shell\open\command" "" '"$INSTDIR\${MAINEXE}" "%1"'
+
   ; Silent install (the self-updater) skips the finish page, so relaunch here.
   IfSilent 0 +2
     Exec '"$INSTDIR\${MAINEXE}"'
@@ -118,4 +125,5 @@ Section "Uninstall"
   Delete "$DESKTOP\${PRODUCT}.lnk"
   RMDir /r "$INSTDIR"
   DeleteRegKey HKCU "${UNINST_KEY}"
+  DeleteRegKey HKCU "Software\Classes\yoink"
 SectionEnd

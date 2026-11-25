@@ -44,6 +44,10 @@ windows-sys = { version = "0.59.0", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Pipes",     # single-instance deep-link handoff (named pipe)
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",        # OVERLAPPED (param of ReadFile/WriteFile/ConnectNamedPipe)
+    "Win32_Security",         # SECURITY_ATTRIBUTES (param of CreateFileW/CreateNamedPipeW)
 ] }
 
 [build-dependencies]

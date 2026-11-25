@@ -116,7 +116,105 @@ pub fn single_instance(pending: Option<String>, tx: Sender<String>) -> bool {
     false
 }
 
-#[cfg(not(unix))]
+/// Windows single-instance + deep-link handoff over a per-user named pipe
+/// (`\\.\pipe\yoink-desktop-<user>`), the counterpart of the Unix socket above.
+#[cfg(windows)]
+pub fn single_instance(pending: Option<String>, tx: Sender<String>) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::Storage::FileSystem::{CreateFileW, ReadFile, WriteFile, OPEN_EXISTING};
+    use windows_sys::Win32::System::Pipes::{
+        ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe,
+    };
+
+    const GENERIC_WRITE: u32 = 0x4000_0000;
+    const PIPE_ACCESS_INBOUND: u32 = 0x0000_0001;
+    const PIPE_UNLIMITED_INSTANCES: u32 = 255;
+    const ERROR_PIPE_CONNECTED: u32 = 535;
+
+    let user = std::env::var("USERNAME").unwrap_or_default();
+    let name = format!(r"\\.\pipe\yoink-desktop-{user}");
+    let wname: Vec<u16> = std::ffi::OsStr::new(&name)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+
+    // Client path: if a server is already listening, hand off the URL and exit.
+    unsafe {
+        let h = CreateFileW(
+            wname.as_ptr(),
+            GENERIC_WRITE,
+            0,
+            std::ptr::null(),
+            OPEN_EXISTING,
+            0,
+            std::ptr::null_mut(),
+        );
+        if h != INVALID_HANDLE_VALUE {
+            if let Some(url) = pending {
+                let bytes = url.as_bytes();
+                let mut written = 0u32;
+                let _ = WriteFile(
+                    h,
+                    bytes.as_ptr(),
+                    bytes.len() as u32,
+                    &mut written,
+                    std::ptr::null_mut(),
+                );
+            }
+            CloseHandle(h);
+            return true; // a live instance took it
+        }
+    }
+
+    // Owner path: serve the pipe on a background thread, forwarding links to `tx`.
+    std::thread::spawn(move || unsafe {
+        loop {
+            let pipe = CreateNamedPipeW(
+                wname.as_ptr(),
+                PIPE_ACCESS_INBOUND,
+                0, // PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT are all 0
+                PIPE_UNLIMITED_INSTANCES,
+                0,
+                8192,
+                0,
+                std::ptr::null(),
+            );
+            if pipe == INVALID_HANDLE_VALUE {
+                break;
+            }
+            // A client connecting between CreateNamedPipe and ConnectNamedPipe
+            // surfaces as ERROR_PIPE_CONNECTED, which is also success.
+            let connected = ConnectNamedPipe(pipe, std::ptr::null_mut()) != 0
+                || GetLastError() == ERROR_PIPE_CONNECTED;
+            if connected {
+                let mut buf = [0u8; 8192];
+                let mut read = 0u32;
+                if ReadFile(
+                    pipe,
+                    buf.as_mut_ptr(),
+                    buf.len() as u32,
+                    &mut read,
+                    std::ptr::null_mut(),
+                ) != 0
+                    && read > 0
+                {
+                    let s = String::from_utf8_lossy(&buf[..read as usize]).to_string();
+                    let url = parse(s.trim())
+                        .or_else(|| s.trim().starts_with("http").then(|| s.trim().to_string()));
+                    if let Some(url) = url {
+                        let _ = tx.send(url);
+                    }
+                }
+            }
+            DisconnectNamedPipe(pipe);
+            CloseHandle(pipe);
+        }
+    });
+    false
+}
+
+#[cfg(not(any(unix, windows)))]
 pub fn single_instance(_pending: Option<String>, _tx: Sender<String>) -> bool {
     false
 }
