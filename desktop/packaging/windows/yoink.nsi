@@ -87,6 +87,8 @@ Section "Install"
   File "${SRCDIR}\yt-dlp.exe"
   File "${SRCDIR}\ffmpeg.exe"
   File "${SRCDIR}\ffprobe.exe"
+  ; ffmpeg's shared DLLs (avcodec/avformat/avutil/…) must sit beside the exes.
+  File "${SRCDIR}\*.dll"
 
   CreateShortCut "$SMPROGRAMS\${PRODUCT}.lnk" "$INSTDIR\${MAINEXE}"
   CreateShortCut "$DESKTOP\${PRODUCT}.lnk" "$INSTDIR\${MAINEXE}"

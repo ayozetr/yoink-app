@@ -96,6 +96,9 @@ def main() -> int:
             dst = DEST / name
             shutil.copy2(src, dst)
             _make_executable(dst)
+    # Windows uses the shared ffmpeg build: its DLLs must sit beside the exes.
+    for dll in VENDOR_FFMPEG.glob("*.dll"):
+        shutil.copy2(dll, DEST / dll.name)
 
     print(f"[OK] core assembled: {DEST.relative_to(ROOT)}/")
     for f in sorted(DEST.iterdir()):

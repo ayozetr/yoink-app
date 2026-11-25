@@ -60,7 +60,11 @@ def _version() -> str:
 
 
 def fetch_ffmpeg() -> None:
-    """Put ffmpeg.exe + ffprobe.exe in backend/vendor/ffmpeg (download if absent)."""
+    """Vendor ffmpeg.exe + ffprobe.exe and their shared DLLs into
+    backend/vendor/ffmpeg (download if absent). We use the *shared* LGPL build
+    (small exes + shared DLLs) rather than the static one, which halves the
+    installer — avcodec/avformat/… aren't duplicated into each .exe. ffplay is
+    skipped (Yoink never plays media)."""
     have = (VENDOR_FFMPEG / "ffmpeg.exe").exists() and (VENDOR_FFMPEG / "ffprobe.exe").exists()
     if have:
         print("> ffmpeg/ffprobe (win64) already vendored")
@@ -69,20 +73,29 @@ def fetch_ffmpeg() -> None:
     if not url:
         raise SystemExit("! scripts/ffmpeg-windows.txt is empty")
     VENDOR_FFMPEG.mkdir(parents=True, exist_ok=True)
-    print(f"> Downloading ffmpeg (win64, LGPL): {url}")
+    print(f"> Downloading ffmpeg (win64, LGPL shared): {url}")
     with urllib.request.urlopen(url) as resp:  # noqa: S310 — pinned, trusted host
         blob = resp.read()
-    wanted = {"ffmpeg.exe", "ffprobe.exe"}
+    got_exes = set()
     with zipfile.ZipFile(io.BytesIO(blob)) as zf:
         for member in zf.namelist():
+            if member.endswith("/"):
+                continue
             name = member.rsplit("/", 1)[-1]
-            if name in wanted and member.endswith("/bin/" + name):
-                dst = VENDOR_FFMPEG / name
-                dst.write_bytes(zf.read(member))
-                print(f"  extracted {name} ({dst.stat().st_size // 1024} KiB)")
-                wanted.discard(name)
-    if wanted:
-        raise SystemExit(f"! did not find {wanted} in the ffmpeg zip")
+            under_bin = "/bin/" in member
+            want = under_bin and (
+                name in ("ffmpeg.exe", "ffprobe.exe") or name.endswith(".dll")
+            )
+            if not want:
+                continue  # skip ffplay.exe, docs, presets, …
+            dst = VENDOR_FFMPEG / name
+            dst.write_bytes(zf.read(member))
+            print(f"  extracted {name} ({dst.stat().st_size // 1024} KiB)")
+            if name in ("ffmpeg.exe", "ffprobe.exe"):
+                got_exes.add(name)
+    missing = {"ffmpeg.exe", "ffprobe.exe"} - got_exes
+    if missing:
+        raise SystemExit(f"! did not find {missing} in the ffmpeg zip")
 
 
 def _find_makensis() -> str:
@@ -127,6 +140,10 @@ def main() -> int:
             raise SystemExit(f"! missing build output: {src}")
         shutil.copy2(src, DIST / name)
         print(f"  {name}  ({(DIST / name).stat().st_size // 1024} KiB)")
+    # The shared ffmpeg build's DLLs (installed beside ffmpeg.exe).
+    for dll in sorted(CORE_BUNDLE.glob("*.dll")):
+        shutil.copy2(dll, DIST / dll.name)
+        print(f"  {dll.name}  ({(DIST / dll.name).stat().st_size // 1024} KiB)")
 
     # 5: NSIS installer
     makensis = _find_makensis()
