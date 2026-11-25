@@ -57,7 +57,7 @@ fn binary() -> std::path::PathBuf {
     }
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            let sibling = dir.join("yoink-minter");
+            let sibling = dir.join(format!("yoink-minter{}", std::env::consts::EXE_SUFFIX));
             // Release builds run only the sibling (or $YOINK_MINTER) — never a
             // binary found on PATH, which another user could plant. Dev builds
             // keep the PATH fallback below for convenience.
