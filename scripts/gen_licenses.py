@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ayoze Torres
 
-"""Regenerate OPEN_SOURCE_LICENSES.md from Yoink's *direct* dependencies.
+"""Regenerate docs/OPEN_SOURCE_LICENSES.md from Yoink's *direct* dependencies.
 
 Lists only the dependencies Yoink declares and uses directly (not the full
 transitive tree), across the three Rust crates it ships:
@@ -12,7 +12,7 @@ transitive tree), across the three Rust crates it ships:
   * `desktop-minter` — the PO-token minter
 
 plus the bundled media tools (ffmpeg / yt-dlp). The result is embedded by the
-desktop app (`desktop/src/api.rs`) and shown under Settings > About.
+desktop app (`desktop/src/app.rs`, `include_str!`) and shown under Settings.
 
 Run from the repo root:  python scripts/gen_licenses.py
 """
