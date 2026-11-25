@@ -6,13 +6,17 @@
 
     python scripts/make_latest_json_egui.py <artifacts-dir>
 
-Reads the signed `Yoink_<ver>_amd64.AppImage.sig` in <artifacts-dir> and writes
-`latest.json` beside it, mapping the Linux target to its download URL (on the
-`v<ver>` release) and the inline minisign signature. The egui updater and the
-legacy Tauri updater both read this file; the signature is the SAME minisign
-signature, so one signed AppImage serves both.
+Scans <artifacts-dir> for the signed release assets and writes `latest.json`
+beside them, mapping each target to its download URL (on the `v<ver>` release)
+and its inline minisign signature:
 
-(Windows is added here once the egui Windows package exists.)
+  - `Yoink_<ver>_amd64.AppImage.sig`   -> linux-x86_64
+  - `Yoink_<ver>_x64-setup.exe.sig`    -> windows-x86_64
+
+At least one must be present. The egui updater and the legacy Tauri updater both
+read this file; the signature is the SAME minisign signature (one key), so each
+signed asset serves both the egui self-update and the one-time legacy->egui
+migration.
 """
 
 from __future__ import annotations
@@ -41,29 +45,36 @@ def main() -> int:
     art = Path(sys.argv[1])
     version = _version()
     tag = f"v{version}"
-
-    sigs = sorted(art.glob("Yoink_*_amd64.AppImage.sig"))
-    if len(sigs) != 1:
-        raise SystemExit(f"! expected exactly one AppImage .sig in {art}, found {sigs}")
-    signature = sigs[0].read_text().strip()
-
     base = f"https://github.com/{REPO}/releases/download/{tag}"
+
+    # (target, asset filename) for each platform we may have built.
+    assets = {
+        "linux-x86_64": f"Yoink_{version}_amd64.AppImage",
+        "windows-x86_64": f"Yoink_{version}_x64-setup.exe",
+    }
+    platforms: dict[str, dict[str, str]] = {}
+    for target, asset in assets.items():
+        sig = art / f"{asset}.sig"
+        if not sig.exists():
+            continue
+        platforms[target] = {
+            "signature": sig.read_text().strip(),
+            "url": f"{base}/{asset}",
+        }
+    if not platforms:
+        raise SystemExit(f"! no signed release assets (.sig) found in {art}")
+
     data = {
         "version": version,
         "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
         ),
-        "platforms": {
-            "linux-x86_64": {
-                "signature": signature,
-                "url": f"{base}/Yoink_{version}_amd64.AppImage",
-            },
-        },
+        "platforms": platforms,
     }
 
     out = art / "latest.json"
     out.write_text(json.dumps(data, indent=2) + "\n")
-    print(f"[OK] wrote {out} (version {version})")
+    print(f"[OK] wrote {out} (version {version}): {', '.join(sorted(platforms))}")
     return 0
 
 

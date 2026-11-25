@@ -105,18 +105,78 @@ jobs:
           path: out/
           if-no-files-found: error
 
+  build-windows:
+    name: Build Windows installer
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "backend-rs -> target\ndesktop -> target"
+      # The minisign signer (same Tauri key format), prebuilt; and NSIS for the
+      # installer. The egui app + yoink-core already compile clean on windows-msvc.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
+      - name: Install NSIS
+        run: choco install nsis -y --no-progress
+
+      - name: Build the Windows package (yoink-desktop + yoink-core + yt-dlp + ffmpeg, NSIS)
+        run: python scripts/build_windows.py
+
+      - name: Sign the installer (minisign, legacy-compatible key)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem desktop/target/windows/Yoink_*_x64-setup.exe | Select-Object -First 1
+          if (-not $exe) { throw "installer not found" }
+          cargo tauri signer sign $exe.FullName
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item desktop/target/windows/Yoink_*_x64-setup.exe out/
+          Copy-Item desktop/target/windows/Yoink_*_x64-setup.exe.sig out/
+          Get-ChildItem out/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: out/
+          if-no-files-found: error
+
   release:
     name: Draft GitHub release
-    needs: build-linux
+    needs: [build-linux, build-windows]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
       - uses: actions/download-artifact@v8
         with:
           name: linux
           path: dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows
+          path: dist
+      # Rebuild latest.json from BOTH signed assets (the linux artifact carries a
+      # linux-only one from its own job; this overwrites it with both platforms).
+      - name: Assemble latest.json (linux + windows)
+        run: python scripts/make_latest_json_egui.py dist
       - run: ls -la dist/
       - name: Create draft release
         env:
@@ -126,8 +186,10 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --draft \
             --title "Yoink ${GITHUB_REF_NAME}" \
-            --notes "Draft release built by CI. Add the release notes (keep the \`<!-- /whatsnew -->\` marker), then publish — publishing makes latest.json live for the in-app updater and the legacy→egui migration." \
+            --notes "Draft release built by CI. Add the release notes (keep the \`<!-- /whatsnew -->\` marker), then publish — publishing makes latest.json live for the in-app updater and the legacy→egui migration (Linux AppImage + Windows installer)." \
             dist/Yoink_*_amd64.AppImage \
             dist/Yoink_*_amd64.AppImage.sig \
+            dist/Yoink_*_x64-setup.exe \
+            dist/Yoink_*_x64-setup.exe.sig \
             dist/latest.json
           echo "::notice::Draft release created for ${GITHUB_REF_NAME} — add notes and publish."

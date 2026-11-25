@@ -778,7 +778,17 @@ async fn download_and_install(
     if !is_trusted_release_url(&parsed) {
         return Err("untrusted update URL".into());
     }
-    let dir = target.parent().ok_or("no parent dir")?;
+    // Stage the download: on Linux beside the AppImage (same filesystem, so the
+    // verified file swaps in with an atomic rename); on Windows in the temp dir,
+    // since the asset is an installer we execute and it wipes the install dir —
+    // which therefore must not contain this staged file.
+    #[cfg(target_os = "windows")]
+    let dir = {
+        let _ = target;
+        std::env::temp_dir()
+    };
+    #[cfg(not(target_os = "windows"))]
+    let dir = target.parent().ok_or("no parent dir")?.to_path_buf();
     // A random, O_EXCL temp name so a pre-planted file/symlink can't be followed.
     let tmp = dir.join(format!(
         ".yoink-update-{}-{}.tmp",

@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Ayoze Torres
 
+// On Windows, a release build is a GUI app: no console window behind it. Debug
+// builds keep the console so `println!`/panics stay visible while developing.
+#![cfg_attr(
+    all(target_os = "windows", not(debug_assertions)),
+    windows_subsystem = "windows"
+)]
+
 //! Yoink native desktop UI (egui). It renders straight to the GPU — no WebView,
 //! no HTML/JS — and drives the local `yoink-core` backend over its REST/WS API.
 //! A hidden WebView (`yoink-minter`) is spawned only for YouTube PO-token minting,
