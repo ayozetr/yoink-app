@@ -178,7 +178,7 @@ one-time legacy→egui migration and the egui app's own updater. See
 - Author identity: **Ayoze Torres** `<ayozetr@users.noreply.github.com>`.
 - License: **AGPL-3.0-or-later**. New source files start with the two-line SPDX
   header (`SPDX-License-Identifier: AGPL-3.0-or-later` + copyright) — see
-  `CONTRIBUTING.md`.
+  `docs/CONTRIBUTING.md`.
 
 ## Status
 

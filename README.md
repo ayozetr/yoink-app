@@ -110,7 +110,7 @@ scripts/                  # build_ffmpeg.sh, build_core.py, build_egui_appimage.
 
 ## Contributing
 
-Issues and pull requests are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md)
+Issues and pull requests are welcome. See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)
 for how to propose a change and the checks to run before submitting.
 
 ## License
@@ -136,7 +136,7 @@ platform terms. The full text is in [`docs/DISCLAIMER.md`](docs/DISCLAIMER.md).
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — high-level guide and conventions
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to contribute
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — how to contribute
 - [`docs/`](docs/) — architecture, per-layer guides, the
   [roadmap](docs/ROADMAP.md), the [release process](docs/releasing.md) and
   the [third-party licenses](docs/THIRD_PARTY_LICENSES.md)
