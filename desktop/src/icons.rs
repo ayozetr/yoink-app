@@ -31,6 +31,8 @@ fn bytes(name: &str) -> (&'static str, &'static [u8]) {
         "options" => ("sliders", svg!("sliders-horizontal")),
         "music" => ("music", svg!("music")),
         "video" => ("video", svg!("video")),
+        "tag" => ("tag", svg!("tag")),
+        "redownload" => ("rotate-ccw", svg!("rotate-ccw")),
         "check" => ("check", svg!("circle-check-big")),
         "folder" => ("folder", svg!("folder-open")),
         "chevron" => ("chevron", svg!("chevron-down")),

@@ -174,6 +174,8 @@ pub struct HistoryEntry {
     pub kind: String,
     pub status: String,
     #[serde(default)]
+    pub url: String,
+    #[serde(default)]
     pub filepath: Option<String>,
     #[serde(default)]
     pub filesize: Option<i64>,

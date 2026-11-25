@@ -1896,6 +1896,10 @@ impl eframe::App for App {
 }
 
 impl App {
+    /// Open the auto-tag panel for a downloaded audio file (identify on open).
+    /// TODO(phase2): the interactive tag panel.
+    fn open_autotag(&mut self, _path: String, _filename: String) {}
+
     /// The window corner radius right now: squared off when maximized (so it
     /// fills the screen edge-to-edge) or when the user turned rounded corners off,
     /// otherwise the rounded default.
@@ -2791,22 +2795,29 @@ impl App {
                 .color(p.fg_dim),
         );
 
-        let mut open_path: Option<String> = None;
+        let mut open_file: Option<String> = None;
+        let mut open_folder: Option<String> = None;
+        let mut reanalyze: Option<String> = None;
+        let mut retag: Option<(String, String)> = None; // (path, filename)
         for e in self
             .history
             .iter()
             .filter(|e| q.is_empty() || e.title.to_lowercase().contains(&q))
         {
-            // The whole row is a hover-highlighted click target that opens the file.
-            let resp = egui::Frame::new()
+            egui::Frame::new()
                 .inner_margin(egui::Margin::symmetric(6, 8))
                 .corner_radius(8)
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        fmt_badge(ui, p, &badge_label(e));
+                        let label = badge_label(e);
+                        let is_audio = !matches!(
+                            label.as_str(),
+                            "MP4" | "MOV" | "MKV" | "WEBM" | "M4V" | "AVI" | "FLV"
+                        );
+                        fmt_badge(ui, p, &label);
                         ui.add_space(12.0);
                         ui.vertical(|ui| {
-                            ui.set_width(ui.available_width() - 90.0);
+                            ui.set_width(ui.available_width() - 190.0);
                             ui.label(RichText::new(&e.title).strong().color(p.fg));
                             ui.add_space(3.0);
                             ui.horizontal(|ui| {
@@ -2828,24 +2839,52 @@ impl App {
                             });
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            // Row actions (right → left): time, then play · folder ·
+                            // redownload, plus retag for completed audio.
                             ui.label(
                                 RichText::new(relative(&e.created_at, lang))
                                     .small()
                                     .color(p.fg_dim),
                             );
+                            let done = e.status == "completed";
+                            let path = e.filepath.clone().filter(|_| done);
+                            ui.add_space(6.0);
+                            if !e.url.is_empty() && icon_btn(ui, p, "redownload") {
+                                reanalyze = Some(e.url.clone());
+                            }
+                            if let Some(path) = &path {
+                                if icon_btn(ui, p, "folder") {
+                                    open_folder = Some(path.clone());
+                                }
+                                if icon_btn(ui, p, "play") {
+                                    open_file = Some(path.clone());
+                                }
+                                if is_audio && icon_btn(ui, p, "tag") {
+                                    retag = Some((path.clone(), e.title.clone()));
+                                }
+                            }
                         });
                     });
-                })
-                .response
-                .interact(egui::Sense::click());
-            if resp.clicked() {
-                if let Some(path) = e.filepath.clone().filter(|_| e.status == "completed") {
-                    open_path = Some(path);
-                }
-            }
+                });
         }
-        if let Some(path) = open_path {
+        if let Some(path) = open_file {
             self.backend.send(Cmd::Open(path));
+        }
+        if let Some(path) = open_folder {
+            // Open the containing directory.
+            let dir = std::path::Path::new(&path)
+                .parent()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or(path);
+            self.backend.send(Cmd::Open(dir));
+        }
+        if let Some(url) = reanalyze {
+            self.url = url;
+            self.tab = Tab::Inicio;
+            self.analyze();
+        }
+        if let Some((path, filename)) = retag {
+            self.open_autotag(path, filename);
         }
     }
 
