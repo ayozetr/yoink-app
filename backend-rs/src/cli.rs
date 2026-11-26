@@ -379,6 +379,11 @@ async fn download_one(
                     render_progress(&p, prefix);
                 }
             }
+            crate::DlEvent::Processing => {
+                if show_bar {
+                    eprint!("\r{prefix}processing…");
+                }
+            }
             crate::DlEvent::Completed {
                 filename,
                 filepath,

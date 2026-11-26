@@ -79,6 +79,15 @@ fn ensure_desktop_entry() {
 }
 
 fn main() -> eframe::Result {
+    // Tie this process (taskbar grouping + toast notifications) to our own
+    // AppUserModelID — the one the installer registers — so Windows shows
+    // "Yoink" on notifications instead of the launching process.
+    #[cfg(target_os = "windows")]
+    unsafe {
+        let aumid: Vec<u16> = "app.yoink.desktop\0".encode_utf16().collect();
+        windows_sys::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(aumid.as_ptr());
+    }
+
     #[cfg(target_os = "linux")]
     ensure_desktop_entry();
 

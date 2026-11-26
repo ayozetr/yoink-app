@@ -861,6 +861,9 @@ impl ProgressInfo {
 /// Lifecycle events emitted by `execute_download` to its event channel.
 pub enum DlEvent {
     Progress(ProgressInfo),
+    /// The download reached 100% and post-processing (trim / loudnorm / VR / nfo)
+    /// has begun — lets the UI show a "processing" phase, not a stalled bar.
+    Processing,
     Completed {
         filename: String,
         filepath: String,
@@ -895,6 +898,19 @@ async fn run_download(mut socket: WebSocket) {
     while let Some(ev) = rx.recv().await {
         let msg = match ev {
             DlEvent::Progress(p) => p.to_ws_message(),
+            DlEvent::Processing => Message::Text(
+                serde_json::json!({
+                    "type": "progress",
+                    "status": "processing",
+                    "percent": 100.0,
+                    "downloaded_bytes": Value::Null,
+                    "total_bytes": Value::Null,
+                    "speed": Value::Null,
+                    "eta": Value::Null,
+                    "filename": Value::Null,
+                })
+                .to_string(),
+            ),
             DlEvent::Completed {
                 filename,
                 filepath,
@@ -976,6 +992,12 @@ async fn execute_download(
 
     let status = child.wait().await;
     let ok = matches!(status, Ok(s) if s.success());
+
+    // Download done → signal the post-processing phase (trim / loudnorm / VR /
+    // nfo) so the UI shows "processing" instead of a stalled 100% bar.
+    if ok && final_path.is_some() {
+        let _ = tx.send(DlEvent::Processing);
+    }
 
     // Post-processing on the finished file, in order: read the sidecar info.json
     // once (for the .nfo + auto-VR detection) then remove it; loudness-normalize

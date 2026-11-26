@@ -4,6 +4,8 @@ version = "4.4.0"
 edition = "2021"
 license = "AGPL-3.0-or-later"
 description = "Yoink native desktop UI (egui) — talks to the local yoink-core backend"
+homepage = "https://github.com/ayozetr/yoink-app"
+repository = "https://github.com/ayozetr/yoink-app"
 
 [[bin]]
 name = "yoink-desktop"
@@ -44,6 +46,7 @@ windows-sys = { version = "0.59.0", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",         # SetCurrentProcessExplicitAppUserModelID (toast identity)
     "Win32_System_Pipes",     # single-instance deep-link handoff (named pipe)
     "Win32_Storage_FileSystem",
     "Win32_System_IO",        # OVERLAPPED (param of ReadFile/WriteFile/ConnectNamedPipe)

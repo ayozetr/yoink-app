@@ -173,6 +173,7 @@ pub enum Evt {
         percent: f32,
         speed: Option<String>,
         eta: Option<String>,
+        status: String, // "downloading" | "processing" (post-process / merge)
     },
     Done(String),
     DownloadErr(String),
@@ -339,6 +340,9 @@ pub struct VideoLite {
     pub duration_string: Option<String>,
     #[serde(default)]
     pub has_audio: bool,
+    /// The source exposes a lossless audio stream (so FLAC/WAV won't upscale).
+    #[serde(default)]
+    pub source_lossless: bool,
     #[serde(default)]
     pub is_vr: bool,
     #[serde(default)]
@@ -1236,6 +1240,11 @@ async fn run_ws_download(
                     percent: v.get("percent").and_then(Value::as_f64).unwrap_or(0.0) as f32,
                     speed: v.get("speed").and_then(Value::as_str).map(str::to_string),
                     eta: v.get("eta").and_then(Value::as_str).map(str::to_string),
+                    status: v
+                        .get("status")
+                        .and_then(Value::as_str)
+                        .unwrap_or("downloading")
+                        .to_string(),
                 },
             ),
             Some("completed") => {

@@ -215,7 +215,10 @@ struct Autotag {
     track_number: Option<i64>,
     cover_url: Option<String>,
     embed_lyrics: bool,
-    anim: f32, // slide-in progress 0..1
+    anim: f32,           // slide-in progress 0..1
+    manual_open: bool,   // the "search manually" sub-panel is expanded
+    manual_artist: String,
+    manual_title: String,
 }
 
 pub struct App {
@@ -257,6 +260,7 @@ pub struct App {
     progress: f32,
     speed: Option<String>,
     eta: Option<String>,
+    dl_phase: String, // current download phase: "downloading" | "processing"
     settings: Option<Settings>,
     settings_note: Option<String>,
     settings_scroll_to: Option<String>,
@@ -392,6 +396,7 @@ impl App {
             progress: 0.0,
             speed: None,
             eta: None,
+            dl_phase: String::new(),
             settings: None,
             settings_note: None,
             settings_scroll_to: None,
@@ -511,6 +516,7 @@ impl App {
                 uploader: Some("Blender Foundation".into()),
                 duration_string: Some("9:56".into()),
                 has_audio: true,
+                source_lossless: false,
                 is_vr: false,
                 subtitle_langs: vec!["en".into(), "es".into()],
                 has_chapters: true,
@@ -700,6 +706,7 @@ impl App {
                     percent,
                     speed,
                     eta,
+                    status,
                 } => {
                     let frac = (percent / 100.0).clamp(0.0, 1.0);
                     match self.active {
@@ -713,6 +720,7 @@ impl App {
                             self.progress = frac;
                             self.speed = speed;
                             self.eta = eta;
+                            self.dl_phase = status;
                         }
                     }
                 }
@@ -720,6 +728,10 @@ impl App {
                     if self.settings.as_ref().is_some_and(|s| s.notify_on_complete) {
                         notify_done(tl(self.lang, "inicio.downloaded"), &path);
                     }
+                    // Refresh the history live so a finished download shows up
+                    // right away — the Historial tab only loads lazily once, so
+                    // without this a new entry appears only after a restart.
+                    self.backend.send(Cmd::LoadHistory);
                     match self.active.take() {
                         Some(ActiveDl::Queue(id)) => {
                             if let Some(it) = self.queue.iter_mut().find(|i| i.id == id) {
@@ -2000,6 +2012,9 @@ impl App {
             cover_url: None,
             embed_lyrics: embed,
             anim: 0.0,
+            manual_open: false,
+            manual_artist: String::new(),
+            manual_title: String::new(),
         });
         self.backend.send(Cmd::AutotagIdentify { path });
     }
@@ -2064,52 +2079,7 @@ impl App {
                                     });
                                 }
                                 TagStage::Review => {
-                                    // Cover preview.
-                                    if let Some(c) =
-                                        tag.cover_url.as_deref().filter(|s| !s.is_empty())
-                                    {
-                                        ui.vertical_centered(|ui| {
-                                            ui.add(
-                                                egui::Image::from_uri(c.to_string())
-                                                    .fit_to_exact_size(egui::vec2(104.0, 104.0))
-                                                    .corner_radius(10),
-                                            );
-                                        });
-                                        ui.add_space(12.0);
-                                    }
-                                    // Version picker (when several catalogue matches).
-                                    if tag.candidates.len() > 1 {
-                                        ui.label(
-                                            RichText::new(tl(lang, "tag.version"))
-                                                .small()
-                                                .color(p.fg_dim),
-                                        );
-                                        let sel = tag.selected.max(0) as usize;
-                                        let cur = tag
-                                            .candidates
-                                            .get(sel)
-                                            .map(|c| format!("{} · {}", c.artist, c.title))
-                                            .unwrap_or_default();
-                                        egui::ComboBox::from_id_salt("tag-version")
-                                            .width(w - 48.0)
-                                            .selected_text(cur)
-                                            .show_ui(ui, |ui| {
-                                                for (i, c) in tag.candidates.iter().enumerate() {
-                                                    let lbl = format!("{} · {}", c.artist, c.title);
-                                                    if ui
-                                                        .selectable_label(
-                                                            i as i32 == tag.selected,
-                                                            lbl,
-                                                        )
-                                                        .clicked()
-                                                    {
-                                                        pick = Some(i);
-                                                    }
-                                                }
-                                            });
-                                        ui.add_space(10.0);
-                                    }
-                                    // Editable fields.
+                                    let usable = w - 32.0;
                                     let field = |ui: &mut egui::Ui, lab: &str, v: &mut String| {
                                         ui.label(RichText::new(lab).small().color(p.fg_dim));
                                         ui.add_space(2.0);
@@ -2119,32 +2089,169 @@ impl App {
                                         );
                                         ui.add_space(8.0);
                                     };
-                                    field(ui, tl(lang, "tag.f_title"), &mut tag.title);
-                                    field(ui, tl(lang, "tag.f_artist"), &mut tag.artist);
-                                    field(ui, tl(lang, "tag.f_album"), &mut tag.album);
+                                    // Cover (left) + Title / Artist (right).
+                                    let cover = tag.cover_url.clone().filter(|s| !s.is_empty());
                                     ui.horizontal(|ui| {
+                                        if let Some(c) = &cover {
+                                            ui.add(
+                                                egui::Image::from_uri(c.clone())
+                                                    .fit_to_exact_size(egui::vec2(96.0, 96.0))
+                                                    .corner_radius(10),
+                                            );
+                                        } else {
+                                            let (r, _) = ui.allocate_exact_size(
+                                                egui::vec2(96.0, 96.0),
+                                                egui::Sense::hover(),
+                                            );
+                                            ui.painter().rect_filled(r, 10.0, p.surface_hi);
+                                        }
+                                        ui.add_space(12.0);
                                         ui.vertical(|ui| {
-                                            ui.set_width((w - 48.0) / 2.0);
-                                            field(ui, tl(lang, "tag.f_year"), &mut tag.year);
-                                        });
-                                        ui.vertical(|ui| {
-                                            field(ui, tl(lang, "tag.f_genre"), &mut tag.genre);
+                                            ui.set_width(usable - 108.0);
+                                            field(ui, tl(lang, "tag.f_title"), &mut tag.title);
+                                            field(ui, tl(lang, "tag.f_artist"), &mut tag.artist);
                                         });
                                     });
-                                    // Re-search by the current title/artist.
+                                    ui.add_space(4.0);
+                                    // Album + Year.
+                                    ui.horizontal(|ui| {
+                                        ui.vertical(|ui| {
+                                            ui.set_width(usable * 0.58);
+                                            field(ui, tl(lang, "tag.f_album"), &mut tag.album);
+                                        });
+                                        ui.vertical(|ui| {
+                                            field(ui, tl(lang, "tag.f_year"), &mut tag.year);
+                                        });
+                                    });
+                                    // Genre.
+                                    field(ui, tl(lang, "tag.f_genre"), &mut tag.genre);
+                                    // Versions — pick a catalogue match (cover + album / year · #).
+                                    if tag.candidates.len() > 1 {
+                                        ui.add_space(2.0);
+                                        ui.label(
+                                            RichText::new(tl(lang, "tag.version"))
+                                                .small()
+                                                .color(p.fg_dim),
+                                        );
+                                        ui.add_space(4.0);
+                                        for (i, c) in tag.candidates.iter().enumerate() {
+                                            let bg = if i as i32 == tag.selected {
+                                                p.accent.gamma_multiply(0.18)
+                                            } else {
+                                                p.surface
+                                            };
+                                            let resp = egui::Frame::new()
+                                                .fill(bg)
+                                                .corner_radius(7)
+                                                .inner_margin(egui::Margin::symmetric(8, 6))
+                                                .show(ui, |ui| {
+                                                    ui.set_width(usable - 16.0);
+                                                    ui.horizontal(|ui| {
+                                                        if let Some(cu) = c
+                                                            .cover_url
+                                                            .as_deref()
+                                                            .filter(|s| !s.is_empty())
+                                                        {
+                                                            ui.add(
+                                                                egui::Image::from_uri(cu.to_string())
+                                                                    .fit_to_exact_size(egui::vec2(
+                                                                        32.0, 32.0,
+                                                                    ))
+                                                                    .corner_radius(5),
+                                                            );
+                                                        } else {
+                                                            let (r, _) = ui.allocate_exact_size(
+                                                                egui::vec2(32.0, 32.0),
+                                                                egui::Sense::hover(),
+                                                            );
+                                                            ui.painter()
+                                                                .rect_filled(r, 5.0, p.surface_hi);
+                                                        }
+                                                        ui.add_space(8.0);
+                                                        ui.vertical(|ui| {
+                                                            let top = c
+                                                                .album
+                                                                .clone()
+                                                                .filter(|s| !s.is_empty())
+                                                                .unwrap_or_else(|| c.title.clone());
+                                                            ui.label(
+                                                                RichText::new(top).small().color(p.fg),
+                                                            );
+                                                            let mut sub =
+                                                                c.year.clone().unwrap_or_default();
+                                                            if let Some(tn) = c.track_number {
+                                                                sub = if sub.is_empty() {
+                                                                    format!("#{tn}")
+                                                                } else {
+                                                                    format!("{sub} · #{tn}")
+                                                                };
+                                                            }
+                                                            if !sub.is_empty() {
+                                                                ui.label(
+                                                                    RichText::new(sub)
+                                                                        .small()
+                                                                        .color(p.fg_dim),
+                                                                );
+                                                            }
+                                                        });
+                                                    });
+                                                })
+                                                .response;
+                                            if resp.interact(egui::Sense::click()).clicked() {
+                                                pick = Some(i);
+                                            }
+                                            ui.add_space(4.0);
+                                        }
+                                    }
+                                    // "Not right? Search manually" → artist + title + search.
+                                    ui.add_space(2.0);
                                     if ui
                                         .add(
                                             egui::Button::image_and_text(
-                                                crate::icons::img("search", 13.0, p.fg_dim),
-                                                RichText::new(tl(lang, "tag.research"))
+                                                crate::icons::img("search", 12.0, p.accent),
+                                                RichText::new(tl(lang, "tag.manual"))
                                                     .small()
-                                                    .color(p.fg_dim),
+                                                    .color(p.accent),
                                             )
                                             .frame(false),
                                         )
                                         .clicked()
                                     {
-                                        do_search = true;
+                                        tag.manual_open = !tag.manual_open;
+                                        if tag.manual_open
+                                            && tag.manual_artist.is_empty()
+                                            && tag.manual_title.is_empty()
+                                        {
+                                            tag.manual_artist = tag.artist.clone();
+                                            tag.manual_title = tag.title.clone();
+                                        }
+                                    }
+                                    if tag.manual_open {
+                                        ui.add_space(6.0);
+                                        ui.horizontal(|ui| {
+                                            let iw = (usable - 44.0) / 2.0;
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut tag.manual_artist)
+                                                    .hint_text(tl(lang, "tag.f_artist"))
+                                                    .desired_width(iw),
+                                            );
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut tag.manual_title)
+                                                    .hint_text(tl(lang, "tag.f_title"))
+                                                    .desired_width(iw),
+                                            );
+                                            if ui
+                                                .add(
+                                                    egui::Button::image(crate::icons::img(
+                                                        "search", 15.0, p.fg,
+                                                    ))
+                                                    .min_size(egui::vec2(30.0, 28.0)),
+                                                )
+                                                .clicked()
+                                            {
+                                                do_search = true;
+                                            }
+                                        });
                                     }
                                     ui.add_space(10.0);
                                     ui.horizontal(|ui| {
@@ -2161,21 +2268,43 @@ impl App {
                                         );
                                     });
                                     ui.add_space(14.0);
-                                    if ui
-                                        .add(
-                                            egui::Button::image_and_text(
-                                                crate::icons::img("check", 15.0, p.accent_fg),
-                                                RichText::new(tl(lang, "tag.apply"))
-                                                    .color(p.accent_fg),
+                                    // Discard (left) + Apply tags (right).
+                                    ui.horizontal(|ui| {
+                                        if ui
+                                            .add(
+                                                egui::Button::new(
+                                                    RichText::new(tl(lang, "tag.discard"))
+                                                        .color(p.fg_dim),
+                                                )
+                                                .frame(false),
                                             )
-                                            .fill(p.accent)
-                                            .corner_radius(9)
-                                            .min_size(egui::vec2(ui.available_width(), 36.0)),
-                                        )
-                                        .clicked()
-                                    {
-                                        apply = true;
-                                    }
+                                            .clicked()
+                                        {
+                                            dismiss = true;
+                                        }
+                                        ui.with_layout(
+                                            egui::Layout::right_to_left(egui::Align::Center),
+                                            |ui| {
+                                                if ui
+                                                    .add(
+                                                        egui::Button::image_and_text(
+                                                            crate::icons::img(
+                                                                "check", 15.0, p.accent_fg,
+                                                            ),
+                                                            RichText::new(tl(lang, "tag.apply"))
+                                                                .color(p.accent_fg),
+                                                        )
+                                                        .fill(p.accent)
+                                                        .corner_radius(9)
+                                                        .min_size(egui::vec2(150.0, 34.0)),
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    apply = true;
+                                                }
+                                            },
+                                        );
+                                    });
                                 }
                             }
                         });
@@ -2192,10 +2321,14 @@ impl App {
         }
         if do_search {
             if let Some(t) = self.autotag.as_ref() {
-                self.backend.send(Cmd::AutotagSearch {
-                    artist: t.artist.clone(),
-                    title: t.title.clone(),
-                });
+                // Use the manual artist/title when given, else the current fields.
+                let (artist, title) =
+                    if t.manual_artist.is_empty() && t.manual_title.is_empty() {
+                        (t.artist.clone(), t.title.clone())
+                    } else {
+                        (t.manual_artist.clone(), t.manual_title.clone())
+                    };
+                self.backend.send(Cmd::AutotagSearch { artist, title });
             }
         }
         if apply {
@@ -2572,7 +2705,8 @@ impl App {
                     v.estimated_size(&self.kind, &self.quality),
                 );
                 let (hs, hc) = (!v.subtitle_langs.is_empty(), v.has_chapters);
-                self.ui_download_controls(ui, p, ha, bh, bs, hs, hc);
+                let sl = v.source_lossless;
+                self.ui_download_controls(ui, p, ha, bh, bs, hs, hc, sl);
                 self.ui_progress(ui, p);
             }
             Preview::Playlist { title, count } => {
@@ -2729,6 +2863,7 @@ impl App {
         best_size: Option<i64>,
         has_subs: bool,
         has_chapters: bool,
+        source_lossless: bool,
     ) {
         let lang = self.lang;
         ui.horizontal(|ui| {
@@ -2791,6 +2926,17 @@ impl App {
                 self.start_download();
             }
         });
+
+        // Lossless (FLAC/WAV) only makes sense from a lossless source — warn when
+        // an audio download's source has none (it would upscale to MP3 anyway).
+        if self.kind == "audio" && !source_lossless {
+            ui.add_space(8.0);
+            ui.label(
+                RichText::new(tl(lang, "inicio.lossless_warn"))
+                    .small()
+                    .color(p.fg_dim),
+            );
+        }
 
         // Add to queue · Advanced options (subtle link row).
         ui.add_space(10.0);
@@ -3022,18 +3168,45 @@ impl App {
         match &self.status {
             Status::Downloading => {
                 ui.add_space(12.0);
-                let mut extra = Vec::new();
-                if let Some(s) = &self.speed {
-                    extra.push(s.clone());
-                }
-                if let Some(e) = &self.eta {
-                    extra.push(format!("ETA {e}"));
-                }
-                ui.add(
-                    egui::ProgressBar::new(self.progress)
-                        .show_percentage()
-                        .text(extra.join("  ·  ")),
-                );
+                let lang = self.lang;
+                let pct = (self.progress * 100.0).round() as i32;
+                // Phase (post-processing/merging vs downloading, or preparing when
+                // nothing is moving yet).
+                let processing = self.dl_phase == "processing" || self.dl_phase == "merging";
+                let label = if processing {
+                    tl(lang, "progress.processing")
+                } else if self.progress == 0.0 && self.speed.is_none() {
+                    tl(lang, "progress.preparing")
+                } else {
+                    tl(lang, "progress.downloading")
+                };
+                // Right-side detail: "merging" while processing, else speed · ETA.
+                let detail = if processing {
+                    tl(lang, "progress.merging").to_string()
+                } else {
+                    let mut parts = Vec::new();
+                    if let Some(s) = &self.speed {
+                        parts.push(s.clone());
+                    }
+                    if let Some(e) = &self.eta {
+                        parts.push(format!("ETA {e}"));
+                    }
+                    parts.join("  ·  ")
+                };
+                // Status (left) · "pct% · detail" (right), bar below — legacy layout.
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(label).color(p.fg));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let right = if detail.is_empty() {
+                            format!("{pct}%")
+                        } else {
+                            format!("{pct}%  ·  {detail}")
+                        };
+                        ui.label(RichText::new(right).small().color(p.accent));
+                    });
+                });
+                ui.add_space(6.0);
+                ui.add(egui::ProgressBar::new(self.progress).desired_height(8.0));
             }
             Status::Done(path) => {
                 ui.add_space(12.0);
@@ -4434,10 +4607,15 @@ fn notify_done(verb: &str, path: &str) {
         .to_string();
     let body = format!("{verb}: {name}");
     std::thread::spawn(move || {
-        let _ = notify_rust::Notification::new()
-            .summary("Yoink")
-            .body(&body)
-            .show();
+        let mut n = notify_rust::Notification::new();
+        n.summary("Yoink").body(&body);
+        // Windows attributes a toast to the launching process (shows "Windows
+        // PowerShell") unless we give it our own registered AppUserModelID. The
+        // installer registers this id and main() sets it on the process; it
+        // matches the legacy Tauri identifier.
+        #[cfg(target_os = "windows")]
+        n.app_id("app.yoink.desktop");
+        let _ = n.show();
     });
 }
 
