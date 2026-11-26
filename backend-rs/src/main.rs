@@ -658,6 +658,9 @@ async fn search(
 // ---- download (WebSocket) ----------------------------------------------------
 
 const PROGRESS_TEMPLATE: &str = "download:YPROG|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s";
+// Post-processing phase (ExtractAudio / Merger / …): emit a marker so the UI
+// shows "processing" during yt-dlp's own ffmpeg step, not a stalled 100% bar.
+const POSTPROCESS_TEMPLATE: &str = "postprocess:YPROC|%(progress.status)s";
 
 fn download_dir() -> std::path::PathBuf {
     if let Ok(d) = std::env::var("YOINK_DOWNLOAD_DIR") {
@@ -701,6 +704,8 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         out_template.into(),
         "--progress-template".into(),
         PROGRESS_TEMPLATE.into(),
+        "--progress-template".into(),
+        POSTPROCESS_TEMPLATE.into(),
         "--print".into(),
         "after_move:YDONE|%(filepath)s".into(),
     ];
@@ -985,6 +990,9 @@ async fn execute_download(
                     return;
                 }
             }
+        } else if line.strip_prefix("YPROC|").is_some() {
+            // yt-dlp entered post-processing (extract audio / merge) — tell the UI.
+            let _ = tx.send(DlEvent::Processing);
         } else if let Some(p) = line.strip_prefix("YDONE|") {
             final_path = Some(p.to_string());
         }
@@ -2043,7 +2051,10 @@ async fn autotag_identify(Json(req): Json<IdentifyRequest>) -> Json<Value> {
     if results.is_empty() && !artist.is_empty() && !title.is_empty() {
         results = autotag::search_catalogue(&source, &title, &artist).await;
     }
-    Json(serde_json::json!({ "results": results }))
+    // Include the file's current tags so the UI can pre-fill the panel (e.g. when
+    // re-tagging from history, or when the catalogue has no match).
+    let current = autotag::read_current_tags(&req.path);
+    Json(serde_json::json!({ "results": results, "current": current }))
 }
 
 #[derive(Deserialize)]

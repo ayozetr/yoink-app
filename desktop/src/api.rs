@@ -102,6 +102,21 @@ pub struct TagCandidate {
     pub cover_url: Option<String>,
 }
 
+/// The tags already on a file (from identify), to pre-fill the re-tag panel.
+#[derive(Clone, Default, Deserialize)]
+pub struct CurrentTags {
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub artist: String,
+    #[serde(default)]
+    pub album: String,
+    #[serde(default)]
+    pub year: String,
+    #[serde(default)]
+    pub genre: String,
+}
+
 /// Fields the tag panel sends to apply the chosen tags.
 #[derive(Clone, Default)]
 pub struct ApplyArgs {
@@ -155,9 +170,11 @@ pub enum Evt {
         id: u64,
         title: String,
     },
-    /// Tag-panel catalogue matches (identify or manual search).
+    /// Tag-panel catalogue matches (identify or manual search), plus the file's
+    /// current tags (identify only) to fall back on when nothing matches.
     AutotagResults {
         candidates: Vec<TagCandidate>,
+        current: Option<CurrentTags>,
     },
     /// The tag write finished (ok flag).
     AutotagApplied {
@@ -515,14 +532,28 @@ impl Backend {
                         }
                         Cmd::AutotagIdentify { path } => {
                             tokio::spawn(async move {
-                                let c = identify_tags(&path).await;
-                                emit(&evt_tx, &ctx, Evt::AutotagResults { candidates: c });
+                                let (c, current) = identify_tags(&path).await;
+                                emit(
+                                    &evt_tx,
+                                    &ctx,
+                                    Evt::AutotagResults {
+                                        candidates: c,
+                                        current,
+                                    },
+                                );
                             });
                         }
                         Cmd::AutotagSearch { artist, title } => {
                             tokio::spawn(async move {
                                 let c = search_tags(&artist, &title).await;
-                                emit(&evt_tx, &ctx, Evt::AutotagResults { candidates: c });
+                                emit(
+                                    &evt_tx,
+                                    &ctx,
+                                    Evt::AutotagResults {
+                                        candidates: c,
+                                        current: None,
+                                    },
+                                );
                             });
                         }
                         Cmd::AutotagApply(args) => {
@@ -1149,13 +1180,26 @@ async fn tag_results(res: reqwest::Result<reqwest::Response>) -> Vec<TagCandidat
 }
 
 /// Identify catalogue matches for a downloaded audio file (filename-based).
-async fn identify_tags(path: &str) -> Vec<TagCandidate> {
+async fn identify_tags(path: &str) -> (Vec<TagCandidate>, Option<CurrentTags>) {
     let res = reqwest::Client::new()
         .post(format!("{}/api/autotag/identify", http_base()))
         .json(&serde_json::json!({ "path": path }))
         .send()
         .await;
-    tag_results(res).await
+    match res.and_then(reqwest::Response::error_for_status) {
+        Ok(r) => {
+            let v: Value = r.json().await.unwrap_or(Value::Null);
+            let candidates = v
+                .get("results")
+                .and_then(|r| serde_json::from_value(r.clone()).ok())
+                .unwrap_or_default();
+            let current = v
+                .get("current")
+                .and_then(|c| serde_json::from_value::<CurrentTags>(c.clone()).ok());
+            (candidates, current)
+        }
+        Err(_) => (Vec::new(), None),
+    }
 }
 
 /// Manual catalogue search for the tag panel.

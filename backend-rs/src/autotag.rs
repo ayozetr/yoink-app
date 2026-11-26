@@ -501,6 +501,33 @@ pub fn probe_duration(path: &str) -> Option<f64> {
     Some(tagged.properties().duration().as_secs_f64())
 }
 
+/// The tags already written to a file, to pre-fill the re-tag panel so the user
+/// sees what's there (identify only guesses from the filename). Best-effort.
+#[derive(Serialize, Default)]
+pub struct CurrentTags {
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub year: String,
+    pub genre: String,
+}
+
+pub fn read_current_tags(path: &str) -> CurrentTags {
+    let mut out = CurrentTags::default();
+    let Ok(tagged) = lofty::read_from_path(path) else {
+        return out;
+    };
+    let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
+        return out;
+    };
+    out.title = tag.title().map(|s| s.to_string()).unwrap_or_default();
+    out.artist = tag.artist().map(|s| s.to_string()).unwrap_or_default();
+    out.album = tag.album().map(|s| s.to_string()).unwrap_or_default();
+    out.year = tag.year().map(|y| y.to_string()).unwrap_or_default();
+    out.genre = tag.genre().map(|s| s.to_string()).unwrap_or_default();
+    out
+}
+
 /// Look up lyrics on LRCLIB (keyless). Mirrors lyrics.fetch_lyrics (the exact
 /// /get with duration, then /search by track+artist).
 pub async fn fetch_lyrics(

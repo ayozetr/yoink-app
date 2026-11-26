@@ -661,13 +661,35 @@ impl App {
                         it.label = title;
                     }
                 }
-                Evt::AutotagResults { candidates } => {
+                Evt::AutotagResults {
+                    candidates,
+                    current,
+                } => {
                     if let Some(tag) = self.autotag.as_mut() {
                         tag.candidates = candidates;
                         if !tag.candidates.is_empty() {
                             tag_fill(tag, 0);
                         } else {
-                            tag.selected = -1; // no match → manual edit
+                            tag.selected = -1; // no catalogue match → manual edit
+                            // Fall back to the file's existing tags so the panel
+                            // isn't empty (re-tagging, or an unmatched track).
+                            if let Some(c) = current {
+                                if !c.title.is_empty() {
+                                    tag.title = c.title;
+                                }
+                                if !c.artist.is_empty() {
+                                    tag.artist = c.artist;
+                                }
+                                if !c.album.is_empty() {
+                                    tag.album = c.album;
+                                }
+                                if !c.year.is_empty() {
+                                    tag.year = c.year;
+                                }
+                                if !c.genre.is_empty() {
+                                    tag.genre = c.genre;
+                                }
+                            }
                         }
                         tag.stage = TagStage::Review;
                     }
@@ -2089,27 +2111,38 @@ impl App {
                                         );
                                         ui.add_space(8.0);
                                     };
-                                    // Cover (left) + Title / Artist (right).
+                                    // Cover (left) + Title / Artist (right), the two
+                                    // fields kept compact so they sit within the
+                                    // cover's height (not spilling below it).
                                     let cover = tag.cover_url.clone().filter(|s| !s.is_empty());
+                                    let cover_sz = 112.0;
                                     ui.horizontal(|ui| {
                                         if let Some(c) = &cover {
                                             ui.add(
                                                 egui::Image::from_uri(c.clone())
-                                                    .fit_to_exact_size(egui::vec2(96.0, 96.0))
+                                                    .fit_to_exact_size(egui::vec2(cover_sz, cover_sz))
                                                     .corner_radius(10),
                                             );
                                         } else {
                                             let (r, _) = ui.allocate_exact_size(
-                                                egui::vec2(96.0, 96.0),
+                                                egui::vec2(cover_sz, cover_sz),
                                                 egui::Sense::hover(),
                                             );
                                             ui.painter().rect_filled(r, 10.0, p.surface_hi);
                                         }
                                         ui.add_space(12.0);
                                         ui.vertical(|ui| {
-                                            ui.set_width(usable - 108.0);
-                                            field(ui, tl(lang, "tag.f_title"), &mut tag.title);
-                                            field(ui, tl(lang, "tag.f_artist"), &mut tag.artist);
+                                            ui.set_width(usable - cover_sz - 14.0);
+                                            let cf = |ui: &mut egui::Ui, lab: &str, v: &mut String| {
+                                                ui.label(RichText::new(lab).small().color(p.fg_dim));
+                                                ui.add(
+                                                    egui::TextEdit::singleline(v)
+                                                        .desired_width(f32::INFINITY),
+                                                );
+                                                ui.add_space(4.0);
+                                            };
+                                            cf(ui, tl(lang, "tag.f_title"), &mut tag.title);
+                                            cf(ui, tl(lang, "tag.f_artist"), &mut tag.artist);
                                         });
                                     });
                                     ui.add_space(4.0);
