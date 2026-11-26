@@ -663,8 +663,12 @@ fn download_dir() -> std::path::PathBuf {
     if let Ok(d) = std::env::var("YOINK_DOWNLOAD_DIR") {
         return std::path::PathBuf::from(d);
     }
-    // TODO(slice-settings): read the configured download directory.
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
+    // HOME is unset on Windows (it uses USERPROFILE); without this fallback the
+    // default downloads dir would be a CWD-relative "./Downloads/Yoink" — inside
+    // the install dir, which the installer wipes on every update.
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into());
     std::path::Path::new(&home).join("Downloads").join("Yoink")
 }
 
