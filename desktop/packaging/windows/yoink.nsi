@@ -61,13 +61,19 @@ VIAddVersionKey "FileDescription" "${PRODUCT} setup"
 
 !insertmacro MUI_LANGUAGE "English"
 
-; Close a running Yoink (egui or the legacy Tauri build) so its files unlock.
+; Close a running Yoink (egui or the legacy Tauri build) and its whole tree so no
+; process (desktop, backend, or the yt-dlp/ffmpeg children the backend spawned) is
+; left running across an update or uninstall.
+;   - yoink-desktop: NO /T. During an in-app update this installer is a *child* of
+;     yoink-desktop, so /T here would kill the installer itself.
+;   - yoink-core: /T, to also take the yt-dlp/ffmpeg it spawned (killing the parent
+;     doesn't; and this stays scoped to our own tree, never unrelated ffmpeg).
 !macro KillRunning
   nsExec::Exec 'taskkill /F /IM yoink-desktop.exe'
-  nsExec::Exec 'taskkill /F /IM yoink-core.exe'
-  nsExec::Exec 'taskkill /F /IM yoink-minter.exe'
+  nsExec::Exec 'taskkill /F /T /IM yoink-core.exe'
+  nsExec::Exec 'taskkill /F /T /IM yoink-minter.exe'
   nsExec::Exec 'taskkill /F /IM Yoink.exe'
-  Sleep 500
+  Sleep 800
 !macroend
 
 Section "Install"
