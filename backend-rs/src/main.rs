@@ -272,6 +272,11 @@ async fn ytdlp_once(base: &[&str], cookies: &[String]) -> Result<Vec<u8>, (bool,
     hide_console_tokio(&mut cmd);
     cmd.args(base);
     cmd.args(cookies);
+    // Don't let yt-dlp inherit our stdin: the desktop keeps yoink-core's stdin
+    // open as a watchdog pipe, and the PyInstaller yt-dlp.exe hangs on Windows
+    // if it inherits that never-closing pipe. (tokio's output() leaves stdin
+    // inherited, unlike std's.)
+    cmd.stdin(std::process::Stdio::null());
     cmd.kill_on_drop(true); // on timeout the future drops — kill the child with it
     match tokio::time::timeout(METADATA_TIMEOUT, cmd.output()).await {
         Ok(Ok(o)) if o.status.success() => Ok(o.stdout),
@@ -935,6 +940,7 @@ async fn execute_download(
     hide_console_tokio(&mut dl_cmd);
     let mut child = match dl_cmd
         .args(&args)
+        .stdin(std::process::Stdio::null()) // see ytdlp_once: don't inherit the watchdog pipe
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
@@ -1476,6 +1482,7 @@ async fn get_logs() -> Json<Value> {
 async fn ytdlp_version() -> Json<VersionInfo> {
     let mut ver_cmd = tokio::process::Command::new(ytdlp_bin());
     hide_console_tokio(&mut ver_cmd);
+    ver_cmd.stdin(std::process::Stdio::null());
     let current = ver_cmd
         .arg("--version")
         .output()

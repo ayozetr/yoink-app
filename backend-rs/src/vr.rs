@@ -794,6 +794,7 @@ pub fn set_mkv_stereo_mode(path: &Path, layout: &str) -> bool {
     };
     let mut remux = std::process::Command::new(ffmpeg);
     crate::hide_console_std(&mut remux);
+    remux.stdin(std::process::Stdio::null());
     let out = remux
         .args([
             "-y",

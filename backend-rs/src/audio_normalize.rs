@@ -83,6 +83,7 @@ fn run_timed(mut cmd: Command, secs: u64) -> Option<std::process::Output> {
 fn run_ffmpeg(args: &[String]) -> Option<std::process::Output> {
     let mut cmd = Command::new(bin("ffmpeg"));
     crate::hide_console_std(&mut cmd);
+    cmd.stdin(std::process::Stdio::null());
     cmd.arg("-hide_banner").arg("-nostdin").args(args);
     run_timed(cmd, FFMPEG_TIMEOUT_SECS)
 }
@@ -90,6 +91,7 @@ fn run_ffmpeg(args: &[String]) -> Option<std::process::Output> {
 fn ffprobe(args: &[&str]) -> Option<String> {
     let mut cmd = Command::new(bin("ffprobe"));
     crate::hide_console_std(&mut cmd);
+    cmd.stdin(std::process::Stdio::null());
     cmd.args(args);
     let out = run_timed(cmd, FFPROBE_TIMEOUT_SECS)?;
     Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
