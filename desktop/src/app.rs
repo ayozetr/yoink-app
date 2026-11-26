@@ -256,6 +256,8 @@ pub struct App {
     search_results: Vec<SearchItem>,
     music_filter: String,                          // music-import track filter
     music_selected: std::collections::HashSet<usize>, // selected track indices
+    vr_layout: String,                 // chosen immersive layout for a VR download
+    cache_cleared: Option<bool>,       // last "clear yt-dlp cache" result (feedback)
     search_pending: Option<std::time::Instant>,
     preview: Preview,
     status: Status,
@@ -394,6 +396,8 @@ impl App {
             search_results: Vec::new(),
             music_filter: String::new(),
             music_selected: std::collections::HashSet::new(),
+            vr_layout: "180_sbs".into(),
+            cache_cleared: None,
             search_pending: None,
             preview: Preview::None,
             status: Status::Idle,
@@ -522,6 +526,7 @@ impl App {
                 has_audio: true,
                 source_lossless: false,
                 is_vr: false,
+                vr_layout: None,
                 subtitle_langs: vec!["en".into(), "es".into()],
                 has_chapters: true,
                 formats: vec![crate::api::FmtLite {
@@ -604,6 +609,7 @@ impl App {
                 }
                 Evt::SettingsLoadFailed => self.settings_failed = true,
                 Evt::SettingsSaved => self.settings_note = Some("Guardado".into()),
+                Evt::CacheCleared(ok) => self.cache_cleared = Some(ok),
                 Evt::UpdateAvailable {
                     version,
                     asset_url,
@@ -656,6 +662,11 @@ impl App {
                 }
                 Evt::Analyzing => self.status = Status::Analyzing,
                 Evt::Info(v) => {
+                    // Seed the VR layout picker from the detected projection.
+                    if v.is_vr {
+                        self.vr_layout =
+                            v.vr_layout.clone().unwrap_or_else(|| "180_sbs".to_string());
+                    }
                     self.preview = Preview::Video(v);
                     self.status = Status::Idle;
                     self.search_results.clear();
@@ -817,7 +828,7 @@ impl App {
                 let kind = it.kind.clone();
                 let is_audio = kind == "audio";
                 self.backend.send(Cmd::Download(
-                    DownloadReq {
+                    Box::new(DownloadReq {
                         url: url.clone(),
                         quality: (!is_audio).then(|| it.quality.clone()),
                         kind,
@@ -826,7 +837,7 @@ impl App {
                         audio_bitrate: (is_audio && it.bitrate != "best")
                             .then(|| it.bitrate.clone()),
                         ..Default::default()
-                    },
+                    }),
                     crate::api::AutotagOpts {
                         fetch_lyrics: self.settings.as_ref().is_some_and(|s| s.fetch_lyrics),
                         interactive: false, // queue tags silently
@@ -924,8 +935,9 @@ impl App {
         self.eta = None;
         self.status = Status::Downloading;
         let video = self.kind == "video";
+        let is_vr = video && matches!(&self.preview, Preview::Video(v) if v.is_vr);
         self.backend.send(Cmd::Download(
-            DownloadReq {
+            Box::new(DownloadReq {
                 url: self.url.trim().to_string(),
                 kind: self.kind.clone(),
                 quality: video.then(|| self.quality.clone()),
@@ -939,7 +951,10 @@ impl App {
                 embed_chapters: video && self.embed_chapters,
                 trim_start: parse_timecode(&self.trim_start),
                 trim_end: parse_timecode(&self.trim_end),
-            },
+                is_vr,
+                vr_layout: is_vr.then(|| self.vr_layout.clone()),
+                auto_vr: false,
+            }),
             crate::api::AutotagOpts {
                 fetch_lyrics: self.settings.as_ref().is_some_and(|s| s.fetch_lyrics),
                 interactive: true, // manual download → open the tag panel
@@ -2042,7 +2057,9 @@ impl App {
             year: String::new(),
             genre: String::new(),
             track_number: None,
-            cover_url: None,
+            // Show the file's currently-embedded cover (if any) while identifying;
+            // a catalogue match replaces it. 404s silently when there's none.
+            cover_url: Some(crate::api::media_cover_url(&path)),
             embed_lyrics: embed,
             anim: 0.0,
             manual_open: false,
@@ -2750,7 +2767,8 @@ impl App {
                 );
                 let (hs, hc) = (!v.subtitle_langs.is_empty(), v.has_chapters);
                 let sl = v.source_lossless;
-                self.ui_download_controls(ui, p, ha, bh, bs, hs, hc, sl);
+                let vr = v.is_vr;
+                self.ui_download_controls(ui, p, ha, bh, bs, hs, hc, sl, vr);
                 self.ui_progress(ui, p);
             }
             Preview::Playlist { title, count } => {
@@ -2973,6 +2991,7 @@ impl App {
         has_subs: bool,
         has_chapters: bool,
         source_lossless: bool,
+        is_vr: bool,
     ) {
         let lang = self.lang;
         ui.horizontal(|ui| {
@@ -3260,6 +3279,27 @@ impl App {
             if kind == "video" && has_chapters {
                 adv_row(ui, p, tl(lang, "field.chapters"), |ui| {
                     toggle(ui, &mut self.embed_chapters, p);
+                });
+            }
+            // Immersive (VR) projection/layout — only for a source flagged VR.
+            if kind == "video" && is_vr {
+                adv_row(ui, p, tl(lang, "adv.vr"), |ui| {
+                    combo_bare(
+                        ui,
+                        lang,
+                        "vr",
+                        &mut self.vr_layout,
+                        &[
+                            "180_sbs",
+                            "180_tb",
+                            "180_mono",
+                            "360_sbs",
+                            "360_tb",
+                            "360_mono",
+                            "fisheye190",
+                            "fisheye200",
+                        ],
+                    );
                 });
             }
             adv_row(ui, p, tl(lang, "adv.trim"), |ui| {
@@ -4320,6 +4360,11 @@ impl App {
         setting_row(ui, p, tl(lang, "set.lyrics"), |ui| {
             toggle(ui, &mut s.fetch_lyrics, p);
         });
+        if s.fetch_lyrics {
+            setting_row(ui, p, tl(lang, "set.lyrics_lrc"), |ui| {
+                toggle(ui, &mut s.lyrics_lrc, p);
+            });
+        }
 
         // SponsorBlock.
         ui.add_space(20.0);
@@ -4394,6 +4439,34 @@ impl App {
                 .small()
                 .color(p.fg_dim),
         );
+        ui.add_space(6.0);
+        // Clear yt-dlp's cache — recovers from a flagged YouTube visitor_data
+        // ("no audio" / "confirm you're not a bot") when a PO token + cookies
+        // don't help. Mirrors the legacy button.
+        let mut clear_cache = false;
+        let cache_cleared = self.cache_cleared;
+        setting_row(ui, p, tl(lang, "set.clear_cache"), |ui| {
+            if ui
+                .add(egui::Button::new(
+                    RichText::new(format!("  {}  ", tl(lang, "set.clear_cache_btn")))
+                        .color(p.accent),
+                ))
+                .clicked()
+            {
+                clear_cache = true;
+            }
+            if let Some(ok) = cache_cleared {
+                ui.add_space(6.0);
+                ui.label(
+                    RichText::new(if ok { "✓" } else { "✗" })
+                        .color(if ok { p.ok } else { p.err }),
+                );
+            }
+        });
+        if clear_cache {
+            self.backend.send(Cmd::ClearYtdlpCache);
+            self.cache_cleared = None;
+        }
         ui.add_space(6.0);
 
         // Shortcuts.
@@ -5130,6 +5203,14 @@ fn opt_label(lang: Lang, v: &str) -> String {
         "opus" => "Opus".to_string(),
         "flac" => "FLAC".to_string(),
         "wav" => "WAV".to_string(),
+        "180_sbs" => "180° SBS".to_string(),
+        "180_tb" => "180° TB".to_string(),
+        "180_mono" => "180° Mono".to_string(),
+        "360_sbs" => "360° SBS".to_string(),
+        "360_tb" => "360° TB".to_string(),
+        "360_mono" => "360° Mono".to_string(),
+        "fisheye190" => "Fisheye 190°".to_string(),
+        "fisheye200" => "Fisheye 200°".to_string(),
         "h264" => "H.264".to_string(),
         "h265" => "H.265".to_string(),
         "vp9" => "VP9".to_string(),

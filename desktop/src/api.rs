@@ -20,6 +20,18 @@ pub fn port() -> u16 {
         .unwrap_or(8756)
 }
 
+/// URL of the `/media/cover` endpoint for a downloaded file, so the UI can show
+/// its currently-embedded cover (e.g. on re-tag). 404s when the file has none.
+pub fn media_cover_url(path: &str) -> String {
+    match reqwest::Url::parse(&format!("{}/api/media/cover", http_base())) {
+        Ok(mut u) => {
+            u.query_pairs_mut().append_pair("path", path);
+            u.to_string()
+        }
+        Err(_) => String::new(),
+    }
+}
+
 fn http_base() -> String {
     format!("http://127.0.0.1:{}", port())
 }
@@ -39,7 +51,7 @@ pub enum Cmd {
         id: u64,
         url: String,
     },
-    Download(DownloadReq, AutotagOpts),
+    Download(Box<DownloadReq>, AutotagOpts),
     /// Tag-panel lookups + write.
     AutotagIdentify {
         path: String,
@@ -58,6 +70,8 @@ pub enum Cmd {
     LoadLogs,
     /// Clear the log file, then reload it.
     ClearLogs,
+    /// Clear yt-dlp's on-disk cache (recovers from a flagged YouTube visitor_data).
+    ClearYtdlpCache,
     LoadWhatsNew {
         since: String,
     },
@@ -137,6 +151,8 @@ pub enum Evt {
     /// The backend never answered the settings request (its retry budget ran out).
     SettingsLoadFailed,
     SettingsSaved,
+    /// yt-dlp cache cleared (ok flag) — for the Settings button's confirmation.
+    CacheCleared(bool),
     UpdateAvailable {
         version: String,
         /// The download URL of the asset for this platform (AppImage/exe), if the
@@ -212,6 +228,8 @@ pub struct Settings {
     pub music_folders: bool,
     pub prefer_soundcloud_lossless: bool,
     pub fetch_lyrics: bool,
+    #[serde(default)]
+    pub lyrics_lrc: bool,
     pub cookies_from_browser: Option<String>,
     pub cookies_file: Option<String>,
     pub proxy: Option<String>,
@@ -343,6 +361,12 @@ pub struct DownloadReq {
     pub trim_start: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trim_end: Option<f64>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub is_vr: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vr_layout: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub auto_vr: bool,
 }
 
 /// The fields of `VideoInfo` the preview shows.
@@ -362,6 +386,9 @@ pub struct VideoLite {
     pub source_lossless: bool,
     #[serde(default)]
     pub is_vr: bool,
+    /// Detected immersive projection/layout (e.g. "180_sbs"), when is_vr.
+    #[serde(default)]
+    pub vr_layout: Option<String>,
     #[serde(default)]
     pub subtitle_langs: Vec<String>,
     #[serde(default)]
@@ -528,7 +555,7 @@ impl Backend {
                             tokio::spawn(async move { resolve_title(id, url, evt_tx, ctx).await });
                         }
                         Cmd::Download(req, autotag) => {
-                            tokio::spawn(async move { download(req, autotag, evt_tx, ctx).await });
+                            tokio::spawn(async move { download(*req, autotag, evt_tx, ctx).await });
                         }
                         Cmd::AutotagIdentify { path } => {
                             tokio::spawn(async move {
@@ -579,6 +606,9 @@ impl Backend {
                         }
                         Cmd::ClearLogs => {
                             tokio::spawn(async move { clear_logs(evt_tx, ctx).await });
+                        }
+                        Cmd::ClearYtdlpCache => {
+                            tokio::spawn(async move { clear_ytdlp_cache(evt_tx, ctx).await });
                         }
                         Cmd::CheckUpdate => {
                             tokio::spawn(async move { check_update(evt_tx, ctx).await });
@@ -984,6 +1014,17 @@ async fn clear_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
         .send()
         .await;
     load_logs(tx, ctx).await;
+}
+
+/// Clear yt-dlp's on-disk cache; reports success so the UI can confirm it.
+async fn clear_ytdlp_cache(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    let ok = reqwest::Client::new()
+        .delete(format!("{}/api/ytdlp-cache", http_base()))
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false);
+    emit(&tx, &ctx, Evt::CacheCleared(ok));
 }
 
 async fn load_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
