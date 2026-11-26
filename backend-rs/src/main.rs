@@ -772,6 +772,16 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         };
         a.push("--audio-quality".into());
         a.push(quality);
+        // Embed the source thumbnail as a fallback cover (converted to JPEG, as
+        // most players can't show YouTube's WebP). Only for container formats
+        // that can actually hold cover art — auto-tagging overwrites it later
+        // with real album art. Mirrors the legacy backend.
+        if matches!(req.audio_format.as_str(), "mp3" | "m4a" | "flac" | "opus") {
+            a.push("--write-thumbnail".into());
+            a.push("--convert-thumbnails".into());
+            a.push("jpg".into());
+            a.push("--embed-thumbnail".into());
+        }
     } else {
         let format = match req.quality.as_deref() {
             Some(q) if q != "best" => {
