@@ -436,6 +436,12 @@ pub fn tl(lang: Lang, key: &str) -> &str {
 
         ("music.tracks", Es) => "pistas",
         ("music.tracks", En) => "tracks",
+        ("music.filter", Es) => "Filtrar temas…",
+        ("music.filter", En) => "Filter tracks…",
+        ("music.all", Es) => "Todos",
+        ("music.all", En) => "All",
+        ("music.import_sel", Es) => "Importar",
+        ("music.import_sel", En) => "Import",
         ("music.import", Es) => "Importar todo",
         ("music.import", En) => "Import all",
         ("music.label", Es) => "IMPORTAR",

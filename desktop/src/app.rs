@@ -254,6 +254,8 @@ pub struct App {
     embed_chapters: bool,
     source: String, // "youtube" | "soundcloud" for the search selector
     search_results: Vec<SearchItem>,
+    music_filter: String,                          // music-import track filter
+    music_selected: std::collections::HashSet<usize>, // selected track indices
     search_pending: Option<std::time::Instant>,
     preview: Preview,
     status: Status,
@@ -390,6 +392,8 @@ impl App {
             embed_chapters: false,
             source: "youtube".into(),
             search_results: Vec::new(),
+            music_filter: String::new(),
+            music_selected: std::collections::HashSet::new(),
             search_pending: None,
             preview: Preview::None,
             status: Status::Idle,
@@ -717,6 +721,9 @@ impl App {
                     self.status = Status::Idle;
                 }
                 Evt::Music(info) => {
+                    // Default to every track selected; clear any previous filter.
+                    self.music_selected = (0..info.tracks.len()).collect();
+                    self.music_filter.clear();
                     self.preview = Preview::Music(*info);
                     self.status = Status::Idle;
                 }
@@ -862,7 +869,11 @@ impl App {
 
     /// Enqueue every track of a resolved music import (match → download → tag).
     fn enqueue_music(&mut self, info: &MusicInfo) {
-        for t in &info.tracks {
+        for (i, t) in info.tracks.iter().enumerate() {
+            // Only the picked tracks (the panel defaults to all selected).
+            if !self.music_selected.contains(&i) {
+                continue;
+            }
             self.queue.push(QueueItem {
                 id: self.next_qid,
                 label: format!("{} — {}", t.artists, t.title),
@@ -2833,21 +2844,81 @@ impl App {
                             meta.push(format!("{} {}", info.tracks.len(), tl(lang, "music.songs")));
                         }
                         ui.label(RichText::new(meta.join("  ·  ")).small().color(p.fg_dim));
-                        if !single {
-                            ui.add_space(8.0);
-                            for t in info.tracks.iter().take(6) {
-                                ui.label(
-                                    RichText::new(format!("•  {} — {}", t.artists, t.title))
-                                        .small()
-                                        .color(p.fg_dim),
-                                );
-                            }
-                            if info.tracks.len() > 6 {
-                                ui.label(RichText::new("…").small().color(p.fg_dim));
-                            }
-                        }
                     });
                 });
+                // Playlist/album: a filter box + a selectable track list, so the
+                // import can be narrowed to the picked tracks (like the legacy).
+                if !single {
+                    ui.add_space(10.0);
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.music_filter)
+                            .hint_text(tl(lang, "music.filter"))
+                            .desired_width(f32::INFINITY),
+                    );
+                    let q = self.music_filter.trim().to_lowercase();
+                    let shown: Vec<usize> = info
+                        .tracks
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, t)| {
+                            q.is_empty()
+                                || t.title.to_lowercase().contains(&q)
+                                || t.artists.to_lowercase().contains(&q)
+                        })
+                        .map(|(i, _)| i)
+                        .collect();
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        let all = !shown.is_empty()
+                            && shown.iter().all(|i| self.music_selected.contains(i));
+                        if ui.selectable_label(all, tl(lang, "music.all")).clicked() {
+                            for i in &shown {
+                                if all {
+                                    self.music_selected.remove(i);
+                                } else {
+                                    self.music_selected.insert(*i);
+                                }
+                            }
+                        }
+                        ui.with_layout(
+                            egui::Layout::right_to_left(egui::Align::Center),
+                            |ui| {
+                                ui.label(
+                                    RichText::new(format!(
+                                        "{} / {}",
+                                        self.music_selected.len(),
+                                        info.tracks.len()
+                                    ))
+                                    .small()
+                                    .color(p.fg_dim),
+                                );
+                            },
+                        );
+                    });
+                    ui.add_space(4.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(220.0)
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            for i in &shown {
+                                let t = &info.tracks[*i];
+                                let sel = self.music_selected.contains(i);
+                                if ui
+                                    .selectable_label(
+                                        sel,
+                                        format!("{} — {}", t.artists, t.title),
+                                    )
+                                    .clicked()
+                                {
+                                    if sel {
+                                        self.music_selected.remove(i);
+                                    } else {
+                                        self.music_selected.insert(*i);
+                                    }
+                                }
+                            }
+                        });
+                }
                 // Info note (why the audio is matched, not pulled from the source).
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
@@ -2864,7 +2935,11 @@ impl App {
                 let label = if single {
                     tl(lang, "music.download").to_string()
                 } else {
-                    format!("{} ({})", tl(lang, "music.import"), info.tracks.len())
+                    format!(
+                        "{} ({})",
+                        tl(lang, "music.import_sel"),
+                        self.music_selected.len()
+                    )
                 };
                 let btn = egui::Button::image_and_text(
                     crate::icons::img("download", 15.0, p.accent_fg),
@@ -2873,7 +2948,8 @@ impl App {
                 .fill(p.accent)
                 .corner_radius(10)
                 .min_size(egui::vec2(ui.available_width(), 44.0));
-                if ui.add(btn).clicked() {
+                let can_import = single || !self.music_selected.is_empty();
+                if ui.add_enabled(can_import, btn).clicked() {
                     import = true;
                 }
                 if import {
@@ -2964,11 +3040,15 @@ impl App {
         // an audio download's source has none (it would upscale to MP3 anyway).
         if self.kind == "audio" && !source_lossless {
             ui.add_space(8.0);
-            ui.label(
-                RichText::new(tl(lang, "inicio.lossless_warn"))
-                    .small()
-                    .color(p.fg_dim),
-            );
+            ui.horizontal(|ui| {
+                crate::icons::show(ui, "help", 13.0, p.fg_dim);
+                ui.add_space(5.0);
+                ui.label(
+                    RichText::new(tl(lang, "inicio.lossless_warn"))
+                        .small()
+                        .color(p.fg_dim),
+                );
+            });
         }
 
         // Add to queue · Advanced options (subtle link row).
