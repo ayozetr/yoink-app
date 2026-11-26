@@ -45,10 +45,10 @@ NSI = DESKTOP / "packaging" / "windows" / "yoink.nsi"
 BINARIES = (
     "yoink-desktop.exe",
     "yoink-core.exe",
-    "yt-dlp.exe",
     "ffmpeg.exe",
     "ffprobe.exe",
 )
+# yt-dlp ships as a onedir folder (yt-dlp.exe + _internal/), copied whole.
 
 
 def _version() -> str:
@@ -130,7 +130,6 @@ def main() -> int:
     sources = {
         "yoink-desktop.exe": DESKTOP / "target" / "release" / "yoink-desktop.exe",
         "yoink-core.exe": CORE_BUNDLE / "yoink-core.exe",
-        "yt-dlp.exe": CORE_BUNDLE / "yt-dlp.exe",
         "ffmpeg.exe": CORE_BUNDLE / "ffmpeg.exe",
         "ffprobe.exe": CORE_BUNDLE / "ffprobe.exe",
     }
@@ -144,6 +143,13 @@ def main() -> int:
     for dll in sorted(CORE_BUNDLE.glob("*.dll")):
         shutil.copy2(dll, DIST / dll.name)
         print(f"  {dll.name}  ({(DIST / dll.name).stat().st_size // 1024} KiB)")
+    # yt-dlp onedir folder (yt-dlp.exe + _internal/) → dist/ytdlp.
+    ytdlp_src = CORE_BUNDLE / "ytdlp"
+    if not ytdlp_src.is_dir():
+        raise SystemExit(f"! missing yt-dlp onedir bundle: {ytdlp_src}")
+    shutil.copytree(ytdlp_src, DIST / "ytdlp")
+    n = sum(1 for _ in (DIST / "ytdlp").rglob("*") if _.is_file())
+    print(f"  ytdlp/  ({n} files)")
 
     # 5: NSIS installer
     makensis = _find_makensis()

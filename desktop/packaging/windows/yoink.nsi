@@ -90,14 +90,25 @@ Section "Install"
 
   File "${SRCDIR}\${MAINEXE}"
   File "${SRCDIR}\yoink-core.exe"
-  File "${SRCDIR}\yt-dlp.exe"
   File "${SRCDIR}\ffmpeg.exe"
   File "${SRCDIR}\ffprobe.exe"
   ; ffmpeg's shared DLLs (avcodec/avformat/avutil/…) must sit beside the exes.
   File "${SRCDIR}\*.dll"
 
+  ; yt-dlp onedir build (yt-dlp.exe + _internal/) → $INSTDIR\ytdlp, so it doesn't
+  ; self-extract to %TEMP% on every run. backend_proc points YOINK_YTDLP here.
+  SetOutPath "$INSTDIR\ytdlp"
+  File /r "${SRCDIR}\ytdlp\*.*"
+  SetOutPath "$INSTDIR"
+
   CreateShortCut "$SMPROGRAMS\${PRODUCT}.lnk" "$INSTDIR\${MAINEXE}"
   CreateShortCut "$DESKTOP\${PRODUCT}.lnk" "$INSTDIR\${MAINEXE}"
+
+  ; Register our AppUserModelID so toast notifications show "${PRODUCT}" (and its
+  ; icon) instead of the launching process. The app sets the same id on itself
+  ; via SetCurrentProcessExplicitAppUserModelID and tags each toast with it.
+  WriteRegStr HKCU "Software\Classes\AppUserModelId\app.yoink.desktop" "DisplayName" "${PRODUCT}"
+  WriteRegStr HKCU "Software\Classes\AppUserModelId\app.yoink.desktop" "IconUri" "$INSTDIR\${MAINEXE},0"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${PRODUCT}"
@@ -105,6 +116,8 @@ Section "Install"
   WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "${PUBLISHER}"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\${MAINEXE}"
   WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKCU "${UNINST_KEY}" "URLInfoAbout" "https://github.com/ayozetr/yoink-app"
+  WriteRegStr HKCU "${UNINST_KEY}" "HelpLink" "https://github.com/ayozetr/yoink-app"
   WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegStr HKCU "${UNINST_KEY}" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
@@ -132,4 +145,5 @@ Section "Uninstall"
   RMDir /r "$INSTDIR"
   DeleteRegKey HKCU "${UNINST_KEY}"
   DeleteRegKey HKCU "Software\Classes\yoink"
+  DeleteRegKey HKCU "Software\Classes\AppUserModelId\app.yoink.desktop"
 SectionEnd

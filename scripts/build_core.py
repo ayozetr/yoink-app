@@ -52,7 +52,10 @@ def _ytdlp_version() -> str:
 
 def _ytdlp_asset() -> str:
     if os.name == "nt":
-        return "yt-dlp.exe"
+        # The onedir build (a folder: yt-dlp.exe + _internal/), not the onefile
+        # .exe. The onefile self-extracts to %TEMP% on *every* run and the AV
+        # rescans it each time — slow on Windows; the onedir starts fast.
+        return "yt-dlp_win.zip"
     if platform.system() == "Darwin":
         return "yt-dlp_macos"
     return "yt-dlp_linux"
@@ -79,13 +82,33 @@ def main() -> int:
     # yt-dlp: the official standalone binary pinned to requirements.txt's version.
     version = _ytdlp_version()
     asset = _ytdlp_asset()
-    ytdlp_name = "yt-dlp.exe" if os.name == "nt" else "yt-dlp"
     url = f"https://github.com/yt-dlp/yt-dlp/releases/download/{version}/{asset}"
-    out = DEST / ytdlp_name
     print(f"> Downloading yt-dlp {version} ({asset})...")
-    urllib.request.urlopen(url)  # noqa: S310 — trusted host  # fail fast on a bad URL
-    urllib.request.urlretrieve(url, out)
-    _make_executable(out)
+    if asset.endswith(".zip"):
+        # Windows onedir: extract yt-dlp.exe + _internal/ into ytdlp/, so it never
+        # self-extracts to %TEMP% at runtime (backend_proc points YOINK_YTDLP at
+        # ytdlp/yt-dlp.exe; the NSIS installer ships the whole folder).
+        import io
+        import zipfile
+
+        ytdlp_dir = DEST / "ytdlp"
+        if ytdlp_dir.exists():
+            shutil.rmtree(ytdlp_dir)
+        ytdlp_dir.mkdir(parents=True)
+        with urllib.request.urlopen(url) as resp:  # noqa: S310 — trusted host
+            blob = resp.read()
+        with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+            zf.extractall(ytdlp_dir)
+        exe = ytdlp_dir / "yt-dlp.exe"
+        if not exe.exists():
+            raise SystemExit(f"! yt-dlp.exe not found in {asset}")
+        _make_executable(exe)
+    else:
+        ytdlp_name = "yt-dlp.exe" if os.name == "nt" else "yt-dlp"
+        out = DEST / ytdlp_name
+        urllib.request.urlopen(url)  # noqa: S310 — trusted host  # fail fast on a bad URL
+        urllib.request.urlretrieve(url, out)
+        _make_executable(out)
 
     # ffmpeg + ffprobe from the vendored LGPL builds.
     if not VENDOR_FFMPEG.is_dir():
