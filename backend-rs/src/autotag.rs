@@ -473,9 +473,11 @@ pub struct LyricsResult {
     pub instrumental: bool,
     pub has_synced: bool,
     pub plain: Option<String>,
+    /// The timestamped (LRC) lyrics text, kept so a `.lrc` sidecar can be written.
+    pub synced: Option<String>,
 }
 
-fn to_lyrics(rec: &Value) -> Option<(Option<String>, bool, bool)> {
+fn to_lyrics(rec: &Value) -> Option<(Option<String>, Option<String>, bool)> {
     let instrumental = rec
         .get("instrumental")
         .and_then(Value::as_bool)
@@ -491,7 +493,7 @@ fn to_lyrics(rec: &Value) -> Option<(Option<String>, bool, bool)> {
     if !instrumental && plain.is_none() && synced.is_none() {
         return None;
     }
-    Some((plain, synced.is_some(), instrumental))
+    Some((plain, synced, instrumental))
 }
 
 /// Audio duration (seconds) from the file, for LRCLIB's exact signature match.
@@ -499,6 +501,26 @@ pub fn probe_duration(path: &str) -> Option<f64> {
     use lofty::file::AudioFile;
     let tagged = lofty::read_from_path(path).ok()?;
     Some(tagged.properties().duration().as_secs_f64())
+}
+
+/// Write the timestamped lyrics to a `.lrc` sidecar beside the audio (the player
+/// picks it up for synced display). Best-effort; mirrors the legacy `lyrics_lrc`.
+pub fn write_lrc(audio_path: &str, synced: &str) -> Result<(), String> {
+    let lrc = std::path::Path::new(audio_path).with_extension("lrc");
+    std::fs::write(&lrc, synced).map_err(|e| e.to_string())
+}
+
+/// The embedded cover art of a tagged audio file (bytes + MIME), or None. Used by
+/// the `/media/cover` route so the UI can show a downloaded file's current cover.
+pub fn read_cover(path: &str) -> Option<(Vec<u8>, String)> {
+    let tagged = lofty::read_from_path(path).ok()?;
+    let tag = tagged.primary_tag().or_else(|| tagged.first_tag())?;
+    let pic = tag.pictures().first()?;
+    let mime = pic
+        .mime_type()
+        .map(|m| m.as_str().to_string())
+        .unwrap_or_else(|| "image/jpeg".to_string());
+    Some((pic.data().to_vec(), mime))
 }
 
 /// The tags already written to a file, to pre-fill the re-tag panel so the user
@@ -541,17 +563,19 @@ pub async fn fetch_lyrics(
         instrumental: false,
         has_synced: false,
         plain: None,
+        synced: None,
     };
     let (title, artist) = (title.trim(), artist.trim());
     if title.is_empty() {
         return empty;
     }
     let build = |rec: &Value| {
-        to_lyrics(rec).map(|(plain, has_synced, instrumental)| LyricsResult {
+        to_lyrics(rec).map(|(plain, synced, instrumental)| LyricsResult {
             found: true,
             instrumental,
-            has_synced,
+            has_synced: synced.is_some(),
             plain,
+            synced,
         })
     };
 
@@ -855,22 +879,22 @@ mod lyrics_tests {
 
     #[test]
     fn plain_and_synced_present() {
-        let (plain, has_synced, instrumental) = to_lyrics(
+        let (plain, synced, instrumental) = to_lyrics(
             &json!({"plainLyrics":"la la la","syncedLyrics":"[00:01.00] la","instrumental":false}),
         )
         .expect("some");
         assert_eq!(plain.as_deref(), Some("la la la"));
-        assert!(has_synced);
+        assert!(synced.is_some());
         assert!(!instrumental);
     }
 
     #[test]
     fn instrumental_has_no_plain() {
-        let (plain, has_synced, instrumental) =
+        let (plain, synced, instrumental) =
             to_lyrics(&json!({"instrumental":true,"plainLyrics":null})).expect("some");
         assert!(instrumental);
         assert!(plain.is_none());
-        assert!(!has_synced);
+        assert!(synced.is_none());
     }
 
     #[test]

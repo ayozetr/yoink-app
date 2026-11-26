@@ -15,11 +15,11 @@ use std::net::SocketAddr;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Json,
+        Json, Query,
     },
-    http::{HeaderValue, Method, StatusCode},
-    response::Response,
-    routing::{get, post},
+    http::{header, HeaderValue, Method, StatusCode},
+    response::{IntoResponse, Response},
+    routing::{delete, get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
@@ -1213,6 +1213,7 @@ struct AppSettings {
     music_folders: bool,
     prefer_soundcloud_lossless: bool,
     fetch_lyrics: bool,
+    lyrics_lrc: bool,
     cookies_from_browser: Option<String>,
     cookies_file: Option<String>,
     proxy: Option<String>,
@@ -1253,6 +1254,7 @@ impl Default for AppSettings {
             music_folders: false,
             prefer_soundcloud_lossless: false,
             fetch_lyrics: false,
+            lyrics_lrc: false,
             cookies_from_browser: None,
             cookies_file: None,
             proxy: None,
@@ -2087,14 +2089,22 @@ async fn autotag_lyrics(Json(req): Json<LyricsRequest>) -> Json<Value> {
     // Embed the plain lyrics into the file when we have both a found (non-
     // instrumental) result and a path inside the download directory.
     let mut embedded = false;
+    let mut lrc_written = false;
     if r.found && !r.instrumental {
-        if let (Some(path), Some(plain)) = (req.path.as_deref(), r.plain.as_deref()) {
-            if !plain.is_empty() && path_in_download_dir(path) {
+        if let Some(path) = req.path.as_deref().filter(|p| path_in_download_dir(p)) {
+            if let Some(plain) = r.plain.as_deref().filter(|s| !s.is_empty()) {
                 let (p, text) = (path.to_string(), plain.to_string());
                 embedded = tokio::task::spawn_blocking(move || autotag::embed_lyrics(&p, &text))
                     .await
                     .map(|res| res.is_ok())
                     .unwrap_or(false);
+            }
+            // Also drop a synced ".lrc" sidecar when the setting is on (mirrors
+            // the legacy `lyrics_lrc`).
+            if load_settings().lyrics_lrc {
+                if let Some(synced) = r.synced.as_deref().filter(|s| !s.is_empty()) {
+                    lrc_written = autotag::write_lrc(path, synced).is_ok();
+                }
             }
         }
     }
@@ -2104,7 +2114,44 @@ async fn autotag_lyrics(Json(req): Json<LyricsRequest>) -> Json<Value> {
         "has_synced": r.has_synced,
         "plain": r.plain,
         "embedded": embedded,
+        "lrc_written": lrc_written,
     }))
+}
+
+/// Clear yt-dlp's on-disk cache (`yt-dlp --rm-cache-dir`). Recovers from a flagged
+/// YouTube `visitor_data` (videos with no audio, or a "confirm you're not a bot"
+/// wall) when a PO token and cookies don't help. Mirrors the legacy endpoint.
+async fn clear_ytdlp_cache() -> Json<Value> {
+    let ok = tokio::task::spawn_blocking(|| {
+        let mut cmd = std::process::Command::new(ytdlp_bin());
+        hide_console_std(&mut cmd);
+        cmd.arg("--rm-cache-dir")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        cmd.status().map(|s| s.success()).unwrap_or(false)
+    })
+    .await
+    .unwrap_or(false);
+    Json(serde_json::json!({ "ok": ok }))
+}
+
+#[derive(Deserialize)]
+struct CoverQuery {
+    path: String,
+}
+
+/// The cover art embedded in a downloaded audio file (bytes + its MIME type),
+/// constrained to the download directory. 404 when the file has no cover. Lets
+/// the UI show a file's current cover, e.g. when re-tagging from history.
+async fn media_cover(Query(q): Query<CoverQuery>) -> Response {
+    if !path_in_download_dir(&q.path) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    match autotag::read_cover(&q.path) {
+        Some((data, mime)) => ([(header::CONTENT_TYPE, mime)], data).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 /// Whether `path` canonicalizes to a file inside the configured download
@@ -2161,6 +2208,8 @@ async fn main() {
         .route("/api/release-notes", get(release_notes))
         .route("/api/logs", get(get_logs).delete(clear_logs))
         .route("/api/open", post(open_path))
+        .route("/api/ytdlp-cache", delete(clear_ytdlp_cache))
+        .route("/api/media/cover", get(media_cover))
         .route("/api/music/match", post(music_match))
         .route("/api/music/resolve", post(music_resolve))
         .route("/api/music/cover", post(music_cover))
