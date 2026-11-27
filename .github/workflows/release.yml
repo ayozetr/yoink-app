@@ -184,8 +184,6 @@ jobs:
             --title "Yoink ${GITHUB_REF_NAME}" \
             --notes "Draft release built by CI. Add the release notes (keep the \`<!-- /whatsnew -->\` marker), then publish — publishing makes latest.json live for the in-app updater and the legacy→egui migration (Linux AppImage + Windows installer)." \
             dist/Yoink_*_amd64.AppImage \
-            dist/Yoink_*_amd64.AppImage.sig \
             dist/Yoink_*_x64-setup.exe \
-            dist/Yoink_*_x64-setup.exe.sig \
             dist/latest.json
           echo "::notice::Draft release created for ${GITHUB_REF_NAME} — add notes and publish."
