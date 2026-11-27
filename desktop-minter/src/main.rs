@@ -51,17 +51,17 @@ fn main() {
         use tao::platform::unix::WindowExtUnix;
         use wry::WebViewBuilderExtUnix;
         let vbox = window.default_vbox().expect("gtk container");
-        WebViewBuilder::new_gtk(vbox)
+        WebViewBuilder::new()
             .with_url(&url)
             .with_initialization_script(&init)
-            .build()
+            .build_gtk(vbox)
             .expect("create webview")
     };
     #[cfg(not(target_os = "linux"))]
-    let _webview = WebViewBuilder::new(&window)
+    let _webview = WebViewBuilder::new()
         .with_url(&url)
         .with_initialization_script(&init)
-        .build()
+        .build(&window)
         .expect("create webview");
 
     event_loop.run(move |event, _target, control_flow| {
