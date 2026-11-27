@@ -718,7 +718,7 @@ fn download_dir() -> std::path::PathBuf {
 }
 
 fn err_event(msg: &str) -> Message {
-    Message::Text(serde_json::json!({ "type": "error", "message": msg }).to_string())
+    Message::Text(serde_json::json!({ "type": "error", "message": msg }).to_string().into())
 }
 
 /// yt-dlp format-sort token for a preferred video codec ("any" = no preference).
@@ -916,7 +916,8 @@ impl ProgressInfo {
                 "eta": self.eta,
                 "filename": Value::Null,
             })
-            .to_string(),
+            .to_string()
+            .into(),
         )
     }
 }
@@ -1006,7 +1007,8 @@ async fn run_download(mut socket: WebSocket) {
                     "eta": Value::Null,
                     "filename": Value::Null,
                 })
-                .to_string(),
+                .to_string()
+                .into(),
             ),
             DlEvent::Completed {
                 filename,
@@ -1017,7 +1019,8 @@ async fn run_download(mut socket: WebSocket) {
                     "type": "completed", "filename": filename,
                     "filepath": filepath, "total_bytes": total_bytes,
                 })
-                .to_string(),
+                .to_string()
+                .into(),
             ),
             DlEvent::Error(m) => err_event(&m),
         };
