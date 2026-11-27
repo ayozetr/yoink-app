@@ -56,7 +56,7 @@ pub fn write_tags(f: &ApplyFields) -> Result<bool, String> {
         tag.set_album(al.clone());
     }
     if let Some(y) = f.year.as_ref().and_then(|y| y.parse::<u32>().ok()) {
-        tag.set_year(y);
+        tag.insert_text(ItemKey::Year, y.to_string());
     }
     if let Some(g) = &f.genre {
         tag.set_genre(g.clone());
@@ -79,12 +79,12 @@ pub fn write_tags(f: &ApplyFields) -> Result<bool, String> {
             tag.remove_picture(0);
         }
         let mime = sniff_mime(bytes);
-        tag.push_picture(Picture::new_unchecked(
-            PictureType::CoverFront,
-            Some(mime),
-            None,
-            bytes.clone(),
-        ));
+        tag.push_picture(
+            Picture::unchecked(bytes.clone())
+                .pic_type(PictureType::CoverFront)
+                .mime_type(mime)
+                .build(),
+        );
         embedded = true;
     }
 
@@ -553,7 +553,10 @@ pub fn read_current_tags(path: &str) -> CurrentTags {
     out.title = tag.title().map(|s| s.to_string()).unwrap_or_default();
     out.artist = tag.artist().map(|s| s.to_string()).unwrap_or_default();
     out.album = tag.album().map(|s| s.to_string()).unwrap_or_default();
-    out.year = tag.year().map(|y| y.to_string()).unwrap_or_default();
+    out.year = tag
+        .get_string(ItemKey::Year)
+        .map(|y| y.to_string())
+        .unwrap_or_default();
     out.genre = tag.genre().map(|s| s.to_string()).unwrap_or_default();
     out
 }
