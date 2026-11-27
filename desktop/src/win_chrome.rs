@@ -22,7 +22,11 @@ pub fn set_rounding(round: bool) {
 
     // The window is titled "Yoink" (ViewportBuilder::with_title); find it by name.
     let title: Vec<u16> = "Yoink".encode_utf16().chain(std::iter::once(0)).collect();
-    let pref: i32 = if round { DWMWCP_ROUND } else { DWMWCP_DONOTROUND };
+    let pref: i32 = if round {
+        DWMWCP_ROUND
+    } else {
+        DWMWCP_DONOTROUND
+    };
     unsafe {
         let hwnd = FindWindowW(std::ptr::null(), title.as_ptr());
         if !hwnd.is_null() {

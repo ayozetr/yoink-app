@@ -81,9 +81,9 @@ impl Backend {
         // (`.exe` on Windows), so it never depends on PATH or the search order.
         if let Some(dir) = bin.parent().filter(|d| !d.as_os_str().is_empty()) {
             let exe = std::env::consts::EXE_SUFFIX; // "" on unix, ".exe" on Windows
-            // Windows ships yt-dlp as a onedir build under ytdlp/ (yt-dlp.exe +
-            // _internal/, so it doesn't self-extract on every run); other targets
-            // keep the single binary beside us. Prefer the onedir when present.
+                                                    // Windows ships yt-dlp as a onedir build under ytdlp/ (yt-dlp.exe +
+                                                    // _internal/, so it doesn't self-extract on every run); other targets
+                                                    // keep the single binary beside us. Prefer the onedir when present.
             let onedir = dir.join("ytdlp").join(format!("yt-dlp{exe}"));
             let ytdlp = if onedir.exists() {
                 onedir
