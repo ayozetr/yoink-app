@@ -10,5 +10,5 @@ name = "yoink-minter"
 path = "src/main.rs"
 
 [dependencies]
-tao = "0.30.8"
+tao = "0.37.3"
 wry = "0.45.0"
