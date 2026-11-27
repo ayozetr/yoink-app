@@ -22,6 +22,27 @@ pub fn port() -> u16 {
 
 /// URL of the `/media/cover` endpoint for a downloaded file, so the UI can show
 /// its currently-embedded cover (e.g. on re-tag). 404s when the file has none.
+/// Route a remote http(s) image through the backend's `/api/thumb` proxy. egui's
+/// native image loader can't fetch some https images on certain systems (TLS), so
+/// the backend fetches them (its reqwest TLS works) and serves them over local
+/// http. Local backend URLs and non-http URIs (bytes:/file:) pass through.
+pub fn thumb_url(remote: impl AsRef<str>) -> String {
+    let remote = remote.as_ref();
+    if !(remote.starts_with("http://") || remote.starts_with("https://"))
+        || remote.starts_with("http://127.0.0.1")
+        || remote.starts_with("http://localhost")
+    {
+        return remote.to_string();
+    }
+    match reqwest::Url::parse(&format!("{}/api/thumb", http_base())) {
+        Ok(mut u) => {
+            u.query_pairs_mut().append_pair("url", remote);
+            u.to_string()
+        }
+        Err(_) => remote.to_string(),
+    }
+}
+
 pub fn media_cover_url(path: &str) -> String {
     match reqwest::Url::parse(&format!("{}/api/media/cover", http_base())) {
         Ok(mut u) => {
@@ -175,6 +196,7 @@ pub enum Evt {
         path: String,
         content: String,
     },
+    YtdlpVersion(String),
     Analyzing,
     Info(VideoLite),
     SearchResults {
@@ -538,6 +560,10 @@ impl Backend {
                 {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     tokio::spawn(async move { load_logs(evt_tx, ctx).await });
+                }
+                {
+                    let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
+                    tokio::spawn(async move { fetch_ytdlp_version(evt_tx, ctx).await });
                 }
                 while let Some(cmd) = cmd_rx.recv().await {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
@@ -1025,6 +1051,22 @@ async fn clear_ytdlp_cache(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context)
         .map(|r| r.status().is_success())
         .unwrap_or(false);
     emit(&tx, &ctx, Evt::CacheCleared(ok));
+}
+
+async fn fetch_ytdlp_version(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {
+    if let Ok(r) = reqwest::Client::new()
+        .get(format!("{}/api/ytdlp-version", http_base()))
+        .send()
+        .await
+    {
+        if let Ok(v) = r.json::<Value>().await {
+            if let Some(cur) = v.get("current").and_then(Value::as_str) {
+                if !cur.is_empty() && cur != "unknown" {
+                    emit(&tx, &ctx, Evt::YtdlpVersion(cur.to_string()));
+                }
+            }
+        }
+    }
 }
 
 async fn load_logs(tx: std::sync::mpsc::Sender<Evt>, ctx: egui::Context) {

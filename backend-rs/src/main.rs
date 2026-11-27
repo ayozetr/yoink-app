@@ -203,7 +203,10 @@ fn ytdlp_bin() -> String {
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-#[cfg_attr(not(windows), allow(clippy::needless_pass_by_ref_mut, unused_variables))]
+#[cfg_attr(
+    not(windows),
+    allow(clippy::needless_pass_by_ref_mut, unused_variables)
+)]
 pub fn hide_console_std(cmd: &mut std::process::Command) {
     #[cfg(windows)]
     {
@@ -212,7 +215,10 @@ pub fn hide_console_std(cmd: &mut std::process::Command) {
     }
 }
 
-#[cfg_attr(not(windows), allow(clippy::needless_pass_by_ref_mut, unused_variables))]
+#[cfg_attr(
+    not(windows),
+    allow(clippy::needless_pass_by_ref_mut, unused_variables)
+)]
 pub fn hide_console_tokio(cmd: &mut tokio::process::Command) {
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);
@@ -584,13 +590,49 @@ async fn version() -> Json<VersionInfo> {
 /// Extract metadata for a URL (shared by the `/api/info` handler and the CLI).
 /// `--flat-playlist` keeps a single video fully detailed while a playlist URL
 /// returns a fast, flat listing. Err is `(transient, message)`.
+/// True when a yt-dlp video JSON carries *only* storyboard formats (ids like
+/// `sb0`) — i.e. no real streams. That's the signature of a bot-walled
+/// extraction (e.g. a flagged browser-cookie session).
+fn is_storyboards_only(j: &Value) -> bool {
+    match j.get("formats").and_then(Value::as_array) {
+        Some(fs) if !fs.is_empty() => fs.iter().all(|f| {
+            f.get("format_id")
+                .and_then(Value::as_str)
+                .is_some_and(|id| id.starts_with("sb"))
+        }),
+        _ => false,
+    }
+}
+
 async fn fetch_info_response(
     url: &str,
     settings: &AppSettings,
 ) -> Result<InfoResponse, (bool, String)> {
-    let stdout = run_ytdlp_json(&["-J", "--flat-playlist", "--no-warnings", url], settings).await?;
-    let j: Value =
+    let base = ["-J", "--flat-playlist", "--no-warnings", url];
+    let stdout = run_ytdlp_json(&base, settings).await?;
+    let mut j: Value =
         serde_json::from_slice(&stdout).map_err(|e| (false, format!("bad yt-dlp JSON: {e}")))?;
+    // A video that comes back with only storyboard formats usually means the
+    // browser-cookie session got bot-walled — retry once without the browser
+    // cookies (anonymous / a cookies file), which normally recovers the real
+    // formats, so the Audio option isn't wrongly disabled.
+    if settings
+        .cookies_from_browser
+        .as_deref()
+        .is_some_and(|s| !s.is_empty())
+        && j.get("_type").and_then(Value::as_str) != Some("playlist")
+        && is_storyboards_only(&j)
+    {
+        let mut anon = settings.clone();
+        anon.cookies_from_browser = None;
+        if let Ok(out2) = run_ytdlp_json(&base, &anon).await {
+            if let Ok(j2) = serde_json::from_slice::<Value>(&out2) {
+                if !is_storyboards_only(&j2) {
+                    j = j2;
+                }
+            }
+        }
+    }
     if j.get("_type").and_then(Value::as_str) == Some("playlist") {
         Ok(InfoResponse {
             kind: "playlist",
@@ -2174,6 +2216,50 @@ fn path_in_download_dir(path: &str) -> bool {
     p == dl || p.starts_with(&dl)
 }
 
+#[derive(Deserialize)]
+struct ThumbQuery {
+    url: String,
+}
+
+/// Proxy a remote thumbnail/cover image through the backend. egui's native image
+/// loader fails to fetch some https images on certain systems (TLS stack), so the
+/// app routes them here: the backend fetches over its working TLS and streams the
+/// bytes back over local http. Restricted to http(s) image responses so it can't
+/// be abused as a generic proxy.
+async fn thumb_proxy(Query(q): Query<ThumbQuery>) -> Response {
+    if !(q.url.starts_with("http://") || q.url.starts_with("https://")) {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    let res = reqwest::Client::new()
+        .get(&q.url)
+        .header(header::USER_AGENT, "Mozilla/5.0")
+        .send()
+        .await;
+    let Ok(r) = res else {
+        return StatusCode::BAD_GATEWAY.into_response();
+    };
+    if !r.status().is_success() {
+        return StatusCode::BAD_GATEWAY.into_response();
+    }
+    let ct = r
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let ct = if ct.starts_with("image/") {
+        ct
+    } else if ct.is_empty() {
+        "image/jpeg".to_string()
+    } else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+    match r.bytes().await {
+        Ok(b) => ([(header::CONTENT_TYPE, ct)], b).into_response(),
+        Err(_) => StatusCode::BAD_GATEWAY.into_response(),
+    }
+}
+
 // ---- server ------------------------------------------------------------------
 
 #[tokio::main]
@@ -2220,6 +2306,7 @@ async fn main() {
         .route("/api/open", post(open_path))
         .route("/api/ytdlp-cache", delete(clear_ytdlp_cache))
         .route("/api/media/cover", get(media_cover))
+        .route("/api/thumb", get(thumb_proxy))
         .route("/api/music/match", post(music_match))
         .route("/api/music/resolve", post(music_resolve))
         .route("/api/music/cover", post(music_cover))

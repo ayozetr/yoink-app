@@ -115,6 +115,10 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     v.widgets.active.expansion = 0.0;
     v.widgets.open.expansion = 0.0;
 
+    // A pointing-hand cursor over every clickable widget (egui buttons read this),
+    // like the web — so interactive controls signal that they're clickable.
+    v.interact_cursor = Some(egui::CursorIcon::PointingHand);
+
     ctx.set_visuals(v);
 
     ctx.global_style_mut(|style| {
@@ -145,4 +149,8 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
         ]
         .into();
     });
+
+    // A bit more travel per mouse-wheel notch (egui's native default is 40), closer
+    // to how the old web UI scrolled.
+    ctx.options_mut(|o| o.input_options.line_scroll_speed = 60.0);
 }

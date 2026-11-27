@@ -215,8 +215,8 @@ struct Autotag {
     track_number: Option<i64>,
     cover_url: Option<String>,
     embed_lyrics: bool,
-    anim: f32,           // slide-in progress 0..1
-    manual_open: bool,   // the "search manually" sub-panel is expanded
+    anim: f32,         // slide-in progress 0..1
+    manual_open: bool, // the "search manually" sub-panel is expanded
     manual_artist: String,
     manual_title: String,
 }
@@ -230,11 +230,11 @@ pub struct App {
     theme_probe: std::time::Instant, // throttles re-probing the OS theme
     os_dark_tx: std::sync::mpsc::Sender<Option<bool>>, // background OS-theme probe result
     os_dark_rx: std::sync::mpsc::Receiver<Option<bool>>,
-    os_probe_inflight: bool, // a background OS-theme probe is running
+    os_probe_inflight: bool,         // a background OS-theme probe is running
     win_round_applied: Option<bool>, // last native window-rounding state pushed to DWM (Windows)
-    lang: Lang,              // the resolved UI language
-    lang_mode: Option<Lang>, // None = follow the OS language
-    template_custom: bool,   // filename template: custom (free-text) vs a preset
+    lang: Lang,                      // the resolved UI language
+    lang_mode: Option<Lang>,         // None = follow the OS language
+    template_custom: bool,           // filename template: custom (free-text) vs a preset
     tab: Tab,
     url: String,
     prev_url: String, // last-seen url, to detect edits without relying on changed()
@@ -254,10 +254,10 @@ pub struct App {
     embed_chapters: bool,
     source: String, // "youtube" | "soundcloud" for the search selector
     search_results: Vec<SearchItem>,
-    music_filter: String,                          // music-import track filter
+    music_filter: String, // music-import track filter
     music_selected: std::collections::HashSet<usize>, // selected track indices
-    vr_layout: String,                 // chosen immersive layout for a VR download
-    cache_cleared: Option<bool>,       // last "clear yt-dlp cache" result (feedback)
+    vr_layout: String,    // chosen immersive layout for a VR download
+    cache_cleared: Option<bool>, // last "clear yt-dlp cache" result (feedback)
     search_pending: Option<std::time::Instant>,
     preview: Preview,
     status: Status,
@@ -300,9 +300,10 @@ pub struct App {
     update_progress: Option<f32>,
     update_error: Option<String>,
     update_dismissed: bool,
-    update_checking: bool,        // a manual "check for updates" is in flight
-    update_checked: bool,         // a check has completed (so we can show "up to date")
-    startup_update_checked: bool, // the one-time startup check has been triggered
+    update_checking: bool,         // a manual "check for updates" is in flight
+    update_checked: bool,          // a check has completed (so we can show "up to date")
+    startup_update_checked: bool,  // the one-time startup check has been triggered
+    ytdlp_version: Option<String>, // installed yt-dlp version, shown in About
     whatsnew: Vec<(String, String)>,
     whatsnew_open: bool,
     terms_open: bool,
@@ -443,6 +444,7 @@ impl App {
             update_checking: false,
             update_checked: false,
             startup_update_checked: false,
+            ytdlp_version: None,
             whatsnew: Vec::new(),
             whatsnew_open: false,
             terms_open: false,
@@ -660,6 +662,7 @@ impl App {
                     self.logs_text = content;
                     self.logs_loaded = true;
                 }
+                Evt::YtdlpVersion(v) => self.ytdlp_version = Some(v),
                 Evt::Analyzing => self.status = Status::Analyzing,
                 Evt::Info(v) => {
                     // Seed the VR layout picker from the detected projection.
@@ -686,8 +689,8 @@ impl App {
                             tag_fill(tag, 0);
                         } else {
                             tag.selected = -1; // no catalogue match → manual edit
-                            // Fall back to the file's existing tags so the panel
-                            // isn't empty (re-tagging, or an unmatched track).
+                                               // Fall back to the file's existing tags so the panel
+                                               // isn't empty (re-tagging, or an unmatched track).
                             if let Some(c) = current {
                                 if !c.title.is_empty() {
                                     tag.title = c.title;
@@ -1530,7 +1533,7 @@ impl eframe::App for App {
                         ui.add_space(8.0);
                         // Pill tabs with icons (compact).
                         ui.horizontal(|ui| {
-                            ui.spacing_mut().button_padding = egui::vec2(9.0, 5.0);
+                            ui.spacing_mut().button_padding = egui::vec2(11.0, 7.0);
                             ui.spacing_mut().item_spacing.x = 5.0;
                             for (tab, key, ic) in [
                                 (Tab::Inicio, "tab.inicio", "home"),
@@ -1556,7 +1559,8 @@ impl eframe::App for App {
                                     RichText::new(text).size(13.0).color(fg),
                                 )
                                 .fill(fill)
-                                .corner_radius(7);
+                                .stroke(egui::Stroke::NONE)
+                                .corner_radius(8);
                                 if ui.add(btn).clicked() {
                                     self.tab = tab;
                                 }
@@ -2147,9 +2151,11 @@ impl App {
                                     ui.horizontal(|ui| {
                                         if let Some(c) = &cover {
                                             ui.add(
-                                                egui::Image::from_uri(c.clone())
-                                                    .fit_to_exact_size(egui::vec2(cover_sz, cover_sz))
-                                                    .corner_radius(10),
+                                                egui::Image::from_uri(crate::api::thumb_url(
+                                                    c.clone(),
+                                                ))
+                                                .fit_to_exact_size(egui::vec2(cover_sz, cover_sz))
+                                                .corner_radius(10),
                                             );
                                         } else {
                                             let (r, _) = ui.allocate_exact_size(
@@ -2161,14 +2167,17 @@ impl App {
                                         ui.add_space(12.0);
                                         ui.vertical(|ui| {
                                             ui.set_width(usable - cover_sz - 14.0);
-                                            let cf = |ui: &mut egui::Ui, lab: &str, v: &mut String| {
-                                                ui.label(RichText::new(lab).small().color(p.fg_dim));
-                                                ui.add(
-                                                    egui::TextEdit::singleline(v)
-                                                        .desired_width(f32::INFINITY),
-                                                );
-                                                ui.add_space(4.0);
-                                            };
+                                            let cf =
+                                                |ui: &mut egui::Ui, lab: &str, v: &mut String| {
+                                                    ui.label(
+                                                        RichText::new(lab).small().color(p.fg_dim),
+                                                    );
+                                                    ui.add(
+                                                        egui::TextEdit::singleline(v)
+                                                            .desired_width(f32::INFINITY),
+                                                    );
+                                                    ui.add_space(4.0);
+                                                };
                                             cf(ui, tl(lang, "tag.f_title"), &mut tag.title);
                                             cf(ui, tl(lang, "tag.f_artist"), &mut tag.artist);
                                         });
@@ -2214,19 +2223,24 @@ impl App {
                                                             .filter(|s| !s.is_empty())
                                                         {
                                                             ui.add(
-                                                                egui::Image::from_uri(cu.to_string())
-                                                                    .fit_to_exact_size(egui::vec2(
-                                                                        32.0, 32.0,
-                                                                    ))
-                                                                    .corner_radius(5),
+                                                                egui::Image::from_uri(
+                                                                    crate::api::thumb_url(cu),
+                                                                )
+                                                                .fit_to_exact_size(egui::vec2(
+                                                                    32.0, 32.0,
+                                                                ))
+                                                                .corner_radius(5),
                                                             );
                                                         } else {
                                                             let (r, _) = ui.allocate_exact_size(
                                                                 egui::vec2(32.0, 32.0),
                                                                 egui::Sense::hover(),
                                                             );
-                                                            ui.painter()
-                                                                .rect_filled(r, 5.0, p.surface_hi);
+                                                            ui.painter().rect_filled(
+                                                                r,
+                                                                5.0,
+                                                                p.surface_hi,
+                                                            );
                                                         }
                                                         ui.add_space(8.0);
                                                         ui.vertical(|ui| {
@@ -2236,7 +2250,9 @@ impl App {
                                                                 .filter(|s| !s.is_empty())
                                                                 .unwrap_or_else(|| c.title.clone());
                                                             ui.label(
-                                                                RichText::new(top).small().color(p.fg),
+                                                                RichText::new(top)
+                                                                    .small()
+                                                                    .color(p.fg),
                                                             );
                                                             let mut sub =
                                                                 c.year.clone().unwrap_or_default();
@@ -2350,7 +2366,9 @@ impl App {
                                                     .add(
                                                         egui::Button::image_and_text(
                                                             crate::icons::img(
-                                                                "check", 15.0, p.accent_fg,
+                                                                "check",
+                                                                15.0,
+                                                                p.accent_fg,
                                                             ),
                                                             RichText::new(tl(lang, "tag.apply"))
                                                                 .color(p.accent_fg),
@@ -2383,12 +2401,11 @@ impl App {
         if do_search {
             if let Some(t) = self.autotag.as_ref() {
                 // Use the manual artist/title when given, else the current fields.
-                let (artist, title) =
-                    if t.manual_artist.is_empty() && t.manual_title.is_empty() {
-                        (t.artist.clone(), t.title.clone())
-                    } else {
-                        (t.manual_artist.clone(), t.manual_title.clone())
-                    };
+                let (artist, title) = if t.manual_artist.is_empty() && t.manual_title.is_empty() {
+                    (t.artist.clone(), t.title.clone())
+                } else {
+                    (t.manual_artist.clone(), t.manual_title.clone())
+                };
                 self.backend.send(Cmd::AutotagSearch { artist, title });
             }
         }
@@ -2519,8 +2536,19 @@ impl App {
                         // the bottom edge renders blurry/thin — it looks "cut". So mute
                         // egui's own border and paint our own, snapped to whole physical
                         // pixels and drawn inside the rect, so all four edges are crisp.
-                        crisp_combo(ui, p, |ui| {
-                            egui::ComboBox::from_id_salt("source")
+                        // Borderless source picker: the glyph (left) + label + chevron
+                        // read as one flat unit — no inner box, like the web.
+                        ui.scope(|ui| {
+                            let w = &mut ui.visuals_mut().widgets;
+                            w.inactive.bg_stroke = egui::Stroke::NONE;
+                            w.hovered.bg_stroke = egui::Stroke::NONE;
+                            w.active.bg_stroke = egui::Stroke::NONE;
+                            w.open.bg_stroke = egui::Stroke::NONE;
+                            w.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
+                            w.hovered.weak_bg_fill = p.surface_hi;
+                            w.active.weak_bg_fill = p.surface_hi;
+                            w.open.weak_bg_fill = p.surface_hi;
+                            let r = egui::ComboBox::from_id_salt("source")
                                 .popup_style(hide_combo_scrollbar.into())
                                 .selected_text(if self.source == "soundcloud" {
                                     "SoundCloud"
@@ -2540,7 +2568,10 @@ impl App {
                                         "SoundCloud",
                                     );
                                 })
-                                .response
+                                .response;
+                            if r.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
                         });
                         ui.add_space(8.0);
                         // Faint vertical divider between the source picker and input.
@@ -2627,7 +2658,18 @@ impl App {
                             ui.add_space(2.0);
                             ui.add(egui::Spinner::new().size(15.0).color(p.accent));
                             ui.add_space(6.0);
-                            ui.label(RichText::new(tl(lang, "inicio.searching")).color(p.fg_dim));
+                            let src = if self.source == "soundcloud" {
+                                "SoundCloud"
+                            } else {
+                                "YouTube"
+                            };
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} {src}…",
+                                    tl(lang, "inicio.searching_in")
+                                ))
+                                .color(p.fg_dim),
+                            );
                         });
                         if !self.search_results.is_empty() {
                             ui.add_space(2.0);
@@ -2654,7 +2696,7 @@ impl App {
                         );
                         if let Some(t) = r.thumbnail_url.as_deref().filter(|s| !s.is_empty()) {
                             inner.add(
-                                egui::Image::from_uri(t.to_string())
+                                egui::Image::from_uri(crate::api::thumb_url(t))
                                     .fit_to_exact_size(egui::vec2(54.0, 31.0))
                                     .corner_radius(4),
                             );
@@ -2728,7 +2770,7 @@ impl App {
                 ui.horizontal(|ui| {
                     if let Some(thumb) = v.thumbnail_url.as_deref().filter(|s| !s.is_empty()) {
                         ui.add(
-                            egui::Image::from_uri(thumb.to_string())
+                            egui::Image::from_uri(crate::api::thumb_url(thumb))
                                 .fit_to_exact_size(egui::vec2(116.0, 65.0))
                                 .corner_radius(6),
                         );
@@ -2819,7 +2861,7 @@ impl App {
                     .or(info.cover_url.as_deref());
                     if let Some(c) = cover.filter(|s| !s.is_empty()) {
                         ui.add(
-                            egui::Image::from_uri(c.to_string())
+                            egui::Image::from_uri(crate::api::thumb_url(c))
                                 .fit_to_exact_size(egui::vec2(132.0, 132.0))
                                 .corner_radius(8),
                         );
@@ -2898,20 +2940,17 @@ impl App {
                                 }
                             }
                         }
-                        ui.with_layout(
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                ui.label(
-                                    RichText::new(format!(
-                                        "{} / {}",
-                                        self.music_selected.len(),
-                                        info.tracks.len()
-                                    ))
-                                    .small()
-                                    .color(p.fg_dim),
-                                );
-                            },
-                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} / {}",
+                                    self.music_selected.len(),
+                                    info.tracks.len()
+                                ))
+                                .small()
+                                .color(p.fg_dim),
+                            );
+                        });
                     });
                     ui.add_space(4.0);
                     egui::ScrollArea::vertical()
@@ -2922,10 +2961,7 @@ impl App {
                                 let t = &info.tracks[*i];
                                 let sel = self.music_selected.contains(i);
                                 if ui
-                                    .selectable_label(
-                                        sel,
-                                        format!("{} — {}", t.artists, t.title),
-                                    )
+                                    .selectable_label(sel, format!("{} — {}", t.artists, t.title))
                                     .clicked()
                                 {
                                     if sel {
@@ -2995,11 +3031,12 @@ impl App {
     ) {
         let lang = self.lang;
         ui.horizontal(|ui| {
-            // Video / Audio segmented pills.
-            for (k, key, enabled) in [
-                ("video", "kind.video", true),
-                ("audio", "kind.audio", has_audio),
-            ] {
+            // Video / Audio segmented pills. Audio stays selectable even when no
+            // audio stream was detected (often a bot-walled metadata extraction) —
+            // the real download re-extracts and usually recovers it; a warning
+            // shows below. Mirrors the legacy, which never blocked the choice.
+            for (k, key, enabled) in [("video", "kind.video", true), ("audio", "kind.audio", true)]
+            {
                 let active = self.kind == k;
                 let (fg, fill) = if active {
                     (p.accent_fg, p.accent)
@@ -3055,9 +3092,26 @@ impl App {
             }
         });
 
+        // No audio stream was detected — usually a bot-walled metadata
+        // extraction. Warn (amber) but let the user try anyway; the download
+        // re-extracts and usually recovers it. Mirrors the legacy's warning.
+        if self.kind == "audio" && !has_audio {
+            let amber = egui::Color32::from_rgb(222, 170, 90);
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                crate::icons::show(ui, "help", 13.0, amber);
+                ui.add_space(5.0);
+                ui.label(
+                    RichText::new(tl(lang, "inicio.no_audio_warn"))
+                        .small()
+                        .color(amber),
+                );
+            });
+        }
+
         // Lossless (FLAC/WAV) only makes sense from a lossless source — warn when
         // an audio download's source has none (it would upscale to MP3 anyway).
-        if self.kind == "audio" && !source_lossless {
+        if self.kind == "audio" && has_audio && !source_lossless {
             ui.add_space(8.0);
             ui.horizontal(|ui| {
                 crate::icons::show(ui, "help", 13.0, p.fg_dim);
@@ -3365,6 +3419,15 @@ impl App {
                 ui.add_space(12.0);
                 let label = tl(self.lang, "inicio.downloaded");
                 ui.label(RichText::new(format!("✓ {label}: {path}")).color(p.ok));
+            }
+            Status::Error(e) => {
+                // Surface a download failure right where the progress bar was.
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    crate::icons::show(ui, "x", 15.0, p.err);
+                    ui.add_space(5.0);
+                    ui.label(RichText::new(e.clone()).color(p.err));
+                });
             }
             _ => {}
         }
@@ -3790,20 +3853,37 @@ impl App {
                         ui.vertical(|ui| {
                             ui.set_width(ui.available_width() - 64.0);
                             let label: String = it.label.chars().take(72).collect();
-                            ui.label(RichText::new(label).color(p.fg));
+                            // No elided-text tooltip: when the title is too long it
+                            // would pop a floating box on hover/drag (the reorder
+                            // handle is right beside it), which looked like the row
+                            // being "dragged out".
+                            ui.add(
+                                egui::Label::new(RichText::new(label).color(p.fg))
+                                    .truncate()
+                                    .show_tooltip_when_elided(false),
+                            );
                             ui.add_space(2.0);
                             let (extra, col) = match &it.status {
                                 QStatus::Pending => (String::new(), p.fg_dim),
+                                QStatus::Downloading if it.progress <= 0.0 => {
+                                    // The item is being resolved (yt-dlp extracting
+                                    // info) before any bytes move, like the web.
+                                    (format!("  ·  {}", tl(lang, "cola.resolving")), p.accent)
+                                }
                                 QStatus::Downloading => {
                                     (format!("  ·  {:.0}%", it.progress * 100.0), p.accent)
                                 }
                                 QStatus::Done => (format!("  ·  {}", tl(lang, "cola.done")), p.ok),
                                 QStatus::Error(e) => (format!("  ·  {e}"), p.err),
                             };
-                            ui.label(
-                                RichText::new(format!("{}{extra}", queue_source(it, lang)))
-                                    .small()
-                                    .color(col),
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(format!("{}{extra}", queue_source(it, lang)))
+                                        .small()
+                                        .color(col),
+                                )
+                                .truncate()
+                                .show_tooltip_when_elided(false),
                             );
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -3906,40 +3986,12 @@ impl App {
     fn ui_logs(&mut self, ui: &mut egui::Ui, p: theme::Palette) {
         let lang = self.lang;
         ui.add_space(16.0);
-        ui.horizontal(|ui| {
-            ui.label(
-                RichText::new(tl(lang, "tab.logs"))
-                    .size(26.0)
-                    .family(crate::fonts::display())
-                    .color(p.fg),
-            );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let txt_btn = |ui: &mut egui::Ui, icon: &str, label: &str| {
-                    ui.add(
-                        egui::Button::image_and_text(
-                            crate::icons::img(icon, 14.0, p.fg_dim),
-                            RichText::new(label).small().color(p.fg_dim),
-                        )
-                        .frame(false),
-                    )
-                    .clicked()
-                };
-                // Right-to-left: added rightmost-first, so this reads
-                // "Refresh · Copy · Export" left-to-right, like the web.
-                if txt_btn(ui, "download", tl(lang, "action.export")) && !self.logs_path.is_empty()
-                {
-                    self.backend.send(Cmd::Open(self.logs_path.clone()));
-                }
-                ui.add_space(12.0);
-                if txt_btn(ui, "paste", tl(lang, "action.copy")) {
-                    ui.ctx().copy_text(self.logs_text.clone());
-                }
-                ui.add_space(12.0);
-                if txt_btn(ui, "trash", tl(lang, "action.clear")) {
-                    self.backend.send(Cmd::ClearLogs);
-                }
-            });
-        });
+        ui.label(
+            RichText::new(tl(lang, "tab.logs"))
+                .size(26.0)
+                .family(crate::fonts::display())
+                .color(p.fg),
+        );
         ui.add_space(4.0);
         let lines = self.logs_text.lines().count();
         let sub = if self.logs_path.is_empty() {
@@ -3949,6 +4001,36 @@ impl App {
         };
         ui.label(RichText::new(sub).small().color(p.fg_dim));
         ui.add_space(10.0);
+        // Toolbar sitting just above the log (not in the header), like the web:
+        // Refresh · Copy · Export · Clear.
+        ui.horizontal(|ui| {
+            let txt_btn = |ui: &mut egui::Ui, icon: &str, label: &str| {
+                ui.add(
+                    egui::Button::image_and_text(
+                        crate::icons::img(icon, 14.0, p.fg_dim),
+                        RichText::new(label).small().color(p.fg_dim),
+                    )
+                    .frame(false),
+                )
+                .clicked()
+            };
+            if txt_btn(ui, "redownload", tl(lang, "action.refresh")) {
+                self.backend.send(Cmd::LoadLogs);
+            }
+            ui.add_space(12.0);
+            if txt_btn(ui, "paste", tl(lang, "action.copy")) {
+                ui.ctx().copy_text(self.logs_text.clone());
+            }
+            ui.add_space(12.0);
+            if txt_btn(ui, "download", tl(lang, "action.export")) && !self.logs_path.is_empty() {
+                self.backend.send(Cmd::Open(self.logs_path.clone()));
+            }
+            ui.add_space(12.0);
+            if txt_btn(ui, "trash", tl(lang, "action.clear")) {
+                self.backend.send(Cmd::ClearLogs);
+            }
+        });
+        ui.add_space(8.0);
         egui::Frame::new()
             .fill(p.surface)
             .corner_radius(10)
@@ -4457,10 +4539,11 @@ impl App {
             }
             if let Some(ok) = cache_cleared {
                 ui.add_space(6.0);
-                ui.label(
-                    RichText::new(if ok { "✓" } else { "✗" })
-                        .color(if ok { p.ok } else { p.err }),
-                );
+                ui.label(RichText::new(if ok { "✓" } else { "✗" }).color(if ok {
+                    p.ok
+                } else {
+                    p.err
+                }));
             }
         });
         if clear_cache {
@@ -4505,24 +4588,33 @@ impl App {
             open_url("https://chromewebstore.google.com/detail/ccbngfpojjboddajeialdgppooagdhkp");
         }
         ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            ui.label(RichText::new(tl(lang, "ext.other")).color(p.fg_dim));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui
-                    .add(
-                        egui::Button::new(
-                            RichText::new(tl(lang, "ext.manual"))
-                                .small()
-                                .color(p.accent),
-                        )
-                        .frame(false),
-                    )
-                    .clicked()
-                {
-                    open_url("https://github.com/ayozetr/yoink-app/releases/tag/ext-latest");
-                }
-            });
-        });
+        // "Or, if you prefer, install it manually" — a subtle link that lights up
+        // (an accent pill) on hover, so it's clear it's the clickable option.
+        {
+            let txt = tl(lang, "ext.manual");
+            let font = egui::FontId::proportional(12.0);
+            let galley = ui
+                .painter()
+                .layout_no_wrap(txt.to_owned(), font.clone(), p.accent);
+            let (rect, resp) = ui
+                .allocate_exact_size(galley.size() + egui::vec2(20.0, 12.0), egui::Sense::click());
+            let hov = resp.hovered();
+            if hov {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                ui.painter()
+                    .rect_filled(rect, 7.0, p.accent.gamma_multiply(0.16));
+            }
+            ui.painter().text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                txt,
+                font,
+                p.accent,
+            );
+            if resp.clicked() {
+                open_url("https://github.com/ayozetr/yoink-app/releases/tag/ext-latest");
+            }
+        }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             crate::icons::show(ui, "check", 15.0, p.accent);
@@ -4551,12 +4643,11 @@ impl App {
                         .small()
                         .color(p.fg_dim),
                 );
-                ui.label(
-                    RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
-                        .monospace()
-                        .size(11.0)
-                        .color(p.fg_dim),
-                );
+                let ver = match &self.ytdlp_version {
+                    Some(y) => format!("v{}  ·  yt-dlp {y}", env!("CARGO_PKG_VERSION")),
+                    None => format!("v{}", env!("CARGO_PKG_VERSION")),
+                };
+                ui.label(RichText::new(ver).monospace().size(11.0).color(p.fg_dim));
             });
         });
         ui.add_space(14.0);
@@ -4611,37 +4702,48 @@ impl App {
                 p.fg_dim,
             );
         } else if self.update_checked {
-            // "✓ al día", clickable to re-check.
-            let text = tl(lang, "about.uptodate");
-            let galley = ui.painter().layout_no_wrap(
-                text.to_owned(),
+            // "✓ up to date" status, with an explicit "Check" button beside it (like
+            // the web), rather than hiding the re-check behind the status text.
+            let btxt = format!("  {}  ", tl(lang, "about.check"));
+            let bg =
+                ui.painter()
+                    .layout_no_wrap(btxt.clone(), egui::FontId::proportional(12.0), p.fg);
+            let bw = bg.size().x + 8.0;
+            let br = egui::Rect::from_min_size(
+                egui::pos2(rx - bw, row.center().y - 14.0),
+                egui::vec2(bw, 28.0),
+            );
+            recheck = ui
+                .put(
+                    br,
+                    egui::Button::new(RichText::new(btxt).small().color(p.fg))
+                        .stroke(egui::Stroke::new(1.0, p.line))
+                        .fill(egui::Color32::TRANSPARENT)
+                        .corner_radius(255),
+                )
+                .clicked();
+            // "✓ up to date", to the left of the button.
+            let status = tl(lang, "about.uptodate");
+            let sg = ui.painter().layout_no_wrap(
+                status.to_owned(),
                 egui::FontId::proportional(12.0),
                 p.ok,
             );
-            let tw = galley.size().x;
-            let hit = egui::Rect::from_min_size(
-                egui::pos2(rx - tw - 20.0, row.top()),
-                egui::vec2(tw + 20.0, row_h),
-            );
-            let resp = ui.interact(hit, egui::Id::unique("recheck"), egui::Sense::click());
-            if resp.hovered() {
-                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-            }
+            let sx = br.left() - 12.0;
             ui.painter().text(
-                egui::pos2(rx, row.center().y),
+                egui::pos2(sx, row.center().y),
                 egui::Align2::RIGHT_CENTER,
-                text,
+                status,
                 egui::FontId::proportional(12.0),
                 p.ok,
             );
             crate::icons::img("check", 14.0, p.ok).paint_at(
                 ui,
                 egui::Rect::from_min_size(
-                    egui::pos2(rx - tw - 18.0, row.center().y - 7.0),
+                    egui::pos2(sx - sg.size().x - 18.0, row.center().y - 7.0),
                     egui::vec2(14.0, 14.0),
                 ),
             );
-            recheck = resp.clicked();
         } else {
             let text = format!("  {}  ", tl(lang, "about.check"));
             let galley =
@@ -4686,7 +4788,7 @@ impl App {
             ui,
             p,
             "github",
-            RichText::new(format!("{} ", tl(lang, "about.developed"))),
+            RichText::new(tl(lang, "about.developed").to_string()),
             Some("ayozetr"),
         ) {
             open_url("https://github.com/ayozetr");
@@ -4711,23 +4813,42 @@ impl App {
             }
         });
 
-        ui.add_space(22.0);
-        ui.horizontal(|ui| {
-            let label = format!("  {}  ", tl(lang, "action.save"));
-            let btn = egui::Button::new(RichText::new(label).color(p.accent_fg))
-                .fill(p.accent)
-                .corner_radius(9)
-                .min_size(egui::vec2(0.0, 34.0));
-            if ui.add(btn).clicked() {
-                self.settings_note = None;
-                set_autostart(s.launch_at_startup);
-                self.backend.send(Cmd::SaveSettings(Box::new(s.clone())));
-            }
-            if self.settings_note.is_some() {
-                ui.label(RichText::new(format!("✓ {}", tl(lang, "state.saved"))).color(p.ok));
-            }
-        });
-        ui.add_space(20.0);
+        // Bottom spacer so the last rows clear the floating Save button below.
+        ui.add_space(60.0);
+
+        // A floating Save button that stays put while the settings scroll, so you
+        // never have to reach the bottom to save (like the web's sticky footer).
+        egui::Area::new(egui::Id::unique("settings-save-float"))
+            .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0.0, -20.0))
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::new()
+                    .fill(p.surface)
+                    .corner_radius(12)
+                    .stroke(egui::Stroke::new(1.0, p.line))
+                    .inner_margin(egui::Margin::symmetric(10, 8))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            if self.settings_note.is_some() {
+                                ui.label(
+                                    RichText::new(format!("✓ {}", tl(lang, "state.saved")))
+                                        .color(p.ok),
+                                );
+                                ui.add_space(8.0);
+                            }
+                            let label = format!("  {}  ", tl(lang, "action.save"));
+                            let btn = egui::Button::new(RichText::new(label).color(p.accent_fg))
+                                .fill(p.accent)
+                                .corner_radius(9)
+                                .min_size(egui::vec2(0.0, 32.0));
+                            if ui.add(btn).clicked() {
+                                self.settings_note = None;
+                                set_autostart(s.launch_at_startup);
+                                self.backend.send(Cmd::SaveSettings(Box::new(s.clone())));
+                            }
+                        });
+                    });
+            });
 
         if lang_sel != self.lang_mode {
             self.lang_mode = lang_sel;
@@ -4850,6 +4971,9 @@ fn human_bytes(n: i64) -> String {
 /// A pill switch (the settings toggle), violet when on.
 fn toggle(ui: &mut egui::Ui, on: &mut bool, p: theme::Palette) -> egui::Response {
     let (rect, mut resp) = ui.allocate_exact_size(egui::vec2(38.0, 22.0), egui::Sense::click());
+    if resp.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
     if resp.clicked() {
         *on = !*on;
         resp.mark_changed();
@@ -5046,11 +5170,27 @@ fn small_link(ui: &mut egui::Ui, p: theme::Palette, text: &str) -> bool {
 /// Render a small subset of Markdown (headings, bullets, paragraphs) as egui
 /// labels — enough for the release notes and the legal/licenses text.
 fn render_markdown(ui: &mut egui::Ui, p: theme::Palette, body: &str) {
-    // Strip the inline markers we don't render (bold/code) so they don't show raw.
-    let clean = |s: &str| s.replace("**", "").replace('`', "");
+    // Strip the inline markers we don't render as styling (bold/italic/code) so
+    // they don't show raw. `**` first, then any remaining single `*` (italic).
+    let clean = |s: &str| s.replace("**", "").replace(['*', '`'], "");
     for line in body.lines() {
         let t = line.trim();
-        if let Some(h) = t.strip_prefix("## ").or_else(|| t.strip_prefix("### ")) {
+        // Horizontal rule: a line made only of -, _ or * (3 or more).
+        let is_rule = t.len() >= 3
+            && (t.bytes().all(|c| c == b'-')
+                || t.bytes().all(|c| c == b'_')
+                || t.bytes().all(|c| c == b'*'));
+        if is_rule {
+            ui.add_space(7.0);
+            let (rect, _) =
+                ui.allocate_exact_size(egui::vec2(ui.available_width(), 1.0), egui::Sense::hover());
+            ui.painter().hline(
+                rect.x_range(),
+                rect.center().y,
+                egui::Stroke::new(1.0, p.line),
+            );
+            ui.add_space(7.0);
+        } else if let Some(h) = t.strip_prefix("## ").or_else(|| t.strip_prefix("### ")) {
             ui.add_space(6.0);
             ui.label(
                 RichText::new(clean(h))
@@ -5352,6 +5492,9 @@ fn crisp_combo(
         w.active.bg_stroke = egui::Stroke::NONE;
         w.open.bg_stroke = egui::Stroke::NONE;
         let r = show(ui);
+        if r.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
         let ppp = ui.ctx().pixels_per_point();
         let snap = |v: f32| (v * ppp).round() / ppp;
         let rect = egui::Rect::from_min_max(
