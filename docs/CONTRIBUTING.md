@@ -22,15 +22,13 @@ with attribution) — the same terms that protect the rest of the project.
 ## Ground rules
 
 - **Commits** in English, with a subject **and** a body explaining the *why*.
-- Keep the JSON contract in sync: the TypeScript types in `src/types/`
-  (`download.ts`, `music.ts`, `autotag.ts`) describe the API, and the Rust structs
-  in `backend-rs/src/` serialize (serde) to match them — change both together.
-- Run the checks before opening a PR:
-  - Frontend: `npm run build`, `npm run lint`, and `npm run test:e2e` if the UI
-    changed.
-  - Backend: `pytest` (from `backend/`).
-  - Keep `npm audit` at **0 vulnerabilities**.
-- Match the surrounding style — the backend is strictly typed.
+- Keep the JSON contract in sync: the Rust structs in `backend-rs/src/`
+  serialize (serde) to the JSON the desktop client `desktop/src/api.rs` expects —
+  change both together.
+- Run the checks before opening a PR (CI gates on `cargo fmt` + `cargo clippy`):
+  - Desktop app: `cd desktop && cargo clippy --release -- -D warnings && cargo test --release`.
+  - Backend: `cd backend-rs && cargo fmt && cargo clippy && cargo test`.
+- Match the surrounding style — Rust, edition 2021, `cargo fmt` clean.
 
 ## Reporting security issues
 

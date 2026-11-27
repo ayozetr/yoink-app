@@ -28,9 +28,9 @@ assignees: ayozetr
 
 ## Environment
 
-- Yoink version: <!-- e.g. 4.1.0 — shown in Settings › About, or in package.json -->
+- Yoink version: <!-- e.g. 4.4.0 — shown in Settings › About -->
 - Platform: <!-- Windows / Linux -->
-- Install method: <!-- Linux AppImage · built from source (cargo run) -->
+- Install method: <!-- Linux AppImage · Windows installer · built from source (cargo run) -->
 - Host OS + version: <!-- e.g. Windows 11 23H2; on Linux `uname -srm` + distro -->
 - Source you were downloading from: <!-- e.g. a YouTube video/playlist; single video vs playlist. You can redact the id. -->
 - Format picked: <!-- e.g. video MKV 1080p, codec AV1, with subtitles; or audio Opus 256 kbps / FLAC -->
@@ -39,8 +39,8 @@ assignees: ayozetr
 
 <!--
 Paste any relevant lines:
-  - The bundled backend (sidecar) output — run the app from a terminal to see it.
-  - The WebView DevTools console for UI bugs.
+  - The bundled backend (yoink-core) output — run the app from a terminal to see it.
+  - The in-app **Registro** (Logs) tab for UI / app-side errors.
 Redact cookies, any cookies.txt / cookies-from-browser values, and private URLs.
 -->
 

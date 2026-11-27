@@ -45,7 +45,7 @@ Mark with x where it lands so I can route it:
 - [ ] Logs (the Registro tab)
 - [ ] Settings (download dir, defaults, bandwidth, cookies, proxy, language, theme)
 - [ ] UI / UX / internationalization
-- [ ] The desktop shell / packaging (Tauri, installers, auto-update, deep links, browser extension)
+- [ ] The desktop shell / packaging (egui app, installers, auto-update, deep links, browser extension)
 - [ ] A new source/platform support
 - [ ] Other — explain below
 -->

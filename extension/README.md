@@ -148,3 +148,9 @@ manual-install link keeps working with **no app change and no new app release**.
 > First-time setup (already done): the pre-release was created with
 > `gh release create ext-latest <zips> --prerelease --title "…" --notes-file …`. After
 > that, only `publish-manual` is needed.
+
+## License
+
+**AGPL-3.0-or-later** — the same license as the rest of Yoink. The full text is at the
+repository root ([`../LICENSE`](../LICENSE)); every source file carries the matching
+`SPDX-License-Identifier: AGPL-3.0-or-later` header.

@@ -19,18 +19,16 @@ with a body explaining the why (see AGENTS.md → Git conventions).
 
 <!-- Tick what you ran; the contract spans both sides, so keep them in sync. -->
 
-- [ ] `npm run build` (type-check + build) passes
-- [ ] `npm run lint` passes
-- [ ] `npm run test:e2e` passes (if UI behavior changed)
-- [ ] `cargo test` (and `cargo clippy`) pass (if the backend changed)
-- [ ] `npm audit` is still at 0 vulnerabilities
+- [ ] `cargo fmt` + `cargo clippy --release -- -D warnings` pass (CI gates on both)
+- [ ] `cargo test` passes (in `desktop/` and/or `backend-rs/`, whichever changed)
+- [ ] `cargo build --release` succeeds
 
 ## Contract sync
 
 <!-- If you touched the JSON contract, both sides must match. -->
 
 - [ ] Not applicable
-- [ ] the backend Rust structs and `src/types/*` were updated together
+- [ ] the backend Rust structs (`backend-rs/src/`) and the desktop client (`desktop/src/api.rs`) were updated together
 
 ## Notes for the reviewer
 

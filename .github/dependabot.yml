@@ -1,17 +1,24 @@
 version: 2
 
 # Dependabot only opens PRs on their own branches; nothing merges without review.
-# yt-dlp stays owner-managed (pinned in scripts/ytdlp-version.txt), bumped by hand.
+# The three Rust crates are independent (each has its own Cargo.lock), so each is
+# scanned on its own. yt-dlp stays owner-managed (pinned in scripts/, not a cargo
+# dependency), bumped by hand. The browser extension has no package manifest
+# (vanilla JS, no dependencies), so there is nothing to scan there.
 updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   - package-ecosystem: cargo
     directory: "/desktop"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
       cargo-minor-patch:
         update-types: ["minor", "patch"]
@@ -20,6 +27,7 @@ updates:
     directory: "/backend-rs"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
       cargo-minor-patch:
         update-types: ["minor", "patch"]
@@ -28,6 +36,7 @@ updates:
     directory: "/desktop-minter"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
       cargo-minor-patch:
         update-types: ["minor", "patch"]
