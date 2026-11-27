@@ -26,7 +26,7 @@ notify-rust = "4.11.3"
 chrono = { version = "0.4.39", default-features = false, features = ["clock", "std"] }
 # Detect the OS light/dark preference (winit's system_theme is unreliable on
 # Wayland); used to resolve the "System" theme. Reads the XDG desktop portal.
-dark-light = "1.1.1"
+dark-light = "3.0.0"
 rfd = { version = "0.18.0", default-features = false, features = ["xdg-portal"] }
 minisign-verify = "0.2"
 base64 = "0.23"

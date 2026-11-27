@@ -326,10 +326,12 @@ fn detect_os_dark(ctx: &egui::Context) -> Option<bool> {
     if let Some(t) = ctx.system_theme() {
         return Some(t == egui::Theme::Dark);
     }
+    // dark-light 3.0: detect() returns Result<Mode, _> and Mode::Default became
+    // Mode::Unspecified — treat both "unspecified" and any error as "unknown".
     match dark_light::detect() {
-        dark_light::Mode::Dark => Some(true),
-        dark_light::Mode::Light => Some(false),
-        dark_light::Mode::Default => None,
+        Ok(dark_light::Mode::Dark) => Some(true),
+        Ok(dark_light::Mode::Light) => Some(false),
+        _ => None,
     }
 }
 
@@ -1412,9 +1414,9 @@ impl eframe::App for App {
                     let ctx2 = ctx.clone();
                     std::thread::spawn(move || {
                         let v = match dark_light::detect() {
-                            dark_light::Mode::Dark => Some(true),
-                            dark_light::Mode::Light => Some(false),
-                            dark_light::Mode::Default => None,
+                            Ok(dark_light::Mode::Dark) => Some(true),
+                            Ok(dark_light::Mode::Light) => Some(false),
+                            _ => None,
                         };
                         let _ = tx.send(v);
                         ctx2.request_repaint();
