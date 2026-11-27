@@ -11,4 +11,4 @@ path = "src/main.rs"
 
 [dependencies]
 tao = "0.37.3"
-wry = "0.45.0"
+wry = "0.57.3"
