@@ -17,7 +17,7 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Json, Query,
     },
-    http::{header, HeaderValue, Method, StatusCode},
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{delete, get, post},
     Router,
@@ -818,8 +818,11 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         // most players can't show YouTube's WebP). Only for container formats
         // that can actually hold cover art — auto-tagging overwrites it later
         // with real album art. Mirrors the legacy backend.
+        //
+        // No `--write-thumbnail`: that keeps the .jpg sidecar on disk. With only
+        // `--embed-thumbnail`, yt-dlp fetches the thumbnail to a temp file, embeds
+        // it, and deletes it — so no stray cover image is left in the output dir.
         if matches!(req.audio_format.as_str(), "mp3" | "m4a" | "flac" | "opus") {
-            a.push("--write-thumbnail".into());
             a.push("--convert-thumbnails".into());
             a.push("jpg".into());
             a.push("--embed-thumbnail".into());
@@ -856,6 +859,9 @@ fn download_args(req: &DownloadRequest, settings: &AppSettings, out_template: &s
         }
     }
 
+    // `--` ends option parsing so a URL that begins with `-` is treated as the
+    // positional input, never as a yt-dlp flag (argument-injection guard).
+    a.push("--".into());
     a.push(req.url.clone());
     a
 }
@@ -929,7 +935,35 @@ pub enum DlEvent {
     Error(String),
 }
 
-async fn ws_download(ws: WebSocketUpgrade) -> Response {
+/// Origins a browser is allowed to use against the local API — the dev Vite
+/// server and the Tauri webview. Shared by the REST CORS layer and the WebSocket
+/// Origin check below (browsers don't apply CORS to WebSockets).
+const ALLOWED_ORIGINS: [&str; 4] = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "tauri://localhost",
+    "http://tauri.localhost",
+];
+
+/// yt-dlp input URLs always arrive from paste, search or the deep link and must
+/// be http(s); anything else (a `file://`, or a leading `-` meant as a flag) is
+/// refused before it reaches yt-dlp.
+fn is_http_url(s: &str) -> bool {
+    let s = s.trim();
+    s.starts_with("http://") || s.starts_with("https://")
+}
+
+async fn ws_download(ws: WebSocketUpgrade, headers: HeaderMap) -> Response {
+    // Cross-Site WebSocket Hijacking guard: a browser never applies CORS to a
+    // WebSocket, so without this check any page the user visits while Yoink runs
+    // could open this socket and silently drive downloads. The native client
+    // sends no Origin header; a browser always does — so reject any Origin that
+    // isn't one of the allowed dev origins.
+    if let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
+        if !ALLOWED_ORIGINS.contains(&origin) {
+            return StatusCode::FORBIDDEN.into_response();
+        }
+    }
     ws.on_upgrade(run_download)
 }
 
@@ -945,6 +979,12 @@ async fn run_download(mut socket: WebSocket) {
         },
         _ => return,
     };
+    if !is_http_url(&req.url) {
+        let _ = socket
+            .send(err_event("invalid URL (must be http or https)"))
+            .await;
+        return;
+    }
     let settings = load_settings();
     // Run the shared download core off-task and forward its events to the socket;
     // a send failure (client gone) flips `cancel`, which stops yt-dlp.
@@ -1004,7 +1044,16 @@ async fn execute_download(
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::path::PathBuf::from(&settings.download_dir));
     let _ = std::fs::create_dir_all(&dir);
-    let template = format!("{}/{}.%(ext)s", dir.display(), settings.filename_template);
+    // The autotag filename markers (%(autotag)s / %(autotag_ta)s) are not real
+    // yt-dlp fields — yt-dlp writes "NA" for them, which then poisons the autotag
+    // lookup (it keys on the filename). They mean "name it after the autotag
+    // result", which happens in a rename step *after* the download, so the download
+    // itself must use a real template (the title).
+    let dl_template = match settings.filename_template.as_str() {
+        AUTOTAG_FILENAME_TEMPLATE | AUTOTAG_FILENAME_TEMPLATE_REVERSED => "%(title)s",
+        other => other,
+    };
+    let template = format!("{}/{}.%(ext)s", dir.display(), dl_template);
     let mut args = download_args(req, settings, &template);
     // PO token: in auto mode, mint a session GVS token in the app's WebView (bound
     // to visitor_data, handed to the web clients); otherwise the manual token(s).
@@ -2230,7 +2279,15 @@ struct ThumbQuery {
 /// bytes back over local http. Restricted to http(s) image responses so it can't
 /// be abused as a generic proxy.
 async fn thumb_proxy(Query(q): Query<ThumbQuery>) -> Response {
-    if !(q.url.starts_with("http://") || q.url.starts_with("https://")) {
+    let Ok(url) = reqwest::Url::parse(&q.url) else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+    if !matches!(url.scheme(), "http" | "https") {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    // SSRF guard: refuse private/loopback/link-local targets (same check as the
+    // PO-token proxy), so a crafted thumbnail URL can't probe internal services.
+    if crate::po_token::host_is_blocked(url.host_str()).await {
         return StatusCode::BAD_REQUEST.into_response();
     }
     let res = reqwest::Client::new()
@@ -2279,17 +2336,12 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8756);
 
-    // Mirror the Python CORS allow-list: the Vite dev server and the Tauri
-    // webview origins (a later slice can share the exact regex).
-    let origins: Vec<HeaderValue> = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "tauri://localhost",
-        "http://tauri.localhost",
-    ]
-    .iter()
-    .filter_map(|o| o.parse().ok())
-    .collect();
+    // The Vite dev server and the Tauri webview origins (shared with the
+    // WebSocket Origin check via ALLOWED_ORIGINS).
+    let origins: Vec<HeaderValue> = ALLOWED_ORIGINS
+        .iter()
+        .filter_map(|o| o.parse().ok())
+        .collect();
     let cors = CorsLayer::new()
         .allow_origin(origins)
         .allow_methods([Method::GET, Method::POST, Method::PUT])

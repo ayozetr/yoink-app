@@ -70,6 +70,14 @@ pub fn write_tags(f: &ApplyFields) -> Result<bool, String> {
 
     let mut embedded = false;
     if let Some(bytes) = &f.cover {
+        // Drop any art already in the file — yt-dlp embeds the 16:9 YouTube
+        // thumbnail as a fallback cover during the download — so the square
+        // catalogue cover *replaces* it instead of being appended (players show
+        // the first picture, which would otherwise stay the YouTube one). Mirrors
+        // the legacy backend's `delall("APIC")`.
+        while tag.picture_count() > 0 {
+            tag.remove_picture(0);
+        }
         let mime = sniff_mime(bytes);
         tag.push_picture(Picture::new_unchecked(
             PictureType::CoverFront,

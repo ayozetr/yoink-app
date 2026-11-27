@@ -446,8 +446,9 @@ fn ip_is_public(ip: IpAddr) -> bool {
 }
 
 /// True if the host resolves to (or is) a non-public address — SSRF guard, so a
-/// Google-looking name that points at a private/loopback IP is refused.
-async fn host_is_blocked(host: Option<&str>) -> bool {
+/// Google-looking name that points at a private/loopback IP is refused. Shared
+/// with the thumbnail proxy in `main.rs`.
+pub async fn host_is_blocked(host: Option<&str>) -> bool {
     let Some(h) = host else { return true };
     if let Ok(ip) = h.parse::<IpAddr>() {
         return !ip_is_public(ip);

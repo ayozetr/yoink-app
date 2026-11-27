@@ -275,6 +275,7 @@ pub struct App {
     hist_confirm: bool,       // "Clear history" awaiting the confirm click
     autotag: Option<Autotag>, // the open audio tag panel, if any
     hist_query: String,
+    hist_hover: Option<usize>, // history row under the pointer (actions show on hover)
     logs_text: String,
     logs_path: String,
     logs_loaded: bool,
@@ -420,6 +421,7 @@ impl App {
             hist_confirm: false,
             autotag: None,
             hist_query: String::new(),
+            hist_hover: None,
             logs_text: String::new(),
             logs_path: String::new(),
             logs_loaded: false,
@@ -2135,6 +2137,7 @@ impl App {
         let (mut dismiss, mut apply, mut do_search) = (false, false, false);
         let mut pick: Option<usize> = None;
         {
+            let radius = self.win_radius(ctx) as u8;
             let tag = self.autotag.as_mut().unwrap();
             let dt = ctx.input(|i| i.stable_dt).min(0.05);
             tag.anim = (tag.anim + dt * 6.0).min(1.0);
@@ -2144,12 +2147,21 @@ impl App {
             let w = 340.0;
             let screen = ctx.content_rect();
             let x = screen.right() - w * tag.anim;
-            egui::Area::new(egui::Id::unique("autotag-panel"))
+            let area = egui::Area::new(egui::Id::unique("autotag-panel"))
                 .order(egui::Order::Foreground)
                 .fixed_pos(egui::pos2(x, screen.top()))
                 .show(ctx, |ui| {
                     egui::Frame::new()
                         .fill(p.surface_hi)
+                        // Round the panel's right corners to match the window, so the
+                        // full-height panel doesn't square off the window's rounded
+                        // right edge.
+                        .corner_radius(egui::CornerRadius {
+                            nw: 0,
+                            ne: radius,
+                            sw: 0,
+                            se: radius,
+                        })
                         .inner_margin(egui::Margin::same(16))
                         .show(ui, |ui| {
                             ui.set_width(w - 32.0);
@@ -2170,56 +2182,70 @@ impl App {
                             ui.add_space(2.0);
                             ui.label(RichText::new(&tag.filename).small().color(p.fg_dim));
                             ui.add_space(14.0);
-                            match tag.stage {
-                                TagStage::Loading | TagStage::Applying => {
-                                    ui.add_space(24.0);
-                                    ui.vertical_centered(|ui| {
-                                        ui.add(egui::Spinner::new().size(22.0).color(p.accent));
-                                        ui.add_space(8.0);
-                                        let k = if tag.stage == TagStage::Loading {
-                                            "tag.searching"
-                                        } else {
-                                            "tag.applying"
-                                        };
-                                        ui.label(RichText::new(tl(lang, k)).color(p.fg_dim));
-                                    });
-                                }
-                                TagStage::Review => {
-                                    let usable = w - 32.0;
-                                    let field = |ui: &mut egui::Ui, lab: &str, v: &mut String| {
-                                        ui.label(RichText::new(lab).small().color(p.fg_dim));
-                                        ui.add_space(2.0);
-                                        ui.add(
-                                            egui::TextEdit::singleline(v)
-                                                .desired_width(f32::INFINITY),
-                                        );
-                                        ui.add_space(8.0);
-                                    };
-                                    // Cover (left) + Title / Artist (right), the two
-                                    // fields kept compact so they sit within the
-                                    // cover's height (not spilling below it).
-                                    let cover = tag.cover_url.clone().filter(|s| !s.is_empty());
-                                    let cover_sz = 112.0;
-                                    ui.horizontal(|ui| {
-                                        if let Some(c) = &cover {
-                                            ui.add(
-                                                egui::Image::from_uri(crate::api::thumb_url(
-                                                    c.clone(),
-                                                ))
-                                                .fit_to_exact_size(egui::vec2(cover_sz, cover_sz))
-                                                .corner_radius(10),
-                                            );
-                                        } else {
-                                            let (r, _) = ui.allocate_exact_size(
-                                                egui::vec2(cover_sz, cover_sz),
-                                                egui::Sense::hover(),
-                                            );
-                                            ui.painter().rect_filled(r, 10.0, p.surface_hi);
+                            egui::ScrollArea::vertical()
+                                .auto_shrink([false, false])
+                                .max_height(screen.height() - 110.0)
+                                .show(ui, |ui| {
+                                    match tag.stage {
+                                        TagStage::Loading | TagStage::Applying => {
+                                            ui.add_space(24.0);
+                                            ui.vertical_centered(|ui| {
+                                                ui.add(
+                                                    egui::Spinner::new().size(22.0).color(p.accent),
+                                                );
+                                                ui.add_space(8.0);
+                                                let k = if tag.stage == TagStage::Loading {
+                                                    "tag.searching"
+                                                } else {
+                                                    "tag.applying"
+                                                };
+                                                ui.label(
+                                                    RichText::new(tl(lang, k)).color(p.fg_dim),
+                                                );
+                                            });
                                         }
-                                        ui.add_space(12.0);
-                                        ui.vertical(|ui| {
-                                            ui.set_width(usable - cover_sz - 14.0);
-                                            let cf =
+                                        TagStage::Review => {
+                                            let usable = w - 32.0;
+                                            let field =
+                                                |ui: &mut egui::Ui, lab: &str, v: &mut String| {
+                                                    ui.label(
+                                                        RichText::new(lab).small().color(p.fg_dim),
+                                                    );
+                                                    ui.add_space(2.0);
+                                                    ui.add(
+                                                        egui::TextEdit::singleline(v)
+                                                            .desired_width(f32::INFINITY),
+                                                    );
+                                                    ui.add_space(8.0);
+                                                };
+                                            // Cover (left) + Title / Artist (right), the two
+                                            // fields kept compact so they sit within the
+                                            // cover's height (not spilling below it).
+                                            let cover =
+                                                tag.cover_url.clone().filter(|s| !s.is_empty());
+                                            let cover_sz = 112.0;
+                                            ui.horizontal(|ui| {
+                                                if let Some(c) = &cover {
+                                                    ui.add(
+                                                        egui::Image::from_uri(
+                                                            crate::api::thumb_url(c.clone()),
+                                                        )
+                                                        .fit_to_exact_size(egui::vec2(
+                                                            cover_sz, cover_sz,
+                                                        ))
+                                                        .corner_radius(10),
+                                                    );
+                                                } else {
+                                                    let (r, _) = ui.allocate_exact_size(
+                                                        egui::vec2(cover_sz, cover_sz),
+                                                        egui::Sense::hover(),
+                                                    );
+                                                    ui.painter().rect_filled(r, 10.0, p.surface_hi);
+                                                }
+                                                ui.add_space(12.0);
+                                                ui.vertical(|ui| {
+                                                    ui.set_width(usable - cover_sz - 14.0);
+                                                    let cf =
                                                 |ui: &mut egui::Ui, lab: &str, v: &mut String| {
                                                     ui.label(
                                                         RichText::new(lab).small().color(p.fg_dim),
@@ -2230,216 +2256,255 @@ impl App {
                                                     );
                                                     ui.add_space(4.0);
                                                 };
-                                            cf(ui, tl(lang, "tag.f_title"), &mut tag.title);
-                                            cf(ui, tl(lang, "tag.f_artist"), &mut tag.artist);
-                                        });
-                                    });
-                                    ui.add_space(4.0);
-                                    // Album + Year.
-                                    ui.horizontal(|ui| {
-                                        ui.vertical(|ui| {
-                                            ui.set_width(usable * 0.58);
-                                            field(ui, tl(lang, "tag.f_album"), &mut tag.album);
-                                        });
-                                        ui.vertical(|ui| {
-                                            field(ui, tl(lang, "tag.f_year"), &mut tag.year);
-                                        });
-                                    });
-                                    // Genre.
-                                    field(ui, tl(lang, "tag.f_genre"), &mut tag.genre);
-                                    // Versions — pick a catalogue match (cover + album / year · #).
-                                    if tag.candidates.len() > 1 {
-                                        ui.add_space(2.0);
-                                        ui.label(
-                                            RichText::new(tl(lang, "tag.version"))
-                                                .small()
-                                                .color(p.fg_dim),
-                                        );
-                                        ui.add_space(4.0);
-                                        for (i, c) in tag.candidates.iter().enumerate() {
-                                            let bg = if i as i32 == tag.selected {
-                                                p.accent.gamma_multiply(0.18)
-                                            } else {
-                                                p.surface
-                                            };
-                                            let resp = egui::Frame::new()
-                                                .fill(bg)
-                                                .corner_radius(7)
-                                                .inner_margin(egui::Margin::symmetric(8, 6))
-                                                .show(ui, |ui| {
-                                                    ui.set_width(usable - 16.0);
-                                                    ui.horizontal(|ui| {
-                                                        if let Some(cu) = c
-                                                            .cover_url
-                                                            .as_deref()
-                                                            .filter(|s| !s.is_empty())
-                                                        {
-                                                            ui.add(
-                                                                egui::Image::from_uri(
-                                                                    crate::api::thumb_url(cu),
-                                                                )
-                                                                .fit_to_exact_size(egui::vec2(
-                                                                    32.0, 32.0,
-                                                                ))
-                                                                .corner_radius(5),
-                                                            );
-                                                        } else {
-                                                            let (r, _) = ui.allocate_exact_size(
-                                                                egui::vec2(32.0, 32.0),
-                                                                egui::Sense::hover(),
-                                                            );
-                                                            ui.painter().rect_filled(
-                                                                r,
-                                                                5.0,
-                                                                p.surface_hi,
-                                                            );
-                                                        }
-                                                        ui.add_space(8.0);
-                                                        ui.vertical(|ui| {
-                                                            let top = c
-                                                                .album
-                                                                .clone()
-                                                                .filter(|s| !s.is_empty())
-                                                                .unwrap_or_else(|| c.title.clone());
-                                                            ui.label(
-                                                                RichText::new(top)
-                                                                    .small()
-                                                                    .color(p.fg),
-                                                            );
-                                                            let mut sub =
-                                                                c.year.clone().unwrap_or_default();
-                                                            if let Some(tn) = c.track_number {
-                                                                sub = if sub.is_empty() {
-                                                                    format!("#{tn}")
-                                                                } else {
-                                                                    format!("{sub} · #{tn}")
-                                                                };
-                                                            }
-                                                            if !sub.is_empty() {
-                                                                ui.label(
-                                                                    RichText::new(sub)
-                                                                        .small()
-                                                                        .color(p.fg_dim),
-                                                                );
-                                                            }
-                                                        });
-                                                    });
-                                                })
-                                                .response;
-                                            if resp.interact(egui::Sense::click()).clicked() {
-                                                pick = Some(i);
-                                            }
+                                                    cf(ui, tl(lang, "tag.f_title"), &mut tag.title);
+                                                    cf(
+                                                        ui,
+                                                        tl(lang, "tag.f_artist"),
+                                                        &mut tag.artist,
+                                                    );
+                                                });
+                                            });
                                             ui.add_space(4.0);
-                                        }
-                                    }
-                                    // "Not right? Search manually" → artist + title + search.
-                                    ui.add_space(2.0);
-                                    if ui
-                                        .add(
-                                            egui::Button::image_and_text(
-                                                crate::icons::img("search", 12.0, p.accent),
-                                                RichText::new(tl(lang, "tag.manual"))
-                                                    .small()
-                                                    .color(p.accent),
-                                            )
-                                            .frame(false),
-                                        )
-                                        .clicked()
-                                    {
-                                        tag.manual_open = !tag.manual_open;
-                                        if tag.manual_open
-                                            && tag.manual_artist.is_empty()
-                                            && tag.manual_title.is_empty()
-                                        {
-                                            tag.manual_artist = tag.artist.clone();
-                                            tag.manual_title = tag.title.clone();
-                                        }
-                                    }
-                                    if tag.manual_open {
-                                        ui.add_space(6.0);
-                                        ui.horizontal(|ui| {
-                                            let iw = (usable - 44.0) / 2.0;
-                                            ui.add(
-                                                egui::TextEdit::singleline(&mut tag.manual_artist)
-                                                    .hint_text(tl(lang, "tag.f_artist"))
-                                                    .desired_width(iw),
-                                            );
-                                            ui.add(
-                                                egui::TextEdit::singleline(&mut tag.manual_title)
-                                                    .hint_text(tl(lang, "tag.f_title"))
-                                                    .desired_width(iw),
-                                            );
+                                            // Album + Year.
+                                            ui.horizontal(|ui| {
+                                                ui.vertical(|ui| {
+                                                    ui.set_width(usable * 0.58);
+                                                    field(
+                                                        ui,
+                                                        tl(lang, "tag.f_album"),
+                                                        &mut tag.album,
+                                                    );
+                                                });
+                                                ui.vertical(|ui| {
+                                                    field(
+                                                        ui,
+                                                        tl(lang, "tag.f_year"),
+                                                        &mut tag.year,
+                                                    );
+                                                });
+                                            });
+                                            // Genre.
+                                            field(ui, tl(lang, "tag.f_genre"), &mut tag.genre);
+                                            // Versions — pick a catalogue match (cover + album / year · #).
+                                            if tag.candidates.len() > 1 {
+                                                ui.add_space(2.0);
+                                                ui.label(
+                                                    RichText::new(tl(lang, "tag.version"))
+                                                        .small()
+                                                        .color(p.fg_dim),
+                                                );
+                                                ui.add_space(4.0);
+                                                for (i, c) in tag.candidates.iter().enumerate() {
+                                                    let bg = if i as i32 == tag.selected {
+                                                        p.accent.gamma_multiply(0.18)
+                                                    } else {
+                                                        p.surface
+                                                    };
+                                                    let resp = egui::Frame::new()
+                                                        .fill(bg)
+                                                        .corner_radius(7)
+                                                        .inner_margin(egui::Margin::symmetric(8, 6))
+                                                        .show(ui, |ui| {
+                                                            ui.set_width(usable - 16.0);
+                                                            ui.horizontal(|ui| {
+                                                                if let Some(cu) = c
+                                                                    .cover_url
+                                                                    .as_deref()
+                                                                    .filter(|s| !s.is_empty())
+                                                                {
+                                                                    ui.add(
+                                                                        egui::Image::from_uri(
+                                                                            crate::api::thumb_url(
+                                                                                cu,
+                                                                            ),
+                                                                        )
+                                                                        .fit_to_exact_size(
+                                                                            egui::vec2(32.0, 32.0),
+                                                                        )
+                                                                        .corner_radius(5),
+                                                                    );
+                                                                } else {
+                                                                    let (r, _) = ui
+                                                                        .allocate_exact_size(
+                                                                            egui::vec2(32.0, 32.0),
+                                                                            egui::Sense::hover(),
+                                                                        );
+                                                                    ui.painter().rect_filled(
+                                                                        r,
+                                                                        5.0,
+                                                                        p.surface_hi,
+                                                                    );
+                                                                }
+                                                                ui.add_space(8.0);
+                                                                ui.vertical(|ui| {
+                                                                    let top = c
+                                                                        .album
+                                                                        .clone()
+                                                                        .filter(|s| !s.is_empty())
+                                                                        .unwrap_or_else(|| {
+                                                                            c.title.clone()
+                                                                        });
+                                                                    ui.label(
+                                                                        RichText::new(top)
+                                                                            .small()
+                                                                            .color(p.fg),
+                                                                    );
+                                                                    let mut sub = c
+                                                                        .year
+                                                                        .clone()
+                                                                        .unwrap_or_default();
+                                                                    if let Some(tn) = c.track_number
+                                                                    {
+                                                                        sub = if sub.is_empty() {
+                                                                            format!("#{tn}")
+                                                                        } else {
+                                                                            format!("{sub} · #{tn}")
+                                                                        };
+                                                                    }
+                                                                    if !sub.is_empty() {
+                                                                        ui.label(
+                                                                            RichText::new(sub)
+                                                                                .small()
+                                                                                .color(p.fg_dim),
+                                                                        );
+                                                                    }
+                                                                });
+                                                            });
+                                                        })
+                                                        .response;
+                                                    if resp.interact(egui::Sense::click()).clicked()
+                                                    {
+                                                        pick = Some(i);
+                                                    }
+                                                    ui.add_space(4.0);
+                                                }
+                                            }
+                                            // "Not right? Search manually" → artist + title + search.
+                                            ui.add_space(2.0);
                                             if ui
                                                 .add(
-                                                    egui::Button::image(crate::icons::img(
-                                                        "search", 15.0, p.fg,
-                                                    ))
-                                                    .min_size(egui::vec2(30.0, 28.0)),
+                                                    egui::Button::image_and_text(
+                                                        crate::icons::img("search", 12.0, p.accent),
+                                                        RichText::new(tl(lang, "tag.manual"))
+                                                            .small()
+                                                            .color(p.accent),
+                                                    )
+                                                    .frame(false),
                                                 )
                                                 .clicked()
                                             {
-                                                do_search = true;
+                                                tag.manual_open = !tag.manual_open;
+                                                if tag.manual_open
+                                                    && tag.manual_artist.is_empty()
+                                                    && tag.manual_title.is_empty()
+                                                {
+                                                    tag.manual_artist = tag.artist.clone();
+                                                    tag.manual_title = tag.title.clone();
+                                                }
                                             }
-                                        });
-                                    }
-                                    ui.add_space(10.0);
-                                    ui.horizontal(|ui| {
-                                        ui.label(
-                                            RichText::new(tl(lang, "set.lyrics"))
-                                                .small()
-                                                .color(p.fg_dim),
-                                        );
-                                        ui.with_layout(
-                                            egui::Layout::right_to_left(egui::Align::Center),
-                                            |ui| {
-                                                toggle(ui, &mut tag.embed_lyrics, p);
-                                            },
-                                        );
-                                    });
-                                    ui.add_space(14.0);
-                                    // Discard (left) + Apply tags (right).
-                                    ui.horizontal(|ui| {
-                                        if ui
-                                            .add(
-                                                egui::Button::new(
-                                                    RichText::new(tl(lang, "tag.discard"))
+                                            if tag.manual_open {
+                                                ui.add_space(6.0);
+                                                ui.horizontal(|ui| {
+                                                    let iw = (usable - 44.0) / 2.0;
+                                                    ui.add(
+                                                        egui::TextEdit::singleline(
+                                                            &mut tag.manual_artist,
+                                                        )
+                                                        .hint_text(tl(lang, "tag.f_artist"))
+                                                        .desired_width(iw),
+                                                    );
+                                                    ui.add(
+                                                        egui::TextEdit::singleline(
+                                                            &mut tag.manual_title,
+                                                        )
+                                                        .hint_text(tl(lang, "tag.f_title"))
+                                                        .desired_width(iw),
+                                                    );
+                                                    if ui
+                                                        .add(
+                                                            egui::Button::image(crate::icons::img(
+                                                                "search", 15.0, p.fg,
+                                                            ))
+                                                            .min_size(egui::vec2(30.0, 28.0)),
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        do_search = true;
+                                                    }
+                                                });
+                                            }
+                                            ui.add_space(10.0);
+                                            ui.horizontal(|ui| {
+                                                ui.label(
+                                                    RichText::new(tl(lang, "set.lyrics"))
+                                                        .small()
                                                         .color(p.fg_dim),
-                                                )
-                                                .frame(false),
-                                            )
-                                            .clicked()
-                                        {
-                                            dismiss = true;
-                                        }
-                                        ui.with_layout(
-                                            egui::Layout::right_to_left(egui::Align::Center),
-                                            |ui| {
+                                                );
+                                                ui.with_layout(
+                                                    egui::Layout::right_to_left(
+                                                        egui::Align::Center,
+                                                    ),
+                                                    |ui| {
+                                                        toggle(ui, &mut tag.embed_lyrics, p);
+                                                    },
+                                                );
+                                            });
+                                            ui.add_space(14.0);
+                                            // Discard (left) + Apply tags (right).
+                                            ui.horizontal(|ui| {
                                                 if ui
                                                     .add(
-                                                        egui::Button::image_and_text(
-                                                            crate::icons::img(
-                                                                "check",
-                                                                15.0,
-                                                                p.accent_fg,
-                                                            ),
-                                                            RichText::new(tl(lang, "tag.apply"))
-                                                                .color(p.accent_fg),
+                                                        egui::Button::new(
+                                                            RichText::new(tl(lang, "tag.discard"))
+                                                                .color(p.fg_dim),
                                                         )
-                                                        .fill(p.accent)
-                                                        .corner_radius(9)
-                                                        .min_size(egui::vec2(150.0, 34.0)),
+                                                        .frame(false),
                                                     )
                                                     .clicked()
                                                 {
-                                                    apply = true;
+                                                    dismiss = true;
                                                 }
-                                            },
-                                        );
-                                    });
-                                }
-                            }
+                                                ui.with_layout(
+                                                    egui::Layout::right_to_left(
+                                                        egui::Align::Center,
+                                                    ),
+                                                    |ui| {
+                                                        if ui
+                                                            .add(
+                                                                egui::Button::image_and_text(
+                                                                    crate::icons::img(
+                                                                        "check",
+                                                                        15.0,
+                                                                        p.accent_fg,
+                                                                    ),
+                                                                    RichText::new(tl(
+                                                                        lang,
+                                                                        "tag.apply",
+                                                                    ))
+                                                                    .color(p.accent_fg),
+                                                                )
+                                                                .fill(p.accent)
+                                                                .corner_radius(9)
+                                                                .min_size(egui::vec2(150.0, 34.0)),
+                                                            )
+                                                            .clicked()
+                                                        {
+                                                            apply = true;
+                                                        }
+                                                    },
+                                                );
+                                            });
+                                        }
+                                    }
+                                });
                         });
                 });
+            // Clicking anywhere outside the panel closes it — but only once it
+            // has fully slid in, so the click that opened it doesn't dismiss it on
+            // the same frame.
+            if tag.anim >= 1.0 && area.response.clicked_elsewhere() {
+                dismiss = true;
+            }
         }
         if dismiss {
             self.autotag = None;
@@ -3572,12 +3637,24 @@ impl App {
         let mut open_folder: Option<String> = None;
         let mut reanalyze: Option<String> = None;
         let mut retag: Option<(String, String)> = None; // (path, filename)
-        for e in self
+                                                        // The pointer position from the previous frame drives which row shows its
+                                                        // actions (egui is immediate-mode, so the hovered row is known one frame
+                                                        // late — imperceptible, as a pointer move already triggers a repaint).
+        let hovered_row = self.hist_hover;
+        let mut next_hover: Option<usize> = None;
+        for (idx, e) in self
             .history
             .iter()
             .filter(|e| q.is_empty() || e.title.to_lowercase().contains(&q))
+            .enumerate()
         {
-            egui::Frame::new()
+            let is_hovered = hovered_row == Some(idx);
+            let fr = egui::Frame::new()
+                .fill(if is_hovered {
+                    p.surface
+                } else {
+                    egui::Color32::TRANSPARENT
+                })
                 .inner_margin(egui::Margin::symmetric(6, 8))
                 .corner_radius(8)
                 .show(ui, |ui| {
@@ -3612,34 +3689,41 @@ impl App {
                             });
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            // Row actions (right → left): time, then play · folder ·
-                            // redownload, plus retag for completed audio.
-                            ui.label(
-                                RichText::new(relative(&e.created_at, lang))
-                                    .small()
-                                    .color(p.fg_dim),
-                            );
-                            let done = e.status == "completed";
-                            let path = e.filepath.clone().filter(|_| done);
-                            ui.add_space(6.0);
-                            if !e.url.is_empty() && icon_btn(ui, p, "redownload") {
-                                reanalyze = Some(e.url.clone());
-                            }
-                            if let Some(path) = &path {
-                                if icon_btn(ui, p, "folder") {
-                                    open_folder = Some(path.clone());
+                            // Hovering swaps the relative time for the action icons
+                            // (right → left): redownload, then folder · play · retag
+                            // for a completed audio.
+                            if is_hovered {
+                                let done = e.status == "completed";
+                                let path = e.filepath.clone().filter(|_| done);
+                                if !e.url.is_empty() && icon_btn(ui, p, "redownload") {
+                                    reanalyze = Some(e.url.clone());
                                 }
-                                if icon_btn(ui, p, "play") {
-                                    open_file = Some(path.clone());
+                                if let Some(path) = &path {
+                                    if icon_btn(ui, p, "folder") {
+                                        open_folder = Some(path.clone());
+                                    }
+                                    if icon_btn(ui, p, "play") {
+                                        open_file = Some(path.clone());
+                                    }
+                                    if is_audio && icon_btn(ui, p, "tag") {
+                                        retag = Some((path.clone(), e.title.clone()));
+                                    }
                                 }
-                                if is_audio && icon_btn(ui, p, "tag") {
-                                    retag = Some((path.clone(), e.title.clone()));
-                                }
+                            } else {
+                                ui.label(
+                                    RichText::new(relative(&e.created_at, lang))
+                                        .small()
+                                        .color(p.fg_dim),
+                                );
                             }
                         });
                     });
                 });
+            if ui.rect_contains_pointer(fr.response.rect) {
+                next_hover = Some(idx);
+            }
         }
+        self.hist_hover = next_hover;
         if let Some(path) = open_file {
             self.backend.send(Cmd::Open(path));
         }
@@ -5071,22 +5155,36 @@ fn notify_done(verb: &str, path: &str) {
 }
 
 /// A relative time ("hace 3 h" / "3 h ago") from an RFC3339 timestamp.
+/// Localized relative time ("5 days ago", "hace 2 meses") from an RFC3339
+/// timestamp, via the `timeago` crate (12 of our 14 languages; Indonesian and
+/// Hindi fall back to English). Very recent times read "just now".
 fn relative(iso: &str, lang: Lang) -> String {
     use chrono::{DateTime, Utc};
     let Ok(dt) = DateTime::parse_from_rfc3339(iso) else {
         return iso.chars().take(10).collect();
     };
-    let s = (Utc::now() - dt.with_timezone(&Utc)).num_seconds().max(0);
-    match (s, lang) {
-        (s, _) if s < 60 => tl(lang, "time.now").to_string(),
-        (s, Lang::Es) if s < 3600 => format!("hace {} min", s / 60),
-        (s, Lang::En) if s < 3600 => format!("{} min ago", s / 60),
-        (s, Lang::Es) if s < 86400 => format!("hace {} h", s / 3600),
-        (s, Lang::En) if s < 86400 => format!("{} h ago", s / 3600),
-        (s, Lang::Es) if s < 604800 => format!("hace {} d", s / 86400),
-        (s, Lang::En) if s < 604800 => format!("{} d ago", s / 86400),
-        _ => iso.chars().take(10).collect(),
+    let secs = (Utc::now() - dt.with_timezone(&Utc)).num_seconds().max(0) as u64;
+    if secs < 45 {
+        return tl(lang, "time.now").to_string();
     }
+    let iso_lang = match lang {
+        Lang::En | Lang::Id | Lang::Hi => isolang::Language::Eng,
+        Lang::Es => isolang::Language::Spa,
+        Lang::Fr => isolang::Language::Fra,
+        Lang::De => isolang::Language::Deu,
+        Lang::It => isolang::Language::Ita,
+        Lang::Pt => isolang::Language::Por,
+        Lang::Ru => isolang::Language::Rus,
+        Lang::Pl => isolang::Language::Pol,
+        Lang::Uk => isolang::Language::Ukr,
+        Lang::Zh => isolang::Language::Zho,
+        Lang::Ja => isolang::Language::Jpn,
+        Lang::Ko => isolang::Language::Kor,
+    };
+    let boxed = timeago::from_isolang(iso_lang)
+        .or_else(|| timeago::from_isolang(isolang::Language::Eng))
+        .expect("English is always available");
+    timeago::Formatter::with_language(boxed).convert(std::time::Duration::from_secs(secs))
 }
 
 /// Heuristic: looks like a link (so analyze it) rather than a search query.
@@ -5122,8 +5220,18 @@ fn toggle(ui: &mut egui::Ui, on: &mut bool, p: theme::Palette) -> egui::Response
         *on = !*on;
         resp.mark_changed();
     }
-    let bg = if *on { p.accent } else { p.surface_hi };
+    let bg = if *on { p.accent } else { p.line };
     ui.painter().rect_filled(rect, 11.0, bg);
+    if !*on {
+        // A hairline so the off state still reads as a switch on panels whose
+        // background shares the track's tone (e.g. the autotag panel on surface_hi).
+        ui.painter().rect_stroke(
+            rect,
+            11.0,
+            egui::Stroke::new(1.0, p.fg_dim.gamma_multiply(0.3)),
+            egui::StrokeKind::Inside,
+        );
+    }
     let knob_x = if *on {
         rect.right() - 11.0
     } else {
