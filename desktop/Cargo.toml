@@ -29,7 +29,7 @@ chrono = { version = "0.4.39", default-features = false, features = ["clock", "s
 dark-light = "1.1.1"
 rfd = { version = "0.18.0", default-features = false, features = ["xdg-portal"] }
 minisign-verify = "0.2"
-base64 = "0.22"
+base64 = "0.23"
 discord-rich-presence = "1.1.0"
 timeago = "0.6.1"
 isolang = "2.4.0"

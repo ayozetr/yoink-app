@@ -6254,7 +6254,7 @@ dependencies = [
 name = "yoink-desktop"
 version = "5.0.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "dark-light",
  "discord-rich-presence",
