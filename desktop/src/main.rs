@@ -17,6 +17,7 @@ mod api;
 mod app;
 mod backend_proc;
 mod deeplink;
+mod discord;
 mod fonts;
 mod i18n;
 mod icons;

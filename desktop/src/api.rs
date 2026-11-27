@@ -73,6 +73,9 @@ pub enum Cmd {
         url: String,
     },
     Download(Box<DownloadReq>, AutotagOpts),
+    /// Abort the download currently in flight (closing the WS makes the backend
+    /// stop yt-dlp) — used by the queue's Skip / Stop controls.
+    CancelDownload,
     /// Tag-panel lookups + write.
     AutotagIdentify {
         path: String,
@@ -272,6 +275,8 @@ pub struct Settings {
     pub launch_at_startup: bool,
     #[serde(default = "default_true")]
     pub rounded_corners: bool,
+    #[serde(default = "default_true")]
+    pub discord_rpc: bool,
 }
 
 fn default_true() -> bool {
@@ -565,6 +570,8 @@ impl Backend {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     tokio::spawn(async move { fetch_ytdlp_version(evt_tx, ctx).await });
                 }
+                // Handle to the download task in flight, so Skip/Stop can abort it.
+                let mut current_dl: Option<tokio::task::AbortHandle> = None;
                 while let Some(cmd) = cmd_rx.recv().await {
                     let (evt_tx, ctx) = (evt_tx.clone(), ctx.clone());
                     match cmd {
@@ -581,7 +588,17 @@ impl Backend {
                             tokio::spawn(async move { resolve_title(id, url, evt_tx, ctx).await });
                         }
                         Cmd::Download(req, autotag) => {
-                            tokio::spawn(async move { download(*req, autotag, evt_tx, ctx).await });
+                            current_dl = Some(
+                                tokio::spawn(
+                                    async move { download(*req, autotag, evt_tx, ctx).await },
+                                )
+                                .abort_handle(),
+                            );
+                        }
+                        Cmd::CancelDownload => {
+                            if let Some(h) = current_dl.take() {
+                                h.abort();
+                            }
                         }
                         Cmd::AutotagIdentify { path } => {
                             tokio::spawn(async move {

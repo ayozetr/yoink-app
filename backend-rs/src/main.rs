@@ -1286,6 +1286,8 @@ struct AppSettings {
     launch_at_startup: bool,
     #[serde(default = "default_true")]
     rounded_corners: bool,
+    #[serde(default = "default_true")]
+    discord_rpc: bool,
 }
 
 fn default_true() -> bool {
@@ -1326,6 +1328,7 @@ impl Default for AppSettings {
             minimize_to_tray: false,
             launch_at_startup: false,
             rounded_corners: true,
+            discord_rpc: true,
         }
     }
 }
