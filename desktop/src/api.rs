@@ -1363,7 +1363,7 @@ async fn run_ws_download(
         }
     };
     let payload = serde_json::to_string(req).unwrap_or_default();
-    if let Err(e) = ws.send(Message::Text(payload)).await {
+    if let Err(e) = ws.send(Message::Text(payload.into())).await {
         emit(tx, ctx, Evt::DownloadErr(format!("ws send failed: {e}")));
         return None;
     }
