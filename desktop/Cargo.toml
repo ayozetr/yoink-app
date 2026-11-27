@@ -1,6 +1,6 @@
 [package]
 name = "yoink-desktop"
-version = "4.4.0"
+version = "5.0.0"
 edition = "2021"
 license = "AGPL-3.0-or-later"
 description = "Yoink native desktop UI (egui) — talks to the local yoink-core backend"

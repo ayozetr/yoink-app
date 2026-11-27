@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Ayoze Torres
 [package]
 name = "yoink-core"
-version = "4.4.0"
+version = "5.0.0"
 edition = "2021"
 description = "Rust core for Yoink — orchestrates the yt-dlp and ffmpeg binaries (replaces the Python backend)."
 license = "AGPL-3.0-or-later"

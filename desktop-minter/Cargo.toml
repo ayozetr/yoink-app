@@ -1,6 +1,6 @@
 [package]
 name = "yoink-minter"
-version = "4.4.0"
+version = "5.0.0"
 edition = "2021"
 license = "AGPL-3.0-or-later"
 description = "Hidden WebView that mints YouTube PO tokens for the native Yoink UI"

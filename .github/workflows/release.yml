@@ -17,10 +17,6 @@ name: Release
 on:
   push:
     tags: ["v*"]
-    # Temporary: egui-ui builds on CI while the branch is iterated, before it's
-    # merged to the default branch (which also enables workflow_dispatch). Remove
-    # this branch entry after the merge; the release job only runs for tags.
-    branches: [egui-ui]
   workflow_dispatch:
 
 permissions:

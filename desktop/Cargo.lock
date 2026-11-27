@@ -6231,7 +6231,7 @@ dependencies = [
 
 [[package]]
 name = "yoink-desktop"
-version = "4.4.0"
+version = "5.0.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
