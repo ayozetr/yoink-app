@@ -1,7 +1,7 @@
 # Yoink Media Downloader
 
 [![Release](https://img.shields.io/github/v/release/ayozetr/yoink-app?label=release&color=7c3aed)](https://github.com/ayozetr/yoink-app/releases/latest)
-![Platform](https://img.shields.io/badge/platform-Linux%20(AppImage)-2563eb)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-2563eb)
 ![egui](https://img.shields.io/badge/UI-egui-000000)
 ![Rust](https://img.shields.io/badge/Rust-native-000000?logo=rust&logoColor=white)
 ![Powered by yt-dlp](https://img.shields.io/badge/powered%20by-yt--dlp-cc0000)
@@ -49,10 +49,10 @@ telemetry, no cloud service.
 
 ### The application
 
-- A self-contained native desktop app (egui, Linux AppImage) that bundles the
+- A self-contained native desktop app (egui, Linux and Windows) that bundles the
   backend, yt-dlp and ffmpeg, so there is nothing else to install.
 - 14 interface languages, a dark theme, system tray with launch-at-startup,
-  global shortcuts, desktop notifications, automatic updates, SponsorBlock, and
+  keyboard shortcuts, desktop notifications, automatic updates, SponsorBlock, and
   cookie and proxy support.
 - Browser integration through a `yoink://` deep link and the "Send to Yoink"
   (beta) extension, which hands off the current page with a right-click:
@@ -61,11 +61,11 @@ telemetry, no cloud service.
 
 ## Installation
 
-Download the AppImage from the
+On **Linux**, download the AppImage from the
 [latest release](https://github.com/ayozetr/yoink-app/releases/latest), make it
-executable and run it. The application is self-contained (no Python, yt-dlp or
-ffmpeg to install separately) and updates itself in place. (A Windows build is
-being ported.)
+executable and run it. On **Windows**, download and run the installer (`.exe`)
+from the same release. The application is self-contained (no Python, yt-dlp or
+ffmpeg to install separately) and updates itself in place.
 
 ## Running from source
 
